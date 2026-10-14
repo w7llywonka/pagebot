@@ -11,6 +11,7 @@
   try { t = localStorage.getItem('pb_theme') || t; } catch (e) {}
   if (t === 'auto') t = matchMedia('(prefers-color-scheme: light)').matches ? 'paper' : 'ember';
   document.documentElement.setAttribute('data-theme', t);
+  if (window.parent === window) document.documentElement.classList.add('nohost');
 })();
 </script>
 <style>
@@ -22,14 +23,33 @@
 :root[data-theme=forest]{color-scheme:dark;--bg:#0f1511;--panel:#161e18;--line:#253128;--text:#e3ebe3;--muted:#859487;--accent:#5fc485;--on-accent:#08140c;--user:#1b2b20;--err:#ff8f80;--code:#0a0f0b;--chip-on:#163020;--focus:#35473a}
 :root[data-theme=dusk]{color-scheme:dark;--bg:#14111c;--panel:#1c1826;--line:#2c2639;--text:#ebe6f5;--muted:#938aa6;--accent:#b48cff;--on-accent:#140d24;--user:#291f3d;--err:#ff8fa3;--code:#0f0c15;--chip-on:#2a1f45;--focus:#463d5a}
 :root[data-theme=sakura]{color-scheme:light;--bg:#fff7f9;--panel:#fff;--line:#f0d8e0;--text:#2b2026;--muted:#7f6670;--accent:#d9467a;--on-accent:#fff;--user:#fde3ec;--err:#c0392b;--code:#fbeef3;--chip-on:#fde3ec;--focus:#e7bccb}
+/* Glass: the panel goes see-through and the bookmarklet blurs the page behind it.
+   White text on dark pages, dark text on light pages (data-page comes from the bookmarklet). */
+:root[data-theme=glass]{color-scheme:light;--bg:transparent;--panel:rgba(255,255,255,.12);--line:rgba(255,255,255,.26);--text:#fff;--muted:rgba(255,255,255,.74);--accent:#9cc2ff;--on-accent:#0c1834;--user:rgba(140,180,255,.3);--err:#ffb4a9;--code:rgba(0,0,0,.24);--chip-on:rgba(255,255,255,.2);--focus:rgba(255,255,255,.6);--pop:rgba(26,28,38,.84)}
+:root[data-theme=glass][data-page=light]{--panel:rgba(255,255,255,.5);--line:rgba(255,255,255,.78);--text:#11131a;--muted:rgba(17,19,26,.62);--accent:#2f62d8;--on-accent:#fff;--user:rgba(47,98,216,.16);--err:#b42318;--code:rgba(255,255,255,.6);--chip-on:rgba(255,255,255,.72);--focus:rgba(17,19,26,.32);--pop:rgba(250,251,255,.92)}
 :root[data-theme=terminal]{color-scheme:dark;--bg:#050805;--panel:#0a110a;--line:#1a2b1a;--text:#a3f7a3;--muted:#5a9a5a;--accent:#39e75f;--on-accent:#031003;--user:#0e2111;--err:#ff6b6b;--code:#000;--chip-on:#0b2611;--focus:#2b4a2b;--font:var(--mono);font-size:13px}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text)}
 body{display:flex;flex-direction:column;overflow:hidden;position:relative}
 button,input,textarea{font:inherit;color:inherit}
+::placeholder{color:var(--muted);opacity:.85}
 a{color:var(--accent)}
 [hidden]{display:none!important}
 body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition:background-color .35s ease,border-color .35s ease,color .35s ease!important}
+
+/* glass surfaces */
+:root[data-theme=glass] body{background:rgba(16,18,26,.36);text-shadow:0 1px 2px rgba(0,0,0,.3);scrollbar-color:rgba(255,255,255,.35) transparent}
+:root[data-theme=glass][data-page=light] body{background:rgba(255,255,255,.34);text-shadow:0 1px 0 rgba(255,255,255,.4);scrollbar-color:rgba(17,19,26,.25) transparent}
+:root[data-theme=glass]:not([data-blur]):not(.nohost) body{background:rgba(16,18,26,.88)} /* older bookmarks can't blur the page, so stay readable */
+:root[data-theme=glass] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,0) 36%,rgba(255,255,255,0) 64%,rgba(255,255,255,.08))}
+:root[data-theme=glass] header{background:rgba(255,255,255,.05)}
+:root[data-theme=glass] .msg.bot,:root[data-theme=glass] .box,:root[data-theme=glass] .pad button{box-shadow:inset 0 1px 0 rgba(255,255,255,.28)}
+:root[data-theme=glass] .menu,:root[data-theme=glass] #sheet{background:var(--pop);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+:root[data-theme=glass] #boot .bg{background:rgba(16,18,26,.5);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+:root[data-theme=glass][data-page=light] #boot .bg{background:rgba(255,255,255,.5)}
+:root[data-theme=glass] .send,:root[data-theme=glass] .go{box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 45%,transparent)}
+/* on /chat and in the pop-up window there's no page behind, so glass sits on a colorful backdrop */
+:root.nohost[data-theme=glass]{background:radial-gradient(60% 50% at 15% 20%,#5b7cff 0,transparent 70%),radial-gradient(50% 45% at 85% 25%,#c35bff 0,transparent 70%),radial-gradient(55% 50% at 70% 85%,#ff7a9c 0,transparent 70%),radial-gradient(50% 50% at 20% 85%,#2ec5b6 0,transparent 70%),#1a1d2e;background-attachment:fixed}
 
 /* header */
 header{flex:none;display:flex;align-items:center;gap:2px;height:var(--hd);padding:0 6px 0 12px;border-bottom:1px solid var(--line);user-select:none;-webkit-user-select:none;position:relative;z-index:3;background:var(--bg)}
@@ -136,12 +156,12 @@ textarea:focus,input:focus{border-color:var(--focus)}
 .pv u{position:absolute;left:6px;bottom:7px;width:22px;height:4px;border-radius:2px;background:var(--sw-text);opacity:.45}
 .pv b{position:absolute;right:6px;top:13px;width:20px;height:9px;border-radius:5px;background:var(--sw-user)}
 .sw[data-t=auto] .pv{background:linear-gradient(135deg,#141414 50%,#faf9f5 50%)}
+.sw[data-t=glass] .pv{background:linear-gradient(135deg,#5b7cff,#c35bff 55%,#ff7a9c)}
+.sw[data-t=glass] .pv::before{content:"";position:absolute;inset:5px;border-radius:5px;background:rgba(255,255,255,.26);box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),inset 0 1px 0 rgba(255,255,255,.8)}
 .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
 .seg button{flex:1;background:none;border:0;border-left:1px solid var(--line);color:var(--muted);padding:6px 0;cursor:pointer;font-size:12.5px}
 .seg button:first-child{border-left:0}
 .seg button.on{background:var(--chip-on);color:var(--text);font-weight:600}
-.tokrow{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:var(--muted)}
-.tokrow input{width:92px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px;outline:none}
 .fine{font-size:11.5px;color:var(--muted);margin:7px 0 0}
 .acct{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .ghost{background:none;border:1px solid var(--line);border-radius:9px;padding:6px 11px;cursor:pointer;font-size:13px}
@@ -174,6 +194,35 @@ textarea:focus,input:focus{border-color:var(--focus)}
 .pwrow input{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;outline:none}
 #loginErr{color:var(--err);font-size:13px;min-height:18px}
 .link{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:12.5px;padding:2px}
+.links{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:2px 4px;font-size:12.5px;color:var(--muted)}
+.fields{display:flex;flex-direction:column;gap:8px;width:100%;max-width:290px;margin-top:6px}
+.fields input,.fields textarea{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;outline:none;resize:none;min-width:0}
+.fields .send{margin-top:2px}
+
+/* waiting to be accepted */
+#wait{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px 30px;text-align:center}
+#wait h2{margin:6px 0 0;font-size:17px}
+#wait p{margin:0;color:var(--muted);font-size:13px;max-width:300px}
+#wait p b{color:var(--text)}
+.hg{position:relative;width:64px;height:64px;border-radius:20px;background:var(--chip-on);color:var(--accent);display:grid;place-items:center}
+.hg svg{width:28px;height:28px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;animation:hgFlip 2.6s cubic-bezier(.6,0,.3,1) infinite}
+.hg::after{content:"";position:absolute;inset:-6px;border-radius:24px;border:1.5px solid var(--accent);opacity:0;animation:hgPulse 2.6s ease-out infinite}
+@keyframes hgFlip{0%,70%{transform:rotate(0)}88%,100%{transform:rotate(180deg)}}
+@keyframes hgPulse{0%{opacity:.5;transform:scale(.92)}60%,100%{opacity:0;transform:scale(1.15)}}
+#wait.in .hg{background:var(--accent);color:var(--on-accent);animation:bPop .5s cubic-bezier(.3,1.6,.5,1)}
+#wait.in .hg svg,#wait.in .hg::after{animation:none}
+#wait.in .hg::after{opacity:0}
+
+/* settings: today's usage and the account */
+.qbar{height:8px;border-radius:99px;background:color-mix(in srgb,var(--accent) 16%,var(--panel));overflow:hidden}
+.qbar i{display:block;height:100%;width:0;border-radius:99px;background:var(--accent);transition:width .4s ease}
+.qbar i.warn{background:#e0a030}
+.qbar i.full{background:var(--err)}
+.qtext{margin:8px 0 0;font-size:13px}
+.qtext span{color:var(--muted);font-size:12px}
+.pwform{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.pwform input{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 10px;outline:none}
+#acctName{margin:0 0 10px}
 
 /* region picker: the frozen screenshot fills the window and you drag a box on it */
 .region{position:fixed;inset:0;z-index:60;background:#000;cursor:crosshair;touch-action:none;user-select:none;-webkit-user-select:none}
@@ -278,29 +327,56 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 </header>
 
 <form id="login" autocomplete="off" tabindex="-1">
-  <div class="lk"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
-  <h2>Locked</h2>
+  <div class="lk"><svg id="lockIcon" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+  <h2 id="lockTitle">Locked</h2>
   <p id="lockSub">Enter your pagebot password.</p>
   <div id="pin" hidden>
     <div class="dots" id="dots"><i></i><i></i><i></i><i></i><i></i></div>
   </div>
   <div class="pad" id="pad" hidden></div>
   <div class="pwrow" id="pwRow"><input id="pw" type="password" placeholder="Password" autocomplete="current-password"><button class="send" type="submit">Unlock</button></div>
+  <div class="fields" id="acct" hidden>
+    <input id="uName" placeholder="Username" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="24" aria-label="Username">
+    <input id="uPass" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password">
+    <input id="uPass2" type="password" placeholder="Type the password again" autocomplete="new-password" aria-label="Confirm password" hidden>
+    <textarea id="uNote" rows="2" maxlength="300" placeholder="Who are you? (optional, the owner sees this)" aria-label="Note for the owner" hidden></textarea>
+    <button class="send" id="uGo" type="submit">Sign in</button>
+  </div>
   <div id="loginErr" role="alert"></div>
-  <button class="link" id="switchLock" type="button" hidden>Use password instead</button>
+  <div class="links" id="lockLinks"></div>
 </form>
+
+<div id="wait" hidden>
+  <div class="hg"><svg id="hgIcon" viewBox="0 0 24 24"></svg></div>
+  <h2 id="waitTitle">You’re on the list</h2>
+  <p id="waitText">Thanks for signing up, <b id="waitName"></b>. You’re waiting to be accepted into the program. This panel opens up by itself as soon as the owner approves you.</p>
+  <p id="waitDone" hidden>The owner accepted you. Opening pagebot…</p>
+  <div class="links" id="waitLinks"><button class="link" id="waitCheck" type="button">Check now</button> · <button class="link" id="waitOut" type="button">Sign out</button></div>
+</div>
 
 <div id="log" hidden></div>
 
 <div id="sheet" hidden>
+  <section id="quotaSec" hidden>
+    <h3>Today</h3>
+    <div class="qbar"><i id="quotaFill"></i></div>
+    <p class="qtext"><b id="quotaText"></b> <span id="quotaSub"></span></p>
+  </section>
   <section><h3>Theme</h3><div class="themes" id="themes"></div></section>
   <section id="tokSec">
     <h3>Max tokens per answer</h3>
     <div class="seg" id="tokSeg"></div>
-    <div class="tokrow"><input id="tokIn" type="number" min="256" max="64000" step="256" aria-label="Max tokens per answer"><span>tokens</span></div>
-    <p class="fine">Counts the model's thinking too. Answers that hit it are marked “cut off”. Same setting as in /admin.</p>
   </section>
-  <section class="acct"><button class="ghost" id="lockNow" type="button" hidden>Lock now</button><button class="ghost" id="outBtn" type="button">Log out</button><a href="/admin" target="_blank" rel="noopener">Usage &amp; admin ↗</a></section>
+  <section>
+    <h3>Account</h3>
+    <p class="fine" id="acctName" hidden></p>
+    <form class="pwform" id="pwForm" hidden>
+      <input id="pwCur" type="password" placeholder="Current password" autocomplete="current-password" aria-label="Current password">
+      <input id="pwNew" type="password" placeholder="New password (6+ characters)" autocomplete="new-password" aria-label="New password">
+      <div class="acct"><button class="ghost" type="submit">Save password</button><button class="ghost" id="pwCancel" type="button">Cancel</button><span class="fine" id="pwMsg"></span></div>
+    </form>
+    <div class="acct" id="acctBtns"><button class="ghost" id="pwChange" type="button" hidden>Change password</button><button class="ghost" id="lockNow" type="button" hidden>Lock now</button><button class="ghost" id="outBtn" type="button">Log out</button><a id="adminLink" href="/admin" target="_blank" rel="noopener">Usage &amp; admin ↗</a></div>
+  </section>
 </div>
 
 <div id="composer" hidden>
@@ -321,7 +397,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
     <button type="button" role="menuitem" id="shotBtn"><span class="mi">📷</span><span class="mt">Screenshot this tab</span></button>
     <button type="button" role="menuitem" id="areaBtn"><span class="mi">⛶</span><span class="mt">Screenshot a region</span></button>
     <button type="button" role="menuitemcheckbox" id="pageBtn" aria-checked="false"><span class="mi">📄</span><span class="mt">Page text</span><span class="ck">✓</span></button>
-    <button type="button" role="menuitemcheckbox" id="webBtn" aria-checked="false"><span class="mi">🌐</span><span class="mt">Web search</span><span class="ck">✓</span></button>
+    <button type="button" role="menuitemcheckbox" id="webBtn" aria-checked="false"><span class="mi">🌐</span><span class="mt">Web search<span class="md" id="webNote" hidden>Not turned on for your account</span></span><span class="ck">✓</span></button>
     <div class="tip">You can also paste an image.</div>
   </div>
   <div class="menu right" id="modelMenu" role="menu" hidden></div>
@@ -338,6 +414,7 @@ const target = embedded ? window.parent : (popup ? window.opener : null);
 const hostV = embedded ? Number(qs.get('v')) || 1 : 0;
 const hostV2 = hostV >= 2; // bookmarklet that can move, minimize and go full screen
 const hostV3 = hostV >= 3; // ...and tells us when the panel opens and hides
+const hostV4 = hostV >= 4; // ...and can blur the page behind the panel for the glass theme
 const standalone = !embedded && !popup;
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const body = document.body;
@@ -389,6 +466,7 @@ const THEMES = [
   ['dusk', 'Dusk', '#14111c', '#b48cff', '#291f3d', '#ebe6f5'],
   ['sakura', 'Sakura', '#fff7f9', '#d9467a', '#fde3ec', '#2b2026'],
   ['terminal', 'Terminal', '#050805', '#39e75f', '#0e2111', '#a3f7a3'],
+  ['glass', 'Glass', 'transparent', '#ffffff', 'rgba(255,255,255,.55)', '#ffffff'],
 ];
 const light = matchMedia('(prefers-color-scheme: light)');
 const resolveTheme = t => t === 'auto' ? (light.matches ? 'paper' : 'ember') : t;
@@ -399,6 +477,20 @@ function applyTheme(t, fade) {
   if (document.documentElement.dataset.theme === r) return;
   if (fade) { body.classList.add('tt'); clearTimeout(applyTheme.t); applyTheme.t = setTimeout(() => body.classList.remove('tt'), 400); }
   document.documentElement.dataset.theme = r;
+  syncGlass();
+}
+// glass needs the bookmarklet to blur the page behind the panel; it also says if that page is light or dark
+let glassOn = false;
+function syncGlass(recheck) {
+  const root = document.documentElement, on = root.dataset.theme === 'glass';
+  if (on === glassOn && !recheck) return;
+  glassOn = on;
+  if (!hostV4) return;
+  if (!on) { tell('glass', { on: false }); delete root.dataset.blur; delete root.dataset.page; return; }
+  ask('glass', { on: true }, 1500).then(r => {
+    if (!r || !glassOn) return;
+    root.dataset.blur = '1'; root.dataset.page = r.light ? 'light' : 'dark';
+  });
 }
 light.addEventListener('change', () => { if (prefs.theme === 'auto') applyTheme('auto', true); });
 for (const [key, name, bg, acc, user, text] of THEMES) {
@@ -410,6 +502,7 @@ for (const [key, name, bg, acc, user, text] of THEMES) {
   b.onclick = () => { applyTheme(key, true); savePrefs({ theme: key }); };
   $('#themes').appendChild(b);
 }
+syncGlass(); // the theme painted on the first frame may already be glass
 
 // ---- rendering ----
 const log = $('#log');
@@ -464,44 +557,83 @@ function empty() {
     (embedded && !hostV3 ? '<div class="up">There’s a newer version of the pagebot bookmark. Re-drag the button from the pagebot homepage to update it.</div>' : '') + '</div>';
 }
 
-// ---- views ----
+// ---- views: the chat, the lock screen (owner passcode/password, account sign-in or sign-up), and waiting for approval ----
+const isUser = () => cfg?.who === 'user';
 function setHeader(chat) {
   $('#newBtn').hidden = $('#setBtn').hidden = !chat;
-  $('#lockBtn').hidden = $('#lockNow').hidden = !(chat && cfg?.lock === 'passcode');
+  $('#lockBtn').hidden = $('#lockNow').hidden = !(chat && cfg?.who === 'owner' && cfg?.lock === 'passcode');
+}
+function hideViews() {
+  $('#login').style.display = 'none'; $('#login').classList.remove('leave');
+  $('#wait').hidden = true; log.hidden = true; $('#composer').hidden = true;
+  stopWaitPoll();
 }
 function showChat(enter) {
-  view = 'chat';
-  $('#login').style.display = 'none'; $('#login').classList.remove('leave');
+  hideViews(); view = 'chat';
   log.hidden = false; $('#composer').hidden = false;
-  setHeader(true);
+  setHeader(true); renderAccount();
   if (!log.children.length) empty();
   if (enter) { body.classList.add('enter'); setTimeout(() => body.classList.remove('enter'), 600); }
   lastActive = Date.now();
   if (!minimized) setTimeout(() => $('#q').focus(), 50);
 }
-let pwMode = false, pin = '', pinBusy = false;
-const pinMode = () => view === 'lock' && cfg?.lock === 'passcode' && !pwMode;
-function showLogin(msg) {
-  view = 'lock'; closeSheet(); closeMenus();
-  $('#login').style.display = 'flex'; $('#login').classList.remove('leave');
-  log.hidden = true; $('#composer').hidden = true;
+// once we know who's signed in: the chat, or the waiting screen for accounts not approved yet
+function route(enter) {
+  if (!token) return showLogin();
+  if (isUser() && cfg.user?.status !== 'trusted') return view === 'wait' ? null : showWait();
+  if (view !== 'chat') showChat(enter);
+}
+
+let lockMode = null, pwMode = false, pin = '', pinBusy = false;
+const accountsOn = () => !!cfg?.accounts?.on;
+const pinMode = () => view === 'lock' && lockMode === 'owner' && cfg?.lock === 'passcode' && !pwMode;
+const ICONS = {
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  add: '<circle cx="10" cy="8" r="4"/><path d="M2 21a8 8 0 0 1 13.4-5.9M19 14v6M16 17h6"/>',
+};
+function showLogin(msg, mode) {
+  hideViews(); view = 'lock'; closeSheet(); closeMenus();
+  // this site remembers whether the owner or an account signed in last
+  lockMode = mode || lockMode || (accountsOn() && store.get('pb_who') !== 'owner' ? 'signin' : 'owner');
+  $('#login').style.display = 'flex';
   setHeader(false);
   renderLock(msg);
 }
 function renderLock(msg) {
-  const lock = cfg?.lock || 'password', usePin = pinMode();
+  if (!accountsOn()) lockMode = 'owner';
+  const lock = cfg?.lock || 'password', owner = lockMode === 'owner', signup = lockMode === 'signup', usePin = pinMode();
+  $('#lockIcon').innerHTML = owner ? ICONS.lock : signup ? ICONS.add : ICONS.user;
+  $('#lockTitle').textContent = owner ? 'Locked' : signup ? 'Request access' : 'Sign in';
+  $('#lockSub').textContent = owner
+    ? (lock === 'none' ? 'No password is set yet — set one in /admin.' : usePin ? 'Enter your 5-digit passcode.' : 'Enter your pagebot password.')
+    : signup ? 'Pick a username and password. You can start once the owner accepts you.' : 'Sign in to your pagebot account.';
   $('#pin').hidden = $('#pad').hidden = !usePin;
-  $('#pwRow').hidden = usePin || lock === 'none';
-  $('#lockSub').textContent = lock === 'none' ? 'No password is set yet — set one in /admin.'
-    : usePin ? 'Enter your 5-digit passcode.' : 'Enter your pagebot password.';
-  $('#switchLock').hidden = !(lock === 'passcode' && cfg?.passwordSet);
-  $('#switchLock').textContent = pwMode ? 'Use passcode' : 'Use password instead';
+  $('#pwRow').hidden = !owner || usePin || lock === 'none';
+  $('#acct').hidden = owner;
+  $('#uPass2').hidden = $('#uNote').hidden = !signup;
+  $('#uGo').textContent = signup ? 'Request access' : 'Sign in';
+  $('#uPass').autocomplete = signup ? 'new-password' : 'current-password';
+  if (!owner && !$('#uName').value) $('#uName').value = store.get('pb_user') || '';
+  const links = [];
+  if (owner) {
+    if (lock === 'passcode' && cfg?.passwordSet) links.push([pwMode ? 'Use passcode' : 'Use password instead', () => { pwMode = !pwMode; renderLock(); }]);
+    if (accountsOn()) links.push(['Sign in with an account', () => showLogin('', 'signin')]);
+  } else {
+    if (signup) links.push(['I already have an account', () => showLogin('', 'signin')]);
+    else if (cfg?.accounts?.signup) links.push(['Create an account', () => showLogin('', 'signup')]);
+    links.push(['Owner? Unlock here', () => showLogin('', 'owner')]);
+  }
+  const box = $('#lockLinks'); box.replaceChildren();
+  links.forEach(([text, fn], i) => {
+    if (i) box.append(' · ');
+    const b = el('button', 'link'); b.type = 'button'; b.textContent = text; b.onclick = fn; box.appendChild(b);
+  });
   $('#loginErr').textContent = msg || '';
   $('#dots').className = 'dots'; // drop the green "unlocked" state from last time
   pin = ''; pinBusy = false; renderDots();
-  if (!minimized) setTimeout(() => usePin ? $('#login').focus() : $('#pw').focus(), 60);
+  if (!minimized) setTimeout(() => (usePin ? $('#login') : owner ? $('#pw') : $('#uName').value ? $('#uPass') : $('#uName')).focus(), 60);
 }
-$('#switchLock').onclick = () => { pwMode = !pwMode; renderLock(); };
 
 // PIN pad
 for (const k of ['1','2','3','4','5','6','7','8','9','','0','del']) {
@@ -524,11 +656,11 @@ function pinKey(k) {
 async function submitPin() {
   pinBusy = true;
   const dots = $('#dots'); dots.className = 'dots busy';
-  const r = await login({ passcode: pin });
+  const r = await login('/api/login', { passcode: pin });
   if (r.ok) {
     dots.className = 'dots ok';
     await wait(calm ? 0 : 260);
-    return unlocked();
+    return unlocked('owner');
   }
   dots.className = 'dots bad';
   await wait(420);
@@ -539,26 +671,74 @@ async function submitPin() {
 }
 $('#login').addEventListener('submit', async e => {
   e.preventDefault();
-  if (pinMode()) return;
-  const pw = $('#pw').value; if (!pw) return;
   $('#loginErr').textContent = '';
-  const r = await login({ password: pw });
-  if (r.ok) { $('#pw').value = ''; unlocked(); } else $('#loginErr').textContent = r.error;
+  if (lockMode === 'owner') {
+    if (pinMode()) return;
+    const pw = $('#pw').value; if (!pw) return;
+    const r = await login('/api/login', { password: pw });
+    if (r.ok) { $('#pw').value = ''; unlocked('owner'); } else $('#loginErr').textContent = r.error;
+    return;
+  }
+  const name = $('#uName').value.trim(), pass = $('#uPass').value;
+  if (!name || !pass) return void ($('#loginErr').textContent = 'Enter a username and a password.');
+  let r;
+  if (lockMode === 'signup') {
+    if (pass !== $('#uPass2').value) return void ($('#loginErr').textContent = 'The passwords don’t match.');
+    r = await login('/api/signup', { username: name, password: pass, note: $('#uNote').value });
+  } else r = await login('/api/login', { username: name, password: pass });
+  if (!r.ok) return void ($('#loginErr').textContent = r.error);
+  store.set('pb_user', name);
+  $('#uPass').value = $('#uPass2').value = $('#uNote').value = '';
+  unlocked('user');
 });
-async function login(data) {
+async function login(path, data) {
   try {
-    const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(data) });
+    const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(data) });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { if (j.usePassword) pwMode = true; return { error: j.error || 'Login failed' }; }
+    if (!r.ok) { if (j.usePassword) pwMode = true; return { error: j.error || 'That didn’t work — try again.' }; }
     token = j.token; store.set('pb_token', token); pwMode = false;
     await loadBoot().catch(() => {});
     return { ok: true };
   } catch { return { error: 'Network error' }; }
 }
-async function unlocked() {
+async function unlocked(who) {
+  store.set('pb_who', who); lockMode = null;
   if (!calm) { $('#login').classList.add('leave'); await wait(180); }
-  showChat(true);
+  route(true);
 }
+
+// waiting to be accepted: checks every 15 seconds and opens up by itself once approved
+let waitTimer = 0;
+function showWait() {
+  hideViews(); view = 'wait'; closeSheet(); closeMenus();
+  setHeader(false);
+  $('#wait').hidden = false; $('#wait').classList.remove('in');
+  $('#hgIcon').innerHTML = '<path d="M5 22h14M5 2h14"/><path d="M17 22v-4.2a2 2 0 0 0-.6-1.4L12 12l-4.4 4.4a2 2 0 0 0-.6 1.4V22M7 2v4.2a2 2 0 0 0 .6 1.4L12 12l4.4-4.4a2 2 0 0 0 .6-1.4V2"/>';
+  $('#waitTitle').textContent = 'You’re on the list';
+  $('#waitName').textContent = cfg?.user?.name || 'there';
+  $('#waitText').hidden = false; $('#waitDone').hidden = true; $('#waitLinks').hidden = false;
+  waitTimer = setInterval(() => checkWait(), 15000);
+}
+function stopWaitPoll() { clearInterval(waitTimer); waitTimer = 0; }
+async function checkWait(manual) {
+  const b = $('#waitCheck');
+  if (manual) { b.textContent = 'Checking…'; b.disabled = true; }
+  try { await loadBoot(); } catch {}
+  if (manual) { b.textContent = 'Check now'; b.disabled = false; }
+  if (view !== 'wait') return;
+  if (!token) return showLogin('Your request isn’t active anymore. You can ask again or sign in.', 'signin');
+  if (cfg?.user?.status === 'trusted') {
+    stopWaitPoll();
+    $('#wait').classList.add('in');
+    $('#hgIcon').innerHTML = '<path d="M20 6 9 17l-5-5"/>';
+    $('#waitTitle').textContent = 'You’re in!';
+    $('#waitText').hidden = true; $('#waitDone').hidden = false; $('#waitLinks').hidden = true;
+    await wait(calm ? 300 : 1300);
+    if (view === 'wait') showChat(true);
+  }
+}
+$('#waitCheck').onclick = () => checkWait(true);
+$('#waitOut').onclick = () => logout();
 
 function lock(msg) {
   if (token) fetch('/api/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }).catch(() => {});
@@ -596,28 +776,61 @@ async function loadBoot() {
   cfg = await r.json();
   prefs.theme = cfg.theme;
   applyTheme(cfg.theme, true);
-  if (cfg.authed) { Object.assign(prefs, cfg.prefs); limits = cfg.limits; models = cfg.models || models; }
-  else if (token) { token = null; store.set('pb_token', null); }
-  renderPrefs();
+  if (cfg.authed && cfg.who) store.set('pb_who', cfg.who); // so a later lock opens on the right screen (logins from before accounts too)
+  if (cfg.authed && cfg.prefs) { Object.assign(prefs, cfg.prefs); limits = cfg.limits; models = cfg.models || models; }
+  else if (!cfg.authed && token) { token = null; store.set('pb_token', null); }
+  renderPrefs(); renderAccount();
   return cfg;
 }
-const lockedMsg = () => cfg?.lock === 'passcode' ? 'Locked — enter your passcode to pick up where you left off.' : 'Session expired — log in again.';
+const lockedMsg = () => isUser() ? 'You were signed out. Sign in again to keep going.'
+  : cfg?.lock === 'passcode' ? 'Locked — enter your passcode to pick up where you left off.' : 'Session expired — log in again.';
+
+// ---- account bits of the settings sheet ----
+function renderAccount() {
+  const user = isUser();
+  $('#acctName').hidden = !user;
+  $('#acctName').textContent = user ? `Signed in as ${cfg.user.name}` : '';
+  $('#pwChange').hidden = !user || !$('#pwForm').hidden;
+  $('#adminLink').hidden = user;
+  const cap = limits.maxTokensCap || 8000;
+  $('#tokSeg').querySelectorAll('button').forEach(b => { b.hidden = +b.dataset.n > cap; });
+  renderQuota();
+}
+function renderQuota() {
+  const q = isUser() ? cfg.quota : null;
+  $('#quotaSec').hidden = !q;
+  if (!q) return;
+  const pct = q.limit ? Math.min(100, q.used / q.limit * 100) : 0;
+  const f = $('#quotaFill'); f.style.width = pct + '%'; f.className = pct >= 100 ? 'full' : pct >= 80 ? 'warn' : '';
+  $('#quotaText').textContent = q.kind === 'usd' ? `$${q.used.toFixed(2)} of $${q.limit.toFixed(2)} used`
+    : `${fmt(Math.round(q.used))} of ${fmt(q.limit)} tokens used`;
+  $('#quotaSub').textContent = q.left <= 0 ? '· limit reached, resets at midnight' : '· resets at midnight';
+}
+const leftToday = q => q.kind === 'usd' ? `$${q.left.toFixed(2)} left today` : `${fmt(Math.round(q.left))} left today`;
+$('#pwChange').onclick = () => { $('#pwForm').hidden = false; $('#pwChange').hidden = true; $('#pwMsg').textContent = ''; $('#pwCur').focus(); };
+$('#pwCancel').onclick = () => { $('#pwForm').hidden = true; $('#pwCur').value = $('#pwNew').value = ''; renderAccount(); };
+$('#pwForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  try {
+    await api('/api/account/password', { current: $('#pwCur').value, password: $('#pwNew').value });
+    $('#pwCur').value = $('#pwNew').value = '';
+    $('#pwForm').hidden = true; renderAccount();
+    note('Password changed. Your other devices were signed out.');
+  } catch (err) { $('#pwMsg').textContent = err.message; }
+});
 
 // ---- settings: theme, model, web search, answer limit ----
-const TOK = [[512, '512'], [1024, '1k'], [2048, '2k'], [4096, '4k'], [8192, '8k']];
+const TOK = [[512, '512'], [1024, '1k'], [2048, '2k'], [4096, '4k'], [8000, '8k']]; // 8,000 is the most any answer can use
 for (const [n, label] of TOK) {
   const b = el('button', '', label); b.type = 'button'; b.dataset.n = n;
   b.onclick = () => savePrefs({ maxTokens: n });
   $('#tokSeg').appendChild(b);
 }
-let tokTimer = 0;
-$('#tokIn').addEventListener('input', () => {
-  clearTimeout(tokTimer);
-  tokTimer = setTimeout(() => { const n = Math.round(+$('#tokIn').value); if (n >= 256 && n <= 64000) savePrefs({ maxTokens: n }); }, 500);
-});
-$('#tokIn').addEventListener('change', () => { clearTimeout(tokTimer); const n = Math.round(+$('#tokIn').value); if (n) savePrefs({ maxTokens: Math.min(64000, Math.max(256, n)) }); });
 const MODEL_INFO = { haiku: ['⚡', 'Fast and cheap'], sonnet: ['✦', 'Smarter, a little slower'] };
 function renderPrefs() {
+  const webOk = !isUser() || !!cfg.user?.allowWeb;
+  if (!webOk) prefs.web = false;
+  $('#webBtn').disabled = !webOk; $('#webNote').hidden = webOk;
   $('#webPill').hidden = !prefs.web;
   $('#webBtn').setAttribute('aria-checked', String(!!prefs.web));
   const m = models.find(x => x.key === prefs.model) || models[0];
@@ -635,7 +848,6 @@ function renderPrefs() {
     menu.appendChild(b);
   }
   $('#tokSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.n === limits.maxTokens));
-  if (document.activeElement !== $('#tokIn')) $('#tokIn').value = limits.maxTokens;
   document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t === prefs.theme));
 }
 async function savePrefs(patch) {
@@ -673,7 +885,7 @@ let sheetOpen = false;
 function openSheet(focusTokens) {
   if (view !== 'chat') return;
   sheetOpen = true; $('#sheet').hidden = false; $('#setBtn').classList.add('on');
-  if (focusTokens) { $('#tokSec').scrollIntoView({ block: 'center' }); $('#tokIn').focus(); $('#tokIn').select(); }
+  if (focusTokens) { $('#tokSec').scrollIntoView({ block: 'center' }); ($('#tokSeg button.on:not([hidden])') || $('#tokSeg button:not([hidden])'))?.focus(); }
 }
 function closeSheet() { sheetOpen = false; $('#sheet').hidden = true; $('#setBtn').classList.remove('on'); }
 $('#setBtn').onclick = () => sheetOpen ? closeSheet() : openSheet();
@@ -904,8 +1116,9 @@ function finish(bot, out, ev) {
     bot.appendChild(box);
   }
   const m = el('div', 'meta');
+  if (ev.quota && cfg) { cfg.quota = ev.quota; renderQuota(); }
   m.textContent = [ev.model + (ev.fallback ? ' (fallback)' : ''), `${fmt(ev.usage.in)} in · ${fmt(ev.usage.out)} out`,
-    ev.searches ? `${ev.searches} search${ev.searches === 1 ? '' : 'es'}` : ''].filter(Boolean).join(' · ');
+    ev.searches ? `${ev.searches} search${ev.searches === 1 ? '' : 'es'}` : '', ev.quota ? leftToday(ev.quota) : ''].filter(Boolean).join(' · ');
   if (ev.stop === 'max_tokens') {
     m.append(' · cut off · ');
     const b = el('button', 'mini', 'raise limit'); b.type = 'button'; b.onclick = () => openSheet(true); m.appendChild(b);
@@ -941,7 +1154,16 @@ async function send() {
       q.value = sent.text; autosize(); if (sent.img) setImg(sent.img, sent.imgKind); setPage(sent.pageOn);
       lock(lockedMsg()); return;
     }
-    if (!r.ok || !r.body) { const j = await r.json().catch(() => ({})); throw new Error(j.error || 'HTTP ' + r.status); }
+    if (r.status === 403) { // this account isn't approved (anymore)
+      u.remove(); bot.remove(); if (!log.querySelector('.msg')) empty();
+      q.value = sent.text; autosize(); if (sent.img) setImg(sent.img, sent.imgKind); setPage(sent.pageOn);
+      await loadBoot().catch(() => {}); route(); return;
+    }
+    if (!r.ok || !r.body) {
+      const j = await r.json().catch(() => ({}));
+      if (j.quota && cfg) { cfg.quota = j.quota; renderQuota(); }
+      throw new Error(j.error || 'HTTP ' + r.status);
+    }
     const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '';
     for (;;) {
       const { done, value } = await rd.read(); if (done) break;
@@ -1005,7 +1227,7 @@ function armSplash() {
   $('#boot')?.remove();
   body.insertAdjacentHTML('afterbegin', bootHTML);
   $('#boot').classList.add('armed');
-  $('#bootTag').textContent = 'Welcome back';
+  $('#bootTag').textContent = cfg?.user?.name ? `Welcome back, ${cfg.user.name}` : 'Welcome back';
   body.classList.add('booting'); body.classList.remove('reveal');
   splashing = true;
 }
@@ -1014,11 +1236,12 @@ function replaySplash() {
   if (!boot?.classList.contains('armed')) return;
   boot.classList.remove('armed');
   splashT0 = performance.now();
+  if (glassOn) syncGlass(true); // the page behind may have switched between light and dark
   // refresh settings and the session while the intro plays (an idle lock or approval may have happened meanwhile)
   const ready = loadBoot().catch(() => {});
   endSplash(ready, () => {
-    if (!token) { if (view !== 'lock') showLogin(cfg?.lock === 'passcode' ? '' : lockedMsg()); }
-    else if (view !== 'chat') showChat();
+    if (!token) { if (view !== 'lock') showLogin(cfg?.lock === 'passcode' && !isUser() ? '' : lockedMsg()); }
+    else route();
   });
 }
 // safety net: if an "open" message ever goes missing, the first click or key starts the waiting intro
@@ -1028,8 +1251,8 @@ setPage(true);
 renderPrefs();
 (async () => {
   const ready = loadBoot().catch(() => {});
-  await endSplash(ready, () => { if (token) showChat(); else showLogin(cfg ? '' : 'Can’t reach the pagebot server.'); });
-  ready.then(() => { if (!token && view === 'chat') showLogin(lockedMsg()); });
+  await endSplash(ready, () => { if (token) route(); else showLogin(cfg ? '' : 'Can’t reach the pagebot server.'); });
+  ready.then(() => { if (!token && view !== 'lock') showLogin(lockedMsg()); else if (token) route(); });
 })();
 })();
 </script>

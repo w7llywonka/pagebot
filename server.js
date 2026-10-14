@@ -30,13 +30,27 @@ The user may attach the page's text (<page>), text they highlighted (<highlighte
 Lead with the answer. Keep it short unless asked for detail. Use light markdown (bold, lists, code blocks) only when it helps.
 If the attached content doesn't contain what's needed, say so briefly.`;
 
+// USD per million tokens, from the Anthropic pricing page (October 2026). Used for $ limits and estimates.
+const PRICES = {
+  'claude-haiku-5-5': { in: 0.10, write: 0.125, read: 0.01, out: 0.50, long: { over: 100_000, in: 0.50, write: 0.625, read: 0.05, out: 2.50 } },
+  'claude-sonnet-5-5': { in: 2, write: 2.50, read: 0.10, out: 10 },
+  'claude-sonnet-5': { in: 2, write: 2.50, read: 0.20, out: 10 },
+};
+const SEARCH_USD = 0.01; // $10 per 1,000 web searches
+
 // prefs are what the panel changes; limits cap each question. Both live in the settings table.
-const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal'];
+const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', 'glass'];
 const DEFAULT_PREFS = { theme: 'ember', model: 'haiku', web: false };
-const LIMIT_RANGES = { maxTokens: [256, 64000], pageTokens: [500, 50000], maxSearches: [1, 10] };
+const LIMIT_RANGES = { maxTokens: [256, 8000], pageTokens: [500, 50000], maxSearches: [1, 10] }; // no answer may exceed 8,000 tokens
 const DEFAULT_LIMITS = { maxTokens: clampInt(process.env.MAX_TOKENS || 2048, ...LIMIT_RANGES.maxTokens), pageTokens: 5000, maxSearches: 3 };
 const LOCK_CHOICES = [0, 1, 5, 15, 30, 60, 240, 1440]; // passcode auto-lock after N idle minutes (0 = never)
 const MAX_PASSCODE_FAILS = 10; // then only the full password can unlock
+
+// other people's accounts: they sign up, wait for approval, then use pagebot within a daily limit
+const DEFAULT_ACCOUNT = { limitKind: 'tokens', limitValue: 100_000, allowSonnet: true, allowWeb: true };
+const DAILY_RANGES = { tokens: [1_000, 100_000_000], usd: [0.01, 1000] };
+const RESERVED_NAMES = new Set(['owner', 'admin', 'root', 'pagebot', 'system', 'support']);
+const MAX_PENDING = 200;
 
 if (!process.env.DATABASE_URL) { console.error('DATABASE_URL is not set'); process.exit(1); }
 if (!process.env.ANTHROPIC_API_KEY) console.warn('ANTHROPIC_API_KEY is not set — chat will fail.');
@@ -53,17 +67,36 @@ const anthropic = new Anthropic(); // ANTHROPIC_API_KEY from env
 // ---------- db ----------
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS users (
+  id BIGSERIAL PRIMARY KEY,
+  username TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  note TEXT,
+  admin_note TEXT,
+  limit_kind TEXT,
+  limit_value NUMERIC,
+  allow_sonnet BOOLEAN NOT NULL DEFAULT true,
+  allow_web BOOLEAN NOT NULL DEFAULT true,
+  prefs TEXT NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  approved_at TIMESTAMPTZ,
+  last_seen TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX IF NOT EXISTS users_name_idx ON users (lower(username));
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash TEXT PRIMARY KEY,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_used  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_id BIGINT REFERENCES users(id) ON DELETE CASCADE;
 CREATE TABLE IF NOT EXISTS conversations (
   id BIGSERIAL PRIMARY KEY,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   page_url TEXT,
   page_title TEXT
 );
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS user_id BIGINT;
 CREATE TABLE IF NOT EXISTS messages (
   id BIGSERIAL PRIMARY KEY,
   conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
@@ -77,8 +110,16 @@ CREATE TABLE IF NOT EXISTS messages (
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS model TEXT;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS web_searches INT NOT NULL DEFAULT 0;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS refused BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS user_id BIGINT;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS cost_usd NUMERIC(14,6);
 CREATE INDEX IF NOT EXISTS messages_conv_idx ON messages (conversation_id, id);
 CREATE INDEX IF NOT EXISTS messages_created_idx ON messages (created_at);
+CREATE INDEX IF NOT EXISTS messages_user_idx ON messages (user_id, created_at);
+-- rough cost for rows saved before costs were tracked (cache reads were counted as plain input then)
+UPDATE messages SET cost_usd = CASE WHEN COALESCE(model, '') LIKE '%sonnet%'
+    THEN (input_tokens * 2 + output_tokens * 10) / 1e6 ELSE (input_tokens * 0.10 + output_tokens * 0.50) / 1e6 END
+  + web_searches * ${SEARCH_USD}
+  WHERE cost_usd IS NULL;
 `;
 
 async function getSetting(key) {
@@ -142,8 +183,28 @@ function cleanLimits(l = {}) {
   }
   return o;
 }
+// a daily limit is { kind: 'tokens' | 'usd', value } or no limit (kind null)
+function cleanDaily(kind, value) {
+  if (kind == null || kind === '' || kind === 'none') return { kind: null, value: null };
+  if (!Object.hasOwn(DAILY_RANGES, kind)) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  const [lo, hi] = DAILY_RANGES[kind];
+  const v = Math.min(hi, Math.max(lo, n));
+  return { kind, value: kind === 'usd' ? Math.round(v * 100) / 100 : Math.round(v) };
+}
+function cleanAccountDefaults(d = {}) {
+  const o = {};
+  if ('limitKind' in d) {
+    const l = cleanDaily(d.limitKind, d.limitValue);
+    if (l) { o.limitKind = l.kind; o.limitValue = l.value; }
+  }
+  if (typeof d.allowSonnet === 'boolean') o.allowSonnet = d.allowSonnet;
+  if (typeof d.allowWeb === 'boolean') o.allowWeb = d.allowWeb;
+  return o;
+}
 async function loadConfig() {
-  const s = await getSettings(['prefs', 'limits', 'password_hash', 'passcode_hash', 'passcode_fails', 'lock_minutes']);
+  const s = await getSettings(['prefs', 'limits', 'password_hash', 'passcode_hash', 'passcode_fails', 'lock_minutes', 'signup', 'account_defaults']);
   const minutes = Number(s.lock_minutes ?? 15);
   return {
     prefs: { ...DEFAULT_PREFS, ...cleanPrefs(parseJSON(s.prefs)) },
@@ -155,9 +216,53 @@ async function loadConfig() {
       minutes: LOCK_CHOICES.includes(minutes) ? minutes : 15,
       fails: Number(s.passcode_fails) || 0,
     },
+    signup: s.signup !== '0',
+    accountDefaults: { ...DEFAULT_ACCOUNT, ...cleanAccountDefaults(parseJSON(s.account_defaults)) },
   };
 }
 const modelList = () => Object.entries(MODELS).map(([key, m]) => ({ key, label: m.label }));
+
+// ---------- accounts ----------
+function toUser(r) {
+  return {
+    id: Number(r.id), name: r.username, status: r.status, note: r.note || '', adminNote: r.admin_note || '',
+    limitKind: r.limit_kind || null, limitValue: r.limit_value == null ? null : Number(r.limit_value),
+    allowSonnet: r.allow_sonnet, allowWeb: r.allow_web, prefs: parseJSON(r.prefs),
+    createdAt: r.created_at, approvedAt: r.approved_at, lastSeen: r.last_seen,
+  };
+}
+// what the panel shows for an account (never the owner's private note)
+const publicUser = u => ({ name: u.name, status: u.status, allowSonnet: u.allowSonnet, allowWeb: u.allowWeb });
+// accounts get their own theme/model/web/answer length; their answer length can't go past the owner's limit
+function prefsFor(cfg, u) {
+  if (!u) return cfg.prefs;
+  const p = { ...DEFAULT_PREFS, theme: cfg.prefs.theme, ...cleanPrefs(u.prefs) };
+  if (!u.allowSonnet) p.model = 'haiku';
+  if (!u.allowWeb) p.web = false;
+  return p;
+}
+function limitsFor(cfg, u) {
+  const cap = u ? cfg.limits.maxTokens : LIMIT_RANGES.maxTokens[1];
+  const mine = u ? clampInt(u.prefs.maxTokens ?? cfg.limits.maxTokens, LIMIT_RANGES.maxTokens[0], cap) : cfg.limits.maxTokens;
+  return { ...cfg.limits, maxTokens: mine, maxTokensCap: cap };
+}
+const modelsFor = u => modelList().map(m => ({ ...m, locked: !!u && m.key === 'sonnet' && !u.allowSonnet }));
+
+const todayStartSQL = `date_trunc('day', now() AT TIME ZONE $2) AT TIME ZONE $2`;
+async function usageToday(userId) {
+  const r = await pool.query(
+    `SELECT COALESCE(SUM(input_tokens + output_tokens), 0)::bigint AS tokens, COALESCE(SUM(cost_usd), 0)::float8 AS usd,
+       COUNT(*) FILTER (WHERE role = 'user')::int AS questions
+     FROM messages WHERE user_id = $1 AND created_at >= ${todayStartSQL}`, [userId, TIMEZONE]);
+  return { tokens: Number(r.rows[0].tokens), usd: Number(r.rows[0].usd), questions: r.rows[0].questions };
+}
+// how much of today's limit an account has used (null when it has no limit)
+function quota(u, used) {
+  if (!u?.limitKind) return null;
+  const spent = u.limitKind === 'usd' ? used.usd : used.tokens;
+  return { kind: u.limitKind, limit: u.limitValue, used: spent, left: Math.max(0, u.limitValue - spent) };
+}
+const fmtLimit = (kind, v) => kind === 'usd' ? `$${Number(v).toFixed(2)}` : `${v >= 1000 ? Math.round(v / 100) / 10 + 'K' : v} tokens`;
 
 // ---------- crypto helpers ----------
 const scrypt = promisify(crypto.scrypt);
@@ -175,6 +280,8 @@ async function verifyPw(pw, stored) {
   const want = Buffer.from(k, 'base64');
   return want.length === key.length && crypto.timingSafeEqual(want, key);
 }
+// checked against unknown usernames too, so response times don't reveal which accounts exist
+const dummyHash = hashPw(crypto.randomBytes(16).toString('hex'));
 function adminOk(req) {
   if (ADMIN_TOKEN.length < 16) return false;
   const a = Buffer.from(sha256(req.get('x-admin-token') || ''), 'hex');
@@ -194,22 +301,43 @@ setInterval(() => { const now = Date.now(); for (const [k, v] of hits) if (!v.so
 
 const bearer = req => (req.get('authorization') || '').replace(/^Bearer\s+/i, '').trim();
 
-// With a passcode set, a session locks after `lock.minutes` idle; otherwise it lasts SESSION_DAYS idle.
+// The owner's sessions lock after the passcode's idle time (when one is set); accounts stay signed in for SESSION_DAYS.
+// Returns { user } (null user = the owner), or null when the token is unknown or expired.
 async function touchSession(tok, lock) {
-  if (!tok) return false;
-  const mins = lock.on && lock.minutes ? lock.minutes : SESSION_DAYS * 1440;
+  if (!tok) return null;
+  const ownerMins = lock.on && lock.minutes ? lock.minutes : SESSION_DAYS * 1440;
   const r = await pool.query(
-    `UPDATE sessions SET last_used=now() WHERE token_hash=$1 AND last_used > now() - make_interval(mins => $2) RETURNING 1`,
-    [sha256(tok), mins]);
-  return r.rowCount > 0;
+    `UPDATE sessions SET last_used=now() WHERE token_hash=$1
+       AND last_used > now() - make_interval(mins => CASE WHEN user_id IS NULL THEN $2::int ELSE $3::int END)
+     RETURNING user_id`, [sha256(tok), ownerMins, SESSION_DAYS * 1440]);
+  if (!r.rowCount) return null;
+  const uid = r.rows[0].user_id;
+  if (uid == null) return { user: null };
+  const u = await pool.query('UPDATE users SET last_seen=now() WHERE id=$1 RETURNING *', [uid]);
+  return u.rowCount ? { user: toUser(u.rows[0]) } : null;
+}
+async function newSession(userId = null) {
+  const token = crypto.randomBytes(32).toString('base64url');
+  await pool.query('INSERT INTO sessions(token_hash, user_id) VALUES($1, $2)', [sha256(token), userId]);
+  return token;
 }
 async function auth(req, res, next) {
   const tok = bearer(req);
   if (!tok) return res.status(401).json({ error: 'Not logged in' });
   req.cfg = await loadConfig();
-  if (!(await touchSession(tok, req.cfg.lock)))
-    return res.status(401).json({ error: req.cfg.lock.on ? 'Locked' : 'Session expired', locked: req.cfg.lock.on });
+  const s = await touchSession(tok, req.cfg.lock);
+  if (!s) return res.status(401).json({ error: req.cfg.lock.on ? 'Locked' : 'Session expired', locked: req.cfg.lock.on });
+  req.user = s.user;
   next();
+}
+// asking questions needs the owner or an approved ("trusted") account
+function trusted(req, res, next) {
+  const u = req.user;
+  if (!u || u.status === 'trusted') return next();
+  res.status(403).json({
+    error: u.status === 'blocked' ? 'Your access has been turned off.' : 'You’re waiting to be accepted into the program.',
+    status: u.status,
+  });
 }
 function admin(req, res, next) {
   if (adminOk(req)) return next();
@@ -261,24 +389,67 @@ app.get('/health', async (req, res) => {
   res.json({ ok: true, models: Object.fromEntries(Object.entries(MODELS).map(([k, m]) => [k, m.id])) });
 });
 
-// everything the panel needs to start: theme and lock type for anyone, prefs once logged in
+// everything the panel needs to start: theme and how to unlock for anyone, the rest once signed in
 app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
   const cfg = await loadConfig();
   const tok = bearer(req);
-  const authed = !!tok && await touchSession(tok, cfg.lock);
-  res.set('Cache-Control', 'no-store').json({
-    theme: cfg.prefs.theme,
+  const s = tok ? await touchSession(tok, cfg.lock) : null;
+  const u = s?.user || null;
+  const accountsExist = cfg.signup || (await pool.query(`SELECT 1 FROM users WHERE status <> 'pending' LIMIT 1`)).rowCount > 0;
+  const out = {
+    theme: prefsFor(cfg, u).theme,
     lock: cfg.lock.on ? 'passcode' : cfg.passwordSet ? 'password' : 'none',
     passwordSet: cfg.passwordSet,
-    lockMinutes: cfg.lock.on ? cfg.lock.minutes : 0,
-    authed,
-    ...(authed && { prefs: cfg.prefs, limits: cfg.limits, models: modelList() }),
-  });
+    accounts: { on: accountsExist, signup: cfg.signup },
+    authed: !!s,
+  };
+  res.set('Cache-Control', 'no-store');
+  if (!s) return res.json(out);
+  if (!u) return res.json({ ...out, who: 'owner', lockMinutes: cfg.lock.on ? cfg.lock.minutes : 0, prefs: cfg.prefs, limits: limitsFor(cfg, null), models: modelList() });
+  out.who = 'user'; out.lockMinutes = 0; out.user = publicUser(u);
+  if (u.status === 'trusted') {
+    Object.assign(out, { prefs: prefsFor(cfg, u), limits: limitsFor(cfg, u), models: modelsFor(u), quota: quota(u, await usageToday(u.id)) });
+  }
+  res.json(out);
 });
 
-// login with the access password or the 5-digit passcode -> session token
+// anyone can ask to join; the account waits until the owner approves it in /admin
+app.post('/api/signup', limit(5, 'signup'), async (req, res) => {
+  const cfg = await loadConfig();
+  if (!cfg.signup) return res.status(403).json({ error: 'Sign-ups are closed right now.' });
+  const b = req.body || {};
+  const name = String(b.username || '').trim();
+  const pw = String(b.password || '');
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{2,23}$/.test(name))
+    return res.status(400).json({ error: 'Pick a username of 3–24 letters, numbers, dots, dashes or underscores.' });
+  if (RESERVED_NAMES.has(name.toLowerCase())) return res.status(400).json({ error: 'That username is taken.' });
+  if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'Use a password with at least 6 characters.' });
+  const pending = (await pool.query(`SELECT COUNT(*)::int AS n FROM users WHERE status = 'pending'`)).rows[0].n;
+  if (pending >= MAX_PENDING) return res.status(429).json({ error: 'Too many people are waiting already. Try again later.' });
+  let id;
+  try {
+    id = (await pool.query('INSERT INTO users(username, password_hash, note) VALUES($1, $2, $3) RETURNING id',
+      [name, await hashPw(pw), String(b.note || '').trim().slice(0, 300) || null])).rows[0].id;
+  } catch (e) {
+    if (e.code === '23505') return res.status(409).json({ error: 'That username is taken.' });
+    throw e;
+  }
+  res.json({ token: await newSession(Number(id)) });
+});
+
+// log in with the owner's password or passcode, or with an account's username and password
 app.post('/api/login', limit(10, 'login'), async (req, res) => {
   const b = req.body || {};
+  const old = bearer(req);
+  if (b.username) {
+    const r = await pool.query('SELECT id, password_hash, status FROM users WHERE lower(username) = lower($1)', [String(b.username).trim()]);
+    const u = r.rows[0];
+    const ok = await verifyPw(String(b.password || ''), u?.password_hash || await dummyHash);
+    if (!u || !ok) return res.status(401).json({ error: 'Wrong username or password.' });
+    if (u.status === 'blocked') return res.status(403).json({ error: 'This account has been turned off.' });
+    if (old) await pool.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(old)]);
+    return res.json({ token: await newSession(Number(u.id)) });
+  }
   const cfg = await loadConfig();
   if (b.passcode != null) {
     if (!cfg.lock.on) return res.status(400).json({ error: 'No passcode is set — use your password.' });
@@ -306,11 +477,8 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
     if (!password || !(await verifyPw(password, stored))) return res.status(401).json({ error: 'Wrong password' });
   }
   await setSetting('passcode_fails', '0');
-  const old = bearer(req);
   if (old) await pool.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(old)]);
-  const token = crypto.randomBytes(32).toString('base64url');
-  await pool.query('INSERT INTO sessions(token_hash) VALUES($1)', [sha256(token)]);
-  res.json({ token });
+  res.json({ token: await newSession() });
 });
 
 // also used by the panel to lock itself, so an already-expired token is fine here
@@ -324,11 +492,39 @@ app.post('/api/logout', limit(30, 'logout'), async (req, res) => {
 app.post('/api/ping', limit(30, 'ping'), auth, (req, res) => res.json({ ok: true }));
 
 app.post('/api/prefs', limit(60, 'prefs'), auth, async (req, res) => {
+  const b = req.body || {}, u = req.user, cfg = req.cfg;
+  if (!u) { // the owner's settings apply everywhere, and the answer limit is the shared one
+    const p = cleanPrefs(b), l = cleanLimits({ maxTokens: b.maxTokens });
+    if (Object.keys(p).length) cfg.prefs = { ...DEFAULT_PREFS, ...cleanPrefs(await mergeJSON('prefs', p)) };
+    if (Object.keys(l).length) cfg.limits = { ...DEFAULT_LIMITS, ...cleanLimits(await mergeJSON('limits', l)) };
+    return res.json({ prefs: cfg.prefs, limits: limitsFor(cfg, null) });
+  }
+  const p = cleanPrefs(b);
+  if (p.model === 'sonnet' && !u.allowSonnet) delete p.model;
+  if (p.web && !u.allowWeb) delete p.web;
+  if (b.maxTokens != null) {
+    const n = clampInt(b.maxTokens, LIMIT_RANGES.maxTokens[0], cfg.limits.maxTokens);
+    if (n != null) p.maxTokens = n;
+  }
+  if (Object.keys(p).length) {
+    const r = await pool.query('UPDATE users SET prefs = (prefs::jsonb || $2::jsonb)::text WHERE id = $1 RETURNING prefs', [u.id, JSON.stringify(p)]);
+    u.prefs = parseJSON(r.rows[0].prefs);
+  }
+  res.json({ prefs: prefsFor(cfg, u), limits: limitsFor(cfg, u) });
+});
+
+// accounts can change their own password (other devices get signed out)
+app.post('/api/account/password', limit(10, 'login'), auth, async (req, res) => {
+  const u = req.user;
+  if (!u) return res.status(400).json({ error: 'Change the owner password in /admin.' });
   const b = req.body || {};
-  const p = cleanPrefs(b), l = cleanLimits({ maxTokens: b.maxTokens });
-  const prefs = Object.keys(p).length ? { ...DEFAULT_PREFS, ...cleanPrefs(await mergeJSON('prefs', p)) } : req.cfg.prefs;
-  const limits = Object.keys(l).length ? { ...DEFAULT_LIMITS, ...cleanLimits(await mergeJSON('limits', l)) } : req.cfg.limits;
-  res.json({ prefs, limits });
+  const pw = String(b.password || '');
+  if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'Use a password with at least 6 characters.' });
+  const row = (await pool.query('SELECT password_hash FROM users WHERE id=$1', [u.id])).rows[0];
+  if (!(await verifyPw(String(b.current || ''), row.password_hash))) return res.status(401).json({ error: 'Your current password is wrong.' });
+  await pool.query('UPDATE users SET password_hash=$2 WHERE id=$1', [u.id, await hashPw(pw)]);
+  await pool.query('DELETE FROM sessions WHERE user_id=$1 AND token_hash <> $2', [u.id, sha256(bearer(req))]);
+  res.json({ ok: true });
 });
 
 const today = () => new Intl.DateTimeFormat('en-US', { timeZone: TIMEZONE, dateStyle: 'full' }).format(new Date());
@@ -343,23 +539,43 @@ const modelLabel = id => {
   return name ? name[0].toUpperCase() + name.slice(1) + (v.length ? ' ' + v.join('.') : '') : 'Claude';
 };
 
-function addUsage(tot, u = {}) {
-  // with a server-side fallback, iterations holds every attempt; the top level only the last one
+const priceFor = id => PRICES[id] || (/haiku/.test(id) ? PRICES['claude-haiku-5-5'] : /sonnet-5$/.test(id) ? PRICES['claude-sonnet-5'] : PRICES['claude-sonnet-5-5']);
+function tokenCost(model, x) {
+  let p = priceFor(model);
+  const prompt = (x.input_tokens || 0) + (x.cache_read_input_tokens || 0) + (x.cache_creation_input_tokens || 0);
+  if (p.long && prompt > p.long.over) p = p.long; // Haiku 5.5 costs more once a prompt passes 100K tokens
+  return ((x.input_tokens || 0) * p.in + (x.cache_creation_input_tokens || 0) * p.write
+    + (x.cache_read_input_tokens || 0) * p.read + (x.output_tokens || 0) * p.out) / 1e6;
+}
+// tokens and dollars for one API response; with a fallback, `iterations` lists every attempt
+function addUsage(tot, msg, requested) {
+  const u = msg.usage || {};
   const parts = Array.isArray(u.iterations) && u.iterations.length ? u.iterations : [u];
   for (const x of parts) {
     tot.in += (x.input_tokens || 0) + (x.cache_read_input_tokens || 0) + (x.cache_creation_input_tokens || 0);
     tot.out += x.output_tokens || 0;
+    tot.usd += tokenCost(x.model || (x.type === 'fallback_message' ? msg.model : requested), x);
   }
-  tot.searches += u.server_tool_use?.web_search_requests || 0;
+  const searches = u.server_tool_use?.web_search_requests || 0;
+  tot.searches += searches;
+  tot.usd += searches * SEARCH_USD;
 }
 
 // chat (streams NDJSON: {t:'d',v:text} | {t:'s',q?} search started/query | {t:'done',...} | {t:'err',v})
-app.post('/api/chat', limit(60, 'chat'), auth, async (req, res) => {
-  const b = req.body || {};
-  const { prefs, limits } = req.cfg;
-  const modelKey = typeof b.model === 'string' && Object.hasOwn(MODELS, b.model) ? b.model : prefs.model;
+app.post('/api/chat', limit(60, 'chat'), auth, trusted, async (req, res) => {
+  const b = req.body || {}, u = req.user, cfg = req.cfg;
+  const prefs = prefsFor(cfg, u), limits = limitsFor(cfg, u);
+  let modelKey = typeof b.model === 'string' && Object.hasOwn(MODELS, b.model) ? b.model : prefs.model;
+  if (u && modelKey === 'sonnet' && !u.allowSonnet) modelKey = 'haiku';
   const m = MODELS[modelKey];
-  const web = typeof b.web === 'boolean' ? b.web : prefs.web;
+  const web = (typeof b.web === 'boolean' ? b.web : prefs.web) && (!u || u.allowWeb);
+
+  // accounts with a daily limit stop once today's usage reaches it (it resets at midnight in TIMEZONE)
+  const used = u?.limitKind ? await usageToday(u.id) : null;
+  const q0 = used && quota(u, used);
+  if (q0 && q0.left <= 0)
+    return res.status(429).json({ error: `You’ve used today’s limit of ${fmtLimit(q0.kind, q0.limit)}. It resets at midnight.`, quota: q0 });
+
   const message = String(b.message || '').slice(0, 8000);
   const page = b.page && typeof b.page === 'object' ? {
     url: String(b.page.url || '').slice(0, 2000),
@@ -377,19 +593,20 @@ app.post('/api/chat', limit(60, 'chat'), auth, async (req, res) => {
   }
   if (!message && !image && !page && !selection) return res.status(400).json({ error: 'Empty message' });
 
-  // load or create conversation
+  // load the conversation (only your own) or start one
+  const uid = u?.id ?? null; // null = the owner
   let convId = Number.isSafeInteger(b.conversationId) ? b.conversationId : null;
   let history = [];
   if (convId) {
-    const c = await pool.query('SELECT 1 FROM conversations WHERE id=$1', [convId]);
+    const c = await pool.query('SELECT 1 FROM conversations WHERE id=$1 AND user_id IS NOT DISTINCT FROM $2', [convId, uid]);
     if (c.rowCount) {
       history = (await pool.query(
         'SELECT role, content, had_image FROM messages WHERE conversation_id=$1 AND NOT refused ORDER BY id', [convId])).rows;
     } else convId = null;
   }
   if (!convId) {
-    const r = await pool.query('INSERT INTO conversations(page_url,page_title) VALUES($1,$2) RETURNING id',
-      [page?.url || null, page?.title || null]);
+    const r = await pool.query('INSERT INTO conversations(page_url, page_title, user_id) VALUES($1,$2,$3) RETURNING id',
+      [page?.url || null, page?.title || null, uid]);
     convId = Number(r.rows[0].id);
   }
 
@@ -430,7 +647,7 @@ app.post('/api/chat', limit(60, 'chat'), auth, async (req, res) => {
   let stream = null, closed = false;
   res.on('close', () => { if (!res.writableFinished) { closed = true; stream?.abort(); } }); // panel closed -> stop spending tokens
 
-  const tot = { in: 0, out: 0, searches: 0 };
+  const tot = { in: 0, out: 0, usd: 0, searches: 0 };
   const sources = new Map();
   let reply = '', final = null;
   try {
@@ -448,7 +665,7 @@ app.post('/api/chat', limit(60, 'chat'), auth, async (req, res) => {
         }
       });
       final = await stream.finalMessage();
-      addUsage(tot, final.usage);
+      addUsage(tot, final, m.id);
       for (const blk of final.content) {
         if (blk.type !== 'text') continue;
         for (const c of blk.citations || []) {
@@ -463,14 +680,15 @@ app.post('/api/chat', limit(60, 'chat'), auth, async (req, res) => {
     const refused = final.stop_reason === 'refusal';
     const replyText = reply.trim() ? reply : refused ? '[declined]' : '(no answer)';
     await pool.query(
-      `INSERT INTO messages(conversation_id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused)
-       VALUES ($1,'user',$2,$3,0,0,NULL,0,$4), ($1,'assistant',$5,false,$6,$7,$8,$9,$4)`,
-      [convId, userText, !!image, refused, replyText, tot.in, tot.out, final.model || m.id, tot.searches]);
+      `INSERT INTO messages(conversation_id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, user_id, cost_usd)
+       VALUES ($1,'user',$2,$3,0,0,NULL,0,$4,$10,0), ($1,'assistant',$5,false,$6,$7,$8,$9,$4,$10,$11)`,
+      [convId, userText, !!image, refused, replyText, tot.in, tot.out, final.model || m.id, tot.searches, uid, tot.usd]);
     out({
-      t: 'done', conversationId: convId, usage: { in: tot.in, out: tot.out }, stop: final.stop_reason,
+      t: 'done', conversationId: convId, usage: { in: tot.in, out: tot.out, usd: tot.usd }, stop: final.stop_reason,
       model: modelLabel(final.model || m.id), fallback: !!final.model && final.model !== m.id,
       searches: tot.searches, sources: [...sources].slice(0, 8).map(([url, title]) => ({ url, title })),
       ...(refused && { refusal: final.stop_details?.category || null }),
+      ...(used && { quota: quota(u, { tokens: used.tokens + tot.in + tot.out, usd: used.usd + tot.usd }) }),
     });
   } catch (e) {
     if (e?.name !== 'APIUserAbortError') console.error('chat error:', e?.status, e?.message);
@@ -504,7 +722,10 @@ app.get('/api/admin/stats', limit(30, 'admin'), admin, async (req, res) => {
       COALESCE(SUM(input_tokens + output_tokens) FILTER (WHERE created_at >= now() - interval '7 days'), 0)::bigint AS week,
       COUNT(*) FILTER (WHERE role = 'user')::bigint AS questions,
       COUNT(*) FILTER (WHERE role = 'user' AND created_at >= ${todayStart})::bigint AS questions_today,
-      COALESCE(SUM(web_searches), 0)::bigint AS searches
+      COALESCE(SUM(web_searches), 0)::bigint AS searches,
+      COALESCE(SUM(cost_usd), 0)::float8 AS total_usd,
+      COALESCE(SUM(cost_usd) FILTER (WHERE created_at >= ${todayStart}), 0)::float8 AS today_usd,
+      COALESCE(SUM(cost_usd) FILTER (WHERE created_at >= now() - interval '7 days'), 0)::float8 AS week_usd
     FROM messages`, [TIMEZONE])).rows[0];
   const sessions = (await pool.query('SELECT COUNT(*)::bigint AS n FROM sessions')).rows[0].n;
   const cfg = await loadConfig();
@@ -517,35 +738,146 @@ app.get('/api/admin/stats', limit(30, 'admin'), admin, async (req, res) => {
   });
 });
 
-// daily token usage for the chart, in TIMEZONE days
+// daily token usage for the chart, in TIMEZONE days; `user` narrows it to 'owner' or one account id
 app.get('/api/admin/usage', limit(30, 'admin'), admin, async (req, res) => {
   const days = clampInt(req.query.days || 30, 1, 365);
+  const who = req.query.user === 'owner' ? 'owner' : /^\d+$/.test(String(req.query.user || '')) ? String(req.query.user) : 'all';
   const r = await pool.query(`
     WITH bounds AS (SELECT (date_trunc('day', now() AT TIME ZONE $1) - make_interval(days => $2 - 1)) AS start),
     m AS (
-      SELECT (created_at AT TIME ZONE $1)::date AS day, role, input_tokens, output_tokens, web_searches, COALESCE(model, '') AS model
-      FROM messages WHERE created_at >= (SELECT start FROM bounds) AT TIME ZONE $1
+      SELECT (created_at AT TIME ZONE $1)::date AS day, role, input_tokens, output_tokens, web_searches,
+        COALESCE(model, '') AS model, COALESCE(cost_usd, 0) AS usd
+      FROM messages
+      WHERE created_at >= (SELECT start FROM bounds) AT TIME ZONE $1
+        AND ($3 = 'all' OR ($3 = 'owner' AND user_id IS NULL) OR user_id::text = $3)
     )
     SELECT d.day::date::text AS day,
       COALESCE(SUM(m.input_tokens), 0)::bigint AS input,
       COALESCE(SUM(m.output_tokens), 0)::bigint AS output,
       COUNT(m.role) FILTER (WHERE m.role = 'user')::bigint AS questions,
       COALESCE(SUM(m.web_searches), 0)::bigint AS searches,
-      COALESCE(SUM(m.input_tokens + m.output_tokens) FILTER (WHERE m.model LIKE '%sonnet%'), 0)::bigint AS sonnet
+      COALESCE(SUM(m.input_tokens + m.output_tokens) FILTER (WHERE m.model LIKE '%sonnet%'), 0)::bigint AS sonnet,
+      COALESCE(SUM(m.usd), 0)::float8 AS usd,
+      COALESCE(SUM(m.usd) FILTER (WHERE m.model LIKE '%sonnet%'), 0)::float8 AS sonnet_usd
     FROM generate_series((SELECT start FROM bounds), date_trunc('day', now() AT TIME ZONE $1), interval '1 day') AS d(day)
     LEFT JOIN m ON m.day = d.day::date
-    GROUP BY d.day ORDER BY d.day`, [TIMEZONE, days]);
+    GROUP BY d.day ORDER BY d.day`, [TIMEZONE, days, who]);
   res.json({
     timezone: TIMEZONE,
-    days: r.rows.map(x => ({ day: x.day, input: +x.input, output: +x.output, questions: +x.questions, searches: +x.searches, sonnet: +x.sonnet })),
+    days: r.rows.map(x => ({
+      day: x.day, input: +x.input, output: +x.output, questions: +x.questions, searches: +x.searches,
+      sonnet: +x.sonnet, usd: +x.usd, sonnetUsd: +x.sonnet_usd,
+    })),
   });
+});
+
+// every account with its usage; the owner's own usage comes along for comparison
+app.get('/api/admin/users', limit(60, 'admin'), admin, async (req, res) => {
+  const cfg = await loadConfig();
+  const r = await pool.query(`
+    WITH t AS (
+      SELECT user_id,
+        SUM(input_tokens + output_tokens) FILTER (WHERE created_at >= ${todayStartSQL.replaceAll('$2', '$1')}) AS today_tokens,
+        SUM(cost_usd) FILTER (WHERE created_at >= ${todayStartSQL.replaceAll('$2', '$1')}) AS today_usd,
+        COUNT(*) FILTER (WHERE role = 'user' AND created_at >= ${todayStartSQL.replaceAll('$2', '$1')}) AS today_q,
+        SUM(input_tokens + output_tokens) FILTER (WHERE created_at >= now() - interval '7 days') AS week_tokens,
+        SUM(cost_usd) FILTER (WHERE created_at >= now() - interval '7 days') AS week_usd,
+        SUM(input_tokens + output_tokens) AS total_tokens, SUM(cost_usd) AS total_usd,
+        COUNT(*) FILTER (WHERE role = 'user') AS total_q
+      FROM messages GROUP BY user_id
+    )
+    SELECT u.*, (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id)::int AS devices,
+      t.today_tokens, t.today_usd, t.today_q, t.week_tokens, t.week_usd, t.total_tokens, t.total_usd, t.total_q
+    FROM users u LEFT JOIN t ON t.user_id = u.id
+    ORDER BY CASE u.status WHEN 'pending' THEN 0 WHEN 'trusted' THEN 1 ELSE 2 END, u.created_at DESC`, [TIMEZONE]);
+  const own = (await pool.query(`
+    SELECT SUM(input_tokens + output_tokens) FILTER (WHERE created_at >= ${todayStartSQL.replaceAll('$2', '$1')}) AS today_tokens,
+      SUM(cost_usd) FILTER (WHERE created_at >= ${todayStartSQL.replaceAll('$2', '$1')}) AS today_usd,
+      SUM(input_tokens + output_tokens) AS total_tokens, SUM(cost_usd) AS total_usd
+    FROM messages WHERE user_id IS NULL`, [TIMEZONE])).rows[0];
+  res.json({
+    signup: cfg.signup, defaults: cfg.accountDefaults, ranges: DAILY_RANGES, timezone: TIMEZONE,
+    owner: { today: { tokens: +own.today_tokens || 0, usd: +own.today_usd || 0 }, total: { tokens: +own.total_tokens || 0, usd: +own.total_usd || 0 } },
+    users: r.rows.map(adminUser),
+  });
+});
+function adminUser(x) {
+  const u = toUser(x);
+  delete u.prefs;
+  return {
+    ...u, devices: x.devices ?? 0,
+    today: { tokens: +x.today_tokens || 0, usd: +x.today_usd || 0, questions: +x.today_q || 0 },
+    week: { tokens: +x.week_tokens || 0, usd: +x.week_usd || 0 },
+    total: { tokens: +x.total_tokens || 0, usd: +x.total_usd || 0, questions: +x.total_q || 0 },
+  };
+}
+
+// approve, block, set limits and access, leave a note, reset the password, or sign an account out
+app.post('/api/admin/users/:id', limit(60, 'admin'), admin, async (req, res) => {
+  const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+  const cur = id && (await pool.query('SELECT * FROM users WHERE id=$1', [id])).rows[0];
+  if (!cur) return res.status(404).json({ error: 'No such user.' });
+  const b = req.body || {}, cfg = await loadConfig();
+  const set = {};
+  let signOut = !!b.signout;
+  if (b.status != null) {
+    if (!['trusted', 'blocked', 'pending'].includes(b.status)) return res.status(400).json({ error: 'Unknown status.' });
+    set.status = b.status;
+    if (b.status === 'trusted' && cur.status === 'pending') {
+      // first approval: start from the defaults for new accounts
+      const d = cfg.accountDefaults;
+      Object.assign(set, { approved_at: new Date(), limit_kind: d.limitKind, limit_value: d.limitValue, allow_sonnet: d.allowSonnet, allow_web: d.allowWeb });
+    }
+    if (b.status === 'blocked') signOut = true;
+  }
+  if ('limitKind' in b) {
+    const l = cleanDaily(b.limitKind, b.limitValue);
+    if (!l) return res.status(400).json({ error: 'Enter a number for the daily limit.' });
+    set.limit_kind = l.kind; set.limit_value = l.value;
+  }
+  if (typeof b.allowSonnet === 'boolean') set.allow_sonnet = b.allowSonnet;
+  if (typeof b.allowWeb === 'boolean') set.allow_web = b.allowWeb;
+  if (typeof b.adminNote === 'string') set.admin_note = b.adminNote.trim().slice(0, 300) || null;
+  if (b.password != null) {
+    const pw = String(b.password);
+    if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'The new password needs at least 6 characters.' });
+    set.password_hash = await hashPw(pw);
+    signOut = true;
+  }
+  const keys = Object.keys(set);
+  if (keys.length) {
+    await pool.query(`UPDATE users SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`, [id, ...keys.map(k => set[k])]);
+  }
+  if (signOut) await pool.query('DELETE FROM sessions WHERE user_id=$1', [id]);
+  res.json({ ok: true });
+});
+
+// deleting a waiting account is how a request gets turned down; usage history stays in the totals
+app.delete('/api/admin/users/:id', limit(60, 'admin'), admin, async (req, res) => {
+  const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+  const r = await pool.query('DELETE FROM users WHERE id=$1', [id]);
+  if (!r.rowCount) return res.status(404).json({ error: 'No such user.' });
+  res.json({ ok: true });
+});
+
+// open or close sign-ups, and set what newly approved accounts start with
+app.post('/api/admin/accounts', limit(20, 'admin'), admin, async (req, res) => {
+  const b = req.body || {};
+  if (typeof b.signup === 'boolean') await setSetting('signup', b.signup ? '1' : '0');
+  if (b.defaults) {
+    const d = cleanAccountDefaults(b.defaults);
+    if ('limitKind' in b.defaults && !('limitKind' in d)) return res.status(400).json({ error: 'Enter a number for the daily limit.' });
+    await mergeJSON('account_defaults', d);
+  }
+  const cfg = await loadConfig();
+  res.json({ ok: true, signup: cfg.signup, defaults: cfg.accountDefaults });
 });
 
 app.post('/api/admin/password', limit(20, 'admin'), admin, async (req, res) => {
   const pw = String(req.body?.password || '');
   if (pw.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
   await setSetting('password_hash', await hashPw(pw));
-  const r = await pool.query('DELETE FROM sessions');
+  const r = await pool.query('DELETE FROM sessions WHERE user_id IS NULL'); // only devices using the owner password
   res.json({ ok: true, signedOut: r.rowCount });
 });
 
