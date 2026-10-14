@@ -647,7 +647,7 @@ function cutUsage(msg) {
   };
 }
 
-// chat (streams NDJSON: {t:'d',v:text} | {t:'s',q?} search started/query | {t:'done',...} | {t:'err',v,conversationId?})
+// chat (streams NDJSON: {t:'id',conversationId} first | {t:'d',v:text} | {t:'s',q?} search started/query | {t:'done',...} | {t:'err',v,conversationId?})
 // Accounts get one answer at a time, so a burst of parallel questions can't all slip under the daily limit.
 const answering = new Set();
 app.post('/api/chat', limit(60, 'chat'), auth, trusted, chatJson, async (req, res) => {
@@ -761,6 +761,8 @@ async function chat(req, res) {
     'X-Accel-Buffering': 'no',
   });
   const out = o => { if (!res.writableEnded && !res.destroyed) res.write(JSON.stringify(o) + '\n'); };
+  // the panel learns which chat this is right away, so an answer you stop still belongs to it for follow-ups
+  out({ t: 'id', conversationId: convId });
 
   // the panel went away mid-answer (closed, reloaded, or stopped): stop spending tokens. What was used so far still counts.
   let stream = null, closed = false;

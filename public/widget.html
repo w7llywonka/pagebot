@@ -48,7 +48,7 @@ body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition:background-color .3
 :root[data-theme=glass] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,0) 36%,rgba(255,255,255,0) 64%,rgba(255,255,255,.08))}
 :root[data-theme=glass] header{background:rgba(255,255,255,.05)}
 :root[data-theme=glass] .msg.bot,:root[data-theme=glass] .box,:root[data-theme=glass] .pad button{box-shadow:inset 0 1px 0 rgba(255,255,255,.28)}
-:root[data-theme=glass] .menu,:root[data-theme=glass] #sheet{background:var(--pop);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+:root[data-theme=glass] .menu,:root[data-theme=glass] #sheet,:root[data-theme=glass] #jump{background:var(--pop);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
 :root[data-theme=glass] #boot .bg{background:rgba(16,18,26,.5);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 :root[data-theme=glass][data-page=light] #boot .bg{background:rgba(255,255,255,.5)}
 :root[data-theme=glass] .send,:root[data-theme=glass] .go{box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 45%,transparent)}
@@ -64,8 +64,8 @@ body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition:background-color .3
 :root[data-theme=clear] .go svg{filter:none}
 :root[data-theme=clear] #att button{background:var(--accent);color:var(--on-accent);border-color:transparent;text-shadow:none}
 /* pop-ups sit over the chat, so they get a plain backing (no blur) to stay legible; the settings sheet hides the chat behind it instead */
-:root[data-theme=clear] .menu,:root[data-theme=clear] .rbar{background:var(--pop);text-shadow:none}
-:root[data-theme=clear] .menu svg,:root[data-theme=clear] .rbar svg{filter:none}
+:root[data-theme=clear] .menu,:root[data-theme=clear] .rbar,:root[data-theme=clear] #jump,:root[data-theme=clear] .cc{background:var(--pop);text-shadow:none}
+:root[data-theme=clear] .menu svg,:root[data-theme=clear] .rbar svg,:root[data-theme=clear] #jump svg{filter:none}
 :root[data-theme=clear] body.sheet>#log,:root[data-theme=clear] body.sheet>#composer{visibility:hidden}
 /* on /chat and in the pop-up window there's no page behind, so glass and clear sit on a colorful backdrop */
 :root.nohost[data-theme=glass],:root.nohost[data-theme=clear]{background:radial-gradient(60% 50% at 15% 20%,#5b7cff 0,transparent 70%),radial-gradient(50% 45% at 85% 25%,#c35bff 0,transparent 70%),radial-gradient(55% 50% at 70% 85%,#ff7a9c 0,transparent 70%),radial-gradient(50% 50% at 20% 85%,#2ec5b6 0,transparent 70%),#1a1d2e;background-attachment:fixed}
@@ -82,6 +82,8 @@ body.dragging,body.dragging *{cursor:grabbing!important}
 .ib svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .ib .ex,body.min .ib .mn{display:none}
 body.min .ib .ex{display:block}
+.ib .nw,body.wide .ib .wd{display:none}
+body.wide .ib .nw{display:block}
 .mstat{display:none;align-items:center;margin-left:2px}
 .mstat.new .typing{display:none}
 .mstat.new::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
@@ -109,8 +111,44 @@ body.min .mstat.busy,body.min .mstat.new{display:inline-flex}
 .msg :not(pre)>code{background:var(--code);padding:1px 4px;border-radius:4px}
 .msg ul,.msg ol{margin:4px 0 7px;padding-left:20px}
 .msg .lh{color:var(--muted);font-size:.86em}
+.msg .h{font-weight:650;margin-top:10px}
+.msg .h:first-child{margin-top:0}
+.msg blockquote{margin:4px 0 7px;padding:1px 0 1px 9px;border-left:3px solid var(--line);color:var(--muted)}
+.msg hr{border:0;border-top:1px solid var(--line);margin:9px 0}
+.msg .tw{overflow-x:auto;margin:6px 0 8px;scrollbar-width:thin}
+.msg table{border-collapse:collapse;font-size:12.5px;overflow-wrap:normal}
+.msg th,.msg td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
+.msg th{background:var(--code);font-weight:600}
+.msg th.c,.msg td.c{text-align:center}
+.msg th.r,.msg td.r{text-align:right}
+.msg blockquote:last-child,.msg .tw:last-child{margin-bottom:0}
+.cb{position:relative;margin:6px 0}
+.cb pre{margin:0}
+.cc{position:absolute;top:5px;right:5px;opacity:0;background:var(--pop,var(--panel));color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;transition:opacity .12s}
+.cb:hover .cc,.cc:focus-visible{opacity:1}
+.cc:hover{color:var(--text)}
 .tags{font-size:11px;color:var(--muted);margin-bottom:3px}
 .meta{font-size:11px;color:var(--muted);margin-top:5px}
+.acts{float:right;display:inline-flex;gap:2px;margin-left:10px}
+.act{background:none;border:0;padding:0 2px;height:16px;color:var(--muted);cursor:pointer;display:inline-grid;place-items:center}
+.act:hover{color:var(--text)}
+.act svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.stp{color:var(--muted);font-style:italic}
+.starters{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:14px}
+.starters button{background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:5px 11px;font-size:12.5px;cursor:pointer;color:var(--text)}
+.starters button:hover{border-color:var(--focus)}
+/* back to the newest message, after you've scrolled up */
+#jump{position:absolute;left:50%;bottom:calc(100% + 8px);z-index:4;display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 11px 0 8px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:12px;white-space:nowrap;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.2);transform:translateX(-50%);animation:jumpIn .16s ease both}
+#jump:hover{border-color:var(--focus)}
+#jump svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+@keyframes jumpIn{from{opacity:0;transform:translate(-50%,4px)}}
+body.sheet #jump{display:none}
+/* drag the top or left edge (or the top-left corner) to resize; the bookmarklet keeps the bottom-right corner in place */
+.rz{position:fixed;z-index:50;touch-action:none}
+.rz.l{left:0;top:12px;bottom:0;width:5px;cursor:ew-resize}
+.rz.t{top:0;left:12px;right:0;height:4px;cursor:ns-resize}
+.rz.c{left:0;top:0;width:12px;height:12px;cursor:nwse-resize}
+body.resizing *{cursor:inherit!important;user-select:none;-webkit-user-select:none}
 .mini{background:none;border:0;padding:0;color:var(--accent);font-size:11px;cursor:pointer;text-decoration:underline}
 .steps{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;font-size:12px;color:var(--muted)}
 .step::before{content:"🌐 "}
@@ -350,6 +388,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
   <button class="ib hide-min" id="newBtn" title="New chat" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
   <button class="ib hide-min" id="setBtn" title="Settings" hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <button class="ib hide-min" id="lockBtn" title="Lock" hidden><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button>
+  <button class="ib hide-min" id="wideBtn" title="Wide view" aria-pressed="false" hidden><svg class="wd" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><svg class="nw" viewBox="0 0 24 24"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg></button>
   <button class="ib" id="minBtn" title="Minimize" hidden><svg class="mn" viewBox="0 0 24 24"><path d="M6 12h12"/></svg><svg class="ex" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button>
   <button class="ib" id="closeBtn" title="Close (Esc)"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
 </header>
@@ -409,6 +448,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 </div>
 
 <div id="composer" hidden>
+  <button id="jump" type="button" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>Jump to latest</button>
   <div class="box">
     <div id="att" hidden><img alt=""><button id="rmAtt" type="button" title="Remove image" aria-label="Remove image">×</button></div>
     <textarea id="q" rows="1" placeholder="Ask about this page…" aria-label="Message"></textarea>
@@ -433,6 +473,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
   </div>
   <div class="menu right" id="modelMenu" role="menu" hidden></div>
 </div>
+<div class="rz l" data-k="l" hidden></div><div class="rz t" data-k="t" hidden></div><div class="rz c" data-k="c" title="Drag to resize" hidden></div>
 
 <script>
 (() => {
@@ -448,6 +489,7 @@ const hostV3 = hostV >= 3; // ...and tells us when the panel opens and hides
 const hostV4 = hostV >= 4; // ...and can blur the page behind the panel for the glass theme
 const hostV5 = hostV >= 5; // ...and marks the panel light, so Chrome doesn't put a solid backing behind glass on dark-mode sites
 const hostV6 = hostV >= 6; // ...and can drop the panel's shadow for the clear theme
+const hostV7 = hostV >= 7; // ...and can resize the panel while it's open
 const standalone = !embedded && !popup;
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const body = document.body;
@@ -466,6 +508,7 @@ let models = [{ key: 'haiku', label: 'Haiku 5.5' }, { key: 'sonnet', label: 'Son
 let view = 'boot', convId = null, pageOn = true, img = null, imgKind = 'shot', busy = false, stream = null, video = null;
 let area = null; // the region you picked, as fractions of the shared frame; while it's set, every message sends a new shot of it
 let minimized = false, unseen = false;
+let ctrl = null, chatGen = 0; // stops the answer being streamed; which chat an answer belongs to
 
 // ---- keyboard focus: the panel takes it only when you open it with the bookmark ----
 // After that, focus moves within the panel only while the panel already has it, so an answer finishing, a screenshot,
@@ -514,7 +557,12 @@ addEventListener('message', e => {
 });
 let savedPos = null;
 try { savedPos = JSON.parse(store.get('pb_pos')); } catch {}
-tell('ready', { ...(hostV2 && savedPos ? { pos: savedPos } : {}), size: { w: 400, h: 600 } });
+// the size you dragged the panel to, or the wide view (older bookmarks still open at the saved size, they just can't change it)
+const SIZE = { w: 400, h: 600 }, WIDE = { w: 760, h: 4000 }, MIN_W = 300, MIN_H = 340; // the bookmarklet fits these to the window
+let savedSize = null;
+try { const s = JSON.parse(store.get('pb_size')); if (s?.w > 0 && s?.h > 0) savedSize = { w: +s.w, h: +s.h }; } catch {}
+let wide = hostV7 && store.get('pb_wide') === '1';
+tell('ready', { ...(hostV2 && savedPos ? { pos: savedPos } : {}), size: wide ? WIDE : savedSize || SIZE });
 
 // ---- themes ----
 const THEMES = [
@@ -576,18 +624,41 @@ const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',
 // s is already HTML-escaped; links stay http(s) only and show where they go, so a page that steers the answer
 // can't hide a different site behind friendly link text (link text can't contain "[", which keeps this linear)
 function inline(s) {
-  return s.replace(/`([^`\n]+)`/g, '<code>$1</code>')
-          .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
-          .replace(/\[([^[\]\n]{1,300})\]\((https?:\/\/[^\s)]{1,2000})\)/g, (all, text, url) => {
-            const h = host(url.replace(/&amp;/g, '&'));
-            return `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>` + (text.includes(h) ? '' : ` <span class="lh">(${esc(h)})</span>`);
-          });
+  // code spans are split out first, so nothing inside them gets bold, italic or a link
+  return s.split(/(`[^`\n]+`)/).map((p, i) => i % 2 ? '<code>' + p.slice(1, -1) + '</code>' : p
+    .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
+    .replace(/(^|[\s(])\*(?=\S)([^*\n]*?\S)\*(?![\w*])/g, '$1<i>$2</i>')
+    .replace(/\[([^[\]\n]{1,300})\]\((https?:\/\/[^\s)]{1,2000})\)/g, (all, text, url) => {
+      const h = host(url.replace(/&amp;/g, '&'));
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>` + (text.includes(h) ? '' : ` <span class="lh">(${esc(h)})</span>`);
+    })).join('');
+}
+// a markdown table: a header row, a |---|:---:| row, then the body rows
+const TSEP = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/;
+const cells = l => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+function table(head, sep, rows) {
+  const al = cells(sep).map(c => /^:-+:$/.test(c) ? ' class="c"' : /-:$/.test(c) ? ' class="r"' : '');
+  const row = (r, tag) => '<tr>' + head.map((_, j) => `<${tag}${al[j] || ''}>${inline(r[j] || '')}</${tag}>`).join('') + '</tr>';
+  return '<div class="tw"><table><thead>' + row(head, 'th') + '</thead><tbody>' + rows.map(r => row(r, 'td')).join('') + '</tbody></table></div>';
 }
 function block(txt) {
-  const lines = txt.split('\n'); let html = '', list = null, para = [];
+  const lines = txt.split('\n'); let html = '', list = null, para = [], quote = [];
   const flushP = () => { if (para.length) { html += '<p>' + para.map(inline).join('<br>') + '</p>'; para = []; } };
   const flushL = () => { if (list) { html += `<${list.t}>` + list.items.map(i => '<li>' + inline(i) + '</li>').join('') + `</${list.t}>`; list = null; } };
-  for (const raw of lines) {
+  const flushQ = () => { if (quote.length) { html += '<blockquote>' + quote.map(inline).join('<br>') + '</blockquote>'; quote = []; } };
+  const flush = () => { flushP(); flushL(); flushQ(); };
+  for (let k = 0; k < lines.length; k++) {
+    const raw = lines[k];
+    if (raw.includes('|') && lines[k + 1]?.includes('|') && TSEP.test(lines[k + 1])) {
+      flush();
+      const head = cells(raw), sep = lines[k + 1], rows = [];
+      for (k += 2; k < lines.length && lines[k].includes('|') && lines[k].trim(); k++) rows.push(cells(lines[k]));
+      k--; html += table(head, sep, rows); continue;
+    }
+    const qt = /^\s*&gt;\s?(.*)$/.exec(raw); // the text is already escaped, so > is &gt;
+    if (qt) { flushP(); flushL(); quote.push(qt[1]); continue; }
+    flushQ();
+    if (/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(raw)) { flush(); html += '<hr>'; continue; }
     const ul = /^\s*[-*•]\s+(.*)$/.exec(raw), ol = /^\s*\d+[.)]\s+(.*)$/.exec(raw);
     if (ul || ol) {
       flushP(); const t = ul ? 'ul' : 'ol';
@@ -597,17 +668,44 @@ function block(txt) {
     else {
       flushL();
       const h = /^#{1,6}\s+(.*)$/.exec(raw);
-      para.push(h ? `**${h[1]}**` : raw);
+      if (h) { flushP(); html += '<p class="h">' + inline(h[1]) + '</p>'; } else para.push(raw);
     }
   }
-  flushP(); flushL(); return html;
+  flush(); return html;
 }
 function md(src) {
   return src.split('```').map((p, i) => {
     if (i % 2) { const nl = p.indexOf('\n'); const code = nl >= 0 && /^[\w+#.-]*$/.test(p.slice(0, nl).trim()) ? p.slice(nl + 1) : p;
-      return '<pre><code>' + esc(code.replace(/\n$/, '')) + '</code></pre>'; }
+      return '<div class="cb"><button class="cc" type="button" title="Copy code">Copy</button><pre><code>' + esc(code.replace(/\n$/, '')) + '</code></pre></div>'; }
     return block(esc(p));
   }).join('');
+}
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); return true; } catch {}
+  // older bookmarks may not let the panel use the clipboard API, but a selected textarea still copies
+  const a = el('textarea'); a.value = t; a.style.cssText = 'position:fixed;left:0;top:0;opacity:0';
+  body.appendChild(a); a.select();
+  let ok = false; try { ok = document.execCommand('copy'); } catch {}
+  a.remove(); return ok;
+}
+log.addEventListener('click', async e => {
+  const b = e.target.closest('.cc'); if (!b) return;
+  const ok = await copyText(b.nextElementSibling.textContent);
+  b.textContent = ok ? 'Copied' : 'Couldn’t copy';
+  setTimeout(() => { b.textContent = 'Copy'; }, 1400);
+});
+const ICON_COPY = '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+const ICON_OK = '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
+// the small copy button at the right end of an answer's info line
+function copyAct(meta, text) {
+  const acts = el('span', 'acts'), b = el('button', 'act', ICON_COPY);
+  b.type = 'button'; b.title = 'Copy answer'; b.setAttribute('aria-label', 'Copy answer');
+  b.onclick = async () => {
+    const ok = await copyText(text);
+    b.innerHTML = ok ? ICON_OK : ICON_COPY; b.title = ok ? 'Copied' : 'Couldn’t copy';
+    setTimeout(() => { b.innerHTML = ICON_COPY; b.title = 'Copy answer'; }, 1400);
+  };
+  acts.appendChild(b); meta.prepend(acts); // first, so it floats to the right of the first line
 }
 function clearEmpty() { const e = log.querySelector('.empty'); if (e) e.remove(); }
 function addMsg(role, html, tags) {
@@ -615,17 +713,44 @@ function addMsg(role, html, tags) {
   const m = el('div', 'msg ' + role);
   if (tags) { const t = el('div', 'tags'); t.textContent = tags; m.appendChild(t); }
   const b = el('div', 'body', html); m.appendChild(b);
-  log.appendChild(m); scroll(); return m;
+  log.appendChild(m); scroll(true); return m;
 }
-function note(text) { clearEmpty(); const n = el('div', 'note'); n.textContent = text; log.appendChild(n); scroll(); }
-function scroll() { log.scrollTop = log.scrollHeight; }
+function note(text) { clearEmpty(); const n = el('div', 'note'); n.textContent = text; log.appendChild(n); scroll(true); }
+// The chat follows new text only while you're at the bottom. Scroll up to read and it stays put,
+// with a button to jump back down; scrolling back to the bottom picks the answer up again.
+let stick = true;
+const jump = $('#jump');
+function scroll(force) {
+  if (force) stick = true;
+  if (stick) log.scrollTop = log.scrollHeight;
+  jump.hidden = stick;
+}
+log.addEventListener('scroll', () => {
+  stick = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+  jump.hidden = stick;
+});
+jump.onclick = () => { scroll(true); focusView(); };
 const fmt = n => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n);
 const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
+// one click to ask the usual first questions about a page
+const STARTERS = [
+  ['Summarize this page', 'Summarize this page.'],
+  ['Key points', 'What are the key points of this page?'],
+  ['Explain it simply', 'Explain this page simply, as if I’m new to the topic.'],
+];
 function empty() {
+  stick = true; jump.hidden = true;
   if (standalone)
     return void (log.innerHTML = '<div class="empty"><b>Ask anything.</b>Use + to screenshot a tab or turn on web search, or paste an image.</div>');
   log.innerHTML = '<div class="empty"><b>Ask about this page.</b>The page text goes with your first message, and anything you highlight is included. Use + for a screenshot or web search.' +
     (embedded && !hostV3 ? '<div class="up">There’s a newer version of the pagebot bookmark. Re-drag the button from the pagebot homepage to update it.</div>' : '') + '</div>';
+  const box = el('div', 'starters');
+  for (const [label, text] of STARTERS) {
+    const b = el('button'); b.type = 'button'; b.textContent = label;
+    b.onclick = () => { if (busy) return; setPage(true); q.value = text; autosize(); send(); };
+    box.appendChild(b);
+  }
+  log.querySelector('.empty').appendChild(box);
 }
 
 // ---- views: the chat, the lock screen (owner passcode/password, account sign-in or sign-up), and waiting for approval ----
@@ -817,10 +942,12 @@ function lock(msg) {
   token = null; store.set('pb_token', null);
   showLogin(msg);
 }
-function logout(msg) { convId = null; log.innerHTML = ''; clearImg(); stopStream(); setArea(null); lock(msg); }
+function logout(msg) { leaveChat(); log.innerHTML = ''; clearImg(); stopStream(); setArea(null); lock(msg); }
 $('#outBtn').onclick = () => logout();
 $('#lockBtn').onclick = $('#lockNow').onclick = () => lock();
-$('#newBtn').onclick = () => { convId = null; setPage(true); clearImg(); closeSheet(); empty(); $('#q').focus(); };
+// stops an answer that's still coming in, so it can't land in (or take over) the next chat
+function leaveChat() { chatGen++; ctrl?.abort(); convId = null; }
+$('#newBtn').onclick = () => { leaveChat(); setPage(true); clearImg(); closeSheet(); empty(); $('#q').focus(); };
 // Screen sharing stays on when the panel closes, so the next screenshot doesn't ask again. It ends when you stop it
 // (+ menu or Chrome's own bar), log out, or leave the page.
 function closePanel() {
@@ -1005,6 +1132,50 @@ async function endDrag(e) {
 hd.addEventListener('pointerup', endDrag);
 hd.addEventListener('pointercancel', endDrag);
 
+// ---- resize & wide view (needs the newest bookmarklet) ----
+// Each site remembers its own size, the way it remembers where you put the panel.
+function setWide(on) {
+  wide = on; store.set('pb_wide', on ? '1' : null);
+  body.classList.toggle('wide', on);
+  $('#wideBtn').title = on ? 'Normal size' : 'Wide view';
+  $('#wideBtn').setAttribute('aria-pressed', String(on));
+}
+if (hostV7) {
+  $('#wideBtn').hidden = false;
+  document.querySelectorAll('.rz').forEach(h => { h.hidden = false; });
+  setWide(wide);
+}
+$('#wideBtn').onclick = () => { setWide(!wide); tell('size', { ...(wide ? WIDE : savedSize || SIZE), anim: true }); };
+let rs = null;
+document.querySelectorAll('.rz').forEach(h => {
+  h.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    rs = { k: h.dataset.k, x: e.screenX, y: e.screenY, w: innerWidth, h: innerHeight, moved: false };
+    h.setPointerCapture(e.pointerId);
+    body.style.cursor = getComputedStyle(h).cursor; body.classList.add('resizing');
+  });
+  h.addEventListener('pointermove', e => {
+    if (!rs) return;
+    const dx = e.screenX - rs.x, dy = e.screenY - rs.y;
+    if (!rs.moved && Math.hypot(dx, dy) < 3) return;
+    rs.moved = true;
+    // the bottom-right corner stays put, so dragging left or up makes the panel bigger
+    tell('size', { w: rs.k === 't' ? rs.w : Math.max(MIN_W, Math.round(rs.w - dx)), h: rs.k === 'l' ? rs.h : Math.max(MIN_H, Math.round(rs.h - dy)) });
+  });
+  const end = () => {
+    if (!rs) return;
+    const moved = rs.moved; rs = null;
+    body.classList.remove('resizing'); body.style.cursor = '';
+    if (!moved) return;
+    if (wide) setWide(false); // a size you drag to replaces the wide view
+    // keep what the bookmarklet actually gave the panel (it never lets it outgrow the window)
+    setTimeout(() => { savedSize = { w: innerWidth, h: innerHeight }; store.set('pb_size', JSON.stringify(savedSize)); }, 80);
+  };
+  h.addEventListener('pointerup', end);
+  h.addEventListener('pointercancel', end);
+});
+
 // ---- attachments ----
 function setPage(v) { pageOn = v; $('#pagePill').hidden = !v; $('#pageBtn').setAttribute('aria-checked', String(v)); fitPills(); }
 $('#pageBtn').onclick = () => { closeMenus(); setPage(!pageOn); $('#q').focus(); };
@@ -1036,7 +1207,7 @@ function keepShooting(a) {
 }
 $('#areaPill').onclick = () => { setArea(null); $('#q').focus(); };
 function fitPills() { const p = $('.pills'); p.classList.remove('tight'); p.classList.toggle('tight', p.scrollWidth > p.clientWidth); }
-addEventListener('resize', fitPills);
+addEventListener('resize', () => { fitPills(); scroll(); }); // a resized panel stays at the newest message if you were there
 
 function toJpeg(src, w, h) {
   const s = Math.min(1, 1568 / Math.max(w, h));
@@ -1227,7 +1398,16 @@ const q = $('#q');
 function autosize() { q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight, 140) + 'px'; }
 q.addEventListener('input', autosize);
 q.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
-$('#sendBtn').onclick = send;
+// while an answer is coming in, the send button stops it; what arrived so far stays in the chat
+const ICON_SEND = '<svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+const ICON_STOP = '<svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" stroke="none"/></svg>';
+function stopMode(on) {
+  const b = $('#sendBtn');
+  b.innerHTML = on ? ICON_STOP : ICON_SEND;
+  b.title = on ? 'Stop answering' : 'Send (Enter)';
+  b.setAttribute('aria-label', on ? 'Stop' : 'Send');
+}
+$('#sendBtn').onclick = () => ctrl ? ctrl.abort() : send();
 
 function searchStep(bot, query) {
   let steps = bot.querySelector('.steps');
@@ -1238,8 +1418,7 @@ function searchStep(bot, query) {
   else s.textContent = 'Searching the web…';
   scroll();
 }
-function finish(bot, out, ev) {
-  convId = ev.conversationId;
+function finish(bot, out, ev, text) {
   bot.querySelectorAll('.step.live').forEach(s => s.remove());
   if ('refusal' in ev) {
     bot.classList.add('err');
@@ -1262,6 +1441,7 @@ function finish(bot, out, ev) {
     m.append(' · cut off · ');
     const b = el('button', 'mini', 'raise limit'); b.type = 'button'; b.onclick = () => openSheet(true); m.appendChild(b);
   }
+  if (text && !('refusal' in ev)) copyAct(m, text);
   bot.appendChild(m);
 }
 
@@ -1293,9 +1473,11 @@ async function send() {
 
   const bot = addMsg('bot', '<span class="typing"><i></i><i></i><i></i></span>');
   const out = bot.querySelector('.body');
+  const gen = chatGen, mine = ctrl = new AbortController();
+  $('#sendBtn').disabled = false; stopMode(true);
   let acc = '', refused = false;
   try {
-    const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(reqBody) });
+    const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(reqBody), signal: mine.signal });
     if (r.status === 401) {
       // put the message back so nothing typed is lost, then lock
       u.remove(); bot.remove(); if (!log.querySelector('.msg')) empty();
@@ -1321,18 +1503,27 @@ async function send() {
         const line = buf.slice(0, i); buf = buf.slice(i + 1);
         if (!line.trim()) continue;
         const ev = JSON.parse(line);
+        // the server names the chat as soon as the answer starts, so one you stop (or that breaks off) stays part of it
+        if (ev.conversationId && gen === chatGen) convId = ev.conversationId;
         if (ev.t === 'd') { acc += ev.v; out.innerHTML = md(acc); scroll(); }
         else if (ev.t === 's') searchStep(bot, ev.q);
-        else if (ev.t === 'done') { refused = 'refusal' in ev; finish(bot, out, ev); }
-        else if (ev.t === 'err') { if (ev.conversationId) convId = ev.conversationId; throw new Error(ev.v); } // a broken-off answer stays in the chat
+        else if (ev.t === 'done') { refused = 'refusal' in ev; finish(bot, out, ev, acc); }
+        else if (ev.t === 'err') throw new Error(ev.v); // a broken-off answer stays in the chat
       }
     }
     if (!acc && !refused) out.innerHTML = '<i>(empty reply)</i>';
   } catch (e) {
-    bot.classList.add('err');
     bot.querySelectorAll('.step.live').forEach(s => s.remove());
-    out.innerHTML = (acc ? md(acc) : '') + '<p>⚠ ' + esc(e.message || String(e)) + '</p>';
+    if (mine.signal.aborted) { // you pressed stop
+      out.innerHTML = acc ? md(acc) : '<span class="stp">Stopped</span>';
+      if (acc) { const m = el('div', 'meta', 'Stopped'); copyAct(m, acc); bot.appendChild(m); }
+    } else {
+      bot.classList.add('err');
+      out.innerHTML = (acc ? md(acc) : '') + '<p>⚠ ' + esc(e.message || String(e)) + '</p>';
+    }
   } finally {
+    if (ctrl === mine) ctrl = null;
+    stopMode(false);
     busy = false; $('#sendBtn').disabled = false;
     if (view === 'chat') {
       scroll();
