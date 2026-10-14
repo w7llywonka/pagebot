@@ -149,9 +149,7 @@ const escHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&
 const bookmarkletSrc = fs.readFileSync(path.join(__dirname, 'bookmarklet.js'), 'utf8');
 const installTpl = fs.readFileSync(path.join(PUB, 'install.html'), 'utf8');
 
-app.get('/', (req, res) => res.redirect('/install'));
-
-app.get('/install', (req, res) => {
+app.get(['/', '/install'], (req, res) => {
   const origin = publicOrigin(req);
   const code = bookmarkletSrc.replaceAll('__ORIGIN__', origin).replace(/\n\s*/g, '');
   const href = 'javascript:' + encodeURIComponent(code);
@@ -161,6 +159,11 @@ app.get('/install', (req, res) => {
 
 app.get('/widget', (req, res) => {
   res.set({ 'Content-Security-Policy': 'frame-ancestors *', 'Cache-Control': 'no-cache' });
+  res.sendFile(path.join(PUB, 'widget.html'));
+});
+
+app.get('/chat', (req, res) => {
+  res.set({ 'Content-Security-Policy': "frame-ancestors 'none'", 'Cache-Control': 'no-cache' });
   res.sendFile(path.join(PUB, 'widget.html'));
 });
 

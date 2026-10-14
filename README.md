@@ -19,7 +19,7 @@ A bookmarklet that opens a small chat panel on any page. It can read the page te
    | `TIMEZONE` | Sets when "today" starts in the stats |
 
 4. **Settings → Networking → Generate Domain.**
-5. Open `https://<your-domain>/install` and drag the button to your bookmarks bar.
+5. Open `https://<your-domain>/` — that's the site: drag the button to your bookmarks bar, or use the full-page chat at `/chat`.
 
 To generate an admin token: `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"`
 
