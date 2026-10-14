@@ -123,8 +123,11 @@ footer a{color:var(--muted)}
     <h2>What it does</h2>
     <div class="grid">
       <div class="card"><div class="ico">📄</div><h3>Reads the page</h3><p>Sends the page text once per chat, so follow-ups stay cheap. Anything you highlight is included automatically.</p></div>
-      <div class="card"><div class="ico">📷</div><h3>Screenshots</h3><p>Captures the tab (the panel hides itself first), or paste any image straight into the box.</p></div>
-      <div class="card"><div class="ico">🔒</div><h3>Yours only</h3><p>Runs on your own server with a password you control. Usage and a token budget are tracked in <a href="/admin">/admin</a>.</p></div>
+      <div class="card"><div class="ico">📷</div><h3>Screenshots</h3><p>Captures the whole tab, or drag a box over just the part you mean. The panel hides itself first. You can also paste any image.</p></div>
+      <div class="card"><div class="ico">🌐</div><h3>Searches the web</h3><p>Turn on web search when the page isn't enough, and answers come with their sources.</p></div>
+      <div class="card"><div class="ico">⚡</div><h3>Haiku or Sonnet</h3><p>Haiku 5.5 for quick answers, Sonnet 5.5 when it needs more thought. One click to switch.</p></div>
+      <div class="card"><div class="ico">🎨</div><h3>Stays out of the way</h3><p>Drag it anywhere, shrink it to a pill, and pick from eight themes.</p></div>
+      <div class="card"><div class="ico">🔒</div><h3>Yours only</h3><p>Runs on your own server behind a password or 5-digit passcode. Usage, limits and a daily chart live in <a href="/admin">/admin</a>.</p></div>
     </div>
   </div>
 </section>
@@ -136,13 +139,14 @@ footer a{color:var(--muted)}
       <li><div>Show your bookmarks bar with <code>Ctrl+Shift+B</code> (<code>Cmd+Shift+B</code> on Mac).</div></li>
       <li><div>Drag the orange <b>📌 pagebot</b> button above onto it.</div></li>
       <li><div>On any page, click the bookmark. Click it again to hide it, or press Esc.</div></li>
-      <li><div>Enter your password once per site. It's remembered after that.</div></li>
+      <li><div>Unlock with your password (or your passcode, if you set one in <a href="/admin">/admin</a>) once per site.</div></li>
     </ol>
+    <p class="hint">Already have pagebot in your bookmarks? Drag the button again to get the version that can move, minimize, and screenshot just a region.</p>
     <details>
       <summary>Can't drag? Paste it in by hand</summary>
       <textarea id="code" readonly>{{HREF}}</textarea>
       <button class="copy" type="button" onclick="navigator.clipboard.writeText(document.getElementById('code').value).then(()=>this.textContent='Copied')">Copy</button>
-      <p class="hint">Create a new bookmark and paste this as its URL. Some sites block overlays; on those you'll get an “Open pagebot” button that opens a small window instead.</p>
+      <p class="hint">Create a new bookmark and paste this as its URL. Some sites block overlays; on those, pagebot opens in a small window instead.</p>
     </details>
   </div>
 </section>
