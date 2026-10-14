@@ -66,7 +66,7 @@ body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition:background-color .3
 /* pop-ups sit over the chat, so they get a plain backing (no blur) to stay legible; the settings sheet hides the chat behind it instead */
 :root[data-theme=clear] .menu,:root[data-theme=clear] .rbar{background:var(--pop);text-shadow:none}
 :root[data-theme=clear] .menu svg,:root[data-theme=clear] .rbar svg{filter:none}
-:root[data-theme=clear] body.sheet>#log,:root[data-theme=clear] body.sheet>#composer{visibility:hidden}
+:root[data-theme=clear] body.sheet>#log,:root[data-theme=clear] body.sheet>#composer,:root[data-theme=clear] body.sheet>#ann{visibility:hidden}
 :root[data-theme=clear] #wrap{background:var(--pop);text-shadow:none}
 /* on /chat and in the pop-up window there's no page behind, so glass and clear sit on a colorful backdrop */
 :root.nohost[data-theme=glass],:root.nohost[data-theme=clear]{background:radial-gradient(60% 50% at 15% 20%,#5b7cff 0,transparent 70%),radial-gradient(50% 45% at 85% 25%,#c35bff 0,transparent 70%),radial-gradient(55% 50% at 70% 85%,#ff7a9c 0,transparent 70%),radial-gradient(50% 50% at 20% 85%,#2ec5b6 0,transparent 70%),#1a1d2e;background-attachment:fixed}
@@ -803,8 +803,13 @@ function hideViews() {
   $('#wait').hidden = true; log.hidden = true; $('#composer').hidden = true; $('#ann').hidden = true;
   stopWaitPoll(); closeWrap();
 }
+let chatWho = null; // whose chat is in the log
+const whoKey = () => cfg?.who === 'user' ? 'u:' + (cfg.user?.name || '').toLowerCase() : cfg?.who || null;
 function showChat(enter) {
   hideViews(); view = 'chat';
+  const k = whoKey();
+  if (chatWho && k !== chatWho) { convId = null; log.replaceChildren(); clearImg(); stopStream(); setArea(null); annGone = 0; }
+  chatWho = k;
   log.hidden = false; $('#composer').hidden = false;
   setHeader(true); renderAccount(); renderAnn();
   if (!log.children.length) empty();
@@ -873,14 +878,17 @@ function renderLock(msg) {
   else if (!usePin && !owner && !$('#uName').value && store.get('pb_who') === 'user') $('#uName').value = store.get('pb_user') || '';
   const links = [];
   if (usePin) {
-    links.push(['Use password instead', () => toPassword()]);
+    // (an owner with only a passcode has no password to switch to, unless it's to an account)
+    if (who.name || cfg?.passwordSet || accountsOn()) links.push(['Use password instead', () => toPassword()]);
     if (who.name) links.push([`Not ${who.name}?`, () => { lockFill = ''; lockFocus = 'name'; showLogin('', 'signin'); }]);
   } else if (owner) {
-    if (lock === 'passcode' && cfg?.passwordSet) links.push(['Use passcode', () => { pwMode = false; showLogin('', 'pin'); }]);
+    if (lock === 'passcode') links.push(['Use passcode', () => { pwMode = false; showLogin('', 'pin'); }]);
   } else if (signup) links.push(['I already have an account', () => showLogin('', 'signin')]);
   else {
     if (cfg?.accounts?.signup) links.push(['Create an account', () => showLogin('', 'signup')]);
     if (pinWho()) links.push(['Use passcode', () => { pwMode = false; showLogin('', 'pin'); }]);
+    // an owner who only has a passcode can't sign in here with a password
+    else if (cfg?.lock === 'passcode' && !cfg?.passwordSet) links.push(['Owner? Use passcode', () => { store.set('pb_who', 'owner'); pwMode = false; showLogin('', 'pin'); }]);
   }
   const box = $('#lockLinks'); box.replaceChildren();
   links.forEach(([text, fn], i) => {
@@ -1018,7 +1026,7 @@ function lock(msg) {
   token = null; store.set('pb_token', null);
   showLogin(msg);
 }
-function logout(msg) { convId = null; log.innerHTML = ''; clearImg(); stopStream(); setArea(null); lock(msg); }
+function logout(msg) { convId = null; chatWho = null; log.innerHTML = ''; clearImg(); stopStream(); setArea(null); lock(msg); }
 $('#outBtn').onclick = () => logout();
 $('#lockBtn').onclick = $('#lockNow').onclick = () => lock();
 $('#newBtn').onclick = () => { convId = null; setPage(true); clearImg(); closeSheet(); closeWrap(); empty(); $('#q').focus(); };
@@ -1112,10 +1120,12 @@ $('#pwCancel').onclick = () => { $('#pwForm').hidden = true; $('#pwCur').value =
 $('#pwForm').addEventListener('submit', async e => {
   e.preventDefault();
   try {
-    await api('/api/account/password', { current: $('#pwCur').value, password: $('#pwNew').value });
+    const r = await api('/api/account/password', { current: $('#pwCur').value, password: $('#pwNew').value });
+    const hadPin = !!cfg.user?.passcode;
+    if (r.user) { Object.assign(cfg.user, r.user); cfg.lockMinutes = r.lockMinutes; store.set('pb_pin', r.user.passcode ? '1' : null); setHeader(view === 'chat'); }
     $('#pwCur').value = $('#pwNew').value = '';
     $('#pwForm').hidden = true; renderAccount();
-    note('Password changed. Your other devices were signed out.');
+    note('Password changed. Your other devices were signed out' + (hadPin && !cfg.user?.passcode ? ', and your passcode was turned off.' : '.'));
   } catch (err) { $('#pwMsg').textContent = err.message; }
 });
 
@@ -1400,16 +1410,16 @@ document.querySelectorAll('.grip').forEach(g => {
   g.addEventListener('pointerdown', e => {
     if (e.button !== 0 || minimized) return;
     e.preventDefault();
-    sizing = { edge: g.dataset.g, x: e.screenX, y: e.screenY };
+    sizing = { edge: g.dataset.g, x: e.screenX, y: e.screenY, w: innerWidth, h: innerHeight };
     g.setPointerCapture(e.pointerId); body.classList.add('resizing', 'rs-' + g.dataset.g);
   });
-  // screen coordinates, because the panel itself moves under the pointer while it grows
+  // Screen coordinates, because the panel itself moves under the pointer while it grows. Each size is worked out from
+  // the size the drag started at, so the edge stays under the pointer even after it hits the smallest or largest size.
   g.addEventListener('pointermove', e => {
     if (!sizing) return;
     const dx = e.screenX - sizing.x, dy = e.screenY - sizing.y;
-    if (!dx && !dy) return;
-    sizing.x = e.screenX; sizing.y = e.screenY;
-    tell('resize', { dw: sizing.edge === 't' ? 0 : -dx, dh: sizing.edge === 'l' ? 0 : -dy });
+    if (docked) return void tell('size', { dw: Math.round(sizing.w - dx) });
+    tell('size', { ...(sizing.edge !== 't' && { w: Math.round(sizing.w - dx) }), ...(sizing.edge !== 'l' && { h: Math.round(sizing.h - dy) }) });
   });
   const end = async () => {
     if (!sizing) return;

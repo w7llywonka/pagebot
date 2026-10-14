@@ -557,7 +557,7 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
       if (!u || !ok) { noteFail(req); return res.status(401).json({ error: 'Wrong username or password.' }); }
     }
     if (u.status === 'blocked') return res.status(403).json({ error: 'This account has been turned off.' });
-    if (b.passcode == null) await pool.query('UPDATE users SET passcode_fails = 0 WHERE id = $1', [u.id]); // the password clears wrong passcodes
+    if (b.passcode == null) await pool.query('UPDATE users SET passcode_fails = 0, passcode_fails_at = NULL WHERE id = $1', [u.id]); // the password clears wrong passcodes
     if (old) await pool.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(old)]);
     return res.json({ token: await newSession(Number(u.id)) });
   }
@@ -639,9 +639,12 @@ app.post('/api/account/password', limit(10, 'login'), auth, async (req, res) => 
   if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'Use a password with at least 6 characters.' });
   const row = (await pool.query('SELECT password_hash FROM users WHERE id=$1', [u.id])).rows[0];
   if (!(await verifyPw(String(b.current || ''), row.password_hash))) { noteFail(req); return res.status(401).json({ error: 'Your current password is wrong.' }); }
-  await pool.query('UPDATE users SET password_hash=$2, passcode_fails=0 WHERE id=$1', [u.id, await hashPw(pw)]);
+  // the passcode goes too: it would otherwise sign the devices this signs out straight back in
+  const r = await pool.query('UPDATE users SET password_hash=$2, passcode_hash=NULL, passcode_fails=0, passcode_fails_at=NULL WHERE id=$1 RETURNING *',
+    [u.id, await hashPw(pw)]);
   await pool.query('DELETE FROM sessions WHERE user_id=$1 AND token_hash <> $2', [u.id, sha256(bearer(req))]);
-  res.json({ ok: true });
+  const nu = toUser(r.rows[0]);
+  res.json({ ok: true, user: publicUser(nu), lockMinutes: userLockMinutes(nu) });
 });
 
 // accounts can have their own passcode, like the owner's: 5 digits instead of the password, plus an idle lock.
@@ -657,14 +660,14 @@ app.post('/api/account/passcode', limit(10, 'login'), auth, trusted, async (req,
     if (!LOCK_CHOICES.includes(mins)) return res.status(400).json({ error: 'Pick one of the listed auto-lock times.' });
     set.lock_minutes = mins;
   }
-  if (b.passcode === null) Object.assign(set, { passcode_hash: null, passcode_fails: 0 });
+  if (b.passcode === null) Object.assign(set, { passcode_hash: null, passcode_fails: 0, passcode_fails_at: null });
   else if (b.passcode != null) {
     const code = String(b.passcode);
     if (!/^\d{5}$/.test(code)) return res.status(400).json({ error: 'The passcode must be exactly 5 digits.' });
     const row = (await pool.query('SELECT password_hash FROM users WHERE id=$1', [u.id])).rows[0];
     // 400, not 401: the panel treats 401 as "signed out"
     if (!(await verifyPw(String(b.current || ''), row.password_hash))) { noteFail(req); return res.status(400).json({ error: 'Your password is wrong.' }); }
-    Object.assign(set, { passcode_hash: await hashPw(code), passcode_fails: 0 });
+    Object.assign(set, { passcode_hash: await hashPw(code), passcode_fails: 0, passcode_fails_at: null });
   }
   const keys = Object.keys(set);
   if (!keys.length) return res.status(400).json({ error: 'Nothing to change.' });
@@ -748,7 +751,7 @@ app.post('/api/chat', limit(60, 'chat'), auth, trusted, chatJson, async (req, re
   try { await chat(req, res); } finally { if (id != null) answering.delete(id); }
 });
 
-// page text can't open or close the tags that mark where it starts and ends
+// highlighted text can't open or close the tags that mark where it starts and ends
 const fence = s => s.replace(/<(\/?)(page|highlighted_text)\b/gi, '&lt;$1$2');
 
 async function chat(req, res) {
@@ -769,7 +772,7 @@ async function chat(req, res) {
   const page = b.page && typeof b.page === 'object' ? {
     url: String(b.page.url || '').slice(0, 2000),
     title: String(b.page.title || '').slice(0, 300),
-    text: fence(String(b.page.text || '').slice(0, limits.pageTokens * 4)), // ~4 characters per token
+    text: String(b.page.text || '').slice(0, limits.pageTokens * 4), // ~4 characters per token; it goes in a document block
   } : null;
   const selection = fence(String(b.selection || '').slice(0, 8000));
 
@@ -966,27 +969,32 @@ async function wrappedFor(uid, tz, back) {
     `SELECT extract(year from now() AT TIME ZONE $1)::int - $2 AS year,
        (date_trunc('year', now() AT TIME ZONE $1) - make_interval(years => $2)) AT TIME ZONE $1 AS start,
        (date_trunc('year', now() AT TIME ZONE $1) - make_interval(years => $2 - 1)) AT TIME ZONE $1 AS stop`, [tz, back])).rows[0];
-  const mine = `m.user_id IS NOT DISTINCT FROM $1 AND m.created_at >= $2 AND m.created_at < $3`;
+  // "= $1" (or IS NULL for the owner) so Postgres can use messages_user_idx; $1 stays in the query either way
+  const mine = `${uid == null ? 'm.user_id IS NULL AND $1::bigint IS NULL' : 'm.user_id = $1'} AND m.created_at >= $2 AND m.created_at < $3`;
   const p3 = [uid, span.start, span.stop], p4 = [...p3, tz];
-  const [tot, sites, hours, models, theme, streak] = await Promise.all([
-    pool.query(`SELECT COUNT(*)::int AS questions, COUNT(DISTINCT (m.created_at AT TIME ZONE $4)::date)::int AS days
-      FROM messages m WHERE ${mine} AND m.role = 'user'`, p4),
-    pool.query(`SELECT site, COUNT(*)::int AS n FROM (
-        SELECT lower(regexp_replace(substring(c.page_url from '^[a-zA-Z][a-zA-Z0-9+.-]*://([^/:?#]+)'), '^www\\.', '')) AS site
-        FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE ${mine} AND m.role = 'user') x
-      WHERE site <> '' GROUP BY site ORDER BY n DESC, site LIMIT 5`, p3),
-    pool.query(`SELECT extract(hour from m.created_at AT TIME ZONE $4)::int AS h, COUNT(*)::int AS n
-      FROM messages m WHERE ${mine} AND m.role = 'user' GROUP BY h`, p4),
-    pool.query(`SELECT m.model, COUNT(*)::int AS n FROM messages m
-      WHERE ${mine} AND m.role = 'assistant' AND m.model IS NOT NULL GROUP BY m.model`, p3),
-    pool.query(`SELECT m.theme, COUNT(*)::int AS n FROM messages m
-      WHERE ${mine} AND m.role = 'user' AND m.theme IS NOT NULL GROUP BY m.theme ORDER BY n DESC, m.theme LIMIT 1`, p3),
-    // longest run of days in a row with at least one question (days minus their rank stay equal within a run)
-    pool.query(`WITH d AS (SELECT DISTINCT (m.created_at AT TIME ZONE $4)::date AS day FROM messages m WHERE ${mine} AND m.role = 'user'),
-        g AS (SELECT day, day - (ROW_NUMBER() OVER (ORDER BY day))::int AS grp FROM d)
-      SELECT COUNT(*)::int AS days, MIN(day)::text AS start, MAX(day)::text AS stop FROM g
-      GROUP BY grp ORDER BY days DESC, MAX(day) DESC LIMIT 1`, p4),
-  ]);
+  const db = await pool.connect(); // the six queries share one connection, so a big year can't take the whole pool
+  let tot, sites, hours, models, theme, streak;
+  try {
+    [tot, sites, hours, models, theme, streak] = await Promise.all([
+      db.query(`SELECT COUNT(*)::int AS questions, COUNT(DISTINCT (m.created_at AT TIME ZONE $4)::date)::int AS days
+        FROM messages m WHERE ${mine} AND m.role = 'user'`, p4),
+      db.query(`SELECT site, COUNT(*)::int AS n FROM (
+          SELECT lower(regexp_replace(substring(c.page_url from '^[a-zA-Z][a-zA-Z0-9+.-]*://([^/:?#]+)'), '^www\\.', '')) AS site
+          FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE ${mine} AND m.role = 'user') x
+        WHERE site <> '' GROUP BY site ORDER BY n DESC, site LIMIT 5`, p3),
+      db.query(`SELECT extract(hour from m.created_at AT TIME ZONE $4)::int AS h, COUNT(*)::int AS n
+        FROM messages m WHERE ${mine} AND m.role = 'user' GROUP BY h`, p4),
+      db.query(`SELECT m.model, COUNT(*)::int AS n FROM messages m
+        WHERE ${mine} AND m.role = 'assistant' AND m.model IS NOT NULL GROUP BY m.model`, p3),
+      db.query(`SELECT m.theme, COUNT(*)::int AS n FROM messages m
+        WHERE ${mine} AND m.role = 'user' AND m.theme IS NOT NULL GROUP BY m.theme ORDER BY n DESC, m.theme LIMIT 1`, p3),
+      // longest run of days in a row with at least one question (days minus their rank stay equal within a run)
+      db.query(`WITH d AS (SELECT DISTINCT (m.created_at AT TIME ZONE $4)::date AS day FROM messages m WHERE ${mine} AND m.role = 'user'),
+          g AS (SELECT day, day - (ROW_NUMBER() OVER (ORDER BY day))::int AS grp FROM d)
+        SELECT COUNT(*)::int AS days, MIN(day)::text AS start, MAX(day)::text AS stop FROM g
+        GROUP BY grp ORDER BY days DESC, MAX(day) DESC LIMIT 1`, p4),
+    ]);
+  } finally { db.release(); }
   const byHour = Array(24).fill(0);
   for (const r of hours.rows) byHour[r.h] = r.n;
   const byModel = new Map();
@@ -1150,7 +1158,7 @@ app.post('/api/admin/users/:id', limit(60, 'admin'), admin, async (req, res) => 
     const pw = String(b.password);
     if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'The new password needs at least 6 characters.' });
     // a reset also removes their passcode, which would otherwise still sign them in
-    Object.assign(set, { password_hash: await hashPw(pw), passcode_hash: null, passcode_fails: 0 });
+    Object.assign(set, { password_hash: await hashPw(pw), passcode_hash: null, passcode_fails: 0, passcode_fails_at: null });
     signOut = true;
   }
   const keys = Object.keys(set);
