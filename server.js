@@ -37,6 +37,7 @@ const PRICES = {
   'claude-sonnet-5': { in: 2, write: 2.50, read: 0.20, out: 10 },
 };
 const SEARCH_USD = 0.01; // $10 per 1,000 web searches
+const SEARCH_TOKENS = 3000; // rough prompt tokens one search's results add, for estimates
 
 // prefs are what the panel changes; limits cap each question. Both live in the settings table.
 const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', 'glass'];
@@ -624,8 +625,29 @@ function addUsage(tot, msg, requested) {
   tot.searches += searches;
   tot.usd += searches * SEARCH_USD;
 }
+// Usage for a response cut short, from the SDK's snapshot of it. The prompt's tokens came with message_start, but
+// output and searches are only totaled at the end, so they're estimated from what streamed in: about 3 characters
+// a token, plus the searches that finished, each adding SEARCH_TOKENS of results to the prompt.
+function cutUsage(msg) {
+  if (msg.stop_reason) return msg; // the closing message_delta arrived, so the totals are in
+  let chars = 0, searches = 0;
+  for (const b of msg.content) {
+    if (b.type === 'text') chars += (b.text || '').length;
+    else if (b.type === 'thinking') chars += (b.thinking || '').length;
+    else if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) searches++; // failed searches aren't billed
+  }
+  const u = msg.usage || {};
+  return {
+    usage: {
+      input_tokens: (u.input_tokens || 0) + searches * SEARCH_TOKENS,
+      cache_creation_input_tokens: u.cache_creation_input_tokens, cache_read_input_tokens: u.cache_read_input_tokens,
+      output_tokens: Math.max(u.output_tokens || 0, Math.ceil(chars / 3)),
+      server_tool_use: { web_search_requests: searches },
+    },
+  };
+}
 
-// chat (streams NDJSON: {t:'d',v:text} | {t:'s',q?} search started/query | {t:'done',...} | {t:'err',v})
+// chat (streams NDJSON: {t:'d',v:text} | {t:'s',q?} search started/query | {t:'done',...} | {t:'err',v,conversationId?})
 // Accounts get one answer at a time, so a burst of parallel questions can't all slip under the daily limit.
 const answering = new Set();
 app.post('/api/chat', limit(60, 'chat'), auth, trusted, chatJson, async (req, res) => {
@@ -679,7 +701,7 @@ async function chat(req, res) {
     const c = await pool.query('SELECT 1 FROM conversations WHERE id=$1 AND user_id IS NOT DISTINCT FROM $2', [convId, uid]);
     if (c.rowCount) {
       history = (await pool.query(
-        'SELECT role, content, had_image FROM messages WHERE conversation_id=$1 AND NOT refused AND NOT incomplete ORDER BY id', [convId])).rows;
+        'SELECT role, content, had_image FROM messages WHERE conversation_id=$1 AND NOT refused ORDER BY id', [convId])).rows;
     } else convId = null;
   }
 
@@ -707,7 +729,7 @@ async function chat(req, res) {
     // Make sure the whole question fits in what's left today: the prompt (estimated on the high side at
     // 3 characters a token), screenshots and search results, plus the answer, whose length gets capped to fit.
     const chars = system.length + userText.length + history.reduce((n, h) => n + h.content.length, 0);
-    const estIn = Math.ceil(chars / 3) + (image ? 1600 : 0) + (web ? limits.maxSearches * 3000 : 0);
+    const estIn = Math.ceil(chars / 3) + (image ? 1600 : 0) + (web ? limits.maxSearches * SEARCH_TOKENS : 0);
     let room;
     if (q0.kind === 'tokens') room = q0.left - estIn;
     else {
@@ -740,23 +762,19 @@ async function chat(req, res) {
   });
   const out = o => { if (!res.writableEnded && !res.destroyed) res.write(JSON.stringify(o) + '\n'); };
 
-  // If the panel goes away mid-answer, stop to save tokens, except for accounts with a daily limit: their answer
-  // runs to the end so all of it is counted (otherwise hanging up early would make answers free).
-  const keepGoing = !!q0;
+  // the panel went away mid-answer (closed, reloaded, or stopped): stop spending tokens. What was used so far still counts.
   let stream = null, closed = false;
-  res.on('close', () => { if (!res.writableFinished) { closed = true; if (!keepGoing) stream?.abort(); } });
+  res.on('close', () => { if (!res.writableFinished) { closed = true; stream?.abort(); } });
 
   const tot = { in: 0, out: 0, usd: 0, searches: 0 };
   const sources = new Map();
-  let reply = '', final = null, failed = null, hop = null;
+  let reply = '', final = null, failed = null, cut = null;
   try {
     // a long server-side search loop can pause the turn; resend it as-is to let it continue
     for (let i = 0; i < 4 && !closed; i++) {
-      hop = { usage: null, model: m.id, chars: 0 }; // what this request has reported, in case it gets cut short
       stream = api.stream(params);
-      stream.on('text', t => { reply += t; hop.chars += t.length; out({ t: 'd', v: t }); });
+      stream.on('text', t => { reply += t; out({ t: 'd', v: t }); });
       stream.on('streamEvent', ev => {
-        if (ev.type === 'message_start') { hop.usage = ev.message?.usage || null; hop.model = ev.message?.model || m.id; }
         if (ev.type === 'content_block_start' && ev.content_block?.type === 'server_tool_use' && ev.content_block.name === 'web_search') out({ t: 's' });
       });
       stream.on('contentBlock', blk => {
@@ -766,7 +784,6 @@ async function chat(req, res) {
         }
       });
       final = await stream.finalMessage();
-      hop = null;
       addUsage(tot, final, m.id);
       for (const blk of final.content) {
         if (blk.type !== 'text') continue;
@@ -780,24 +797,25 @@ async function chat(req, res) {
     }
   } catch (e) {
     failed = e;
-    if (e?.name !== 'APIUserAbortError') console.error('chat error:', e?.status, e?.message);
-    // a request cut short is still billed for what it used: its prompt, and the answer so far (estimated from its length)
-    if (hop?.usage) addUsage(tot, { usage: { ...hop.usage, output_tokens: Math.max(hop.usage.output_tokens || 0, Math.ceil(hop.chars / 3)) } }, hop.model);
+    if (!(e instanceof Anthropic.APIUserAbortError)) console.error('chat error:', e?.status, e?.message);
+    // a request cut short is still billed for what it used; the SDK keeps the message as far as it got
+    cut = stream?.currentMessage;
+    if (cut) addUsage(tot, cutUsage(cut), cut.model || m.id);
   }
   if (!final && !tot.in) { // nothing reached the model
     if (failed) out({ t: 'err', v: friendly(failed, m.id) });
     return void res.end();
   }
 
-  const refused = !failed && final.stop_reason === 'refusal';
+  const refused = (failed ? cut : final)?.stop_reason === 'refusal';
   const replyText = reply.trim() ? reply : refused ? '[declined]' : failed ? '(stopped)' : '(no answer)';
-  // an answer that broke off is counted toward usage but left out of the conversation the model sees next time
+  // an answer that broke off still counts toward usage, and stays in the chat as far as it got, for follow-ups
   await pool.query(
     `INSERT INTO messages(conversation_id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, user_id, cost_usd, incomplete)
      VALUES ($1,'user',$2,$3,0,0,NULL,0,$4,$10,0,$12), ($1,'assistant',$5,false,$6,$7,$8,$9,$4,$10,$11,$12)`,
-    [convId, userText, !!image, refused, replyText, tot.in, tot.out, final?.model || m.id, tot.searches, uid, tot.usd, !!failed]);
+    [convId, userText, !!image, refused, replyText, tot.in, tot.out, (cut || final)?.model || m.id, tot.searches, uid, tot.usd, !!failed]);
   if (failed) {
-    out({ t: 'err', v: friendly(failed, m.id) });
+    out({ t: 'err', v: friendly(failed, m.id), conversationId: convId });
     return void res.end();
   }
   out({

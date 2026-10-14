@@ -1185,7 +1185,7 @@ async function send() {
         if (ev.t === 'd') { acc += ev.v; out.innerHTML = md(acc); scroll(); }
         else if (ev.t === 's') searchStep(bot, ev.q);
         else if (ev.t === 'done') { refused = 'refusal' in ev; finish(bot, out, ev); }
-        else if (ev.t === 'err') throw new Error(ev.v);
+        else if (ev.t === 'err') { if (ev.conversationId) convId = ev.conversationId; throw new Error(ev.v); } // a broken-off answer stays in the chat
       }
     }
     if (!acc && !refused) out.innerHTML = '<i>(empty reply)</i>';
