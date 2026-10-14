@@ -416,7 +416,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
       <button class="tb" id="addBtn" type="button" title="Screenshot, page text, web search" aria-label="Add" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
       <div class="pills">
         <button class="pill" id="pagePill" type="button" title="This page's text goes with your next message. Click to leave it out." hidden>📄<span class="pl">Page</span><i>×</i></button>
-        <button class="pill" id="areaPill" type="button" title="Every message sends a new screenshot of the area you picked. Click to turn it off." hidden>⛶<span class="pl">Region</span><i>×</i></button>
+        <button class="pill" id="areaPill" type="button" title="Every message sends a new screenshot of the area you picked. Click to turn it off." hidden><span class="pi">⛶</span><span class="pl">Region</span><i>×</i></button>
         <button class="pill" id="webPill" type="button" title="Web search is on. Click to turn it off." hidden>🌐<span class="pl">Web</span><i>×</i></button>
       </div>
       <button class="tb model" id="modelBtn" type="button" aria-haspopup="menu" aria-expanded="false"><span id="modelName">Haiku 5.5</span><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
@@ -424,7 +424,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
     </div>
   </div>
   <div class="menu" id="addMenu" role="menu" hidden>
-    <button type="button" role="menuitem" id="shotBtn"><span class="mi">📷</span><span class="mt">Screenshot this tab</span></button>
+    <button type="button" role="menuitem" id="shotBtn"><span class="mi">📷</span><span class="mt">Screenshot this tab<span class="md" id="shotNote" hidden>On for every message</span></span></button>
     <button type="button" role="menuitem" id="areaBtn"><span class="mi">⛶</span><span class="mt">Screenshot a region<span class="md" id="areaNote" hidden>On for every message · pick again to change it</span></span></button>
     <button type="button" role="menuitemcheckbox" id="pageBtn" aria-checked="false"><span class="mi">📄</span><span class="mt">Page text</span><span class="ck">✓</span></button>
     <button type="button" role="menuitemcheckbox" id="webBtn" aria-checked="false"><span class="mi">🌐</span><span class="mt">Web search<span class="md" id="webNote" hidden>Not turned on for your account</span></span><span class="ck">✓</span></button>
@@ -1017,7 +1017,23 @@ function setImg(dataUrl, kind = 'shot') {
 function clearImg() { img = null; $('#att').hidden = true; $('#att img').removeAttribute('src'); }
 $('#rmAtt').onclick = () => { clearImg(); $('#q').focus(); };
 // region screenshots stay on until you turn them off with the ⛶ Region pill or stop sharing
-function setArea(a) { area = a; $('#areaPill').hidden = $('#areaNote').hidden = !a; fitPills(); }
+const WHOLE = { x: 0, y: 0, w: 1, h: 1, whole: true }; // "Screenshot this tab" keeps going the same way as a region
+function setArea(a) {
+  area = a;
+  const p = $('#areaPill'); p.hidden = !a;
+  if (a) {
+    p.querySelector('.pi').textContent = a.whole ? '📷' : '⛶'; p.querySelector('.pl').textContent = a.whole ? 'Screen' : 'Region';
+    p.title = `Every message sends a new screenshot of ${a.whole ? 'the whole tab' : 'the area you picked'}. Click to turn it off.`;
+  }
+  $('#shotNote').hidden = !a?.whole; $('#areaNote').hidden = !a || !!a.whole;
+  fitPills();
+}
+// screenshots stay on after the first one, until you click the pill or stop sharing
+function keepShooting(a) {
+  if (!area) note(a.whole ? 'Screenshots stay on: every message sends a new shot of this tab. Click 📷 Screen to turn them off.'
+    : 'Region screenshots stay on: every message sends a new shot of this area. Click ⛶ Region to turn them off.');
+  setArea(a);
+}
 $('#areaPill').onclick = () => { setArea(null); $('#q').focus(); };
 function fitPills() { const p = $('.pills'); p.classList.remove('tight'); p.classList.toggle('tight', p.scrollWidth > p.clientWidth); }
 addEventListener('resize', fitPills);
@@ -1051,7 +1067,7 @@ async function grab() {
     s.getVideoTracks()[0].addEventListener('ended', () => {
       if (stream !== s) return;
       stopStream();
-      if (area) { setArea(null); note('Screen sharing stopped, so region screenshots are off.'); }
+      if (area) { setArea(null); note('Screen sharing stopped, so screenshots are off.'); }
     });
     video = el('video');
     video.muted = true; video.playsInline = true; video.srcObject = stream;
@@ -1089,7 +1105,7 @@ $('#shotBtn').onclick = async () => {
   try {
     const c = await grab();
     if (embedded) tell('show');
-    setImg(toJpeg(c, c.width, c.height)); focusView();
+    setImg(toJpeg(c, c.width, c.height)); keepShooting(WHOLE); focusView();
   } catch (e) { shotFailed(e); }
 };
 $('#areaBtn').onclick = async () => {
@@ -1098,10 +1114,7 @@ $('#areaBtn').onclick = async () => {
   try { c = await grab(); } catch (e) { return shotFailed(e); }
   const r = await pickRegion(c);
   if (r) setImg(r.url, r.kind);
-  if (r?.area) {
-    if (!area) note('Region screenshots stay on: every message sends a new shot of this area. Click ⛶ Region to turn them off.');
-    setArea(r.area);
-  }
+  if (r?.area) keepShooting(r.area);
   focusView();
 };
 // a new shot of the region you picked, for the message being sent
@@ -1147,7 +1160,7 @@ function pickRegion(canvas) {
       const a = { x: (r.x - g.ox) / g.w, y: (r.y - g.oy) / g.h, w: r.w / g.w, h: r.h / g.h };
       done({ url: crop(canvas, a), kind: 'region', area: a });
     });
-    const whole = () => done({ url: toJpeg(canvas, canvas.width, canvas.height), kind: 'shot' });
+    const whole = () => done({ url: toJpeg(canvas, canvas.width, canvas.height), kind: 'shot', area: WHOLE });
     bar.addEventListener('click', e => { const a = e.target.closest('button')?.dataset.a; if (a === 'full') whole(); else if (a === 'x') done(null); });
     region = { cancel: () => done(null), whole };
     async function done(result) {
@@ -1261,8 +1274,8 @@ async function send() {
   if (!q.value.trim() && !img && !area && !page && !selection) { busy = false; return; }
 
   $('#sendBtn').disabled = true; setStatus();
-  if (area && !img) { // region screenshots are on: a new shot of the same area goes with this message
-    try { setImg(await shootArea(), 'region'); }
+  if (area && !img) { // screenshots are on: a new shot of the same area (or the whole tab) goes with this message
+    try { setImg(await shootArea(), area.whole ? 'shot' : 'region'); }
     catch (e) {
       busy = false; $('#sendBtn').disabled = false; setStatus();
       if (e?.name === 'NotAllowedError') setArea(null); // sharing was turned down, so don't ask again on every message

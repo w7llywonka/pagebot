@@ -63,7 +63,7 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
 - **Minimize** (the – button) shrinks it to a small pill. A dot on the pill means an answer finished while it was minimized. Click the pill or the bookmark to open it again.
 - The **+** button under the message box has everything you can add:
   - **Screenshot this tab**, or **Screenshot a region** to drag a box over just the part you mean. The panel hides itself while the shot is taken. You can also paste any image with Ctrl/Cmd+V.
-  - Region screenshots stay on (shown as a ⛶ Region pill): every message you send takes a new shot of that same area. Pick a region again to change it, or click the pill to turn it off.
+  - Screenshots stay on after the first one (shown as a 📷 Screen or ⛶ Region pill): every message you send takes a new shot of the whole tab, or of the same area. Take a different kind of screenshot to switch, or click the pill to turn it off.
   - Chrome asks to share the tab the first time. Sharing then stays on, even when you close the panel, until you choose **Stop sharing this tab** in the + menu or Chrome's own Stop sharing button.
   - **Page text** sends the page along. It's on for the first message of each chat (shown as a 📄 Page pill) and off after that, since the page stays in the chat history anyway.
   - **Web search** lets the model search the web (shown as a 🌐 Web pill). Answers that used it list their sources.
