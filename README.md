@@ -70,8 +70,9 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
   - Click a pill's × to turn that thing off.
 - The model name next to the send button picks the model: ⚡ Haiku 5.5 is fast and cheap; ✦ Sonnet 5.5 is smarter.
 - Every time you open the panel, a short animation plays while it loads (under 3 seconds).
-- **⚙ Settings**: pick a theme (Auto, Ember, Paper, Midnight, Forest, Dusk, Sakura, Terminal, or Glass) and the max tokens per answer, from 512 up to 8k. No answer can go past 8,000 tokens. Settings apply everywhere you use pagebot, and each account has its own.
+- **⚙ Settings**: pick a theme (Auto, Ember, Paper, Midnight, Forest, Dusk, Sakura, Terminal, Glass, or Clear) and the max tokens per answer, from 512 up to 8k. No answer can go past 8,000 tokens. Settings apply everywhere you use pagebot, and each account has its own.
 - **Glass** is see-through: the page shows through a soft blur, and the text switches between dark and light to match the page behind it.
+- **Clear** drops the panel entirely: no tint, no blur, no shadow, only the words, buttons and message box floating over the page. Text gets a thin halo so it stays readable, and switches between dark and light like Glass.
 - Links in answers show which site they go to, in grey after the link text.
 - With an account, Settings also shows how much of today's limit is used, and lets you change your password. Each answer shows what's left for the day.
 - Highlighted text on the page is included automatically.
@@ -79,7 +80,7 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
 - Some sites block overlays. On those, pagebot opens in a small window instead. If your browser blocks that pop-up, click the bookmark again.
 - You log in once per site, and it's remembered there. With a passcode set, the panel locks itself after the idle time you chose, or right away with the 🔒 button.
 
-Updating from an older version? Drag the button from the homepage to your bookmarks bar again. Old bookmarks still work, but only the newest one makes Glass see-through on every site (with older ones it turns solid grey on dark-mode sites like Google's), plus the bigger panel, the animation on every open, and (for the oldest ones) moving, minimizing, and full-page region shots.
+Updating from an older version? Drag the button from the homepage to your bookmarks bar again. Old bookmarks still work, but only the newest one makes Glass see-through on every site and takes the shadow off Clear (with older ones it turns solid grey on dark-mode sites like Google's), plus the bigger panel, the animation on every open, and (for the oldest ones) moving, minimizing, and full-page region shots.
 
 ## Security
 
