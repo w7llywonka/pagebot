@@ -82,7 +82,7 @@ Updating from an older version? Drag the button from the homepage to your bookma
 
 - **Daily limits hold**:
   - Each account gets one answer at a time.
-  - An answer that's stopped partway still counts in full.
+  - An answer that's stopped partway (the panel closed or the page reloaded) stops there, but what it used still counts: the whole question, the answer so far, and any web searches it ran.
   - A question that wouldn't fit in what's left of the day is turned down, and the answer length is capped to fit.
 - **Logins**:
   - Each address gets 10 tries a minute and 30 wrong logins an hour.
