@@ -51,8 +51,8 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
   - The switch at the top opens or closes sign-ups. **What newly accepted users start with** sets the limit and access each new person gets when you accept them.
   - Daily limits reset at midnight in your `TIMEZONE`. Dollar amounts are estimates from Anthropic's list prices.
 - **Limits per question**: max tokens per answer (8,000 at most), how much page text gets sent, and how many web searches one question can run. Accounts can pick a shorter answer length in their settings, but never more than this.
-- **Passcode lock**: set a 5-digit passcode and choose how long the panel can sit idle before it locks (1 minute to 1 day, or never). With a passcode set, the panel shows a number pad instead of the password box. After 10 wrong passcodes in a row, only the password can unlock it.
-- **Access password**: changing it signs out every device you're logged in on. Accounts stay signed in.
+- **Passcode lock**: set a 5-digit passcode and choose how long the panel can sit idle before it locks (1 minute to 1 day, or never). With a passcode set, the panel shows a number pad instead of the password box. Wrong passcodes count for 24 hours, even if the right one is entered in between. After 10, only the password can unlock it.
+- **Access password**: at least 8 characters. Changing it signs out every device you're logged in on. Accounts stay signed in.
 
 ## Using it
 
@@ -69,13 +69,34 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
 - Every time you open the panel, a short animation plays while it loads (under 3 seconds).
 - **⚙ Settings**: pick a theme (Auto, Ember, Paper, Midnight, Forest, Dusk, Sakura, Terminal, or Glass) and the max tokens per answer, from 512 up to 8k. No answer can go past 8,000 tokens. Settings apply everywhere you use pagebot, and each account has its own.
 - **Glass** is see-through: the page shows through a soft blur, and the text switches between dark and light to match the page behind it.
+- Links in answers show which site they go to, in grey after the link text.
 - With an account, Settings also shows how much of today's limit is used, and lets you change your password. Each answer shows what's left for the day.
 - Highlighted text on the page is included automatically.
 - Old screenshots aren't resent on follow-ups, which saves tokens.
 - Some sites block overlays. On those, pagebot opens in a small window instead. If your browser blocks that pop-up, click the bookmark again.
 - You log in once per site, and it's remembered there. With a passcode set, the panel locks itself after the idle time you chose, or right away with the 🔒 button.
 
-Updating from an older version? Drag the button from the homepage to your bookmarks bar again. Old bookmarks still work, but only the newest one gets the blur behind the Glass theme (older ones get a frosted tint instead), the bigger panel, the animation on every open, and (for the oldest ones) moving, minimizing, and full-page region shots.
+Updating from an older version? Drag the button from the homepage to your bookmarks bar again. Old bookmarks still work, but only the newest one makes Glass see-through on every site (with older ones it turns solid grey on dark-mode sites like Google's), plus the bigger panel, the animation on every open, and (for the oldest ones) moving, minimizing, and full-page region shots.
+
+## Security
+
+- **Daily limits hold**:
+  - Each account gets one answer at a time.
+  - An answer that's stopped partway still counts in full.
+  - A question that wouldn't fit in what's left of the day is turned down, and the answer length is capped to fit.
+- **Logins**:
+  - Each address gets 10 tries a minute and 30 wrong logins an hour.
+  - After 200 wrong owner passwords in an hour from anywhere, owner password logins pause until it dies down. Devices already signed in and the passcode keep working.
+  - Passwords are stored as scrypt hashes, and sessions as hashes of random tokens.
+- **Pages**:
+  - Every page runs only its own scripts and talks only to this server.
+  - Only `/widget` can be embedded in other sites.
+  - Answers are shown as text with simple formatting, never as raw HTML.
+- These counters live in memory, so restarting the server resets them, and they assume a single server instance (Railway's default).
+- **Be careful on pages you don't trust**:
+  - The bookmarklet runs inside the page you're on, so a malicious page could draw a fake panel to catch what you type.
+  - Answers are generated from that page's text, so a page can try to steer them.
+  - If a site looks off, use `/chat` instead.
 
 ## Local dev
 

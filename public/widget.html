@@ -38,7 +38,7 @@ a{color:var(--accent)}
 body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition:background-color .35s ease,border-color .35s ease,color .35s ease!important}
 
 /* glass surfaces */
-:root[data-theme=glass] body{background:rgba(16,18,26,.36);text-shadow:0 1px 2px rgba(0,0,0,.3);scrollbar-color:rgba(255,255,255,.35) transparent}
+:root[data-theme=glass] body{background:rgba(16,18,26,.28);text-shadow:0 1px 2px rgba(0,0,0,.3);scrollbar-color:rgba(255,255,255,.35) transparent}
 :root[data-theme=glass][data-page=light] body{background:rgba(255,255,255,.34);text-shadow:0 1px 0 rgba(255,255,255,.4);scrollbar-color:rgba(17,19,26,.25) transparent}
 :root[data-theme=glass]:not([data-blur]):not(.nohost) body{background:rgba(16,18,26,.88)} /* older bookmarks can't blur the page, so stay readable */
 :root[data-theme=glass] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,0) 36%,rgba(255,255,255,0) 64%,rgba(255,255,255,.08))}
@@ -89,6 +89,7 @@ body.min .mstat.busy,body.min .mstat.new{display:inline-flex}
 .msg code{font:12.5px/1.4 var(--mono)}
 .msg :not(pre)>code{background:var(--code);padding:1px 4px;border-radius:4px}
 .msg ul,.msg ol{margin:4px 0 7px;padding-left:20px}
+.msg .lh{color:var(--muted);font-size:.86em}
 .tags{font-size:11px;color:var(--muted);margin-bottom:3px}
 .meta{font-size:11px;color:var(--muted);margin-top:5px}
 .mini{background:none;border:0;padding:0;color:var(--accent);font-size:11px;cursor:pointer;text-decoration:underline}
@@ -362,7 +363,8 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
     <div class="qbar"><i id="quotaFill"></i></div>
     <p class="qtext"><b id="quotaText"></b> <span id="quotaSub"></span></p>
   </section>
-  <section><h3>Theme</h3><div class="themes" id="themes"></div></section>
+  <section><h3>Theme</h3><div class="themes" id="themes"></div>
+    <p class="fine" id="glassNote" hidden>To make Glass see-through on every site, including dark-mode ones, drag the button from the pagebot homepage to your bookmarks bar again.</p></section>
   <section id="tokSec">
     <h3>Max tokens per answer</h3>
     <div class="seg" id="tokSeg"></div>
@@ -415,6 +417,7 @@ const hostV = embedded ? Number(qs.get('v')) || 1 : 0;
 const hostV2 = hostV >= 2; // bookmarklet that can move, minimize and go full screen
 const hostV3 = hostV >= 3; // ...and tells us when the panel opens and hides
 const hostV4 = hostV >= 4; // ...and can blur the page behind the panel for the glass theme
+const hostV5 = hostV >= 5; // ...and marks the panel light, so Chrome doesn't put a solid backing behind glass on dark-mode sites
 const standalone = !embedded && !popup;
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const body = document.body;
@@ -507,10 +510,15 @@ syncGlass(); // the theme painted on the first frame may already be glass
 // ---- rendering ----
 const log = $('#log');
 const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// s is already HTML-escaped; links stay http(s) only and show where they go, so a page that steers the answer
+// can't hide a different site behind friendly link text (link text can't contain "[", which keeps this linear)
 function inline(s) {
   return s.replace(/`([^`\n]+)`/g, '<code>$1</code>')
           .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
-          .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+          .replace(/\[([^[\]\n]{1,300})\]\((https?:\/\/[^\s)]{1,2000})\)/g, (all, text, url) => {
+            const h = host(url.replace(/&amp;/g, '&'));
+            return `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>` + (text.includes(h) ? '' : ` <span class="lh">(${esc(h)})</span>`);
+          });
 }
 function block(txt) {
   const lines = txt.split('\n'); let html = '', list = null, para = [];
@@ -849,6 +857,7 @@ function renderPrefs() {
   }
   $('#tokSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.n === limits.maxTokens));
   document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t === prefs.theme));
+  $('#glassNote').hidden = !(embedded && !hostV5 && prefs.theme === 'glass');
 }
 async function savePrefs(patch) {
   if ('maxTokens' in patch) limits.maxTokens = patch.maxTokens; else Object.assign(prefs, patch);

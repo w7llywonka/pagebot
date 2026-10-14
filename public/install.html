@@ -94,8 +94,7 @@ footer a{color:var(--muted)}
       <h1>Ask anything about <em>the page you're on.</em></h1>
       <p class="lede">A tiny chat panel that opens on top of any site. It reads the page, your highlighted text, or a screenshot, and answers in a second.</p>
       <div class="ctas">
-        <a class="btn primary" href="{{HREF}}" title="Drag me to your bookmarks bar"
-           onclick="event.preventDefault();document.getElementById('hint').textContent='Drag that button onto your bookmarks bar (Ctrl/Cmd+Shift+B shows it), then click it on any page.'">📌 pagebot</a>
+        <a class="btn primary" id="bm" href="{{HREF}}" title="Drag me to your bookmarks bar">📌 pagebot</a>
         <a class="btn ghost" href="/chat">Open web chat →</a>
       </div>
       <div class="hint" id="hint">Drag the orange button to your bookmarks bar.</div>
@@ -148,7 +147,7 @@ footer a{color:var(--muted)}
     <details>
       <summary>Can't drag? Paste it in by hand</summary>
       <textarea id="code" readonly>{{HREF}}</textarea>
-      <button class="copy" type="button" onclick="navigator.clipboard.writeText(document.getElementById('code').value).then(()=>this.textContent='Copied')">Copy</button>
+      <button class="copy" id="copy" type="button">Copy</button>
       <p class="hint">Create a new bookmark and paste this as its URL. Some sites block overlays; on those, pagebot opens in a small window instead.</p>
     </details>
   </div>
@@ -157,5 +156,15 @@ footer a{color:var(--muted)}
 <div class="wrap">
   <footer><span>pagebot · running on <code>{{ORIGIN}}</code></span><span><a href="/chat">Web chat</a> · <a href="/admin">Admin</a></span></footer>
 </div>
+<script>
+// clicking the button here would just run it on this page; it's meant to be dragged to the bookmarks bar
+document.getElementById('bm').addEventListener('click', e => {
+  e.preventDefault();
+  document.getElementById('hint').textContent = 'Drag that button onto your bookmarks bar (Ctrl/Cmd+Shift+B shows it), then click it on any page.';
+});
+document.getElementById('copy').addEventListener('click', e => {
+  navigator.clipboard.writeText(document.getElementById('code').value).then(() => { e.target.textContent = 'Copied'; });
+});
+</script>
 </body>
 </html>
