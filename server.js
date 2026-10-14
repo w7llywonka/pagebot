@@ -26,7 +26,7 @@ const TIMEZONE = process.env.TIMEZONE || 'America/Denver';
 const SESSION_DAYS = Number(process.env.SESSION_DAYS) || 30;
 const SYSTEM = process.env.SYSTEM_PROMPT ||
   `You are a fast, concise helper running in a small chat panel on top of whatever web page the user is viewing.
-The user may attach the page's text (<page>), text they highlighted (<highlighted_text>), and/or a screenshot.
+The user may attach the page they're viewing (as a document), text they highlighted (<highlighted_text>), and/or a screenshot.
 Lead with the answer. Keep it short unless asked for detail. Use light markdown (bold, lists, code blocks) only when it helps.
 If the attached content doesn't contain what's needed, say so briefly.`;
 
@@ -41,10 +41,11 @@ const SEARCH_USD = 0.01; // $10 per 1,000 web searches
 // prefs are what the panel changes; limits cap each question. Both live in the settings table.
 const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', 'glass'];
 const DEFAULT_PREFS = { theme: 'ember', model: 'haiku', web: false };
-const LIMIT_RANGES = { maxTokens: [256, 8000], pageTokens: [500, 50000], maxSearches: [1, 10] }; // no answer may exceed 8,000 tokens
+const LIMIT_RANGES = { maxTokens: [256, 100000], pageTokens: [500, 50000], maxSearches: [1, 10] }; // no answer may exceed 100,000 tokens
 const DEFAULT_LIMITS = { maxTokens: clampInt(process.env.MAX_TOKENS || 2048, ...LIMIT_RANGES.maxTokens), pageTokens: 5000, maxSearches: 3 };
 const LOCK_CHOICES = [0, 1, 5, 15, 30, 60, 240, 1440]; // passcode auto-lock after N idle minutes (0 = never)
-const MAX_PASSCODE_FAILS = 10; // then only the full password can unlock
+const MAX_PASSCODE_FAILS = 10; // then only the full password can unlock (the owner's and each account's count separately)
+const MAX_ANNOUNCEMENT = 500;
 
 // other people's accounts: they sign up, wait for approval, then use pagebot within a daily limit
 const DEFAULT_ACCOUNT = { limitKind: 'tokens', limitValue: 100_000, allowSonnet: true, allowWeb: true };
@@ -84,6 +85,16 @@ CREATE TABLE IF NOT EXISTS users (
   last_seen TIMESTAMPTZ
 );
 CREATE UNIQUE INDEX IF NOT EXISTS users_name_idx ON users (lower(username));
+ALTER TABLE users ADD COLUMN IF NOT EXISTS passcode_hash TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS passcode_fails INT NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS lock_minutes INT NOT NULL DEFAULT 15;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ann_seen BIGINT NOT NULL DEFAULT 0;
+CREATE TABLE IF NOT EXISTS announcements (
+  id BIGSERIAL PRIMARY KEY,
+  body TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  hidden_at TIMESTAMPTZ
+);
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash TEXT PRIMARY KEY,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -112,6 +123,10 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS web_searches INT NOT NULL DEFAULT 
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS refused BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS user_id BIGINT;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS cost_usd NUMERIC(14,6);
+-- the page sent with a question, as JSON {url, title, text}, so follow-ups can resend it as a citable document
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS page_doc TEXT;
+-- the theme in use when a question was asked (for Wrapped)
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS theme TEXT;
 CREATE INDEX IF NOT EXISTS messages_conv_idx ON messages (conversation_id, id);
 CREATE INDEX IF NOT EXISTS messages_created_idx ON messages (created_at);
 CREATE INDEX IF NOT EXISTS messages_user_idx ON messages (user_id, created_at);
@@ -229,10 +244,14 @@ function toUser(r) {
     limitKind: r.limit_kind || null, limitValue: r.limit_value == null ? null : Number(r.limit_value),
     allowSonnet: r.allow_sonnet, allowWeb: r.allow_web, prefs: parseJSON(r.prefs),
     createdAt: r.created_at, approvedAt: r.approved_at, lastSeen: r.last_seen,
+    passcode: !!r.passcode_hash, lockMinutes: LOCK_CHOICES.includes(Number(r.lock_minutes)) ? Number(r.lock_minutes) : 15,
+    annSeen: Number(r.ann_seen) || 0,
   };
 }
 // what the panel shows for an account (never the owner's private note)
-const publicUser = u => ({ name: u.name, status: u.status, allowSonnet: u.allowSonnet, allowWeb: u.allowWeb });
+const publicUser = u => ({ name: u.name, status: u.status, allowSonnet: u.allowSonnet, allowWeb: u.allowWeb, passcode: u.passcode, lockMinutes: u.lockMinutes });
+// an account with a passcode locks after its own idle time, like the owner's panel
+const userLockMinutes = u => u?.passcode ? u.lockMinutes : 0;
 // accounts get their own theme/model/web/answer length; their answer length can't go past the owner's limit
 function prefsFor(cfg, u) {
   if (!u) return cfg.prefs;
@@ -263,6 +282,13 @@ function quota(u, used) {
   return { kind: u.limitKind, limit: u.limitValue, used: spent, left: Math.max(0, u.limitValue - spent) };
 }
 const fmtLimit = (kind, v) => kind === 'usd' ? `$${Number(v).toFixed(2)}` : `${v >= 1000 ? Math.round(v / 100) / 10 + 'K' : v} tokens`;
+
+// Announcements: everyone with an account sees the newest one until they dismiss it.
+// Posting a new one replaces it; taking it down hides it without bringing back an older one.
+async function currentAnnouncement() {
+  const a = (await pool.query('SELECT id, body, created_at, hidden_at FROM announcements ORDER BY id DESC LIMIT 1')).rows[0];
+  return a && !a.hidden_at ? { id: Number(a.id), body: a.body, createdAt: a.created_at } : null;
+}
 
 // ---------- crypto helpers ----------
 const scrypt = promisify(crypto.scrypt);
@@ -301,14 +327,16 @@ setInterval(() => { const now = Date.now(); for (const [k, v] of hits) if (!v.so
 
 const bearer = req => (req.get('authorization') || '').replace(/^Bearer\s+/i, '').trim();
 
-// The owner's sessions lock after the passcode's idle time (when one is set); accounts stay signed in for SESSION_DAYS.
+// Sessions with a passcode behind them (the owner's, or an account's) lock after that passcode's idle time;
+// everything else stays signed in for SESSION_DAYS.
 // Returns { user } (null user = the owner), or null when the token is unknown or expired.
 async function touchSession(tok, lock) {
   if (!tok) return null;
   const ownerMins = lock.on && lock.minutes ? lock.minutes : SESSION_DAYS * 1440;
   const r = await pool.query(
-    `UPDATE sessions SET last_used=now() WHERE token_hash=$1
-       AND last_used > now() - make_interval(mins => CASE WHEN user_id IS NULL THEN $2::int ELSE $3::int END)
+    `UPDATE sessions s SET last_used=now() WHERE s.token_hash=$1
+       AND s.last_used > now() - make_interval(mins => CASE WHEN s.user_id IS NULL THEN $2::int ELSE COALESCE(
+         (SELECT u.lock_minutes FROM users u WHERE u.id = s.user_id AND u.passcode_hash IS NOT NULL AND u.lock_minutes > 0), $3::int) END)
      RETURNING user_id`, [sha256(tok), ownerMins, SESSION_DAYS * 1440]);
   if (!r.rowCount) return null;
   const uid = r.rows[0].user_id;
@@ -406,9 +434,13 @@ app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
   res.set('Cache-Control', 'no-store');
   if (!s) return res.json(out);
   if (!u) return res.json({ ...out, who: 'owner', lockMinutes: cfg.lock.on ? cfg.lock.minutes : 0, prefs: cfg.prefs, limits: limitsFor(cfg, null), models: modelList() });
-  out.who = 'user'; out.lockMinutes = 0; out.user = publicUser(u);
+  out.who = 'user'; out.lockMinutes = userLockMinutes(u); out.lockChoices = LOCK_CHOICES; out.user = publicUser(u);
   if (u.status === 'trusted') {
-    Object.assign(out, { prefs: prefsFor(cfg, u), limits: limitsFor(cfg, u), models: modelsFor(u), quota: quota(u, await usageToday(u.id)) });
+    const a = await currentAnnouncement();
+    Object.assign(out, {
+      prefs: prefsFor(cfg, u), limits: limitsFor(cfg, u), models: modelsFor(u), quota: quota(u, await usageToday(u.id)),
+      announcement: a && a.id > u.annSeen ? a : null,
+    });
   }
   res.json(out);
 });
@@ -437,22 +469,43 @@ app.post('/api/signup', limit(5, 'signup'), async (req, res) => {
   res.json({ token: await newSession(Number(id)) });
 });
 
-// log in with the owner's password or passcode, or with an account's username and password
+function wrongPasscode(res, n) {
+  const left = MAX_PASSCODE_FAILS - n;
+  return res.status(401).json({
+    error: left <= 0 ? 'Too many wrong passcodes. Unlock with your password.'
+      : left <= 3 ? `Wrong passcode — ${left} ${left === 1 ? 'try' : 'tries'} left.` : 'Wrong passcode',
+    left, usePassword: left <= 0,
+  });
+}
+const tooManyPasscodes = res => res.status(423).json({ error: 'Too many wrong passcodes. Unlock with your password.', usePassword: true });
+
+// log in with the owner's password or passcode, or with an account's username and its password or passcode
 app.post('/api/login', limit(10, 'login'), async (req, res) => {
   const b = req.body || {};
   const old = bearer(req);
   if (b.username) {
-    const r = await pool.query('SELECT id, password_hash, status FROM users WHERE lower(username) = lower($1)', [String(b.username).trim()]);
+    const r = await pool.query('SELECT id, password_hash, passcode_hash, status FROM users WHERE lower(username) = lower($1)', [String(b.username).trim()]);
     const u = r.rows[0];
-    const ok = await verifyPw(String(b.password || ''), u?.password_hash || await dummyHash);
-    if (!u || !ok) return res.status(401).json({ error: 'Wrong username or password.' });
+    if (b.passcode != null) {
+      const code = String(b.passcode);
+      if (!/^\d{5}$/.test(code)) return res.status(400).json({ error: 'Enter all 5 digits.' });
+      if (!u?.passcode_hash) return res.status(401).json({ error: 'There’s no passcode on this account. Sign in with your password.', usePassword: true });
+      // count the attempt before checking it, so parallel guesses can't slip past the cap
+      const n = (await pool.query('UPDATE users SET passcode_fails = passcode_fails + 1 WHERE id = $1 RETURNING passcode_fails', [u.id])).rows[0].passcode_fails;
+      if (n > MAX_PASSCODE_FAILS) return tooManyPasscodes(res);
+      if (!(await verifyPw(code, u.passcode_hash))) return wrongPasscode(res, n);
+    } else {
+      const ok = await verifyPw(String(b.password || ''), u?.password_hash || await dummyHash);
+      if (!u || !ok) return res.status(401).json({ error: 'Wrong username or password.' });
+    }
     if (u.status === 'blocked') return res.status(403).json({ error: 'This account has been turned off.' });
+    await pool.query('UPDATE users SET passcode_fails = 0 WHERE id = $1', [u.id]); // the password also re-opens the passcode
     if (old) await pool.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(old)]);
     return res.json({ token: await newSession(Number(u.id)) });
   }
   const cfg = await loadConfig();
   if (b.passcode != null) {
-    if (!cfg.lock.on) return res.status(400).json({ error: 'No passcode is set — use your password.' });
+    if (!cfg.lock.on) return res.status(400).json({ error: 'No passcode is set — use your password.', usePassword: true });
     const code = String(b.passcode);
     if (!/^\d{5}$/.test(code)) return res.status(400).json({ error: 'Enter all 5 digits.' });
     // count the attempt before checking it, so parallel guesses can't slip past the cap
@@ -460,16 +513,8 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
       `INSERT INTO settings(key,value) VALUES('passcode_fails','1')
        ON CONFLICT (key) DO UPDATE SET value = (COALESCE(NULLIF(settings.value,'')::int, 0) + 1)::text RETURNING value`);
     const n = Number(r.rows[0].value);
-    if (n > MAX_PASSCODE_FAILS)
-      return res.status(423).json({ error: 'Too many wrong passcodes. Unlock with your password.', usePassword: true });
-    if (!(await verifyPw(code, cfg.lock.hash))) {
-      const left = MAX_PASSCODE_FAILS - n;
-      return res.status(401).json({
-        error: left <= 0 ? 'Too many wrong passcodes. Unlock with your password.'
-          : left <= 3 ? `Wrong passcode — ${left} ${left === 1 ? 'try' : 'tries'} left.` : 'Wrong passcode',
-        left, usePassword: left <= 0,
-      });
-    }
+    if (n > MAX_PASSCODE_FAILS) return tooManyPasscodes(res);
+    if (!(await verifyPw(code, cfg.lock.hash))) return wrongPasscode(res, n);
   } else {
     const password = String(b.password || '');
     const stored = await getSetting('password_hash');
@@ -522,8 +567,44 @@ app.post('/api/account/password', limit(10, 'login'), auth, async (req, res) => 
   if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'Use a password with at least 6 characters.' });
   const row = (await pool.query('SELECT password_hash FROM users WHERE id=$1', [u.id])).rows[0];
   if (!(await verifyPw(String(b.current || ''), row.password_hash))) return res.status(401).json({ error: 'Your current password is wrong.' });
-  await pool.query('UPDATE users SET password_hash=$2 WHERE id=$1', [u.id, await hashPw(pw)]);
+  await pool.query('UPDATE users SET password_hash=$2, passcode_fails=0 WHERE id=$1', [u.id, await hashPw(pw)]);
   await pool.query('DELETE FROM sessions WHERE user_id=$1 AND token_hash <> $2', [u.id, sha256(bearer(req))]);
+  res.json({ ok: true });
+});
+
+// accounts can have their own passcode, like the owner's: 5 digits instead of the password, plus an idle lock.
+// Setting or changing it takes the account password; turning it off or changing the lock time doesn't.
+app.post('/api/account/passcode', limit(10, 'login'), auth, trusted, async (req, res) => {
+  const u = req.user;
+  if (!u) return res.status(400).json({ error: 'Set the owner passcode in /admin.' });
+  const b = req.body || {};
+  const set = {};
+  if (b.lockMinutes != null) {
+    const mins = Number(b.lockMinutes);
+    if (!LOCK_CHOICES.includes(mins)) return res.status(400).json({ error: 'Pick one of the listed auto-lock times.' });
+    set.lock_minutes = mins;
+  }
+  if (b.passcode === null) Object.assign(set, { passcode_hash: null, passcode_fails: 0 });
+  else if (b.passcode != null) {
+    const code = String(b.passcode);
+    if (!/^\d{5}$/.test(code)) return res.status(400).json({ error: 'The passcode must be exactly 5 digits.' });
+    const row = (await pool.query('SELECT password_hash FROM users WHERE id=$1', [u.id])).rows[0];
+    // 400, not 401: the panel treats 401 as "signed out"
+    if (!(await verifyPw(String(b.current || ''), row.password_hash))) return res.status(400).json({ error: 'Your password is wrong.' });
+    Object.assign(set, { passcode_hash: await hashPw(code), passcode_fails: 0 });
+  }
+  const keys = Object.keys(set);
+  if (!keys.length) return res.status(400).json({ error: 'Nothing to change.' });
+  const r = await pool.query(`UPDATE users SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1 RETURNING *`,
+    [u.id, ...keys.map(k => set[k])]);
+  const nu = toUser(r.rows[0]);
+  res.json({ ok: true, user: publicUser(nu), lockMinutes: userLockMinutes(nu) });
+});
+
+// an account closed the announcement banner (older ones count as seen too)
+app.post('/api/announcements/seen', limit(30, 'prefs'), auth, async (req, res) => {
+  const id = clampInt(req.body?.id, 0, Number.MAX_SAFE_INTEGER);
+  if (req.user && id) await pool.query('UPDATE users SET ann_seen = GREATEST(ann_seen, $2) WHERE id = $1', [req.user.id, id]);
   res.json({ ok: true });
 });
 
@@ -601,7 +682,7 @@ app.post('/api/chat', limit(60, 'chat'), auth, trusted, async (req, res) => {
     const c = await pool.query('SELECT 1 FROM conversations WHERE id=$1 AND user_id IS NOT DISTINCT FROM $2', [convId, uid]);
     if (c.rowCount) {
       history = (await pool.query(
-        'SELECT role, content, had_image FROM messages WHERE conversation_id=$1 AND NOT refused ORDER BY id', [convId])).rows;
+        'SELECT role, content, had_image, page_doc FROM messages WHERE conversation_id=$1 AND NOT refused ORDER BY id', [convId])).rows;
     } else convId = null;
   }
   if (!convId) {
@@ -610,21 +691,33 @@ app.post('/api/chat', limit(60, 'chat'), auth, trusted, async (req, res) => {
     convId = Number(r.rows[0].id);
   }
 
+  // The page goes in as a document so answers can quote it. With `cite` (bookmarklets that can find text on the
+  // page), the API marks which passages back each part of the answer, and the panel can point at them.
+  const cite = b.cite === true;
+  const doc = page?.text.trim() ? page : null;
+  const docBlock = d => ({
+    type: 'document', source: { type: 'text', media_type: 'text/plain', data: d.text },
+    title: (d.title || d.url || 'Web page').slice(0, 300), ...(d.url && { context: `URL: ${d.url}` }),
+    citations: { enabled: cite },
+  });
+
   // build this turn's text
   const attr = s => s.replace(/"/g, '&quot;');
   const parts = [];
-  if (page) parts.push(`<page url="${attr(page.url)}" title="${attr(page.title)}">\n${page.text}\n</page>`);
+  if (page && !doc) parts.push(`<page url="${attr(page.url)}" title="${attr(page.title)}"></page>`);
   if (selection) parts.push(`<highlighted_text>\n${selection}\n</highlighted_text>`);
   parts.push(message || (image ? 'Help me with what is in this screenshot.' : selection ? 'Explain the highlighted text.' : 'Summarize this page.'));
   const userText = parts.join('\n\n');
 
-  // old screenshots are not resent (saves tokens) — a note stands in for them
-  const messages = history.map(h => ({
-    role: h.role,
-    content: h.had_image ? `[A screenshot was attached to this message; it is no longer available.]\n\n${h.content}` : h.content,
-  }));
+  // old screenshots are not resent (saves tokens) — a note stands in for them. Pages are resent as documents.
+  const messages = history.map(h => {
+    const text = h.had_image ? `[A screenshot was attached to this message; it is no longer available.]\n\n${h.content}` : h.content;
+    const d = h.page_doc && parseJSON(h.page_doc);
+    return { role: h.role, content: d?.text ? [docBlock(d), { type: 'text', text }] : text };
+  });
   const cur = [];
   if (image) cur.push({ type: 'image', source: { type: 'base64', media_type: image.media_type, data: image.data } });
+  if (doc) cur.push(docBlock(doc));
   cur.push({ type: 'text', text: userText, cache_control: { type: 'ephemeral' } });
   messages.push({ role: 'user', content: cur });
 
@@ -649,6 +742,8 @@ app.post('/api/chat', limit(60, 'chat'), auth, trusted, async (req, res) => {
 
   const tot = { in: 0, out: 0, usd: 0, searches: 0 };
   const sources = new Map();
+  // quoted passages of the page, and where in the reply each group of them backs up what was just said
+  const quotes = [], quoteIdx = new Map(), cites = [];
   let reply = '', final = null;
   try {
     // a long server-side search loop can pause the turn; resend it as-is to let it continue
@@ -662,6 +757,17 @@ app.post('/api/chat', limit(60, 'chat'), auth, trusted, async (req, res) => {
         if (blk.type === 'server_tool_use' && blk.name === 'web_search') {
           const q = blk.input?.query;
           if (q) out({ t: 's', q: String(q).slice(0, 200) });
+        } else if (blk.type === 'text' && blk.citations?.length) {
+          // the block's text has all streamed by now, so reply.length is where its marker goes
+          const qs = [];
+          for (const c of blk.citations) {
+            const text = c.type === 'char_location' ? String(c.cited_text || '').trim() : '';
+            if (!text) continue;
+            if (!quoteIdx.has(text) && quotes.length < 30) { quoteIdx.set(text, quotes.length); quotes.push(text.slice(0, 2000)); }
+            const i = quoteIdx.get(text);
+            if (i != null && !qs.includes(i)) qs.push(i);
+          }
+          if (qs.length) cites.push({ at: reply.length, q: qs });
         }
       });
       final = await stream.finalMessage();
@@ -680,13 +786,15 @@ app.post('/api/chat', limit(60, 'chat'), auth, trusted, async (req, res) => {
     const refused = final.stop_reason === 'refusal';
     const replyText = reply.trim() ? reply : refused ? '[declined]' : '(no answer)';
     await pool.query(
-      `INSERT INTO messages(conversation_id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, user_id, cost_usd)
-       VALUES ($1,'user',$2,$3,0,0,NULL,0,$4,$10,0), ($1,'assistant',$5,false,$6,$7,$8,$9,$4,$10,$11)`,
-      [convId, userText, !!image, refused, replyText, tot.in, tot.out, final.model || m.id, tot.searches, uid, tot.usd]);
+      `INSERT INTO messages(conversation_id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, user_id, cost_usd, page_doc, theme)
+       VALUES ($1,'user',$2,$3,0,0,NULL,0,$4,$10,0,$12,$13), ($1,'assistant',$5,false,$6,$7,$8,$9,$4,$10,$11,NULL,NULL)`,
+      [convId, userText, !!image, refused, replyText, tot.in, tot.out, final.model || m.id, tot.searches, uid, tot.usd,
+        doc ? JSON.stringify({ url: doc.url, title: doc.title, text: doc.text }) : null, prefs.theme]);
     out({
       t: 'done', conversationId: convId, usage: { in: tot.in, out: tot.out, usd: tot.usd }, stop: final.stop_reason,
       model: modelLabel(final.model || m.id), fallback: !!final.model && final.model !== m.id,
       searches: tot.searches, sources: [...sources].slice(0, 8).map(([url, title]) => ({ url, title })),
+      ...(cites.length && !refused && { quotes, cites }),
       ...(refused && { refusal: final.stop_details?.category || null }),
       ...(used && { quota: quota(u, { tokens: used.tokens + tot.in + tot.out, usd: used.usd + tot.usd }) }),
     });
@@ -705,6 +813,66 @@ function friendly(e, model) {
   if (s === 529 || s === 503) return 'The API is overloaded — try again in a moment.';
   return (e?.error?.error?.message || e?.message || 'Something went wrong').slice(0, 300);
 }
+
+// ---------- wrapped: a year of your questions ----------
+// The panel sends its own timezone so hours and streaks follow the viewer's clock.
+const validTz = tz => {
+  if (!/^[A-Za-z_]+(?:\/[A-Za-z0-9_+-]+){0,2}$/.test(tz)) return null;
+  try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return tz; } catch { return null; }
+};
+// one calendar year (back = 0 is this year) of one person's questions: uid null = the owner
+async function wrappedFor(uid, tz, back) {
+  const span = (await pool.query(
+    `SELECT extract(year from now() AT TIME ZONE $1)::int - $2 AS year,
+       (date_trunc('year', now() AT TIME ZONE $1) - make_interval(years => $2)) AT TIME ZONE $1 AS start,
+       (date_trunc('year', now() AT TIME ZONE $1) - make_interval(years => $2 - 1)) AT TIME ZONE $1 AS stop`, [tz, back])).rows[0];
+  const mine = `m.user_id IS NOT DISTINCT FROM $1 AND m.created_at >= $2 AND m.created_at < $3`;
+  const p3 = [uid, span.start, span.stop], p4 = [...p3, tz];
+  const [tot, sites, hours, models, theme, streak] = await Promise.all([
+    pool.query(`SELECT COUNT(*)::int AS questions, COUNT(DISTINCT (m.created_at AT TIME ZONE $4)::date)::int AS days
+      FROM messages m WHERE ${mine} AND m.role = 'user'`, p4),
+    pool.query(`SELECT site, COUNT(*)::int AS n FROM (
+        SELECT lower(regexp_replace(substring(c.page_url from '^[a-zA-Z][a-zA-Z0-9+.-]*://([^/:?#]+)'), '^www\\.', '')) AS site
+        FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE ${mine} AND m.role = 'user') x
+      WHERE site <> '' GROUP BY site ORDER BY n DESC, site LIMIT 5`, p3),
+    pool.query(`SELECT extract(hour from m.created_at AT TIME ZONE $4)::int AS h, COUNT(*)::int AS n
+      FROM messages m WHERE ${mine} AND m.role = 'user' GROUP BY h`, p4),
+    pool.query(`SELECT m.model, COUNT(*)::int AS n FROM messages m
+      WHERE ${mine} AND m.role = 'assistant' AND m.model IS NOT NULL GROUP BY m.model`, p3),
+    pool.query(`SELECT m.theme, COUNT(*)::int AS n FROM messages m
+      WHERE ${mine} AND m.role = 'user' AND m.theme IS NOT NULL GROUP BY m.theme ORDER BY n DESC, m.theme LIMIT 1`, p3),
+    // longest run of days in a row with at least one question (days minus their rank stay equal within a run)
+    pool.query(`WITH d AS (SELECT DISTINCT (m.created_at AT TIME ZONE $4)::date AS day FROM messages m WHERE ${mine} AND m.role = 'user'),
+        g AS (SELECT day, day - (ROW_NUMBER() OVER (ORDER BY day))::int AS grp FROM d)
+      SELECT COUNT(*)::int AS days, MIN(day)::text AS start, MAX(day)::text AS stop FROM g
+      GROUP BY grp ORDER BY days DESC, MAX(day) DESC LIMIT 1`, p4),
+  ]);
+  const byHour = Array(24).fill(0);
+  for (const r of hours.rows) byHour[r.h] = r.n;
+  const byModel = new Map();
+  for (const r of models.rows) { const l = modelLabel(r.model); byModel.set(l, (byModel.get(l) || 0) + r.n); }
+  return {
+    year: span.year, questions: tot.rows[0].questions, days: tot.rows[0].days,
+    sites: sites.rows, hours: byHour,
+    models: [...byModel].map(([label, n]) => ({ label, n })).sort((a, b) => b.n - a.n),
+    theme: theme.rows[0]?.theme || null,
+    streak: streak.rows[0] || { days: 0, start: null, stop: null },
+  };
+}
+
+app.get('/api/wrapped', limit(20, 'wrapped'), auth, trusted, async (req, res) => {
+  const uid = req.user?.id ?? null;
+  let tz = validTz(String(req.query.tz || '')) || TIMEZONE, w;
+  try { w = await wrappedFor(uid, tz, 0); }
+  catch (e) { // Postgres may not know a newer timezone name; fall back to the server's
+    if (e?.code !== '22023' || tz === TIMEZONE) throw e;
+    tz = TIMEZONE; w = await wrappedFor(uid, tz, 0);
+  }
+  if (!w.questions) { const last = await wrappedFor(uid, tz, 1); if (last.questions) w = last; } // early in a new year, show the one before
+  res.set('Cache-Control', 'no-store');
+  // themes were only recorded from this version on; until then, show the current one
+  res.json({ ...w, theme: w.theme || prefsFor(req.cfg, req.user).theme, themeIsCurrent: !w.theme, timezone: tz });
+});
 
 // ---------- admin ----------
 app.post('/api/admin/check', limit(20, 'admin'), admin, async (req, res) => {
@@ -841,7 +1009,8 @@ app.post('/api/admin/users/:id', limit(60, 'admin'), admin, async (req, res) => 
   if (b.password != null) {
     const pw = String(b.password);
     if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'The new password needs at least 6 characters.' });
-    set.password_hash = await hashPw(pw);
+    // a reset also removes their passcode, which would otherwise still sign them in
+    Object.assign(set, { password_hash: await hashPw(pw), passcode_hash: null, passcode_fails: 0 });
     signOut = true;
   }
   const keys = Object.keys(set);
@@ -871,6 +1040,28 @@ app.post('/api/admin/accounts', limit(20, 'admin'), admin, async (req, res) => {
   }
   const cfg = await loadConfig();
   res.json({ ok: true, signup: cfg.signup, defaults: cfg.accountDefaults });
+});
+
+// the announcement everyone with an account sees, and how many accepted people have closed it
+app.get('/api/admin/announcement', limit(30, 'admin'), admin, async (req, res) => {
+  const a = await currentAnnouncement();
+  const c = (await pool.query(`SELECT COUNT(*)::int AS people, COUNT(*) FILTER (WHERE ann_seen >= $1)::int AS seen
+    FROM users WHERE status = 'trusted'`, [a?.id ?? 0])).rows[0];
+  res.json({ announcement: a, people: c.people, seen: a ? c.seen : 0, max: MAX_ANNOUNCEMENT });
+});
+
+// posting replaces whatever was showing
+app.post('/api/admin/announcement', limit(20, 'admin'), admin, async (req, res) => {
+  const body = String(req.body?.body ?? '').trim();
+  if (!body) return res.status(400).json({ error: 'Write something first.' });
+  if (body.length > MAX_ANNOUNCEMENT) return res.status(400).json({ error: `Keep it under ${MAX_ANNOUNCEMENT} characters.` });
+  await pool.query('INSERT INTO announcements(body) VALUES($1)', [body]);
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/announcement', limit(20, 'admin'), admin, async (req, res) => {
+  await pool.query('UPDATE announcements SET hidden_at = now() WHERE hidden_at IS NULL');
+  res.json({ ok: true });
 });
 
 app.post('/api/admin/password', limit(20, 'admin'), admin, async (req, res) => {
