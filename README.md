@@ -51,17 +51,20 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
 - Click the bookmark to open the panel. Click it again to hide it. Esc closes it.
 - **Drag the top bar** to move the panel anywhere on the page. It remembers where you put it on each site.
 - **Minimize** (the – button) shrinks it to a small pill. A dot on the pill means an answer finished while it was minimized. Click the pill or the bookmark to open it again.
-- **📄 Page** attaches the page text. It's on for the first message of each chat and off after that, since the page stays in the chat history anyway.
-- **📷 Shot** screenshots the tab. **Region** lets you drag a box over the page to send just that part. Chrome asks to share the tab once per page load, and the panel hides itself while the shot is taken. You can also paste any image with Ctrl/Cmd+V.
-- **🌐 Web** lets the model search the web. Answers that used it list their sources.
-- **⚡ Haiku 5.5 / ✦ Sonnet 5.5**: click to switch models. Haiku is fast and cheap; Sonnet is smarter.
+- The **+** button under the message box has everything you can add:
+  - **Screenshot this tab**, or **Screenshot a region** to drag a box over just the part you mean. Chrome asks to share the tab once per page load, and the panel hides itself while the shot is taken. You can also paste any image with Ctrl/Cmd+V.
+  - **Page text** sends the page along. It's on for the first message of each chat (shown as a 📄 Page pill) and off after that, since the page stays in the chat history anyway.
+  - **Web search** lets the model search the web (shown as a 🌐 Web pill). Answers that used it list their sources.
+  - Click a pill's × to turn that thing off.
+- The model name next to the send button picks the model: ⚡ Haiku 5.5 is fast and cheap; ✦ Sonnet 5.5 is smarter.
+- Every time you open the panel, a short animation plays while it loads (under 3 seconds).
 - **⚙ Settings**: pick a theme (Auto, Ember, Paper, Midnight, Forest, Dusk, Sakura, Terminal) and the max tokens per answer. Settings apply everywhere you use pagebot.
 - Highlighted text on the page is included automatically.
 - Old screenshots aren't resent on follow-ups, which saves tokens.
 - Some sites block overlays. On those, pagebot opens in a small window instead. If your browser blocks that pop-up, click the bookmark again.
 - You log in once per site, and it's remembered there. With a passcode set, the panel locks itself after the idle time you chose, or right away with the 🔒 button.
 
-Updating from an older version? Drag the button from the homepage to your bookmarks bar again. The old bookmark still works, but it can't move, minimize, or do full-page region shots.
+Updating from an older version? Drag the button from the homepage to your bookmarks bar again. Old bookmarks still work, but only the newest one gets the bigger panel, the animation on every open, and (for the oldest ones) moving, minimizing, and full-page region shots.
 
 ## Local dev
 
