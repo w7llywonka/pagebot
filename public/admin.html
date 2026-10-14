@@ -78,6 +78,62 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
 .tv th{color:var(--muted);font-weight:600}
 .tvwrap{max-height:260px;overflow:auto}
 @media (max-width:480px){.row2{grid-template-columns:1fr}}
+
+/* chart controls */
+.ctrls{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.ctrls select{width:auto;margin:0;padding:5px 8px;font-size:12.5px;border-radius:9px;max-width:170px}
+
+/* users */
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.hrow h2{margin:0}
+.switch{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer;user-select:none}
+.switch input{appearance:none;-webkit-appearance:none;width:34px;height:20px;margin:0;padding:0;border-radius:99px;background:var(--line);border:0;position:relative;cursor:pointer;transition:background .15s}
+.switch input::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:var(--text);transition:transform .15s}
+.switch input:checked{background:var(--accent)}
+.switch input:checked::after{transform:translateX(14px);background:#fff}
+.subh{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:600;margin:16px 0 8px}
+.subh:first-of-type{margin-top:4px}
+.count{display:inline-block;min-width:18px;padding:0 6px;border-radius:99px;background:var(--accent);color:#fff;font-size:11px;text-align:center;margin-left:4px;letter-spacing:0}
+.urow{border:1px solid var(--line);border-radius:12px;background:var(--bg);margin-bottom:8px}
+.urow.pending{display:flex;align-items:center;gap:12px;padding:10px 12px}
+.uinfo{flex:1;min-width:0}
+.uinfo b{font-weight:650}
+.unote{font-size:12.5px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+.ago{font-size:12px;color:var(--muted)}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.btns button{padding:7px 11px;font-size:13px}
+.uhead{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-radius:12px;color:var(--text);padding:10px 12px;font:inherit;font-weight:400;cursor:pointer;text-align:left}
+.uhead.static{cursor:default}
+.uhead .uname{font-weight:650;flex:none;max-width:11em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uhead .ago{flex:none;white-space:nowrap}
+.uhead .grow{flex:1}
+.uhead svg{width:14px;height:14px;stroke:var(--muted);fill:none;stroke-width:2;transition:transform .15s;flex:none}
+.urow.open .uhead svg{transform:rotate(90deg)}
+.chip{font-size:11px;font-weight:600;border-radius:99px;padding:1px 8px;white-space:nowrap;border:1px solid var(--line);color:var(--muted)}
+.chip.trusted{color:var(--ok);border-color:rgba(127,201,154,.35)}
+.chip.blocked{color:var(--err);border-color:rgba(255,138,122,.35)}
+.meterw{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);white-space:nowrap;min-width:0}
+.meterw .mtext{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.mtrack{flex:none;width:70px;height:6px;border-radius:99px;background:rgba(217,119,87,.18);overflow:hidden}
+.mtrack i{display:block;height:100%;border-radius:99px;background:var(--accent)}
+.mtrack i.warn{background:#e0a030}.mtrack i.full{background:var(--err)}
+.ued{padding:4px 12px 12px;border-top:1px solid var(--line)}
+.field{margin-top:12px}
+.field>label,.field>.fl{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+.inl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.inl input{width:130px;margin:0}
+.inl .unit{font-size:12.5px;color:var(--muted)}
+.ck{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;margin-right:14px;cursor:pointer}
+.ck input{width:auto;margin:0;accent-color:var(--accent)}
+.ustats{font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:12px;overflow-wrap:anywhere}
+.ustats b{color:var(--text);font-weight:600}
+.ued .btns{margin-top:12px}
+button.danger{color:var(--err)}
+.ued .np{display:flex;gap:8px;margin-top:10px}
+.ued .np input{margin:0}
+details.defaults{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+details.defaults summary{cursor:pointer;color:var(--muted);font-size:13px}
+@media (max-width:480px){.meterw .mtext{display:none}.uhead .ago{display:none}.uhead .uname{max-width:9em}}
 </style>
 </head>
 <body>
@@ -105,9 +161,13 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
     </div>
 
     <div class="sechead">
-      <h2>Daily tokens</h2>
-      <div class="seg" id="range" role="group" aria-label="Date range">
-        <button type="button" data-d="7">7 days</button><button type="button" data-d="30" class="on">30 days</button><button type="button" data-d="90">90 days</button>
+      <h2>Daily usage</h2>
+      <div class="ctrls">
+        <select id="who" aria-label="Whose usage"><option value="all">Everyone</option><option value="owner">You (owner)</option></select>
+        <div class="seg" id="unit" role="group" aria-label="Show tokens or dollars"><button type="button" data-u="tokens" class="on">Tokens</button><button type="button" data-u="usd">$</button></div>
+        <div class="seg" id="range" role="group" aria-label="Date range">
+          <button type="button" data-d="7">7d</button><button type="button" data-d="30" class="on">30d</button><button type="button" data-d="90">90d</button>
+        </div>
       </div>
     </div>
     <div class="card">
@@ -120,11 +180,30 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
       <details class="tv"><summary>Table view</summary><div class="tvwrap"><table id="tbl"></table></div></details>
     </div>
 
+    <div class="card" id="usersCard">
+      <div class="hrow"><h2>Users</h2><label class="switch"><input type="checkbox" id="signup"><span id="signupState">Sign-ups open</span></label></div>
+      <p class="muted" id="usersEmpty" style="margin:0" hidden>No one has signed up yet. People create an account from the pagebot panel (“Create an account”), then show up here for you to accept.</p>
+      <div class="subh" id="pendingHead" hidden>Waiting to be accepted<span class="count" id="pendingCount"></span></div>
+      <div id="pendingBox"></div>
+      <div class="subh" id="usersHead">People</div>
+      <div id="userList"></div>
+      <details class="defaults" id="defaults">
+        <summary>What newly accepted users start with</summary>
+        <div class="field"><span class="fl">Daily limit</span>
+          <div class="inl"><div class="seg" id="dKind"><button type="button" data-k="tokens">Tokens</button><button type="button" data-k="usd">Dollars</button><button type="button" data-k="none">No limit</button></div>
+          <input id="dValue" type="number" min="0" step="any"><span class="unit" id="dUnit"></span></div>
+        </div>
+        <div class="field"><span class="fl">Can use</span><label class="ck"><input type="checkbox" id="dSonnet"> Sonnet 5.5</label><label class="ck"><input type="checkbox" id="dWeb"> Web search</label></div>
+        <div class="btns" style="margin-top:12px"><button type="button" id="dSave">Save defaults</button></div>
+        <div class="msg" id="dMsg"></div>
+      </details>
+    </div>
+
     <form class="card" id="limForm" autocomplete="off">
       <h2>Limits per question</h2>
       <label class="f" for="lMax">Max tokens per answer</label>
       <input id="lMax" type="number" step="256">
-      <p class="hint">Includes the model's thinking. You can also change it from the panel's ⚙ settings.</p>
+      <p class="hint">8,000 at most. Includes the model's thinking. You can also pick it from the panel's ⚙ settings.</p>
       <div class="row2">
         <div><label class="f" for="lPage">Page text per question (tokens)</label><input id="lPage" type="number" step="500"></div>
         <div><label class="f" for="lSearch">Web searches per question</label><input id="lSearch" type="number" step="1"></div>
@@ -198,6 +277,7 @@ async function load() {
   const left = Math.max(0, s.budget - s.total), perDay = s.week / 7;
   $('#budget').textContent = `${nf.format(left)} of ${nf.format(s.budget)} tokens left (${(100 - pct).toFixed(1)}%)` +
     (perDay > 0 ? ` · at your 7-day pace (~${short(Math.round(perDay))}/day) that's about ${nf.format(Math.round(left / perDay))} days.` : '.') +
+    ` Estimated cost at list prices: ${money(s.today_usd)} today · ${money(s.week_usd)} last 7 days · ${money(s.total_usd)} all time.` +
     ` Models: ${s.models.map(m => m.id).join(', ')} (effort ${s.effort}). Web searches so far: ${nf.format(s.searches)}.`;
   $('#pwState').textContent = s.passwordSet ? 'A password is set.' : 'No password set yet — the bookmarklet can’t log in until you set one.';
   $('#sess').textContent = `${s.sessions} signed-in device${s.sessions === 1 ? '' : 's'}.`;
@@ -223,23 +303,28 @@ async function load() {
   $('#pc1').required = $('#pc2').required = !L.on;
 }
 
-// ---- usage chart: tokens per day, stacked by model ----
-let days = 30, series = [];
+// ---- usage chart: tokens or dollars per day, stacked by model, for everyone or one person ----
+let days = 30, unit = 'tokens', who = 'all', series = [];
 const SVGNS = 'http://www.w3.org/2000/svg';
 const svgEl = (tag, attrs, parent) => { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
 const dayFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
 const longFmt = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 const asDate = s => new Date(s + 'T00:00:00Z');
+const money = (v, dp) => v > 0 && v < 0.01 && dp == null ? '<$0.01' : '$' + v.toFixed(dp ?? 2);
 function niceMax(v) {
-  if (v <= 0) return 1000;
+  if (v <= 0) return unit === 'usd' ? 0.1 : 1000;
   const p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p;
   return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
 }
 async function loadUsage() {
   $('#chart').classList.add('loading');
   try {
-    const u = await api('/api/admin/usage?days=' + days);
-    series = u.days.map(d => ({ ...d, total: d.input + d.output, haiku: Math.max(0, d.input + d.output - d.sonnet) }));
+    const u = await api(`/api/admin/usage?days=${days}&user=${encodeURIComponent(who)}`);
+    series = u.days.map(d => ({
+      ...d,
+      tokens: { total: d.input + d.output, haiku: Math.max(0, d.input + d.output - d.sonnet), sonnet: d.sonnet },
+      usd: { total: d.usd, haiku: Math.max(0, d.usd - d.sonnetUsd), sonnet: d.sonnetUsd },
+    }));
     drawChart(); fillTable();
   } finally { $('#chart').classList.remove('loading'); }
 }
@@ -247,21 +332,24 @@ const names = () => {
   const m = stats?.models || [];
   return { haiku: m[0]?.label || 'Haiku', sonnet: m[1]?.label || 'Sonnet' };
 };
+const val = (d, k) => d[unit][k];
+const fmtV = v => unit === 'usd' ? money(v) : short(v);
 function drawChart() {
   const svg = $('#svg'), N = names();
-  const W = Math.max(280, $('#chart').clientWidth), plotH = 170, axisH = 22, top = 16, left = 40, right = 6;
+  const W = Math.max(280, $('#chart').clientWidth), plotH = 170, axisH = 22, top = 16, left = 44, right = 6;
   const H = top + plotH + axisH;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.querySelectorAll(':scope > :not(title)').forEach(n => n.remove());
   const n = series.length, plotW = W - left - right, band = plotW / n;
   const barW = Math.max(1, Math.min(24, band - 2)); // 2px surface gap between neighbours
-  const peak = series.reduce((a, d) => d.total > a.total ? d : a, series[0] || { total: 0 });
-  const max = niceMax(peak.total);
+  const peak = series.reduce((a, d) => val(d, 'total') > val(a, 'total') ? d : a, series[0]);
+  const max = niceMax(peak ? val(peak, 'total') : 0);
+  const tickDp = max < 0.1 ? 3 : max < 10 ? 2 : 0;
   const y = v => top + plotH - v / max * plotH;
   for (let i = 0; i <= 4; i++) {
     const v = max * i / 4, yy = Math.round(y(v)) + .5;
     svgEl('line', { class: i ? 'grid' : 'base', x1: left, x2: W - right, y1: yy, y2: yy }, svg);
-    svgEl('text', { x: left - 6, y: yy + 4, 'text-anchor': 'end' }, svg).textContent = short(v);
+    svgEl('text', { x: left - 6, y: yy + 4, 'text-anchor': 'end' }, svg).textContent = unit === 'usd' ? money(v, tickDp) : short(v);
   }
   // x labels: about five, always the first and last day
   const step = Math.max(1, Math.ceil(n / 5));
@@ -274,9 +362,9 @@ function drawChart() {
   const cols = svgEl('g', {}, svg);
   series.forEach((d, i) => {
     const x = left + band * i + (band - barW) / 2, g = svgEl('g', { class: 'col', 'data-i': i }, cols);
-    const segs = [['haiku', d.haiku, 'var(--s-haiku)'], ['sonnet', d.sonnet, 'var(--s-sonnet)']].filter(s => s[1] > 0);
+    const segs = [[val(d, 'haiku'), 'var(--s-haiku)'], [val(d, 'sonnet'), 'var(--s-sonnet)']].filter(s => s[0] > 0);
     let base = top + plotH;
-    segs.forEach(([, v, color], k) => {
+    segs.forEach(([v, color], k) => {
       let h = v / max * plotH;
       const last = k === segs.length - 1;
       if (k > 0) { base -= 2; h -= 2; } // 2px surface gap inside the stack
@@ -287,10 +375,10 @@ function drawChart() {
       base = yTop;
     });
   });
-  if (peak.total > 0) {
+  if (peak && val(peak, 'total') > 0) {
     const i = series.indexOf(peak), cx = left + band * i + band / 2;
-    const t = svgEl('text', { class: 'peak', x: Math.min(W - right - 2, Math.max(left + 2, cx)), y: y(peak.total) - 5, 'text-anchor': cx < left + 30 ? 'start' : cx > W - right - 30 ? 'end' : 'middle' }, svg);
-    t.textContent = short(peak.total);
+    const t = svgEl('text', { class: 'peak', x: Math.min(W - right - 2, Math.max(left + 2, cx)), y: y(val(peak, 'total')) - 5, 'text-anchor': cx < left + 30 ? 'start' : cx > W - right - 30 ? 'end' : 'middle' }, svg);
+    t.textContent = fmtV(val(peak, 'total'));
   } else {
     svgEl('text', { class: 'nodata', x: left + plotW / 2, y: top + plotH / 2, 'text-anchor': 'middle' }, svg).textContent = 'No usage in this range yet';
   }
@@ -301,9 +389,12 @@ function drawChart() {
     r.addEventListener('pointerleave', hide);
   });
   geom = { left, band, top, plotH, y, W };
-  const tot = series.reduce((a, d) => ({ t: a.t + d.total, q: a.q + d.questions, s: a.s + d.searches }), { t: 0, q: 0, s: 0 });
-  $('#sum').innerHTML = `<b>${short(tot.t)}</b> tokens in the last ${n} days · <b>${short(Math.round(tot.t / n))}</b>/day on average · ${nf.format(tot.q)} question${tot.q === 1 ? '' : 's'}` +
-    (tot.s ? ` · ${nf.format(tot.s)} web search${tot.s === 1 ? '' : 'es'}` : '');
+  const tot = series.reduce((a, d) => ({ t: a.t + val(d, 'total'), q: a.q + d.questions, s: a.s + d.searches }), { t: 0, q: 0, s: 0 });
+  const whoName = $('#who').selectedOptions[0]?.textContent || 'Everyone';
+  $('#sum').innerHTML = (unit === 'usd' ? `<b>${money(tot.t)}</b> (estimated)` : `<b>${short(tot.t)}</b> tokens`) +
+    ` in the last ${n} days · <b>${fmtV(unit === 'usd' ? tot.t / n : Math.round(tot.t / n))}</b>/day on average · ${nf.format(tot.q)} question${tot.q === 1 ? '' : 's'}` +
+    (tot.s ? ` · ${nf.format(tot.s)} web search${tot.s === 1 ? '' : 'es'}` : '') + (who === 'all' ? '' : ' · <span class="who"></span>');
+  if (who !== 'all') $('#sum .who').textContent = whoName;
   $('#legend').innerHTML = '';
   for (const [key, color] of [['haiku', 'var(--s-haiku)'], ['sonnet', 'var(--s-sonnet)']]) {
     const s = document.createElement('span'), i = document.createElement('i');
@@ -319,13 +410,13 @@ function show(i) {
   tip.replaceChildren();
   const line = (cls, text) => { const e = document.createElement('div'); e.className = cls; e.textContent = text; tip.appendChild(e); return e; };
   line('d', longFmt.format(asDate(d.day)));
-  line('t', `${nf.format(d.total)} tokens`);
+  line('t', unit === 'usd' ? `${money(d.usd.total, 4)} estimated` : `${nf.format(d.tokens.total)} tokens`);
   for (const [key, color] of [['haiku', 'var(--s-haiku)'], ['sonnet', 'var(--s-sonnet)']]) {
     const r = line('r', ''), k = document.createElement('i'), b = document.createElement('b');
-    k.style.background = color; b.textContent = short(d[key]);
+    k.style.background = color; b.textContent = unit === 'usd' ? money(d.usd[key], 4) : short(d.tokens[key]);
     r.append(k, b, document.createTextNode(N[key]));
   }
-  line('x', `${short(d.input)} in · ${short(d.output)} out`);
+  line('x', unit === 'usd' ? `${short(d.tokens.total)} tokens` : `${short(d.input)} in · ${short(d.output)} out · ${money(d.usd.total)}`);
   line('x', `${d.questions} question${d.questions === 1 ? '' : 's'}` + (d.searches ? ` · ${d.searches} web search${d.searches === 1 ? '' : 'es'}` : ''));
   const box = $('#chart').getBoundingClientRect(), scale = box.width / geom.W;
   const cx = (geom.left + geom.band * i + geom.band / 2) * scale;
@@ -347,8 +438,9 @@ function fillTable() {
   const N = names(), t = $('#tbl');
   t.replaceChildren();
   const tr = (cells, th) => { const r = t.insertRow(); for (const c of cells) { const e = document.createElement(th ? 'th' : 'td'); e.textContent = c; r.appendChild(e); } };
-  tr(['Day', N.haiku, N.sonnet, 'Total', 'Questions', 'Searches'], true);
-  for (const d of [...series].reverse()) tr([dayFmt.format(asDate(d.day)), nf.format(d.haiku), nf.format(d.sonnet), nf.format(d.total), d.questions, d.searches]);
+  tr(['Day', N.haiku, N.sonnet, 'Total tokens', 'Est. cost', 'Questions', 'Searches'], true);
+  for (const d of [...series].reverse())
+    tr([dayFmt.format(asDate(d.day)), nf.format(d.tokens.haiku), nf.format(d.tokens.sonnet), nf.format(d.tokens.total), money(d.usd.total, 3), d.questions, d.searches]);
 }
 $('#range').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
@@ -356,9 +448,203 @@ $('#range').addEventListener('click', e => {
   $('#range').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
   loadUsage().catch(() => {});
 });
+$('#unit').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  unit = b.dataset.u;
+  $('#unit').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  if (series.length) { drawChart(); hide(); }
+});
+$('#who').addEventListener('change', () => { who = $('#who').value; loadUsage().catch(() => {}); });
+
+// ---- users: approve sign-ups, set daily limits and access, notes, passwords, sign-outs ----
+let users = null, openUser = null;
+const ago = t => {
+  if (!t) return 'never';
+  const s = (Date.now() - new Date(t)) / 1000;
+  return s < 60 ? 'just now' : s < 3600 ? `${Math.floor(s / 60)}m ago` : s < 86400 ? `${Math.floor(s / 3600)}h ago` : `${Math.floor(s / 86400)}d ago`;
+};
+const dateFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const limitText = (kind, v) => kind === 'usd' ? money(+v) : `${short(+v)} tokens`;
+async function loadUsers() {
+  const d = users = await api('/api/admin/users');
+  $('#signup').checked = d.signup;
+  $('#signupState').textContent = d.signup ? 'Sign-ups open' : 'Sign-ups closed';
+  renderDefaults(d.defaults);
+  const pending = d.users.filter(u => u.status === 'pending'), rest = d.users.filter(u => u.status !== 'pending');
+  $('#pendingHead').hidden = !pending.length; $('#pendingCount').textContent = pending.length;
+  $('#pendingBox').replaceChildren(...pending.map(pendingRow));
+  $('#usersEmpty').hidden = d.users.length > 0;
+  $('#userList').replaceChildren(ownerRow(d.owner), ...rest.map(userRow));
+  // the chart's person filter
+  const sel = $('#who'), keep = sel.value;
+  sel.replaceChildren(new Option('Everyone', 'all'), new Option('You (owner)', 'owner'), ...rest.map(u => new Option(u.name, String(u.id))));
+  sel.value = [...sel.options].some(o => o.value === keep) ? keep : 'all';
+  if (sel.value !== who) { who = sel.value; loadUsage().catch(() => {}); }
+}
+function pendingRow(u) {
+  const row = mk('div', 'urow pending'), info = mk('div', 'uinfo');
+  info.append(mk('b', '', u.name), ' ', mk('span', 'ago', `asked ${ago(u.createdAt)}`));
+  if (u.note) info.appendChild(mk('div', 'unote', `“${u.note}”`));
+  const btns = mk('div', 'btns'), yes = mk('button', '', 'Accept'), no = mk('button', 'ghost', 'Deny');
+  yes.type = no.type = 'button';
+  yes.onclick = () => act(u, { status: 'trusted' }, `${u.name} is in.`, true);
+  no.onclick = async () => { if (confirm(`Turn down ${u.name}? Their request is deleted.`)) await del(u); };
+  btns.append(yes, no); row.append(info, btns);
+  return row;
+}
+function meter(used, limit) {
+  const w = mk('span', 'meterw'), track = mk('span', 'mtrack'), fill = mk('i');
+  const pct = limit ? Math.min(100, used / limit * 100) : 0;
+  fill.style.width = pct + '%'; if (pct >= 100) fill.className = 'full'; else if (pct >= 80) fill.className = 'warn';
+  track.appendChild(fill); w.appendChild(track);
+  return w;
+}
+function ownerRow(o) {
+  const row = mk('div', 'urow'), head = mk('div', 'uhead static');
+  head.append(mk('span', 'uname', 'You (owner)'), mk('span', 'chip', 'No limit'), mk('span', 'grow'),
+    mk('span', 'ago', `${short(o.today.tokens)} tokens · ${money(o.today.usd)} today`));
+  row.appendChild(head);
+  return row;
+}
+function userRow(u) {
+  const row = mk('div', 'urow' + (openUser === u.id ? ' open' : ''));
+  const head = mk('button', 'uhead'); head.type = 'button'; head.setAttribute('aria-expanded', String(openUser === u.id));
+  head.append(mk('span', 'uname', u.name), mk('span', 'chip ' + u.status, u.status === 'trusted' ? 'Trusted' : 'Blocked'));
+  const usedNow = u.limitKind === 'usd' ? u.today.usd : u.today.tokens;
+  if (u.limitKind) {
+    const m = meter(usedNow, u.limitValue);
+    m.title = `${u.limitKind === 'usd' ? money(usedNow) : short(usedNow)} / ${limitText(u.limitKind, u.limitValue)} today` + (usedNow >= u.limitValue ? ' · limit reached' : '');
+    m.appendChild(mk('span', 'mtext', m.title));
+    head.appendChild(m);
+  } else {
+    const m = mk('span', 'meterw'); m.title = `${short(u.today.tokens)} tokens today · no limit`;
+    m.appendChild(mk('span', 'mtext', m.title)); head.appendChild(m);
+  }
+  head.append(mk('span', 'grow'), mk('span', 'ago', u.lastSeen ? `active ${ago(u.lastSeen)}` : 'not used yet'));
+  head.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>');
+  head.onclick = () => { openUser = openUser === u.id ? null : u.id; loadUsersView(); };
+  row.appendChild(head);
+  if (openUser === u.id) row.appendChild(editor(u));
+  return row;
+}
+const loadUsersView = () => { if (users) { $('#userList').replaceChildren(ownerRow(users.owner), ...users.users.filter(u => u.status !== 'pending').map(userRow)); } };
+function editor(u) {
+  const ed = mk('div', 'ued');
+  let kind = u.limitKind || 'none';
+  // daily limit
+  const f1 = mk('div', 'field'); f1.appendChild(mk('span', 'fl', 'Daily limit'));
+  const inl = mk('div', 'inl'), seg = mk('div', 'seg'), input = mk('input'), unitL = mk('span', 'unit');
+  input.type = 'number'; input.min = '0'; input.step = 'any'; input.setAttribute('aria-label', 'Daily limit');
+  const setKind = k => {
+    kind = k;
+    seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+    input.hidden = k === 'none';
+    unitL.textContent = k === 'usd' ? 'dollars per day (estimated at list prices)' : k === 'tokens' ? 'tokens per day' : 'they can use as much as they like';
+    if (k !== 'none' && (u.limitKind !== k || input.value === '')) input.value = k === u.limitKind ? u.limitValue : k === 'usd' ? 0.5 : 100000;
+  };
+  for (const [k, label] of [['tokens', 'Tokens'], ['usd', 'Dollars'], ['none', 'No limit']]) {
+    const b = mk('button', '', label); b.type = 'button'; b.dataset.k = k; b.onclick = () => setKind(k); seg.appendChild(b);
+  }
+  input.value = u.limitValue ?? '';
+  inl.append(seg, input, unitL); f1.appendChild(inl); setKind(kind);
+  // access
+  const f2 = mk('div', 'field'); f2.appendChild(mk('span', 'fl', 'Can use'));
+  const cb = (label, on) => { const l = mk('label', 'ck'), c = mk('input'); c.type = 'checkbox'; c.checked = on; l.append(c, ' ' + label); return [l, c]; };
+  const [ls, cs] = cb('Sonnet 5.5', u.allowSonnet), [lw, cw] = cb('Web search', u.allowWeb);
+  f2.append(ls, lw);
+  // private note
+  const f3 = mk('div', 'field'), nl = mk('label', '', 'Private note (only you see it)'), note = mk('input');
+  note.maxLength = 300; note.value = u.adminNote; note.placeholder = 'e.g. Sam from class';
+  f3.append(nl, note);
+  // numbers
+  const st = mk('div', 'ustats');
+  const line = (label, text) => { const b = mk('b', '', label + ': '); st.append(b, text, document.createElement('br')); };
+  line('Today', `${nf.format(u.today.tokens)} tokens · ${money(u.today.usd)} · ${u.today.questions} question${u.today.questions === 1 ? '' : 's'}`);
+  line('Last 7 days', `${nf.format(u.week.tokens)} tokens · ${money(u.week.usd)}`);
+  line('All time', `${nf.format(u.total.tokens)} tokens · ${money(u.total.usd)} · ${u.total.questions} question${u.total.questions === 1 ? '' : 's'}`);
+  st.append(`Joined ${dateFmt.format(new Date(u.createdAt))}` + (u.approvedAt ? ` · accepted ${dateFmt.format(new Date(u.approvedAt))}` : '') +
+    ` · ${u.devices} device${u.devices === 1 ? '' : 's'} signed in`);
+  if (u.note) { st.appendChild(document.createElement('br')); st.append(`They wrote: “${u.note}”`); }
+  // actions
+  const btns = mk('div', 'btns'), msg = mk('div', 'msg');
+  const save = mk('button', '', 'Save'), reset = mk('button', 'ghost', 'Reset password'), out = mk('button', 'ghost', 'Sign out'),
+    blk = mk('button', 'ghost', u.status === 'blocked' ? 'Unblock' : 'Block'), rm = mk('button', 'ghost danger', 'Delete');
+  [save, reset, out, blk, rm].forEach(b => { b.type = 'button'; });
+  save.onclick = () => {
+    const v = +input.value;
+    if (kind !== 'none' && !(v > 0)) { msg.className = 'msg err'; msg.textContent = 'Enter a number above zero.'; return; }
+    act(u, { limitKind: kind, limitValue: v, allowSonnet: cs.checked, allowWeb: cw.checked, adminNote: note.value }, 'Saved.');
+  };
+  const np = mk('div', 'np'); np.hidden = true;
+  const npIn = mk('input'), npGo = mk('button', '', 'Set'); npIn.type = 'text'; npIn.placeholder = 'New password (6+ characters)'; npGo.type = 'button';
+  np.append(npIn, npGo);
+  reset.onclick = () => { np.hidden = !np.hidden; if (!np.hidden) npIn.focus(); };
+  npGo.onclick = () => act(u, { password: npIn.value }, `Password changed and ${u.name} was signed out. Tell them the new one.`);
+  out.onclick = () => act(u, { signout: true }, `${u.name} was signed out everywhere.`);
+  blk.onclick = () => act(u, { status: u.status === 'blocked' ? 'trusted' : 'blocked' }, u.status === 'blocked' ? `${u.name} can use pagebot again.` : `${u.name} is blocked and signed out.`);
+  rm.onclick = async () => { if (confirm(`Delete ${u.name}? They're signed out and the account is gone. Their past usage stays in the totals.`)) await del(u); };
+  btns.append(save, reset, out, blk, rm);
+  ed.append(f1, f2, f3, st, btns, np, msg);
+  ed.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); (i === npIn ? npGo : save).click(); } }));
+  return ed;
+}
+let flash = null; // message to show after the list re-renders
+async function act(u, body, okText, isApproval) {
+  try {
+    await api('/api/admin/users/' + u.id, { method: 'POST', body: JSON.stringify(body) });
+    if (isApproval) openUser = u.id;
+    flash = { id: u.id, text: okText };
+    await loadUsers(); load().catch(() => {});
+  } catch (err) { flash = { id: u.id, text: err.message, err: true }; loadUsersView(); }
+  showFlash();
+}
+async function del(u) {
+  try { await api('/api/admin/users/' + u.id, { method: 'DELETE' }); if (openUser === u.id) openUser = null; await loadUsers(); }
+  catch (err) { alert(err.message); }
+}
+function showFlash() {
+  if (!flash) return;
+  const ed = document.querySelector('.urow.open .msg');
+  if (ed && openUser === flash.id) { ed.className = 'msg ' + (flash.err ? 'err' : 'ok'); ed.textContent = flash.text; }
+  flash = null;
+}
+$('#signup').addEventListener('change', async () => {
+  try { await api('/api/admin/accounts', { method: 'POST', body: JSON.stringify({ signup: $('#signup').checked }) }); }
+  catch (err) { alert(err.message); }
+  loadUsers().catch(() => {});
+});
+// what newly accepted accounts start with
+let dKind = 'tokens';
+function renderDefaults(d) {
+  if ($('#defaults').contains(document.activeElement)) return;
+  setDKind(d.limitKind || 'none', d.limitValue);
+  $('#dSonnet').checked = d.allowSonnet; $('#dWeb').checked = d.allowWeb;
+}
+function setDKind(k, v) {
+  dKind = k;
+  $('#dKind').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+  $('#dValue').hidden = k === 'none';
+  $('#dUnit').textContent = k === 'usd' ? 'dollars per day' : k === 'tokens' ? 'tokens per day' : '';
+  if (v != null) $('#dValue').value = v; else if (k !== 'none') $('#dValue').value = k === 'usd' ? 0.5 : 100000;
+}
+$('#dKind').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setDKind(b.dataset.k); });
+$('#dSave').onclick = async () => {
+  const m = $('#dMsg');
+  try {
+    await api('/api/admin/accounts', { method: 'POST', body: JSON.stringify({ defaults: { limitKind: dKind, limitValue: +$('#dValue').value, allowSonnet: $('#dSonnet').checked, allowWeb: $('#dWeb').checked } }) });
+    say(m, true, 'Saved. People you accept from now on start with these.');
+  } catch (err) { say(m, false, err.message); }
+};
 new ResizeObserver(() => { if (series.length) drawChart(); }).observe($('#chart'));
 
-async function unlocked() { await load(); await loadUsage(); }
+let usersTimer = 0;
+async function unlocked() {
+  await load(); await loadUsers(); await loadUsage();
+  // new sign-ups show up without reloading; skipped while you're typing in the users card
+  clearInterval(usersTimer);
+  usersTimer = setInterval(() => { if (tok && !$('#usersCard').contains(document.activeElement)) loadUsers().catch(() => {}); }, 30000);
+}
 
 $('#unlock').addEventListener('submit', async e => {
   e.preventDefault(); tok = $('#tok').value.trim(); $('#unlockMsg').textContent = '';
@@ -417,7 +703,7 @@ $('#signout').onclick = async () => {
   catch (err) { say(m, false, err.message); }
 };
 
-$('#lock').onclick = () => { ss.set('pb_admin', null); tok = null; $('#panel').hidden = true; $('#unlock').hidden = false; };
+$('#lock').onclick = () => { ss.set('pb_admin', null); tok = null; clearInterval(usersTimer); $('#panel').hidden = true; $('#unlock').hidden = false; };
 
 if (tok) unlocked().catch(() => { ss.set('pb_admin', null); tok = null; $('#panel').hidden = true; $('#unlock').hidden = false; });
 })();
