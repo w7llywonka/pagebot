@@ -86,25 +86,42 @@ body.min .mstat.busy,body.min .mstat.new{display:inline-flex}
 .typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
 @keyframes b{0%,80%,100%{opacity:.25}40%{opacity:1}}
 
-/* composer */
-#composer{flex:none;border-top:1px solid var(--line);padding:8px;display:flex;flex-direction:column;gap:6px}
-#att{display:none;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
-#att img{height:44px;max-width:120px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
-.tools{display:flex;gap:5px;align-items:center}
-.chip{flex:none;background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:4px 8px;font-size:12px;line-height:1.35;cursor:pointer;display:inline-flex;gap:4px;align-items:center;white-space:nowrap}
-.chip:hover{color:var(--text)}
-.chip.on{color:var(--text);border-color:var(--accent);background:var(--chip-on)}
-.chip svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
-.chip.model{margin-left:auto;color:var(--text)}
-.chip.model .mi{color:var(--accent)}
-.chip.flip{animation:flip .3s ease}
-@keyframes flip{40%{transform:scale(.9)}}
-.row{display:flex;gap:6px;align-items:flex-end}
-textarea{flex:1;resize:none;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 10px;max-height:140px;min-height:40px;outline:none}
+/* composer: one box with the text on top and a small toolbar underneath */
+#composer{flex:none;padding:0 10px 10px;position:relative}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:14px;transition:border-color .15s}
+.box:focus-within{border-color:var(--focus)}
+#att{position:relative;display:inline-block;margin:8px 0 0 10px}
+#att img{display:block;height:48px;max-width:140px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+#att button{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:2px solid var(--panel);background:var(--text);color:var(--bg);font-size:12px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}
+#q{display:block;width:100%;resize:none;background:none;border:0;color:var(--text);padding:10px 12px 2px;max-height:140px;min-height:38px;outline:none}
+.bar{display:flex;align-items:center;gap:5px;padding:4px 6px 6px}
+.tb{flex:none;background:none;border:0;color:var(--muted);height:28px;min-width:28px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:3px;padding:0 6px;font-size:12.5px;white-space:nowrap}
+.tb:hover,.tb.on{background:var(--chip-on);color:var(--text)}
+.tb svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tb.model svg{width:13px;height:13px}
+.pills{flex:1;min-width:0;display:flex;gap:5px;overflow:hidden}
+.pill{flex:none;display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 6px 0 8px;border-radius:99px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:var(--chip-on);color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap}
+.pill i{font-style:normal;color:var(--muted);font-size:13px;line-height:1}
+.pill:hover i{color:var(--text)}
+.go{flex:none;width:30px;height:30px;border-radius:50%;border:0;background:var(--accent);color:var(--on-accent);cursor:pointer;display:grid;place-items:center;padding:0;transition:transform .1s,opacity .15s}
+.go:active{transform:scale(.92)}
+.go:disabled{opacity:.4;cursor:default}
+.go svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.menu{position:absolute;bottom:calc(100% - 4px);left:10px;z-index:5;min-width:220px;padding:5px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.35);animation:menuIn .14s ease both}
+.menu.right{left:auto;right:10px}
+@keyframes menuIn{from{opacity:0;transform:translateY(4px)}}
+.menu button{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-radius:8px;padding:7px 9px;cursor:pointer;text-align:left;font-size:13px}
+.menu button:hover:not(:disabled){background:var(--chip-on)}
+.menu button:disabled{opacity:.45;cursor:default}
+.menu .mi{width:18px;text-align:center;flex:none}
+.menu .mt{flex:1;min-width:0}
+.menu .md{display:block;font-size:11.5px;color:var(--muted)}
+.menu .ck{color:var(--accent);visibility:hidden;font-weight:700}
+.menu [aria-checked=true] .ck{visibility:visible}
+.menu .tip{font-size:11.5px;color:var(--muted);padding:6px 9px 3px;border-top:1px solid var(--line);margin-top:4px}
 textarea:focus,input:focus{border-color:var(--focus)}
 .send{background:var(--accent);color:var(--on-accent);border:0;border-radius:10px;height:40px;padding:0 14px;font-weight:600;cursor:pointer}
 .send:disabled{opacity:.45;cursor:default}
-@media (max-width:350px){.chip .lb{display:none}}
 
 /* settings sheet */
 #sheet{position:absolute;left:0;right:0;top:var(--hd);bottom:0;z-index:2;background:var(--bg);overflow-y:auto;padding:14px 14px 20px;display:flex;flex-direction:column;gap:20px;animation:sheetIn .2s cubic-bezier(.2,.8,.2,1)}
@@ -171,40 +188,50 @@ textarea:focus,input:focus{border-color:var(--focus)}
 .region.dragging .rbar{opacity:0;pointer-events:none}
 @keyframes rbarIn{from{opacity:0;transform:translate(-50%,-6px)}}
 
-/* loadup animation */
-#boot{position:fixed;inset:0;z-index:100;display:grid;place-items:center;animation:failsafe 0s 10s forwards}
+/* loadup animation: plays on every open, about 2.5s, never more than 3s. Only transform and opacity animate. */
+#boot{position:fixed;inset:0;z-index:100;display:grid;place-items:center;animation:failsafe 0s 6s forwards}
+#boot.armed,#boot.armed *{animation-play-state:paused!important}
 @keyframes failsafe{to{visibility:hidden}}
-#boot .bg{position:absolute;inset:0;background:var(--bg);transition:opacity .42s ease .16s,background-color .35s ease}
-#boot .c{position:relative;display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:-6px}
-.orb{position:relative;width:96px;height:96px;display:grid;place-items:center}
-.rings,.sats{position:absolute;inset:0}
-.rings{transition:opacity .2s}
-.rings i{position:absolute;inset:30px;border-radius:50%;border:1.5px solid var(--accent);opacity:0;animation:ripple 1.8s cubic-bezier(.2,.6,.3,1) .3s infinite}
-.rings i+i{animation-delay:1.2s}
-@keyframes ripple{0%{transform:scale(.6);opacity:.7}100%{transform:scale(2.3);opacity:0}}
-.sats{transition:transform .34s cubic-bezier(.55,0,.75,.1),opacity .34s ease}
-.spin{position:absolute;inset:0;animation:spin 2.4s linear infinite}
-.spin i{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:var(--accent);animation:satIn .55s cubic-bezier(.2,.8,.2,1) .22s both}
-@keyframes satIn{from{opacity:0;transform:rotate(var(--a)) translateX(12px)}to{opacity:.8;transform:rotate(var(--a)) translateX(30px)}}
-@keyframes spin{to{transform:rotate(360deg)}}
-.fly{position:relative;width:20px;height:20px}
-.core{display:block;width:20px;height:20px;border-radius:50%;background:var(--accent);animation:pop .55s cubic-bezier(.3,1.6,.5,1) both,glow 1.6s ease-in-out .55s infinite}
-@keyframes pop{from{transform:scale(0)}}
-@keyframes glow{50%{box-shadow:0 0 0 7px color-mix(in srgb,var(--accent) 16%,transparent),0 0 22px color-mix(in srgb,var(--accent) 45%,transparent)}}
-.word{display:flex;font-weight:700;font-size:21px;letter-spacing:.4px;transition:opacity .25s,transform .25s}
-.word span{display:inline-block;animation:letter .5s cubic-bezier(.2,.8,.2,1) calc(.2s + var(--i) * 45ms) both}
-@keyframes letter{from{opacity:0;transform:translateY(9px);filter:blur(3px)}}
-.bar{width:72px;height:2px;border-radius:2px;overflow:hidden;background:color-mix(in srgb,var(--muted) 22%,transparent);animation:fadeIn .3s ease .55s both;transition:opacity .2s}
-.bar i{display:block;width:40%;height:100%;border-radius:2px;background:var(--accent);animation:sweep 1.1s ease-in-out infinite}
-@keyframes sweep{from{transform:translateX(-110%)}to{transform:translateX(260%)}}
+#boot .bg{position:absolute;inset:0;background:var(--bg);transition:opacity .42s ease .14s}
+#boot .bg::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 43%,color-mix(in srgb,var(--accent) 15%,transparent),transparent 55%);opacity:0;animation:bFade .9s ease .1s forwards}
+#boot .c{position:relative;display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:-10px}
+#boot .orb{position:relative;width:96px;height:96px;display:grid;place-items:center}
+#boot .ring{position:absolute;left:8px;top:8px;width:80px;height:80px;transform:rotate(-90deg);overflow:visible;transition:opacity .22s ease,transform .32s cubic-bezier(.55,0,.75,.1)}
+#boot .ring circle{fill:none;stroke:var(--accent);stroke-width:1.6;stroke-linecap:round;stroke-dasharray:170;stroke-dashoffset:170;animation:bDraw .85s cubic-bezier(.65,0,.35,1) .15s forwards}
+#boot .ring .trail{stroke-width:7;opacity:.16;animation-delay:.24s}
+#boot .pulse{position:absolute;left:50%;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;border:1.5px solid var(--accent);opacity:0;animation:bRipple .9s cubic-bezier(.2,.6,.3,1) .8s}
+#boot .sats{position:absolute;inset:0;transition:transform .3s cubic-bezier(.55,0,.75,.1),opacity .3s ease}
+#boot .spin{position:absolute;inset:0;animation:bSpin 2.4s linear .5s infinite}
+#boot .spin i{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:var(--accent);opacity:0;transform:rotate(var(--a)) translateX(27px) scale(0);animation:bSat .45s cubic-bezier(.3,1.5,.5,1) calc(.5s + var(--n) * 90ms) forwards}
+#boot .fly{position:relative;width:20px;height:20px}
+#boot .core{position:relative;display:block;width:20px;height:20px;border-radius:50%;background:var(--accent);animation:bPop .6s cubic-bezier(.3,1.6,.5,1) both}
+#boot .core::after{content:"";position:absolute;inset:-12px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 40%,transparent),transparent 70%);opacity:0;animation:bFade .7s ease .35s forwards}
+#boot .txt{display:flex;flex-direction:column;align-items:center;gap:9px;transition:opacity .22s ease,transform .3s ease}
+#boot .word{display:flex;font-weight:700;font-size:22px;letter-spacing:.3px}
+#boot .word span{display:inline-block;opacity:0;animation:bLetter .55s cubic-bezier(.2,.8,.2,1) calc(.35s + var(--i) * 55ms) forwards,bWave .45s ease calc(1.05s + var(--i) * 40ms)}
+#boot .tag{font-size:12.5px;color:var(--muted);opacity:0;animation:bUp .5s ease .85s forwards}
+#boot .meter{width:84px;height:2px;border-radius:2px;overflow:hidden;background:color-mix(in srgb,var(--muted) 22%,transparent);opacity:0;animation:bFade .3s ease .5s forwards}
+#boot .meter i{display:block;width:100%;height:100%;border-radius:2px;background:var(--accent);transform:scaleX(0);transform-origin:0 50%;animation:bFill 1.15s cubic-bezier(.4,0,.2,1) .5s forwards}
+@keyframes bFade{to{opacity:1}}
+@keyframes bDraw{to{stroke-dashoffset:0}}
+@keyframes bRipple{0%{opacity:.6;transform:scale(1)}100%{opacity:0;transform:scale(4.4)}}
+@keyframes bSpin{to{transform:rotate(360deg)}}
+@keyframes bSat{to{opacity:.9;transform:rotate(var(--a)) translateX(27px) scale(1)}}
+@keyframes bPop{from{transform:scale(0)}}
+@keyframes bLetter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes bWave{50%{transform:translateY(-3px);color:var(--accent)}}
+@keyframes bUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes bFill{to{transform:scaleX(1)}}
 #boot.out{pointer-events:none}
-#boot.out .bg,#boot.out .rings,#boot.out .bar{opacity:0}
+#boot.out .bg{opacity:0}
+#boot.out .ring{opacity:0;transform:rotate(-90deg) scale(.5)}
 #boot.out .sats{transform:scale(.1);opacity:0}
-#boot.out .word{opacity:0;transform:translateY(-6px)}
+#boot.out .txt{opacity:0;transform:translateY(-8px)}
+#boot.out .pulse{display:none}
 body.booting header .dot{opacity:0}
-body.reveal header{animation:fadeIn .45s ease .2s both}
-body.reveal #log,body.reveal #login{animation:rise .55s cubic-bezier(.2,.8,.2,1) .28s both}
-body.reveal #composer{animation:rise .55s cubic-bezier(.2,.8,.2,1) .36s both}
+body.reveal header{animation:fadeIn .45s ease .18s both}
+body.reveal #log,body.reveal #login{animation:rise .55s cubic-bezier(.2,.8,.2,1) .26s both}
+body.reveal #composer{animation:rise .55s cubic-bezier(.2,.8,.2,1) .34s both}
 body.enter #log{animation:rise .4s cubic-bezier(.2,.8,.2,1) both}
 body.enter #composer{animation:rise .4s cubic-bezier(.2,.8,.2,1) .06s both}
 @keyframes fadeIn{from{opacity:0}}
@@ -216,8 +243,10 @@ body.enter #composer{animation:rise .4s cubic-bezier(.2,.8,.2,1) .06s both}
 body.standalone{--hd:54px;max-width:780px;margin:0 auto;border-left:1px solid var(--line);border-right:1px solid var(--line)}
 body.standalone header{padding:0 12px 0 18px}
 body.standalone #log{padding:20px 18px}
-body.standalone #composer{padding:12px 14px 16px}
-body.standalone #pageBtn{display:none}
+body.standalone #composer{padding:0 14px 16px}
+body.standalone #composer .menu{left:14px}
+body.standalone #composer .menu.right{left:auto;right:14px}
+body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 @media (max-width:780px){body.standalone{border:0}}
 </style>
 </head>
@@ -226,12 +255,16 @@ body.standalone #pageBtn{display:none}
   <div class="bg"></div>
   <div class="c">
     <div class="orb">
-      <div class="rings"><i></i><i></i></div>
-      <div class="sats"><div class="spin"><i style="--a:0deg"></i><i style="--a:120deg"></i><i style="--a:240deg"></i></div></div>
+      <svg class="ring" viewBox="0 0 80 80"><circle class="trail" cx="40" cy="40" r="27"/><circle cx="40" cy="40" r="27"/></svg>
+      <i class="pulse"></i>
+      <div class="sats"><div class="spin"><i style="--a:0deg;--n:0"></i><i style="--a:120deg;--n:1"></i><i style="--a:240deg;--n:2"></i></div></div>
       <div class="fly"><b class="core"></b></div>
     </div>
-    <div class="word"><span style="--i:0">p</span><span style="--i:1">a</span><span style="--i:2">g</span><span style="--i:3">e</span><span style="--i:4">b</span><span style="--i:5">o</span><span style="--i:6">t</span></div>
-    <div class="bar"><i></i></div>
+    <div class="txt">
+      <div class="word"><span style="--i:0">p</span><span style="--i:1">a</span><span style="--i:2">g</span><span style="--i:3">e</span><span style="--i:4">b</span><span style="--i:5">o</span><span style="--i:6">t</span></div>
+      <div class="tag" id="bootTag">Getting ready…</div>
+      <div class="meter"><i></i></div>
+    </div>
   </div>
 </div>
 
@@ -271,18 +304,27 @@ body.standalone #pageBtn{display:none}
 </div>
 
 <div id="composer" hidden>
-  <div id="att"><img alt=""><span id="attLabel">Screenshot attached</span><button class="ib" id="rmAtt" type="button" title="Remove"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
-  <div class="tools">
-    <button class="chip" id="pageBtn" type="button" title="Attach this page's text to the next message">📄<span class="lb">Page</span></button>
-    <button class="chip" id="shotBtn" type="button" title="Screenshot the page">📷<span class="lb">Shot</span></button>
-    <button class="chip" id="areaBtn" type="button" title="Screenshot just a region — drag a box over the page"><svg viewBox="0 0 24 24"><path d="M4 9V5h4M16 5h4v4M20 15v4h-4M8 19H4v-4"/></svg><span class="lb">Region</span></button>
-    <button class="chip" id="webBtn" type="button" title="Let the model search the web">🌐<span class="lb">Web</span></button>
-    <button class="chip model" id="modelBtn" type="button"><span class="mi" id="modelIcon">⚡</span><span id="modelName">Haiku 5.5</span></button>
+  <div class="box">
+    <div id="att" hidden><img alt=""><button id="rmAtt" type="button" title="Remove image" aria-label="Remove image">×</button></div>
+    <textarea id="q" rows="1" placeholder="Ask about this page…" aria-label="Message"></textarea>
+    <div class="bar">
+      <button class="tb" id="addBtn" type="button" title="Screenshot, page text, web search" aria-label="Add" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      <div class="pills">
+        <button class="pill" id="pagePill" type="button" title="This page's text goes with your next message. Click to leave it out." hidden>📄 Page<i>×</i></button>
+        <button class="pill" id="webPill" type="button" title="Web search is on. Click to turn it off." hidden>🌐 Web<i>×</i></button>
+      </div>
+      <button class="tb model" id="modelBtn" type="button" aria-haspopup="menu" aria-expanded="false"><span id="modelName">Haiku 5.5</span><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+      <button class="go" id="sendBtn" type="button" title="Send (Enter)" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+    </div>
   </div>
-  <div class="row">
-    <textarea id="q" rows="1" placeholder="Ask about this page…"></textarea>
-    <button class="send" id="sendBtn" type="button">Send</button>
+  <div class="menu" id="addMenu" role="menu" hidden>
+    <button type="button" role="menuitem" id="shotBtn"><span class="mi">📷</span><span class="mt">Screenshot this tab</span></button>
+    <button type="button" role="menuitem" id="areaBtn"><span class="mi">⛶</span><span class="mt">Screenshot a region</span></button>
+    <button type="button" role="menuitemcheckbox" id="pageBtn" aria-checked="false"><span class="mi">📄</span><span class="mt">Page text</span><span class="ck">✓</span></button>
+    <button type="button" role="menuitemcheckbox" id="webBtn" aria-checked="false"><span class="mi">🌐</span><span class="mt">Web search</span><span class="ck">✓</span></button>
+    <div class="tip">You can also paste an image.</div>
   </div>
+  <div class="menu right" id="modelMenu" role="menu" hidden></div>
 </div>
 
 <script>
@@ -293,7 +335,9 @@ const qs = new URLSearchParams(location.search);
 const embedded = window.parent !== window;
 const popup = !embedded && !!window.opener;
 const target = embedded ? window.parent : (popup ? window.opener : null);
-const hostV2 = embedded && qs.get('v') === '2'; // bookmarklet that can move, minimize and go full screen
+const hostV = embedded ? Number(qs.get('v')) || 1 : 0;
+const hostV2 = hostV >= 2; // bookmarklet that can move, minimize and go full screen
+const hostV3 = hostV >= 3; // ...and tells us when the panel opens and hides
 const standalone = !embedded && !popup;
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const body = document.body;
@@ -328,10 +372,12 @@ addEventListener('message', e => {
   const d = e.data || {};
   if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); }
   else if (d.type === 'restore') setMin(false);
+  else if (d.type === 'open') replaySplash();
+  else if (d.type === 'hidden') armSplash();
 });
 let savedPos = null;
 try { savedPos = JSON.parse(store.get('pb_pos')); } catch {}
-tell('ready', hostV2 && savedPos ? { pos: savedPos } : {});
+tell('ready', { ...(hostV2 && savedPos ? { pos: savedPos } : {}), size: { w: 400, h: 600 } });
 
 // ---- themes ----
 const THEMES = [
@@ -413,9 +459,9 @@ const fmt = n => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : Stri
 const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
 function empty() {
   if (standalone)
-    return void (log.innerHTML = '<div class="empty"><b>Ask anything.</b>📷 shares a tab or window to screenshot (or just a region), 🌐 lets it search the web, or paste an image.</div>');
-  log.innerHTML = '<div class="empty"><b>Ask about this page.</b>📄 attaches the page text (on for the first message), 📷 grabs a screenshot or just a region, 🌐 lets it search the web. Highlighted text is included automatically.' +
-    (hostV2 ? '<br><br>Drag the top bar to move me.' : embedded ? '<div class="up">Re-drag the button from the pagebot homepage to update your bookmark — the new one lets you move and minimize this panel.</div>' : '') + '</div>';
+    return void (log.innerHTML = '<div class="empty"><b>Ask anything.</b>Use + to screenshot a tab or turn on web search, or paste an image.</div>');
+  log.innerHTML = '<div class="empty"><b>Ask about this page.</b>The page text goes with your first message, and anything you highlight is included. Use + for a screenshot or web search.' +
+    (embedded && !hostV3 ? '<div class="up">There’s a newer version of the pagebot bookmark. Re-drag the button from the pagebot homepage to update it.</div>' : '') + '</div>';
 }
 
 // ---- views ----
@@ -436,7 +482,7 @@ function showChat(enter) {
 let pwMode = false, pin = '', pinBusy = false;
 const pinMode = () => view === 'lock' && cfg?.lock === 'passcode' && !pwMode;
 function showLogin(msg) {
-  view = 'lock'; closeSheet();
+  view = 'lock'; closeSheet(); closeMenus();
   $('#login').style.display = 'flex'; $('#login').classList.remove('leave');
   log.hidden = true; $('#composer').hidden = true;
   setHeader(false);
@@ -451,6 +497,7 @@ function renderLock(msg) {
   $('#switchLock').hidden = !(lock === 'passcode' && cfg?.passwordSet);
   $('#switchLock').textContent = pwMode ? 'Use passcode' : 'Use password instead';
   $('#loginErr').textContent = msg || '';
+  $('#dots').className = 'dots'; // drop the green "unlocked" state from last time
   pin = ''; pinBusy = false; renderDots();
   if (!minimized) setTimeout(() => usePin ? $('#login').focus() : $('#pw').focus(), 60);
 }
@@ -524,7 +571,8 @@ $('#lockBtn').onclick = $('#lockNow').onclick = () => lock();
 $('#newBtn').onclick = () => { convId = null; setPage(true); clearImg(); closeSheet(); empty(); $('#q').focus(); };
 function closePanel() {
   stopStream();
-  if (embedded) tell('close'); else if (popup) window.close();
+  if (embedded) tell('close'); // the bookmarklet answers with "hidden" once it has faded out
+  else if (popup) window.close();
 }
 $('#closeBtn').onclick = closePanel;
 if (standalone) {
@@ -532,7 +580,7 @@ if (standalone) {
   body.classList.add('standalone');
   $('.name').innerHTML = '<a href="/">pagebot</a>';
   $('#q').placeholder = 'Ask anything, or paste a screenshot…';
-  $('#shotBtn').title = 'Share a tab or window and screenshot it';
+  $('#shotBtn .mt').textContent = 'Screenshot a tab or window';
 }
 
 // ---- server ----
@@ -568,13 +616,24 @@ $('#tokIn').addEventListener('input', () => {
   tokTimer = setTimeout(() => { const n = Math.round(+$('#tokIn').value); if (n >= 256 && n <= 64000) savePrefs({ maxTokens: n }); }, 500);
 });
 $('#tokIn').addEventListener('change', () => { clearTimeout(tokTimer); const n = Math.round(+$('#tokIn').value); if (n) savePrefs({ maxTokens: Math.min(64000, Math.max(256, n)) }); });
+const MODEL_INFO = { haiku: ['⚡', 'Fast and cheap'], sonnet: ['✦', 'Smarter, a little slower'] };
 function renderPrefs() {
-  $('#webBtn').classList.toggle('on', !!prefs.web);
+  $('#webPill').hidden = !prefs.web;
+  $('#webBtn').setAttribute('aria-checked', String(!!prefs.web));
   const m = models.find(x => x.key === prefs.model) || models[0];
   $('#modelName').textContent = m.label;
-  $('#modelIcon').textContent = prefs.model === 'sonnet' ? '✦' : '⚡';
-  const other = models.find(x => x.key !== m.key);
-  $('#modelBtn').title = `Model: ${m.label}` + (other ? ` — click to switch to ${other.label}` : '');
+  $('#modelBtn').title = `Model: ${m.label}`;
+  const menu = $('#modelMenu'); menu.replaceChildren();
+  for (const x of models) {
+    const [icon, desc] = MODEL_INFO[x.key] || ['•', ''];
+    const b = el('button', '', `<span class="mi">${icon}</span><span class="mt"></span><span class="ck">✓</span>`);
+    b.type = 'button'; b.setAttribute('role', 'menuitemradio'); b.setAttribute('aria-checked', String(x.key === m.key));
+    b.querySelector('.mt').textContent = x.label;
+    b.querySelector('.mt').appendChild(el('span', 'md')).textContent = x.locked ? 'Not turned on for your account' : desc;
+    b.disabled = !!x.locked;
+    b.onclick = () => { closeMenus(); if (x.key !== prefs.model) savePrefs({ model: x.key }); q.focus(); };
+    menu.appendChild(b);
+  }
   $('#tokSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.n === limits.maxTokens));
   if (document.activeElement !== $('#tokIn')) $('#tokIn').value = limits.maxTokens;
   document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t === prefs.theme));
@@ -590,12 +649,26 @@ async function savePrefs(patch) {
     if (e.status === 401) lock(lockedMsg()); else note('Couldn’t save that setting: ' + e.message);
   }
 }
-$('#webBtn').onclick = () => savePrefs({ web: !prefs.web });
-$('#modelBtn').onclick = () => {
-  const i = models.findIndex(x => x.key === prefs.model);
-  const b = $('#modelBtn'); b.classList.remove('flip'); void b.offsetWidth; b.classList.add('flip');
-  savePrefs({ model: models[(i + 1) % models.length].key });
-};
+$('#webBtn').onclick = () => { closeMenus(); savePrefs({ web: !prefs.web }); q.focus(); };
+$('#webPill').onclick = () => { savePrefs({ web: false }); q.focus(); };
+
+// the + menu and the model picker
+let openMenu = null;
+function closeMenus() {
+  for (const [m, b] of [['#addMenu', '#addBtn'], ['#modelMenu', '#modelBtn']]) {
+    $(m).hidden = true; $(b).classList.remove('on'); $(b).setAttribute('aria-expanded', 'false');
+  }
+  openMenu = null;
+}
+function toggleMenu(menu, btn) {
+  const show = openMenu !== menu;
+  closeMenus();
+  if (!show) return;
+  $(menu).hidden = false; $(btn).classList.add('on'); $(btn).setAttribute('aria-expanded', 'true'); openMenu = menu;
+}
+$('#addBtn').onclick = () => toggleMenu('#addMenu', '#addBtn');
+$('#modelBtn').onclick = () => toggleMenu('#modelMenu', '#modelBtn');
+document.addEventListener('pointerdown', e => { if (openMenu && !e.target.closest('.menu,#addBtn,#modelBtn')) closeMenus(); });
 let sheetOpen = false;
 function openSheet(focusTokens) {
   if (view !== 'chat') return;
@@ -615,7 +688,7 @@ function setMin(on) {
   if (!hostV2 || minimized === on) return;
   minimized = on; body.classList.toggle('min', on);
   $('#minBtn').title = on ? 'Expand' : 'Minimize';
-  if (on) closeSheet(); else unseen = false;
+  if (on) { closeSheet(); closeMenus(); } else unseen = false;
   tell('min', { on, w: 200, h: 46 });
   setStatus();
   if (!on && view === 'chat') setTimeout(() => $('#q').focus(), 220);
@@ -645,15 +718,16 @@ hd.addEventListener('pointerup', endDrag);
 hd.addEventListener('pointercancel', endDrag);
 
 // ---- attachments ----
-function setPage(v) { pageOn = v; $('#pageBtn').classList.toggle('on', v); }
-$('#pageBtn').onclick = () => setPage(!pageOn);
+function setPage(v) { pageOn = v; $('#pagePill').hidden = !v; $('#pageBtn').setAttribute('aria-checked', String(v)); }
+$('#pageBtn').onclick = () => { closeMenus(); setPage(!pageOn); $('#q').focus(); };
+$('#pagePill').onclick = () => { setPage(false); $('#q').focus(); };
 function setImg(dataUrl, kind = 'shot') {
   img = dataUrl; imgKind = kind; $('#att img').src = dataUrl;
-  $('#attLabel').textContent = kind === 'region' ? 'Region attached' : kind === 'paste' ? 'Image attached' : 'Screenshot attached';
-  $('#att').style.display = 'flex';
+  $('#att img').alt = kind === 'region' ? 'Region screenshot' : kind === 'paste' ? 'Pasted image' : 'Screenshot';
+  $('#att').hidden = false;
 }
-function clearImg() { img = null; $('#att').style.display = 'none'; $('#att img').removeAttribute('src'); }
-$('#rmAtt').onclick = clearImg;
+function clearImg() { img = null; $('#att').hidden = true; $('#att img').removeAttribute('src'); }
+$('#rmAtt').onclick = () => { clearImg(); $('#q').focus(); };
 
 function toJpeg(src, w, h) {
   const s = Math.min(1, 1568 / Math.max(w, h));
@@ -692,6 +766,7 @@ function shotFailed(e) {
     : 'Screenshot failed: ' + (e?.message || e));
 }
 $('#shotBtn').onclick = async () => {
+  closeMenus();
   try {
     const c = await grab();
     if (embedded) tell('show');
@@ -699,6 +774,7 @@ $('#shotBtn').onclick = async () => {
   } catch (e) { shotFailed(e); }
 };
 $('#areaBtn').onclick = async () => {
+  closeMenus();
   let c;
   try { c = await grab(); } catch (e) { return shotFailed(e); }
   const r = await pickRegion(c);
@@ -775,7 +851,7 @@ addEventListener('keydown', e => {
     if (/^[0-9]$/.test(e.key)) { e.preventDefault(); return pinKey(e.key); }
     if (e.key === 'Backspace') { e.preventDefault(); return pinKey('del'); }
   }
-  if (e.key === 'Escape') { if (sheetOpen) closeSheet(); else closePanel(); }
+  if (e.key === 'Escape') { if (openMenu) closeMenus(); else if (sheetOpen) closeSheet(); else closePanel(); }
 });
 
 // ---- auto-lock after the passcode timeout, and keep the session alive while you're active ----
@@ -893,11 +969,16 @@ async function send() {
   }
 }
 
-// ---- start: splash while we load, then fade into the chat ----
-async function endSplash() {
+// ---- the loadup animation: on first load and every time the panel opens again ----
+const bootHTML = $('#boot').outerHTML;
+const HOLD = calm ? 120 : 1700; // the intro runs this long before fading into the chat...
+const CAP = calm ? 600 : 2150;  // ...or until data arrives, but never past this (the whole thing stays under 3s)
+let splashT0 = performance.now(), splashing = true;
+const sinceSplash = t => wait(Math.max(0, splashT0 + t - performance.now()));
+async function endSplash(ready, setView) {
   const boot = $('#boot');
-  const left = (calm ? 150 : 850) - performance.now();
-  if (left > 0) await wait(left);
+  await Promise.race([Promise.all([sinceSplash(HOLD), ready]), sinceSplash(CAP)]);
+  setView?.();
   body.classList.add('reveal');
   boot.classList.add('out');
   const fly = boot.querySelector('.fly'), dot = $('header .dot');
@@ -907,23 +988,48 @@ async function endSplash() {
     if (b.width && a.width) {
       const dx = b.left + b.width / 2 - (a.left + a.width / 2), dy = b.top + b.height / 2 - (a.top + a.height / 2);
       landed = fly.animate([{ transform: 'none' }, { transform: `translate(${dx}px,${dy}px) scale(${b.width / a.width})` }],
-        { duration: 520, delay: 70, easing: 'cubic-bezier(.6,0,.25,1)', fill: 'forwards' }).finished.catch(() => {});
+        { duration: 500, delay: 90, easing: 'cubic-bezier(.6,0,.25,1)', fill: 'forwards' }).finished.catch(() => {});
     }
   }
-  await Promise.race([landed, wait(1200)]);
+  await Promise.race([landed, wait(900)]);
   body.classList.remove('booting');
   if (!calm) dot.animate?.([{ transform: 'scale(2.1)' }, { transform: 'scale(1)' }], { duration: 420, easing: 'cubic-bezier(.3,1.7,.5,1)' });
-  await wait(calm ? 0 : 120);
+  await wait(calm ? 0 : 110);
   boot.remove();
-  setTimeout(() => body.classList.remove('reveal'), 900);
+  splashing = false;
+  setTimeout(() => { if (!splashing) body.classList.remove('reveal'); }, 900);
 }
+// While the panel is hidden, put a paused copy of the intro in place so it's there on the first frame it shows again.
+function armSplash() {
+  if (splashing || !hostV3) return; // only bookmarklets that announce re-opening can replay it
+  $('#boot')?.remove();
+  body.insertAdjacentHTML('afterbegin', bootHTML);
+  $('#boot').classList.add('armed');
+  $('#bootTag').textContent = 'Welcome back';
+  body.classList.add('booting'); body.classList.remove('reveal');
+  splashing = true;
+}
+function replaySplash() {
+  const boot = $('#boot');
+  if (!boot?.classList.contains('armed')) return;
+  boot.classList.remove('armed');
+  splashT0 = performance.now();
+  // refresh settings and the session while the intro plays (an idle lock or approval may have happened meanwhile)
+  const ready = loadBoot().catch(() => {});
+  endSplash(ready, () => {
+    if (!token) { if (view !== 'lock') showLogin(cfg?.lock === 'passcode' ? '' : lockedMsg()); }
+    else if (view !== 'chat') showChat();
+  });
+}
+// safety net: if an "open" message ever goes missing, the first click or key starts the waiting intro
+for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => replaySplash(), { capture: true });
 
 setPage(true);
 renderPrefs();
 (async () => {
-  try { await loadBoot(); } catch {}
-  if (token) showChat(); else showLogin(cfg ? '' : 'Can’t reach the pagebot server.');
-  await endSplash();
+  const ready = loadBoot().catch(() => {});
+  await endSplash(ready, () => { if (token) showChat(); else showLogin(cfg ? '' : 'Can’t reach the pagebot server.'); });
+  ready.then(() => { if (!token && view === 'chat') showLogin(lockedMsg()); });
 })();
 })();
 </script>
