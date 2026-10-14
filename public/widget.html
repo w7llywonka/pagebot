@@ -27,6 +27,10 @@
    White text on dark pages, dark text on light pages (data-page comes from the bookmarklet). */
 :root[data-theme=glass]{color-scheme:light;--bg:transparent;--panel:rgba(255,255,255,.12);--line:rgba(255,255,255,.26);--text:#fff;--muted:rgba(255,255,255,.74);--accent:#9cc2ff;--on-accent:#0c1834;--user:rgba(140,180,255,.3);--err:#ffb4a9;--code:rgba(0,0,0,.24);--chip-on:rgba(255,255,255,.2);--focus:rgba(255,255,255,.6);--pop:rgba(26,28,38,.84)}
 :root[data-theme=glass][data-page=light]{--panel:rgba(255,255,255,.5);--line:rgba(255,255,255,.78);--text:#11131a;--muted:rgba(17,19,26,.62);--accent:#2f62d8;--on-accent:#fff;--user:rgba(47,98,216,.16);--err:#b42318;--code:rgba(255,255,255,.6);--chip-on:rgba(255,255,255,.72);--focus:rgba(17,19,26,.32);--pop:rgba(250,251,255,.92)}
+/* Clear: no panel at all, just the words and controls over the page. No tint, no blur, no shadow.
+   A thin halo keeps text readable over anything; white on dark pages, dark on light ones (data-page comes from the bookmarklet). */
+:root[data-theme=clear]{color-scheme:light;--bg:transparent;--panel:transparent;--line:rgba(255,255,255,.32);--text:#fff;--muted:rgba(255,255,255,.82);--accent:#9cc2ff;--on-accent:#0c1834;--user:transparent;--err:#ffb4a9;--code:transparent;--chip-on:rgba(255,255,255,.14);--focus:rgba(255,255,255,.7);--pop:rgba(26,28,38,.94);--hc:rgba(0,0,0,.9)}
+:root[data-theme=clear][data-page=light]{--line:rgba(17,19,26,.28);--text:#11131a;--muted:rgba(17,19,26,.72);--accent:#2f62d8;--on-accent:#fff;--err:#b42318;--chip-on:rgba(17,19,26,.08);--focus:rgba(17,19,26,.45);--pop:rgba(250,251,255,.96);--hc:rgba(255,255,255,.95)}
 :root[data-theme=terminal]{color-scheme:dark;--bg:#050805;--panel:#0a110a;--line:#1a2b1a;--text:#a3f7a3;--muted:#5a9a5a;--accent:#39e75f;--on-accent:#031003;--user:#0e2111;--err:#ff6b6b;--code:#000;--chip-on:#0b2611;--focus:#2b4a2b;--font:var(--mono);font-size:13px}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text)}
@@ -48,8 +52,23 @@ body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition:background-color .3
 :root[data-theme=glass] #boot .bg{background:rgba(16,18,26,.5);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 :root[data-theme=glass][data-page=light] #boot .bg{background:rgba(255,255,255,.5)}
 :root[data-theme=glass] .send,:root[data-theme=glass] .go{box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 45%,transparent)}
-/* on /chat and in the pop-up window there's no page behind, so glass sits on a colorful backdrop */
-:root.nohost[data-theme=glass]{background:radial-gradient(60% 50% at 15% 20%,#5b7cff 0,transparent 70%),radial-gradient(50% 45% at 85% 25%,#c35bff 0,transparent 70%),radial-gradient(55% 50% at 70% 85%,#ff7a9c 0,transparent 70%),radial-gradient(50% 50% at 20% 85%,#2ec5b6 0,transparent 70%),#1a1d2e;background-attachment:fixed}
+/* clear surfaces: everything that would be a box is see-through, and the words carry a halo instead */
+:root[data-theme=clear] body{background:transparent;text-shadow:0 0 2px var(--hc),0 0 6px var(--hc);scrollbar-color:var(--line) transparent}
+:root[data-theme=clear] :is(button,input,textarea){text-shadow:inherit}
+:root[data-theme=clear] svg{filter:drop-shadow(0 0 1.5px var(--hc))}
+:root[data-theme=clear] header{background:none;border-bottom-color:transparent}
+:root[data-theme=clear] .msg{padding-left:2px;padding-right:2px}
+:root[data-theme=clear] .msg.bot{border-color:transparent}
+:root[data-theme=clear] .msg.user{color:var(--accent);font-weight:500}
+:root[data-theme=clear] .go,:root[data-theme=clear] .send{text-shadow:none}
+:root[data-theme=clear] .go svg{filter:none}
+:root[data-theme=clear] #att button{background:var(--accent);color:var(--on-accent);border-color:transparent;text-shadow:none}
+/* pop-ups sit over the chat, so they get a plain backing (no blur) to stay legible; the settings sheet hides the chat behind it instead */
+:root[data-theme=clear] .menu,:root[data-theme=clear] .rbar{background:var(--pop);text-shadow:none}
+:root[data-theme=clear] .menu svg,:root[data-theme=clear] .rbar svg{filter:none}
+:root[data-theme=clear] body.sheet>#log,:root[data-theme=clear] body.sheet>#composer{visibility:hidden}
+/* on /chat and in the pop-up window there's no page behind, so glass and clear sit on a colorful backdrop */
+:root.nohost[data-theme=glass],:root.nohost[data-theme=clear]{background:radial-gradient(60% 50% at 15% 20%,#5b7cff 0,transparent 70%),radial-gradient(50% 45% at 85% 25%,#c35bff 0,transparent 70%),radial-gradient(55% 50% at 70% 85%,#ff7a9c 0,transparent 70%),radial-gradient(50% 50% at 20% 85%,#2ec5b6 0,transparent 70%),#1a1d2e;background-attachment:fixed}
 
 /* header */
 header{flex:none;display:flex;align-items:center;gap:2px;height:var(--hd);padding:0 6px 0 12px;border-bottom:1px solid var(--line);user-select:none;-webkit-user-select:none;position:relative;z-index:3;background:var(--bg)}
@@ -160,6 +179,9 @@ textarea:focus,input:focus{border-color:var(--focus)}
 .sw[data-t=auto] .pv{background:linear-gradient(135deg,#141414 50%,#faf9f5 50%)}
 .sw[data-t=glass] .pv{background:linear-gradient(135deg,#5b7cff,#c35bff 55%,#ff7a9c)}
 .sw[data-t=glass] .pv::before{content:"";position:absolute;inset:5px;border-radius:5px;background:rgba(255,255,255,.26);box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),inset 0 1px 0 rgba(255,255,255,.8)}
+.sw[data-t=clear] .pv{background:repeating-conic-gradient(#9aa0ad 0 25%,#c9ccd4 0 50%) 0 0/10px 10px}
+.sw[data-t=clear] .pv u{opacity:1;box-shadow:0 0 2px #000}
+.sw[data-t=clear] .pv b{box-shadow:inset 0 0 0 1.5px #fff}
 .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
 .seg button{flex:1;background:none;border:0;border-left:1px solid var(--line);color:var(--muted);padding:6px 0;cursor:pointer;font-size:12.5px}
 .seg button:first-child{border-left:0}
@@ -369,7 +391,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
     <p class="qtext"><b id="quotaText"></b> <span id="quotaSub"></span></p>
   </section>
   <section><h3>Theme</h3><div class="themes" id="themes"></div>
-    <p class="fine" id="glassNote" hidden>To make Glass see-through on every site, including dark-mode ones, drag the button from the pagebot homepage to your bookmarks bar again.</p></section>
+    <p class="fine" id="glassNote" hidden>To make <span id="glassName">Glass</span> see-through on every site, including dark-mode ones, drag the button from the pagebot homepage to your bookmarks bar again.</p></section>
   <section id="tokSec">
     <h3>Max tokens per answer</h3>
     <div class="seg" id="tokSeg"></div>
@@ -425,6 +447,7 @@ const hostV2 = hostV >= 2; // bookmarklet that can move, minimize and go full sc
 const hostV3 = hostV >= 3; // ...and tells us when the panel opens and hides
 const hostV4 = hostV >= 4; // ...and can blur the page behind the panel for the glass theme
 const hostV5 = hostV >= 5; // ...and marks the panel light, so Chrome doesn't put a solid backing behind glass on dark-mode sites
+const hostV6 = hostV >= 6; // ...and can drop the panel's shadow for the clear theme
 const standalone = !embedded && !popup;
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const body = document.body;
@@ -504,6 +527,7 @@ const THEMES = [
   ['sakura', 'Sakura', '#fff7f9', '#d9467a', '#fde3ec', '#2b2026'],
   ['terminal', 'Terminal', '#050805', '#39e75f', '#0e2111', '#a3f7a3'],
   ['glass', 'Glass', 'transparent', '#ffffff', 'rgba(255,255,255,.55)', '#ffffff'],
+  ['clear', 'Clear', 'transparent', '#9cc2ff', 'transparent', '#ffffff'],
 ];
 const light = matchMedia('(prefers-color-scheme: light)');
 const resolveTheme = t => t === 'auto' ? (light.matches ? 'paper' : 'ember') : t;
@@ -516,17 +540,22 @@ function applyTheme(t, fade) {
   document.documentElement.dataset.theme = r;
   syncGlass();
 }
-// glass needs the bookmarklet to blur the page behind the panel; it also says if that page is light or dark
-let glassOn = false;
+// glass needs the bookmarklet to blur the page behind the panel, and clear needs it to drop the panel's shadow;
+// either way it also says if that page is light or dark
+let glassOn = false, clearOn = false;
 function syncGlass(recheck) {
-  const root = document.documentElement, on = root.dataset.theme === 'glass';
-  if (on === glassOn && !recheck) return;
-  glassOn = on;
-  if (!hostV4) return;
-  if (!on) { tell('glass', { on: false }); delete root.dataset.blur; delete root.dataset.page; return; }
-  ask('glass', { on: true }, 1500).then(r => {
-    if (!r || !glassOn) return;
-    root.dataset.blur = '1'; root.dataset.page = r.light ? 'light' : 'dark';
+  const root = document.documentElement, t = root.dataset.theme;
+  const g = t === 'glass' && hostV4, c = t === 'clear' && hostV6;
+  if (g === glassOn && c === clearOn && !recheck) return;
+  if (glassOn && !g) tell('glass', { on: false });
+  if (clearOn && !c) tell('clear', { on: false });
+  glassOn = g; clearOn = c;
+  if (!g) delete root.dataset.blur;
+  if (!g && !c) { delete root.dataset.page; return; }
+  ask(g ? 'glass' : 'clear', { on: true }, 1500).then(r => {
+    if (!r || !(g ? glassOn : clearOn)) return;
+    if (g) root.dataset.blur = '1';
+    root.dataset.page = r.light ? 'light' : 'dark';
   });
 }
 light.addEventListener('change', () => { if (prefs.theme === 'auto') applyTheme('auto', true); });
@@ -539,7 +568,7 @@ for (const [key, name, bg, acc, user, text] of THEMES) {
   b.onclick = () => { applyTheme(key, true); savePrefs({ theme: key }); };
   $('#themes').appendChild(b);
 }
-syncGlass(); // the theme painted on the first frame may already be glass
+syncGlass(); // the theme painted on the first frame may already be glass or clear
 
 // ---- rendering ----
 const log = $('#log');
@@ -893,7 +922,8 @@ function renderPrefs() {
   }
   $('#tokSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.n === limits.maxTokens));
   document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t === prefs.theme));
-  $('#glassNote').hidden = !(embedded && !hostV5 && prefs.theme === 'glass');
+  $('#glassNote').hidden = !(embedded && (prefs.theme === 'glass' && !hostV5 || prefs.theme === 'clear' && !hostV6));
+  $('#glassName').textContent = prefs.theme === 'clear' ? 'Clear' : 'Glass';
   fitPills();
 }
 async function savePrefs(patch) {
@@ -930,10 +960,10 @@ document.addEventListener('pointerdown', e => { if (openMenu && !e.target.closes
 let sheetOpen = false;
 function openSheet(focusTokens) {
   if (view !== 'chat') return;
-  sheetOpen = true; $('#sheet').hidden = false; $('#setBtn').classList.add('on');
+  sheetOpen = true; $('#sheet').hidden = false; $('#setBtn').classList.add('on'); body.classList.add('sheet');
   if (focusTokens) { $('#tokSec').scrollIntoView({ block: 'center' }); ($('#tokSeg button.on:not([hidden])') || $('#tokSeg button:not([hidden])'))?.focus(); }
 }
-function closeSheet() { sheetOpen = false; $('#sheet').hidden = true; $('#setBtn').classList.remove('on'); }
+function closeSheet() { sheetOpen = false; $('#sheet').hidden = true; $('#setBtn').classList.remove('on'); body.classList.remove('sheet'); }
 $('#setBtn').onclick = () => sheetOpen ? closeSheet() : openSheet();
 
 // ---- move & minimize (needs the new bookmarklet) ----
@@ -1346,7 +1376,7 @@ function replaySplash() {
   if (!boot?.classList.contains('armed')) return;
   boot.classList.remove('armed');
   splashT0 = performance.now();
-  if (glassOn) syncGlass(true); // the page behind may have switched between light and dark
+  if (glassOn || clearOn) syncGlass(true); // the page behind may have switched between light and dark
   // refresh settings and the session while the intro plays (an idle lock or approval may have happened meanwhile)
   const ready = loadBoot().catch(() => {});
   endSplash(ready, () => {

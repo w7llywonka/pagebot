@@ -40,7 +40,7 @@ const SEARCH_USD = 0.01; // $10 per 1,000 web searches
 const SEARCH_TOKENS = 3000; // rough prompt tokens one search's results add, for estimates
 
 // prefs are what the panel changes; limits cap each question. Both live in the settings table.
-const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', 'glass'];
+const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', 'glass', 'clear'];
 const DEFAULT_PREFS = { theme: 'ember', model: 'haiku', web: false };
 const LIMIT_RANGES = { maxTokens: [256, 8000], pageTokens: [500, 50000], maxSearches: [1, 10] }; // no answer may exceed 8,000 tokens
 const DEFAULT_LIMITS = { maxTokens: clampInt(process.env.MAX_TOKENS || 2048, ...LIMIT_RANGES.maxTokens), pageTokens: 5000, maxSearches: 3 };
