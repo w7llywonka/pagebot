@@ -60,6 +60,7 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
 - The panel takes the keyboard only when you open it with the bookmark. An answer arriving, a screenshot, or a lock never pulls your typing out of the page or another tab, and closing or minimizing the panel gives the keyboard back to the page.
 - **Signing in**: while sign-ups are open (or anyone has an account), the panel opens on **Sign in**. **Owner? Unlock here** takes you to your passcode or password, and after that, the panel goes straight to it on that site. New people choose **Create an account**, pick a username and password, and can leave a note for you. Until you accept them, they see a screen saying they're waiting to be accepted into the program, and the panel opens up by itself once you do.
 - **Drag the top bar** to move the panel anywhere on the page. It remembers where you put it on each site.
+- **Drag the top or left edge** (or the top-left corner) to resize the panel, and the ⤢ button switches to a wide, tall view for long reads. Each site remembers its own size.
 - **Minimize** (the – button) shrinks it to a small pill. A dot on the pill means an answer finished while it was minimized. Click the pill or the bookmark to open it again.
 - The **+** button under the message box has everything you can add:
   - **Screenshot this tab**, or **Screenshot a region** to drag a box over just the part you mean. The panel hides itself while the shot is taken. You can also paste any image with Ctrl/Cmd+V.
@@ -69,24 +70,28 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
   - **Web search** lets the model search the web (shown as a 🌐 Web pill). Answers that used it list their sources.
   - Click a pill's × to turn that thing off.
 - The model name next to the send button picks the model: ⚡ Haiku 5.5 is fast and cheap; ✦ Sonnet 5.5 is smarter.
+- While an answer is coming in, the send button turns into a **stop** button. What arrived so far stays in the chat, and follow-ups can build on it.
+- Scroll up while an answer is coming in and the panel stays where you are. **Jump to latest** takes you back down.
+- A new chat offers one-click starters: **Summarize this page**, **Key points**, and **Explain it simply**.
+- Each answer has a copy button next to its details, and code blocks get their own **Copy** button when you hover them.
 - Every time you open the panel, a short animation plays while it loads (under 3 seconds).
 - **⚙ Settings**: pick a theme (Auto, Ember, Paper, Midnight, Forest, Dusk, Sakura, Terminal, Glass, or Clear) and the max tokens per answer, from 512 up to 8k. No answer can go past 8,000 tokens. Settings apply everywhere you use pagebot, and each account has its own.
 - **Glass** is see-through: the page shows through a soft blur, and the text switches between dark and light to match the page behind it.
 - **Clear** drops the panel entirely: no tint, no blur, no shadow, only the words, buttons and message box floating over the page. Text gets a thin halo so it stays readable, and switches between dark and light like Glass.
-- Links in answers show which site they go to, in grey after the link text.
+- Answers show headings, lists, tables, quotes, bold and italics. Links show which site they go to, in grey after the link text.
 - With an account, Settings also shows how much of today's limit is used, and lets you change your password. Each answer shows what's left for the day.
 - Highlighted text on the page is included automatically.
 - Old screenshots aren't resent on follow-ups, which saves tokens.
 - Some sites block overlays. On those, pagebot opens in a small window instead. If your browser blocks that pop-up, click the bookmark again.
 - You log in once per site, and it's remembered there. With a passcode set, the panel locks itself after the idle time you chose, or right away with the 🔒 button.
 
-Updating from an older version? Drag the button from the homepage to your bookmarks bar again. Old bookmarks still work, but only the newest one makes Glass see-through on every site and takes the shadow off Clear (with older ones it turns solid grey on dark-mode sites like Google's), plus the bigger panel, the animation on every open, and (for the oldest ones) moving, minimizing, and full-page region shots.
+Updating from an older version? Drag the button from the homepage to your bookmarks bar again. Old bookmarks still work, but only the newest one makes Glass see-through on every site and takes the shadow off Clear (with older ones it turns solid grey on dark-mode sites like Google's), plus resizing and the wide view, the bigger panel, the animation on every open, and (for the oldest ones) moving, minimizing, and full-page region shots.
 
 ## Security
 
 - **Daily limits hold**:
   - Each account gets one answer at a time.
-  - An answer that's stopped partway (the panel closed or the page reloaded) stops there, but what it used still counts: the whole question, the answer so far, and any web searches it ran.
+  - An answer that's stopped partway (you press stop, close the panel, or reload the page) stops there, but what it used still counts: the whole question, the answer so far, and any web searches it ran.
   - A question that wouldn't fit in what's left of the day is turned down, and the answer length is capped to fit.
 - **Logins**:
   - Each address gets 10 tries a minute and 30 wrong logins an hour.
