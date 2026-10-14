@@ -37,14 +37,18 @@ const PRICES = {
   'claude-sonnet-5': { in: 2, write: 2.50, read: 0.20, out: 10 },
 };
 const SEARCH_USD = 0.01; // $10 per 1,000 web searches
+const SEARCH_TOKENS = 3000; // rough prompt tokens one search's results add, for estimates
 
 // prefs are what the panel changes; limits cap each question. Both live in the settings table.
-const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', 'glass'];
+const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', 'glass', 'clear'];
 const DEFAULT_PREFS = { theme: 'ember', model: 'haiku', web: false };
 const LIMIT_RANGES = { maxTokens: [256, 100000], pageTokens: [500, 50000], maxSearches: [1, 10] }; // no answer may exceed 100,000 tokens
 const DEFAULT_LIMITS = { maxTokens: clampInt(process.env.MAX_TOKENS || 2048, ...LIMIT_RANGES.maxTokens), pageTokens: 5000, maxSearches: 3 };
 const LOCK_CHOICES = [0, 1, 5, 15, 30, 60, 240, 1440]; // passcode auto-lock after N idle minutes (0 = never)
-const MAX_PASSCODE_FAILS = 10; // then only the full password can unlock (the owner's and each account's count separately)
+const MAX_PASSCODE_FAILS = 10; // wrong passcodes within PASSCODE_WINDOW; then only the full password can unlock (the owner's and each account's count separately)
+const PASSCODE_WINDOW = 24 * 3600_000; // a right passcode doesn't wipe earlier wrong ones; they expire after a day
+const LOGIN_FAILS_PER_IP = 30; // wrong logins one address gets per hour (on top of 10 tries a minute)
+const OWNER_FAILS_PER_HOUR = 200; // wrong owner passwords from everywhere before password logins pause
 const MAX_ANNOUNCEMENT = 500;
 
 // other people's accounts: they sign up, wait for approval, then use pagebot within a daily limit
@@ -87,6 +91,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE UNIQUE INDEX IF NOT EXISTS users_name_idx ON users (lower(username));
 ALTER TABLE users ADD COLUMN IF NOT EXISTS passcode_hash TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS passcode_fails INT NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS passcode_fails_at TIMESTAMPTZ; -- when the current run of wrong passcodes started
 ALTER TABLE users ADD COLUMN IF NOT EXISTS lock_minutes INT NOT NULL DEFAULT 15;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ann_seen BIGINT NOT NULL DEFAULT 0;
 CREATE TABLE IF NOT EXISTS announcements (
@@ -123,6 +128,7 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS web_searches INT NOT NULL DEFAULT 
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS refused BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS user_id BIGINT;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS cost_usd NUMERIC(14,6);
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS incomplete BOOLEAN NOT NULL DEFAULT false;
 -- the page sent with a question, as JSON {url, title, text}, so follow-ups can resend it as a citable document
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS page_doc TEXT;
 -- the theme in use when a question was asked (for Wrapped)
@@ -218,6 +224,11 @@ function cleanAccountDefaults(d = {}) {
   if (typeof d.allowWeb === 'boolean') o.allowWeb = d.allowWeb;
   return o;
 }
+// stored as "count:first wrong guess (ms)"; once the cap is hit it stays until a password login
+function passcodeFails(v) {
+  const [n, since] = String(v || '').split(':').map(Number);
+  return n >= MAX_PASSCODE_FAILS || since > Date.now() - PASSCODE_WINDOW ? n || 0 : 0;
+}
 async function loadConfig() {
   const s = await getSettings(['prefs', 'limits', 'password_hash', 'passcode_hash', 'passcode_fails', 'lock_minutes', 'signup', 'account_defaults']);
   const minutes = Number(s.lock_minutes ?? 15);
@@ -229,7 +240,7 @@ async function loadConfig() {
       on: !!s.passcode_hash,
       hash: s.passcode_hash || null,
       minutes: LOCK_CHOICES.includes(minutes) ? minutes : 15,
-      fails: Number(s.passcode_fails) || 0,
+      fails: passcodeFails(s.passcode_fails),
     },
     signup: s.signup !== '0',
     accountDefaults: { ...DEFAULT_ACCOUNT, ...cleanAccountDefaults(parseJSON(s.account_defaults)) },
@@ -316,14 +327,28 @@ function adminOk(req) {
 }
 
 // ---------- middleware ----------
+// sliding-window counters (in memory): requests per address, and wrong logins
 const hits = new Map();
-const limit = (max, bucket) => (req, res, next) => {
-  const key = bucket + ':' + req.ip, now = Date.now();
-  const arr = (hits.get(key) || []).filter(t => now - t < 60_000);
-  if (arr.length >= max) return res.status(429).json({ error: 'Too many requests — wait a minute.' });
-  arr.push(now); hits.set(key, arr); next();
-};
-setInterval(() => { const now = Date.now(); for (const [k, v] of hits) if (!v.some(t => now - t < 60_000)) hits.delete(k); }, 300_000).unref();
+function take(key, max, win) { // counts a hit unless the window is already full
+  const now = Date.now(), e = hits.get(key) || { win, t: [] };
+  e.t = e.t.filter(t => now - t < win);
+  hits.set(key, e);
+  if (e.t.length >= max) return false;
+  e.t.push(now); return true;
+}
+const recent = key => { const e = hits.get(key), now = Date.now(); return e ? e.t.filter(t => now - t < e.win).length : 0; };
+const limit = (max, bucket, win = 60_000) => (req, res, next) => take(bucket + ':' + req.ip, max, win) ? next()
+  : res.status(429).json({ error: win > 60_000 ? 'Too many requests from here — try again later.' : 'Too many requests — wait a minute.' });
+setInterval(() => { const now = Date.now(); for (const [k, e] of hits) if (!e.t.some(t => now - t < e.win)) hits.delete(k); }, 300_000).unref();
+
+// wrong passwords and passcodes: each address gets LOGIN_FAILS_PER_IP an hour, and a flood of wrong owner
+// passwords from many addresses pauses owner password logins until it dies down
+const tooManyFails = req => recent('fail:' + req.ip) >= LOGIN_FAILS_PER_IP;
+function noteFail(req, owner) {
+  take('fail:' + req.ip, Infinity, 3600_000);
+  if (owner) take('fail:owner', Infinity, 3600_000);
+}
+const FAILS_MSG = 'Too many wrong tries from here. Try again later.';
 
 const bearer = req => (req.get('authorization') || '').replace(/^Bearer\s+/i, '').trim();
 
@@ -380,37 +405,62 @@ setInterval(() => {
 const app = express();
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
-app.use(express.json({ limit: '12mb' }));
+app.use((req, res, next) => {
+  res.set({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' });
+  if (req.secure) res.set('Strict-Transport-Security', 'max-age=15552000');
+  if (req.path.startsWith('/api/')) res.set('Cache-Control', 'no-store');
+  next();
+});
+// small bodies everywhere; a question with a screenshot can be big, so /api/chat reads its body only after checking the login
+const chatJson = express.json({ limit: '12mb' }), smallJson = express.json({ limit: '64kb' });
+app.use((req, res, next) => req.path === '/api/chat' ? next() : smallJson(req, res, next));
 
 // The bookmarklet points back at the address you opened the homepage from, which always reaches this server.
-const publicOrigin = req => `${req.protocol}://${req.host || process.env.RAILWAY_PUBLIC_DOMAIN || 'localhost'}`;
+// Only a plain host name is accepted, and the page isn't stored by caches, so a forged header only affects its own response.
+const HOST_RE = /^(?:[a-z0-9-]+\.)*[a-z0-9-]+(?::\d{1,5})?$/i;
+const publicOrigin = req => `${req.protocol === 'https' ? 'https' : 'http'}://${HOST_RE.test(req.host || '') ? req.host : process.env.RAILWAY_PUBLIC_DOMAIN || 'localhost'}`;
 
 const escHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const bookmarkletSrc = fs.readFileSync(path.join(__dirname, 'bookmarklet.js'), 'utf8');
-const installTpl = fs.readFileSync(path.join(PUB, 'install.html'), 'utf8');
+
+// Pages run only their own inline scripts (allowed by hash), talk only to this server, and load images only from here,
+// so even if a page or a model's answer slipped markup into the panel it couldn't run code or send anything out.
+const pageCache = new Map();
+function page(file) {
+  const p = path.join(PUB, file), mtime = fs.statSync(p).mtimeMs;
+  let c = pageCache.get(file);
+  if (!c || c.mtime !== mtime) {
+    const html = fs.readFileSync(p, 'utf8');
+    const hashes = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => `'sha256-${crypto.createHash('sha256').update(m[1]).digest('base64')}'`);
+    c = { mtime, html, scripts: hashes.join(' ') || "'none'" };
+    pageCache.set(file, c);
+  }
+  return c;
+}
+function sendPage(res, file, { frames = "'none'", html = s => s, headers = {} } = {}) {
+  const c = page(file);
+  res.set({
+    'Content-Security-Policy': `default-src 'self'; script-src ${c.scripts}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; ` +
+      `media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors ${frames}`,
+    'Cache-Control': 'no-cache',
+    ...(frames === "'none'" && { 'Cross-Origin-Opener-Policy': 'same-origin' }),
+    ...headers,
+  }).type('html').send(html(c.html));
+}
 
 app.get(['/', '/install'], (req, res) => {
   const origin = publicOrigin(req);
   const code = bookmarkletSrc.replaceAll('__ORIGIN__', origin).replace(/\n\s*/g, '');
   const href = 'javascript:' + encodeURIComponent(code);
-  res.set('Cache-Control', 'no-cache').type('html').send(
-    installTpl.replaceAll('{{HREF}}', () => escHtml(href)).replaceAll('{{ORIGIN}}', () => escHtml(origin)));
+  sendPage(res, 'install.html', {
+    headers: { 'Cache-Control': 'no-store', Vary: 'Host, X-Forwarded-Host, X-Forwarded-Proto' },
+    html: s => s.replaceAll('{{HREF}}', () => escHtml(href)).replaceAll('{{ORIGIN}}', () => escHtml(origin)),
+  });
 });
-
-app.get('/widget', (req, res) => {
-  res.set({ 'Content-Security-Policy': 'frame-ancestors *', 'Cache-Control': 'no-cache' });
-  res.sendFile(path.join(PUB, 'widget.html'));
-});
-
-app.get('/chat', (req, res) => {
-  res.set({ 'Content-Security-Policy': "frame-ancestors 'none'", 'Cache-Control': 'no-cache' });
-  res.sendFile(path.join(PUB, 'widget.html'));
-});
-
-app.get('/admin', (req, res) => {
-  res.set({ 'Content-Security-Policy': "frame-ancestors 'none'", 'Cache-Control': 'no-cache' });
-  res.sendFile(path.join(PUB, 'admin.html'));
-});
+// the panel loads inside any site's page (that's what the bookmarklet does); everything else refuses to be framed
+app.get('/widget', (req, res) => sendPage(res, 'widget.html', { frames: '*' }));
+app.get('/chat', (req, res) => sendPage(res, 'widget.html'));
+app.get('/admin', (req, res) => sendPage(res, 'admin.html'));
 
 app.get('/health', async (req, res) => {
   await pool.query('SELECT 1');
@@ -446,7 +496,7 @@ app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
 });
 
 // anyone can ask to join; the account waits until the owner approves it in /admin
-app.post('/api/signup', limit(5, 'signup'), async (req, res) => {
+app.post('/api/signup', limit(5, 'signup'), limit(30, 'signup-hour', 3600_000), async (req, res) => {
   const cfg = await loadConfig();
   if (!cfg.signup) return res.status(403).json({ error: 'Sign-ups are closed right now.' });
   const b = req.body || {};
@@ -481,6 +531,7 @@ const tooManyPasscodes = res => res.status(423).json({ error: 'Too many wrong pa
 
 // log in with the owner's password or passcode, or with an account's username and its password or passcode
 app.post('/api/login', limit(10, 'login'), async (req, res) => {
+  if (tooManyFails(req)) return res.status(429).json({ error: FAILS_MSG });
   const b = req.body || {};
   const old = bearer(req);
   if (b.username) {
@@ -489,17 +540,24 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
     if (b.passcode != null) {
       const code = String(b.passcode);
       if (!/^\d{5}$/.test(code)) return res.status(400).json({ error: 'Enter all 5 digits.' });
-      if (!u?.passcode_hash) return res.status(401).json({ error: 'There’s no passcode on this account. Sign in with your password.', usePassword: true });
-      // count the attempt before checking it, so parallel guesses can't slip past the cap
-      const n = (await pool.query('UPDATE users SET passcode_fails = passcode_fails + 1 WHERE id = $1 RETURNING passcode_fails', [u.id])).rows[0].passcode_fails;
+      if (!u?.passcode_hash) { noteFail(req); return res.status(401).json({ error: 'There’s no passcode on this account. Sign in with your password.', usePassword: true }); }
+      // Same rules as the owner's passcode: count the attempt before checking it, so parallel guesses can't slip past
+      // the cap, and wrong guesses stay on record for a day even if the right passcode is used in between.
+      const n = (await pool.query(
+        `UPDATE users SET
+           passcode_fails = CASE WHEN passcode_fails_at > now() - $2::float8 * interval '1 millisecond' OR passcode_fails >= $3 THEN passcode_fails + 1 ELSE 1 END,
+           passcode_fails_at = CASE WHEN passcode_fails_at > now() - $2::float8 * interval '1 millisecond' OR passcode_fails >= $3 THEN COALESCE(passcode_fails_at, now()) ELSE now() END
+         WHERE id = $1 RETURNING passcode_fails`, [u.id, PASSCODE_WINDOW, MAX_PASSCODE_FAILS])).rows[0].passcode_fails;
       if (n > MAX_PASSCODE_FAILS) return tooManyPasscodes(res);
-      if (!(await verifyPw(code, u.passcode_hash))) return wrongPasscode(res, n);
+      if (!(await verifyPw(code, u.passcode_hash))) { noteFail(req); return wrongPasscode(res, n); }
+      // the right passcode: take back this attempt's count, but keep the wrong ones
+      await pool.query('UPDATE users SET passcode_fails = GREATEST(passcode_fails - 1, 0) WHERE id = $1', [u.id]);
     } else {
       const ok = await verifyPw(String(b.password || ''), u?.password_hash || await dummyHash);
-      if (!u || !ok) return res.status(401).json({ error: 'Wrong username or password.' });
+      if (!u || !ok) { noteFail(req); return res.status(401).json({ error: 'Wrong username or password.' }); }
     }
     if (u.status === 'blocked') return res.status(403).json({ error: 'This account has been turned off.' });
-    await pool.query('UPDATE users SET passcode_fails = 0 WHERE id = $1', [u.id]); // the password also re-opens the passcode
+    if (b.passcode == null) await pool.query('UPDATE users SET passcode_fails = 0 WHERE id = $1', [u.id]); // the password clears wrong passcodes
     if (old) await pool.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(old)]);
     return res.json({ token: await newSession(Number(u.id)) });
   }
@@ -508,20 +566,33 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
     if (!cfg.lock.on) return res.status(400).json({ error: 'No passcode is set — use your password.', usePassword: true });
     const code = String(b.passcode);
     if (!/^\d{5}$/.test(code)) return res.status(400).json({ error: 'Enter all 5 digits.' });
-    // count the attempt before checking it, so parallel guesses can't slip past the cap
+    // Count the attempt before checking it, so parallel guesses can't slip past the cap. Wrong guesses stay on
+    // record for a day even if the right passcode is used in between; hitting the cap needs the password.
+    const now = Date.now();
     const r = await pool.query(
-      `INSERT INTO settings(key,value) VALUES('passcode_fails','1')
-       ON CONFLICT (key) DO UPDATE SET value = (COALESCE(NULLIF(settings.value,'')::int, 0) + 1)::text RETURNING value`);
-    const n = Number(r.rows[0].value);
+      `INSERT INTO settings(key, value) VALUES ('passcode_fails', '1:' || $1)
+       ON CONFLICT (key) DO UPDATE SET value = CASE
+         WHEN COALESCE(NULLIF(split_part(settings.value, ':', 2), '')::bigint, 0) > $2::bigint
+           OR COALESCE(NULLIF(split_part(settings.value, ':', 1), '')::int, 0) >= $3::int
+         THEN (COALESCE(NULLIF(split_part(settings.value, ':', 1), '')::int, 0) + 1)::text || ':' || COALESCE(NULLIF(split_part(settings.value, ':', 2), ''), $1)
+         ELSE '1:' || $1 END
+       RETURNING value`, [String(now), now - PASSCODE_WINDOW, MAX_PASSCODE_FAILS]);
+    const n = parseInt(r.rows[0].value, 10);
     if (n > MAX_PASSCODE_FAILS) return tooManyPasscodes(res);
-    if (!(await verifyPw(code, cfg.lock.hash))) return wrongPasscode(res, n);
+    if (!(await verifyPw(code, cfg.lock.hash))) { noteFail(req); return wrongPasscode(res, n); }
+    // the right passcode: take back this attempt's count, but keep the wrong ones
+    await pool.query(
+      `UPDATE settings SET value = (split_part(value, ':', 1)::int - 1)::text || ':' || split_part(value, ':', 2)
+       WHERE key = 'passcode_fails' AND CASE WHEN split_part(value, ':', 1) ~ '^[0-9]+$' THEN split_part(value, ':', 1)::int > 0 ELSE false END`);
   } else {
+    if (recent('fail:owner') >= OWNER_FAILS_PER_HOUR)
+      return res.status(429).json({ error: 'Password logins are paused after a lot of wrong tries. Try again later, or use your passcode.' });
     const password = String(b.password || '');
     const stored = await getSetting('password_hash');
     if (!stored) return res.status(503).json({ error: 'No password set yet — set one at /admin.' });
-    if (!password || !(await verifyPw(password, stored))) return res.status(401).json({ error: 'Wrong password' });
+    if (!password || !(await verifyPw(password, stored))) { noteFail(req, true); return res.status(401).json({ error: 'Wrong password' }); }
+    await setSetting('passcode_fails', '0'); // the password clears wrong passcodes
   }
-  await setSetting('passcode_fails', '0');
   if (old) await pool.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(old)]);
   res.json({ token: await newSession() });
 });
@@ -560,13 +631,14 @@ app.post('/api/prefs', limit(60, 'prefs'), auth, async (req, res) => {
 
 // accounts can change their own password (other devices get signed out)
 app.post('/api/account/password', limit(10, 'login'), auth, async (req, res) => {
+  if (tooManyFails(req)) return res.status(429).json({ error: FAILS_MSG });
   const u = req.user;
   if (!u) return res.status(400).json({ error: 'Change the owner password in /admin.' });
   const b = req.body || {};
   const pw = String(b.password || '');
   if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'Use a password with at least 6 characters.' });
   const row = (await pool.query('SELECT password_hash FROM users WHERE id=$1', [u.id])).rows[0];
-  if (!(await verifyPw(String(b.current || ''), row.password_hash))) return res.status(401).json({ error: 'Your current password is wrong.' });
+  if (!(await verifyPw(String(b.current || ''), row.password_hash))) { noteFail(req); return res.status(401).json({ error: 'Your current password is wrong.' }); }
   await pool.query('UPDATE users SET password_hash=$2, passcode_fails=0 WHERE id=$1', [u.id, await hashPw(pw)]);
   await pool.query('DELETE FROM sessions WHERE user_id=$1 AND token_hash <> $2', [u.id, sha256(bearer(req))]);
   res.json({ ok: true });
@@ -575,6 +647,7 @@ app.post('/api/account/password', limit(10, 'login'), auth, async (req, res) => 
 // accounts can have their own passcode, like the owner's: 5 digits instead of the password, plus an idle lock.
 // Setting or changing it takes the account password; turning it off or changing the lock time doesn't.
 app.post('/api/account/passcode', limit(10, 'login'), auth, trusted, async (req, res) => {
+  if (tooManyFails(req)) return res.status(429).json({ error: FAILS_MSG });
   const u = req.user;
   if (!u) return res.status(400).json({ error: 'Set the owner passcode in /admin.' });
   const b = req.body || {};
@@ -590,7 +663,7 @@ app.post('/api/account/passcode', limit(10, 'login'), auth, trusted, async (req,
     if (!/^\d{5}$/.test(code)) return res.status(400).json({ error: 'The passcode must be exactly 5 digits.' });
     const row = (await pool.query('SELECT password_hash FROM users WHERE id=$1', [u.id])).rows[0];
     // 400, not 401: the panel treats 401 as "signed out"
-    if (!(await verifyPw(String(b.current || ''), row.password_hash))) return res.status(400).json({ error: 'Your password is wrong.' });
+    if (!(await verifyPw(String(b.current || ''), row.password_hash))) { noteFail(req); return res.status(400).json({ error: 'Your password is wrong.' }); }
     Object.assign(set, { passcode_hash: await hashPw(code), passcode_fails: 0 });
   }
   const keys = Object.keys(set);
@@ -641,9 +714,44 @@ function addUsage(tot, msg, requested) {
   tot.searches += searches;
   tot.usd += searches * SEARCH_USD;
 }
+// Usage for a response cut short, from the SDK's snapshot of it. The prompt's tokens came with message_start, but
+// output and searches are only totaled at the end, so they're estimated from what streamed in: about 3 characters
+// a token, plus the searches that finished, each adding SEARCH_TOKENS of results to the prompt.
+function cutUsage(msg) {
+  if (msg.stop_reason) return msg; // the closing message_delta arrived, so the totals are in
+  let chars = 0, searches = 0;
+  for (const b of msg.content) {
+    if (b.type === 'text') chars += (b.text || '').length;
+    else if (b.type === 'thinking') chars += (b.thinking || '').length;
+    else if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) searches++; // failed searches aren't billed
+  }
+  const u = msg.usage || {};
+  return {
+    usage: {
+      input_tokens: (u.input_tokens || 0) + searches * SEARCH_TOKENS,
+      cache_creation_input_tokens: u.cache_creation_input_tokens, cache_read_input_tokens: u.cache_read_input_tokens,
+      output_tokens: Math.max(u.output_tokens || 0, Math.ceil(chars / 3)),
+      server_tool_use: { web_search_requests: searches },
+    },
+  };
+}
 
-// chat (streams NDJSON: {t:'d',v:text} | {t:'s',q?} search started/query | {t:'done',...} | {t:'err',v})
-app.post('/api/chat', limit(60, 'chat'), auth, trusted, async (req, res) => {
+// chat (streams NDJSON: {t:'d',v:text} | {t:'s',q?} search started/query | {t:'done',...} | {t:'err',v,conversationId?})
+// Accounts get one answer at a time, so a burst of parallel questions can't all slip under the daily limit.
+const answering = new Set();
+app.post('/api/chat', limit(60, 'chat'), auth, trusted, chatJson, async (req, res) => {
+  const id = req.user?.id;
+  if (id != null) {
+    if (answering.has(id)) return res.status(429).json({ error: 'Your last question is still being answered. Try again once it finishes.' });
+    answering.add(id);
+  }
+  try { await chat(req, res); } finally { if (id != null) answering.delete(id); }
+});
+
+// page text can't open or close the tags that mark where it starts and ends
+const fence = s => s.replace(/<(\/?)(page|highlighted_text)\b/gi, '&lt;$1$2');
+
+async function chat(req, res) {
   const b = req.body || {}, u = req.user, cfg = req.cfg;
   const prefs = prefsFor(cfg, u), limits = limitsFor(cfg, u);
   let modelKey = typeof b.model === 'string' && Object.hasOwn(MODELS, b.model) ? b.model : prefs.model;
@@ -661,9 +769,9 @@ app.post('/api/chat', limit(60, 'chat'), auth, trusted, async (req, res) => {
   const page = b.page && typeof b.page === 'object' ? {
     url: String(b.page.url || '').slice(0, 2000),
     title: String(b.page.title || '').slice(0, 300),
-    text: String(b.page.text || '').slice(0, limits.pageTokens * 4), // ~4 characters per token
+    text: fence(String(b.page.text || '').slice(0, limits.pageTokens * 4)), // ~4 characters per token
   } : null;
-  const selection = String(b.selection || '').slice(0, 8000);
+  const selection = fence(String(b.selection || '').slice(0, 8000));
 
   let image = null;
   if (b.image) {
@@ -674,7 +782,7 @@ app.post('/api/chat', limit(60, 'chat'), auth, trusted, async (req, res) => {
   }
   if (!message && !image && !page && !selection) return res.status(400).json({ error: 'Empty message' });
 
-  // load the conversation (only your own) or start one
+  // load the conversation (only your own)
   const uid = u?.id ?? null; // null = the owner
   let convId = Number.isSafeInteger(b.conversationId) ? b.conversationId : null;
   let history = [];
@@ -684,11 +792,6 @@ app.post('/api/chat', limit(60, 'chat'), auth, trusted, async (req, res) => {
       history = (await pool.query(
         'SELECT role, content, had_image, page_doc FROM messages WHERE conversation_id=$1 AND NOT refused ORDER BY id', [convId])).rows;
     } else convId = null;
-  }
-  if (!convId) {
-    const r = await pool.query('INSERT INTO conversations(page_url, page_title, user_id) VALUES($1,$2,$3) RETURNING id',
-      [page?.url || null, page?.title || null, uid]);
-    convId = Number(r.rows[0].id);
   }
 
   // The page goes in as a document so answers can quote it. With `cite` (bookmarklets that can find text on the
@@ -721,10 +824,34 @@ app.post('/api/chat', limit(60, 'chat'), auth, trusted, async (req, res) => {
   cur.push({ type: 'text', text: userText, cache_control: { type: 'ephemeral' } });
   messages.push({ role: 'user', content: cur });
 
-  const params = {
-    model: m.id, max_tokens: limits.maxTokens, system: SYSTEM + (web ? searchNote() : ''), messages,
-    output_config: { effort: EFFORT },
-  };
+  const system = SYSTEM + (web ? searchNote() : '');
+  let maxTokens = limits.maxTokens;
+  if (q0) {
+    // Make sure the whole question fits in what's left today: the prompt (estimated on the high side at
+    // 3 characters a token), screenshots and search results, plus the answer, whose length gets capped to fit.
+    const chars = system.length + userText.length + (doc ? doc.text.length : 0) +
+      history.reduce((n, h) => n + h.content.length + (h.page_doc ? h.page_doc.length : 0), 0);
+    const estIn = Math.ceil(chars / 3) + (image ? 1600 : 0) + (web ? limits.maxSearches * SEARCH_TOKENS : 0);
+    let room;
+    if (q0.kind === 'tokens') room = q0.left - estIn;
+    else {
+      const p0 = priceFor(m.id), p = p0.long && estIn > p0.long.over ? p0.long : p0;
+      room = (q0.left - estIn * p.in / 1e6 - (web ? limits.maxSearches * SEARCH_USD : 0)) / (p.out / 1e6);
+    }
+    if (room < 256) {
+      return res.status(429).json({ quota: q0, error: `That’s more than what’s left of today’s limit (${q0.kind === 'usd' ? '$' + q0.left.toFixed(2) : fmtLimit('tokens', Math.floor(q0.left))} left). ` +
+        (history.length ? 'Start a new chat (+ at the top), or ask something shorter.' : 'Try a shorter question, or leave out the page or web search.') });
+    }
+    maxTokens = Math.min(maxTokens, Math.floor(room));
+  }
+
+  if (!convId) {
+    const r = await pool.query('INSERT INTO conversations(page_url, page_title, user_id) VALUES($1,$2,$3) RETURNING id',
+      [page?.url || null, page?.title || null, uid]);
+    convId = Number(r.rows[0].id);
+  }
+
+  const params = { model: m.id, max_tokens: maxTokens, system, messages, output_config: { effort: EFFORT } };
   if (web) params.tools = [{ type: m.search, name: 'web_search', max_uses: limits.maxSearches }];
   // Sonnet 5.5 can decline some requests; the API then retries them on the model Anthropic recommends
   const api = m.fallback ? anthropic.beta.messages : anthropic.messages;
@@ -732,22 +859,23 @@ app.post('/api/chat', limit(60, 'chat'), auth, trusted, async (req, res) => {
 
   res.writeHead(200, {
     'Content-Type': 'application/x-ndjson; charset=utf-8',
-    'Cache-Control': 'no-cache, no-transform',
+    'Cache-Control': 'no-store, no-transform',
     'X-Accel-Buffering': 'no',
   });
   const out = o => { if (!res.writableEnded && !res.destroyed) res.write(JSON.stringify(o) + '\n'); };
 
+  // the panel went away mid-answer (closed, reloaded, or stopped): stop spending tokens. What was used so far still counts.
   let stream = null, closed = false;
-  res.on('close', () => { if (!res.writableFinished) { closed = true; stream?.abort(); } }); // panel closed -> stop spending tokens
+  res.on('close', () => { if (!res.writableFinished) { closed = true; stream?.abort(); } });
 
   const tot = { in: 0, out: 0, usd: 0, searches: 0 };
   const sources = new Map();
   // quoted passages of the page, and where in the reply each group of them backs up what was just said
   const quotes = [], quoteIdx = new Map(), cites = [];
-  let reply = '', final = null;
+  let reply = '', final = null, failed = null, cut = null;
   try {
     // a long server-side search loop can pause the turn; resend it as-is to let it continue
-    for (let hop = 0; hop < 4 && !closed; hop++) {
+    for (let i = 0; i < 4 && !closed; i++) {
       stream = api.stream(params);
       stream.on('text', t => { reply += t; out({ t: 'd', v: t }); });
       stream.on('streamEvent', ev => {
@@ -782,28 +910,40 @@ app.post('/api/chat', limit(60, 'chat'), auth, trusted, async (req, res) => {
       if (final.stop_reason !== 'pause_turn') break;
       params.messages = [...params.messages, { role: 'assistant', content: final.content }];
     }
-    if (!final) return void res.end();
-    const refused = final.stop_reason === 'refusal';
-    const replyText = reply.trim() ? reply : refused ? '[declined]' : '(no answer)';
-    await pool.query(
-      `INSERT INTO messages(conversation_id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, user_id, cost_usd, page_doc, theme)
-       VALUES ($1,'user',$2,$3,0,0,NULL,0,$4,$10,0,$12,$13), ($1,'assistant',$5,false,$6,$7,$8,$9,$4,$10,$11,NULL,NULL)`,
-      [convId, userText, !!image, refused, replyText, tot.in, tot.out, final.model || m.id, tot.searches, uid, tot.usd,
-        doc ? JSON.stringify({ url: doc.url, title: doc.title, text: doc.text }) : null, prefs.theme]);
-    out({
-      t: 'done', conversationId: convId, usage: { in: tot.in, out: tot.out, usd: tot.usd }, stop: final.stop_reason,
-      model: modelLabel(final.model || m.id), fallback: !!final.model && final.model !== m.id,
-      searches: tot.searches, sources: [...sources].slice(0, 8).map(([url, title]) => ({ url, title })),
-      ...(cites.length && !refused && { quotes, cites }),
-      ...(refused && { refusal: final.stop_details?.category || null }),
-      ...(used && { quota: quota(u, { tokens: used.tokens + tot.in + tot.out, usd: used.usd + tot.usd }) }),
-    });
   } catch (e) {
-    if (e?.name !== 'APIUserAbortError') console.error('chat error:', e?.status, e?.message);
-    out({ t: 'err', v: friendly(e, m.id) });
+    failed = e;
+    if (!(e instanceof Anthropic.APIUserAbortError)) console.error('chat error:', e?.status, e?.message);
+    // a request cut short is still billed for what it used; the SDK keeps the message as far as it got
+    cut = stream?.currentMessage;
+    if (cut) addUsage(tot, cutUsage(cut), cut.model || m.id);
   }
+  if (!final && !tot.in) { // nothing reached the model
+    if (failed) out({ t: 'err', v: friendly(failed, m.id) });
+    return void res.end();
+  }
+
+  const refused = (failed ? cut : final)?.stop_reason === 'refusal';
+  const replyText = reply.trim() ? reply : refused ? '[declined]' : failed ? '(stopped)' : '(no answer)';
+  // an answer that broke off still counts toward usage, and stays in the chat as far as it got, for follow-ups
+  await pool.query(
+    `INSERT INTO messages(conversation_id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, user_id, cost_usd, incomplete, page_doc, theme)
+     VALUES ($1,'user',$2,$3,0,0,NULL,0,$4,$10,0,$12,$13,$14), ($1,'assistant',$5,false,$6,$7,$8,$9,$4,$10,$11,$12,NULL,NULL)`,
+    [convId, userText, !!image, refused, replyText, tot.in, tot.out, (cut || final)?.model || m.id, tot.searches, uid, tot.usd, !!failed,
+      doc ? JSON.stringify({ url: doc.url, title: doc.title, text: doc.text }) : null, prefs.theme]);
+  if (failed) {
+    out({ t: 'err', v: friendly(failed, m.id), conversationId: convId });
+    return void res.end();
+  }
+  out({
+    t: 'done', conversationId: convId, usage: { in: tot.in, out: tot.out, usd: tot.usd }, stop: final.stop_reason,
+    model: modelLabel(final.model || m.id), fallback: !!final.model && final.model !== m.id,
+    searches: tot.searches, sources: [...sources].slice(0, 8).map(([url, title]) => ({ url, title })),
+    ...(cites.length && !refused && { quotes, cites }),
+    ...(refused && { refusal: final.stop_details?.category || null }),
+    ...(used && { quota: quota(u, { tokens: used.tokens + tot.in + tot.out, usd: used.usd + tot.usd }) }),
+  });
   res.end();
-});
+}
 
 function friendly(e, model) {
   const s = e?.status;
@@ -902,7 +1042,7 @@ app.get('/api/admin/stats', limit(30, 'admin'), admin, async (req, res) => {
     ...n(m), sessions: Number(sessions), budget: BUDGET, effort: EFFORT,
     models: Object.values(MODELS).map(x => ({ label: x.label, id: x.id })),
     passwordSet: cfg.passwordSet, limits: cfg.limits, limitRanges: LIMIT_RANGES,
-    lock: { on: cfg.lock.on, minutes: cfg.lock.minutes, fails: cfg.lock.fails, maxFails: MAX_PASSCODE_FAILS, choices: LOCK_CHOICES },
+    lock: { on: cfg.lock.on, minutes: cfg.lock.minutes, fails: Math.min(cfg.lock.fails, MAX_PASSCODE_FAILS), maxFails: MAX_PASSCODE_FAILS, choices: LOCK_CHOICES },
   });
 });
 
@@ -1033,7 +1173,7 @@ app.delete('/api/admin/users/:id', limit(60, 'admin'), admin, async (req, res) =
 app.post('/api/admin/accounts', limit(20, 'admin'), admin, async (req, res) => {
   const b = req.body || {};
   if (typeof b.signup === 'boolean') await setSetting('signup', b.signup ? '1' : '0');
-  if (b.defaults) {
+  if (b.defaults && typeof b.defaults === 'object') {
     const d = cleanAccountDefaults(b.defaults);
     if ('limitKind' in b.defaults && !('limitKind' in d)) return res.status(400).json({ error: 'Enter a number for the daily limit.' });
     await mergeJSON('account_defaults', d);
@@ -1066,7 +1206,8 @@ app.delete('/api/admin/announcement', limit(20, 'admin'), admin, async (req, res
 
 app.post('/api/admin/password', limit(20, 'admin'), admin, async (req, res) => {
   const pw = String(req.body?.password || '');
-  if (pw.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+  // this password unlocks unlimited use from anywhere, so it gets a longer minimum than account passwords
+  if (pw.length < 8 || pw.length > 200) return res.status(400).json({ error: 'Use at least 8 characters for the owner password.' });
   await setSetting('password_hash', await hashPw(pw));
   const r = await pool.query('DELETE FROM sessions WHERE user_id IS NULL'); // only devices using the owner password
   res.json({ ok: true, signedOut: r.rowCount });

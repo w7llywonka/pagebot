@@ -27,6 +27,10 @@
    White text on dark pages, dark text on light pages (data-page comes from the bookmarklet). */
 :root[data-theme=glass]{color-scheme:light;--bg:transparent;--panel:rgba(255,255,255,.12);--line:rgba(255,255,255,.26);--text:#fff;--muted:rgba(255,255,255,.74);--accent:#9cc2ff;--on-accent:#0c1834;--user:rgba(140,180,255,.3);--err:#ffb4a9;--code:rgba(0,0,0,.24);--chip-on:rgba(255,255,255,.2);--focus:rgba(255,255,255,.6);--pop:rgba(26,28,38,.84)}
 :root[data-theme=glass][data-page=light]{--panel:rgba(255,255,255,.5);--line:rgba(255,255,255,.78);--text:#11131a;--muted:rgba(17,19,26,.62);--accent:#2f62d8;--on-accent:#fff;--user:rgba(47,98,216,.16);--err:#b42318;--code:rgba(255,255,255,.6);--chip-on:rgba(255,255,255,.72);--focus:rgba(17,19,26,.32);--pop:rgba(250,251,255,.92)}
+/* Clear: no panel at all, just the words and controls over the page. No tint, no blur, no shadow.
+   A thin halo keeps text readable over anything; white on dark pages, dark on light ones (data-page comes from the bookmarklet). */
+:root[data-theme=clear]{color-scheme:light;--bg:transparent;--panel:transparent;--line:rgba(255,255,255,.32);--text:#fff;--muted:rgba(255,255,255,.82);--accent:#9cc2ff;--on-accent:#0c1834;--user:transparent;--err:#ffb4a9;--code:transparent;--chip-on:rgba(255,255,255,.14);--focus:rgba(255,255,255,.7);--pop:rgba(26,28,38,.94);--hc:rgba(0,0,0,.9)}
+:root[data-theme=clear][data-page=light]{--line:rgba(17,19,26,.28);--text:#11131a;--muted:rgba(17,19,26,.72);--accent:#2f62d8;--on-accent:#fff;--err:#b42318;--chip-on:rgba(17,19,26,.08);--focus:rgba(17,19,26,.45);--pop:rgba(250,251,255,.96);--hc:rgba(255,255,255,.95)}
 :root[data-theme=terminal]{color-scheme:dark;--bg:#050805;--panel:#0a110a;--line:#1a2b1a;--text:#a3f7a3;--muted:#5a9a5a;--accent:#39e75f;--on-accent:#031003;--user:#0e2111;--err:#ff6b6b;--code:#000;--chip-on:#0b2611;--focus:#2b4a2b;--font:var(--mono);font-size:13px}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text)}
@@ -38,7 +42,7 @@ a{color:var(--accent)}
 body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition:background-color .35s ease,border-color .35s ease,color .35s ease!important}
 
 /* glass surfaces */
-:root[data-theme=glass] body{background:rgba(16,18,26,.36);text-shadow:0 1px 2px rgba(0,0,0,.3);scrollbar-color:rgba(255,255,255,.35) transparent}
+:root[data-theme=glass] body{background:rgba(16,18,26,.28);text-shadow:0 1px 2px rgba(0,0,0,.3);scrollbar-color:rgba(255,255,255,.35) transparent}
 :root[data-theme=glass][data-page=light] body{background:rgba(255,255,255,.34);text-shadow:0 1px 0 rgba(255,255,255,.4);scrollbar-color:rgba(17,19,26,.25) transparent}
 :root[data-theme=glass]:not([data-blur]):not(.nohost) body{background:rgba(16,18,26,.88)} /* older bookmarks can't blur the page, so stay readable */
 :root[data-theme=glass] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,0) 36%,rgba(255,255,255,0) 64%,rgba(255,255,255,.08))}
@@ -48,8 +52,24 @@ body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition:background-color .3
 :root[data-theme=glass] #boot .bg{background:rgba(16,18,26,.5);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 :root[data-theme=glass][data-page=light] #boot .bg{background:rgba(255,255,255,.5)}
 :root[data-theme=glass] .send,:root[data-theme=glass] .go{box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 45%,transparent)}
-/* on /chat and in the pop-up window there's no page behind, so glass sits on a colorful backdrop */
-:root.nohost[data-theme=glass]{background:radial-gradient(60% 50% at 15% 20%,#5b7cff 0,transparent 70%),radial-gradient(50% 45% at 85% 25%,#c35bff 0,transparent 70%),radial-gradient(55% 50% at 70% 85%,#ff7a9c 0,transparent 70%),radial-gradient(50% 50% at 20% 85%,#2ec5b6 0,transparent 70%),#1a1d2e;background-attachment:fixed}
+/* clear surfaces: everything that would be a box is see-through, and the words carry a halo instead */
+:root[data-theme=clear] body{background:transparent;text-shadow:0 0 2px var(--hc),0 0 6px var(--hc);scrollbar-color:var(--line) transparent}
+:root[data-theme=clear] :is(button,input,textarea){text-shadow:inherit}
+:root[data-theme=clear] svg{filter:drop-shadow(0 0 1.5px var(--hc))}
+:root[data-theme=clear] header{background:none;border-bottom-color:transparent}
+:root[data-theme=clear] .msg{padding-left:2px;padding-right:2px}
+:root[data-theme=clear] .msg.bot{border-color:transparent}
+:root[data-theme=clear] .msg.user{color:var(--accent);font-weight:500}
+:root[data-theme=clear] .go,:root[data-theme=clear] .send{text-shadow:none}
+:root[data-theme=clear] .go svg{filter:none}
+:root[data-theme=clear] #att button{background:var(--accent);color:var(--on-accent);border-color:transparent;text-shadow:none}
+/* pop-ups sit over the chat, so they get a plain backing (no blur) to stay legible; the settings sheet hides the chat behind it instead */
+:root[data-theme=clear] .menu,:root[data-theme=clear] .rbar{background:var(--pop);text-shadow:none}
+:root[data-theme=clear] .menu svg,:root[data-theme=clear] .rbar svg{filter:none}
+:root[data-theme=clear] body.sheet>#log,:root[data-theme=clear] body.sheet>#composer{visibility:hidden}
+:root[data-theme=clear] #wrap{background:var(--pop);text-shadow:none}
+/* on /chat and in the pop-up window there's no page behind, so glass and clear sit on a colorful backdrop */
+:root.nohost[data-theme=glass],:root.nohost[data-theme=clear]{background:radial-gradient(60% 50% at 15% 20%,#5b7cff 0,transparent 70%),radial-gradient(50% 45% at 85% 25%,#c35bff 0,transparent 70%),radial-gradient(55% 50% at 70% 85%,#ff7a9c 0,transparent 70%),radial-gradient(50% 50% at 20% 85%,#2ec5b6 0,transparent 70%),#1a1d2e;background-attachment:fixed}
 
 /* header */
 header{flex:none;display:flex;align-items:center;gap:2px;height:var(--hd);padding:0 6px 0 12px;border-bottom:1px solid var(--line);user-select:none;-webkit-user-select:none;position:relative;z-index:3;background:var(--bg)}
@@ -89,6 +109,7 @@ body.min .mstat.busy,body.min .mstat.new{display:inline-flex}
 .msg code{font:12.5px/1.4 var(--mono)}
 .msg :not(pre)>code{background:var(--code);padding:1px 4px;border-radius:4px}
 .msg ul,.msg ol{margin:4px 0 7px;padding-left:20px}
+.msg .lh{color:var(--muted);font-size:.86em}
 .tags{font-size:11px;color:var(--muted);margin-bottom:3px}
 .meta{font-size:11px;color:var(--muted);margin-top:5px}
 .mini{background:none;border:0;padding:0;color:var(--accent);font-size:11px;cursor:pointer;text-decoration:underline}
@@ -120,6 +141,7 @@ body.min .mstat.busy,body.min .mstat.new{display:inline-flex}
 .tb svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tb.model svg{width:13px;height:13px}
 .pills{flex:1;min-width:0;display:flex;gap:5px;overflow:hidden}
+.pills.tight .pl{display:none} /* three pills don't fit beside the model name, so they keep just their icons */
 .pill{flex:none;display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 6px 0 8px;border-radius:99px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:var(--chip-on);color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap}
 .pill i{font-style:normal;color:var(--muted);font-size:13px;line-height:1}
 .pill:hover i{color:var(--text)}
@@ -158,6 +180,9 @@ textarea:focus,input:focus{border-color:var(--focus)}
 .sw[data-t=auto] .pv{background:linear-gradient(135deg,#141414 50%,#faf9f5 50%)}
 .sw[data-t=glass] .pv{background:linear-gradient(135deg,#5b7cff,#c35bff 55%,#ff7a9c)}
 .sw[data-t=glass] .pv::before{content:"";position:absolute;inset:5px;border-radius:5px;background:rgba(255,255,255,.26);box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),inset 0 1px 0 rgba(255,255,255,.8)}
+.sw[data-t=clear] .pv{background:repeating-conic-gradient(#9aa0ad 0 25%,#c9ccd4 0 50%) 0 0/10px 10px}
+.sw[data-t=clear] .pv u{opacity:1;box-shadow:0 0 2px #000}
+.sw[data-t=clear] .pv b{box-shadow:inset 0 0 0 1.5px #fff}
 .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
 .seg button{flex:1;background:none;border:0;border-left:1px solid var(--line);color:var(--muted);padding:6px 0;cursor:pointer;font-size:12.5px}
 .seg button:first-child{border-left:0}
@@ -236,6 +261,10 @@ textarea:focus,input:focus{border-color:var(--focus)}
 .rbar button{background:var(--chip-on);border:1px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:12.5px}
 .region.dragging .rbar{opacity:0;pointer-events:none}
 @keyframes rbarIn{from{opacity:0;transform:translate(-50%,-6px)}}
+/* one empty, see-through frame while the picker hands the panel back, so no part of the frozen shot shows in the small panel */
+:root.blank{background:transparent!important;color-scheme:light!important}
+:root.blank body{visibility:hidden}
+body:focus{outline:none}
 
 /* loadup animation: plays on every open, about 2.5s, never more than 3s. Only transform and opacity animate. */
 #boot{position:fixed;inset:0;z-index:100;display:grid;place-items:center;animation:failsafe 0s 6s forwards}
@@ -296,7 +325,7 @@ body.enter #composer{animation:rise .4s cubic-bezier(.2,.8,.2,1) .06s both}
 .cite:active{transform:scale(.9)}
 .cite.miss{opacity:.45}
 
-/* resize grips on the left and top edges, and the docked sidebar (bookmarklet v5) */
+/* resize grips on the left and top edges, and the docked sidebar (bookmarklet v7) */
 .grip{position:fixed;z-index:40;display:none;touch-action:none}
 body.sizable .grip{display:block}
 .grip.gl{left:0;top:16px;bottom:16px;width:6px;cursor:ew-resize}
@@ -395,7 +424,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 @media (max-width:780px){body.standalone{border:0}}
 </style>
 </head>
-<body class="booting">
+<body class="booting" tabindex="-1">
 <div id="boot" aria-hidden="true">
   <div class="bg"></div>
   <div class="c">
@@ -463,7 +492,8 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
     <p class="qtext"><b id="quotaText"></b> <span id="quotaSub"></span></p>
   </section>
   <section id="wrapSec"><button class="wcta" id="wrapBtn" type="button"><b>✨ Your pagebot Wrapped</b><span>Your year in questions, sites, hours and streaks</span></button></section>
-  <section><h3>Theme</h3><div class="themes" id="themes"></div></section>
+  <section><h3>Theme</h3><div class="themes" id="themes"></div>
+    <p class="fine" id="glassNote" hidden>To make <span id="glassName">Glass</span> see-through on every site, including dark-mode ones, drag the button from the pagebot homepage to your bookmarks bar again.</p></section>
   <section id="tokSec">
     <h3>Max tokens per answer</h3>
     <div class="seg" id="tokSeg"></div>
@@ -501,19 +531,21 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
     <div class="bar">
       <button class="tb" id="addBtn" type="button" title="Screenshot, page text, web search" aria-label="Add" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
       <div class="pills">
-        <button class="pill" id="pagePill" type="button" title="This page's text goes with your next message. Click to leave it out." hidden>📄 Page<i>×</i></button>
+        <button class="pill" id="pagePill" type="button" title="This page's text goes with your next message. Click to leave it out." hidden>📄<span class="pl">Page</span><i>×</i></button>
         <button class="pill sel" id="selPill" type="button" hidden><span></span><i>×</i></button>
-        <button class="pill" id="webPill" type="button" title="Web search is on. Click to turn it off." hidden>🌐 Web<i>×</i></button>
+        <button class="pill" id="areaPill" type="button" title="Every message sends a new screenshot of the area you picked. Click to turn it off." hidden><span class="pi">⛶</span><span class="pl">Region</span><i>×</i></button>
+        <button class="pill" id="webPill" type="button" title="Web search is on. Click to turn it off." hidden>🌐<span class="pl">Web</span><i>×</i></button>
       </div>
       <button class="tb model" id="modelBtn" type="button" aria-haspopup="menu" aria-expanded="false"><span id="modelName">Haiku 5.5</span><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
       <button class="go" id="sendBtn" type="button" title="Send (Enter)" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
     </div>
   </div>
   <div class="menu" id="addMenu" role="menu" hidden>
-    <button type="button" role="menuitem" id="shotBtn"><span class="mi">📷</span><span class="mt">Screenshot this tab</span></button>
-    <button type="button" role="menuitem" id="areaBtn"><span class="mi">⛶</span><span class="mt">Screenshot a region</span></button>
+    <button type="button" role="menuitem" id="shotBtn"><span class="mi">📷</span><span class="mt">Screenshot this tab<span class="md" id="shotNote" hidden>On for every message</span></span></button>
+    <button type="button" role="menuitem" id="areaBtn"><span class="mi">⛶</span><span class="mt">Screenshot a region<span class="md" id="areaNote" hidden>On for every message · pick again to change it</span></span></button>
     <button type="button" role="menuitemcheckbox" id="pageBtn" aria-checked="false"><span class="mi">📄</span><span class="mt">Page text</span><span class="ck">✓</span></button>
     <button type="button" role="menuitemcheckbox" id="webBtn" aria-checked="false"><span class="mi">🌐</span><span class="mt">Web search<span class="md" id="webNote" hidden>Not turned on for your account</span></span><span class="ck">✓</span></button>
+    <button type="button" role="menuitem" id="stopBtn" hidden><span class="mi">⏹</span><span class="mt">Stop sharing this tab</span></button>
     <div class="tip">You can also paste an image.</div>
   </div>
   <div class="menu right" id="modelMenu" role="menu" hidden></div>
@@ -532,9 +564,11 @@ const hostV = embedded ? ver || 1 : 0;
 const hostV2 = hostV >= 2; // bookmarklet that can move, minimize and go full screen
 const hostV3 = hostV >= 3; // ...and tells us when the panel opens and hides
 const hostV4 = hostV >= 4; // ...and can blur the page behind the panel for the glass theme
-const hostV5 = hostV >= 5; // ...and can resize the panel and dock it to the side
-// v5 pages (also behind the pop-up window) send highlights as you make them and can find a quoted passage
-const pageV5 = hostV5 || (popup && ver >= 5);
+const hostV5 = hostV >= 5; // ...and marks the panel light, so Chrome doesn't put a solid backing behind glass on dark-mode sites
+const hostV6 = hostV >= 6; // ...and can drop the panel's shadow for the clear theme
+const hostV7 = hostV >= 7; // ...and can resize the panel and dock it to the side
+// v7 pages (also behind the pop-up window) send highlights as you make them and can find a quoted passage
+const pageV7 = hostV7 || (popup && ver >= 7);
 const standalone = !embedded && !popup;
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const body = document.body;
@@ -551,7 +585,34 @@ let prefs = { theme: store.get('pb_theme') || 'ember', model: 'haiku', web: fals
 let limits = { maxTokens: 2048, pageTokens: 5000, maxSearches: 3 };
 let models = [{ key: 'haiku', label: 'Haiku 5.5' }, { key: 'sonnet', label: 'Sonnet 5.5' }];
 let view = 'boot', convId = null, pageOn = true, img = null, imgKind = 'shot', busy = false, stream = null, video = null;
+let area = null; // the region you picked, as fractions of the shared frame; while it's set, every message sends a new shot of it
 let minimized = false, unseen = false;
+
+// ---- keyboard focus: the panel takes it only when you open it with the bookmark ----
+// After that, focus moves within the panel only while the panel already has it, so an answer finishing, a screenshot,
+// a lock or an approval never pulls your typing out of the page or out of another tab.
+const shown = e => !!e && e.getClientRects().length > 0;
+function viewTarget() {
+  if (view === 'chat') return sheetOpen || wrap ? null : $('#q');
+  if (view === 'lock') return pinMode() ? $('#login') : lockTarget || $('#uName'); // renderLock picks the box
+  return null;
+}
+function claim() { // you just opened or restored the panel with the bookmark
+  // wait for its first frame on screen (a panel that was hidden can't take focus yet), unless that's long after
+  const t0 = performance.now();
+  requestAnimationFrame(() => {
+    if (minimized || document.visibilityState !== 'visible' || performance.now() - t0 > 3000) return;
+    const t = viewTarget();
+    (shown(t) ? t : body).focus(); // during the first intro there's no box yet; the panel holds focus until there is
+  });
+}
+function focusView() { if (!minimized && document.hasFocus()) viewTarget()?.focus(); }
+// hand the keyboard back to the page when the panel closes or shrinks, so what you type next doesn't vanish into it
+function release() {
+  if (!embedded || !document.hasFocus()) return;
+  document.activeElement?.blur();
+  try { parent.focus(); } catch {}
+}
 
 // ---- talk to the host page (bookmarklet) ----
 const pending = new Map(); let seq = 0;
@@ -568,22 +629,22 @@ addEventListener('message', e => {
   if (!target || e.source !== target) return;
   const d = e.data || {};
   if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); }
-  else if (d.type === 'restore') setMin(false);
-  else if (d.type === 'open') replaySplash();
-  else if (d.type === 'hidden') armSplash();
+  else if (d.type === 'restore') { setMin(false); claim(); }
+  else if (d.type === 'open') { claim(); replaySplash(); }
+  else if (d.type === 'hidden') { release(); armSplash(); }
   else if (d.type === 'sel') setSel(String(d.text || ''));
 });
 let savedPos = null, savedSize = null;
 try { savedPos = JSON.parse(store.get('pb_pos')); } catch {}
 try { savedSize = JSON.parse(store.get('pb_size')); } catch {}
-let docked = hostV5 && store.get('pb_dock') === '1', dockW = Number(store.get('pb_dockw')) || 420;
+let docked = hostV7 && store.get('pb_dock') === '1', dockW = Number(store.get('pb_dockw')) || 420;
 tell('ready', {
   ...(hostV2 && savedPos ? { pos: savedPos } : {}),
-  size: hostV5 && savedSize?.w > 0 && savedSize?.h > 0 ? savedSize : { w: 400, h: 600 },
-  ...(hostV5 ? { dock: docked, dw: dockW } : {}),
+  size: hostV7 && savedSize?.w > 0 && savedSize?.h > 0 ? savedSize : { w: 400, h: 600 },
+  ...(hostV7 ? { dock: docked, dw: dockW } : {}),
 });
 // the pop-up window only hears about highlights made after it opened, so ask for the current one
-if (popup && pageV5) ask('page', { max: 1 }).then(r => { if (r) setSel(r.selection || ''); });
+if (popup && pageV7) ask('page', { max: 1 }).then(r => { if (r) setSel(r.selection || ''); });
 
 // ---- themes ----
 const THEMES = [
@@ -596,6 +657,7 @@ const THEMES = [
   ['sakura', 'Sakura', '#fff7f9', '#d9467a', '#fde3ec', '#2b2026'],
   ['terminal', 'Terminal', '#050805', '#39e75f', '#0e2111', '#a3f7a3'],
   ['glass', 'Glass', 'transparent', '#ffffff', 'rgba(255,255,255,.55)', '#ffffff'],
+  ['clear', 'Clear', 'transparent', '#9cc2ff', 'transparent', '#ffffff'],
 ];
 const light = matchMedia('(prefers-color-scheme: light)');
 const resolveTheme = t => t === 'auto' ? (light.matches ? 'paper' : 'ember') : t;
@@ -608,17 +670,22 @@ function applyTheme(t, fade) {
   document.documentElement.dataset.theme = r;
   syncGlass();
 }
-// glass needs the bookmarklet to blur the page behind the panel; it also says if that page is light or dark
-let glassOn = false;
+// glass needs the bookmarklet to blur the page behind the panel, and clear needs it to drop the panel's shadow;
+// either way it also says if that page is light or dark
+let glassOn = false, clearOn = false;
 function syncGlass(recheck) {
-  const root = document.documentElement, on = root.dataset.theme === 'glass';
-  if (on === glassOn && !recheck) return;
-  glassOn = on;
-  if (!hostV4) return;
-  if (!on) { tell('glass', { on: false }); delete root.dataset.blur; delete root.dataset.page; return; }
-  ask('glass', { on: true }, 1500).then(r => {
-    if (!r || !glassOn) return;
-    root.dataset.blur = '1'; root.dataset.page = r.light ? 'light' : 'dark';
+  const root = document.documentElement, t = root.dataset.theme;
+  const g = t === 'glass' && hostV4, c = t === 'clear' && hostV6;
+  if (g === glassOn && c === clearOn && !recheck) return;
+  if (glassOn && !g) tell('glass', { on: false });
+  if (clearOn && !c) tell('clear', { on: false });
+  glassOn = g; clearOn = c;
+  if (!g) delete root.dataset.blur;
+  if (!g && !c) { delete root.dataset.page; return; }
+  ask(g ? 'glass' : 'clear', { on: true }, 1500).then(r => {
+    if (!r || !(g ? glassOn : clearOn)) return;
+    if (g) root.dataset.blur = '1';
+    root.dataset.page = r.light ? 'light' : 'dark';
   });
 }
 light.addEventListener('change', () => { if (prefs.theme === 'auto') applyTheme('auto', true); });
@@ -631,15 +698,20 @@ for (const [key, name, bg, acc, user, text] of THEMES) {
   b.onclick = () => { applyTheme(key, true); savePrefs({ theme: key }); };
   $('#themes').appendChild(b);
 }
-syncGlass(); // the theme painted on the first frame may already be glass
+syncGlass(); // the theme painted on the first frame may already be glass or clear
 
 // ---- rendering ----
 const log = $('#log');
 const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// s is already HTML-escaped; links stay http(s) only and show where they go, so a page that steers the answer
+// can't hide a different site behind friendly link text (link text can't contain "[", which keeps this linear)
 function inline(s) {
   return s.replace(/`([^`\n]+)`/g, '<code>$1</code>')
           .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
-          .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+          .replace(/\[([^[\]\n]{1,300})\]\((https?:\/\/[^\s)]{1,2000})\)/g, (all, text, url) => {
+            const h = host(url.replace(/&amp;/g, '&'));
+            return `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>` + (text.includes(h) ? '' : ` <span class="lh">(${esc(h)})</span>`);
+          });
 }
 function block(txt) {
   const lines = txt.split('\n'); let html = '', list = null, para = [];
@@ -738,7 +810,8 @@ function showChat(enter) {
   if (!log.children.length) empty();
   if (enter) { body.classList.add('enter'); setTimeout(() => body.classList.remove('enter'), 600); }
   lastActive = Date.now();
-  if (!minimized) setTimeout(() => $('#q').focus(), 50);
+  fitPills();
+  setTimeout(focusView, 50);
 }
 // once we know who's signed in: the chat, or the waiting screen for accounts not approved yet
 function route(enter) {
@@ -749,7 +822,7 @@ function route(enter) {
 
 // Lock screen modes: 'pin' (number pad), 'owner' (password box, only when there are no accounts),
 // 'signin' (username + password; the owner leaves the username blank) and 'signup'.
-let lockMode = null, pwMode = false, pin = '', pinBusy = false, lockFill = null, lockFocus = null;
+let lockMode = null, pwMode = false, pin = '', pinBusy = false, lockFill = null, lockFocus = null, lockTarget = null;
 const accountsOn = () => !!cfg?.accounts?.on;
 // who can unlock on this site with a passcode: the owner, or the account that signed in here last, if it has one
 function pinWho() {
@@ -819,9 +892,9 @@ function renderLock(msg) {
   pin = ''; pinBusy = false; renderDots();
   // on a site the owner signed in on last, go straight to the password (the username stays blank)
   const pass = lockFocus === 'pass' || (lockFocus !== 'name' && ($('#uName').value || store.get('pb_who') === 'owner'));
-  const target = usePin ? $('#login') : owner ? $('#pw') : !signup && pass ? $('#uPass') : $('#uName');
+  lockTarget = usePin ? $('#login') : owner ? $('#pw') : !signup && pass ? $('#uPass') : $('#uName');
   lockFill = lockFocus = null;
-  if (!minimized) setTimeout(() => target.focus(), 60);
+  setTimeout(focusView, 60);
 }
 
 // PIN pad
@@ -945,13 +1018,14 @@ function lock(msg) {
   token = null; store.set('pb_token', null);
   showLogin(msg);
 }
-function logout(msg) { convId = null; log.innerHTML = ''; clearImg(); lock(msg); }
+function logout(msg) { convId = null; log.innerHTML = ''; clearImg(); stopStream(); setArea(null); lock(msg); }
 $('#outBtn').onclick = () => logout();
 $('#lockBtn').onclick = $('#lockNow').onclick = () => lock();
 $('#newBtn').onclick = () => { convId = null; setPage(true); clearImg(); closeSheet(); closeWrap(); empty(); $('#q').focus(); };
+// Screen sharing stays on when the panel closes, so the next screenshot doesn't ask again. It ends when you stop it
+// (+ menu or Chrome's own bar), log out, or leave the page.
 function closePanel() {
-  stopStream();
-  if (embedded) tell('close'); // the bookmarklet answers with "hidden" once it has faded out
+  if (embedded) { release(); tell('close'); } // the bookmarklet answers with "hidden" once it has faded out
   else if (popup) window.close();
 }
 $('#closeBtn').onclick = closePanel;
@@ -1098,7 +1172,8 @@ const modelIcon = l => /haiku/i.test(l) ? '⚡' : /sonnet/i.test(l) ? '✦' : '�
 const plural = (n, w) => `${nf.format(n)} ${w}${n === 1 ? '' : 's'}`;
 function swatch(t) {
   const [key, , bg, acc, user, text] = t;
-  const back = key === 'auto' ? 'linear-gradient(135deg,#141414 50%,#faf9f5 50%)' : key === 'glass' ? 'linear-gradient(135deg,#5b7cff,#c35bff 55%,#ff7a9c)' : bg;
+  const back = key === 'auto' ? 'linear-gradient(135deg,#141414 50%,#faf9f5 50%)' : key === 'glass' ? 'linear-gradient(135deg,#5b7cff,#c35bff 55%,#ff7a9c)'
+    : key === 'clear' ? 'repeating-conic-gradient(#9aa0ad 0 25%,#c9ccd4 0 50%) 0 0/16px 16px' : bg;
   return `<span class="wsw" style="background:${back};--sw-acc:${acc || '#d97757'};--sw-user:${user || '#2b2622'};--sw-text:${text || '#8e8a82'}"><i></i><u class="u2"></u><u></u><b></b></span>`;
 }
 function wrapSlides(w) {
@@ -1225,6 +1300,9 @@ function renderPrefs() {
   $('#tokNote').hidden = preset;
   if (!preset) $('#tokNote').textContent = `Right now it’s ${limits.maxTokens.toLocaleString()} tokens${isUser() ? '' : ' (set in /admin)'}. Pick a size above to change it.`;
   document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t === prefs.theme));
+  $('#glassNote').hidden = !(embedded && (prefs.theme === 'glass' && !hostV5 || prefs.theme === 'clear' && !hostV6));
+  $('#glassName').textContent = prefs.theme === 'clear' ? 'Clear' : 'Glass';
+  fitPills();
 }
 async function savePrefs(patch) {
   if ('maxTokens' in patch) limits.maxTokens = patch.maxTokens; else Object.assign(prefs, patch);
@@ -1260,10 +1338,10 @@ document.addEventListener('pointerdown', e => { if (openMenu && !e.target.closes
 let sheetOpen = false;
 function openSheet(focusTokens) {
   if (view !== 'chat') return;
-  sheetOpen = true; $('#sheet').hidden = false; $('#setBtn').classList.add('on');
+  sheetOpen = true; $('#sheet').hidden = false; $('#setBtn').classList.add('on'); body.classList.add('sheet');
   if (focusTokens) { $('#tokSec').scrollIntoView({ block: 'center' }); ($('#tokSeg button.on:not([hidden])') || $('#tokSeg button:not([hidden])'))?.focus(); }
 }
-function closeSheet() { sheetOpen = false; $('#sheet').hidden = true; $('#setBtn').classList.remove('on'); }
+function closeSheet() { sheetOpen = false; $('#sheet').hidden = true; $('#setBtn').classList.remove('on'); body.classList.remove('sheet'); }
 $('#setBtn').onclick = () => wrap ? closeWrap() : sheetOpen ? closeSheet() : openSheet();
 
 // ---- move & minimize (needs the new bookmarklet) ----
@@ -1276,10 +1354,10 @@ function setMin(on) {
   if (!hostV2 || minimized === on) return;
   minimized = on; body.classList.toggle('min', on);
   $('#minBtn').title = on ? 'Expand' : 'Minimize';
-  if (on) { closeSheet(); closeMenus(); } else unseen = false;
+  if (on) { closeSheet(); closeMenus(); release(); } else unseen = false;
   tell('min', { on, w: 200, h: 46 });
   setStatus();
-  if (!on && view === 'chat') setTimeout(() => $('#q').focus(), 220);
+  if (!on) setTimeout(focusView, 220);
 }
 $('#minBtn').onclick = () => setMin(!minimized);
 let drag = null;
@@ -1305,8 +1383,8 @@ async function endDrag(e) {
 hd.addEventListener('pointerup', endDrag);
 hd.addEventListener('pointercancel', endDrag);
 
-// ---- resize from the left and top edges, and dock to the right side (bookmarklet v5) ----
-if (hostV5 && !standalone) { body.classList.add('sizable'); $('#dockBtn').hidden = false; }
+// ---- resize from the left and top edges, and dock to the right side (bookmarklet v7) ----
+if (hostV7 && !standalone) { body.classList.add('sizable'); $('#dockBtn').hidden = false; }
 function syncDock() {
   body.classList.toggle('docked', docked);
   $('#dockBtn').classList.toggle('on', docked);
@@ -1345,10 +1423,10 @@ document.querySelectorAll('.grip').forEach(g => {
 });
 
 // ---- attachments ----
-function setPage(v) { pageOn = v; $('#pagePill').hidden = !v; $('#pageBtn').setAttribute('aria-checked', String(v)); }
+function setPage(v) { pageOn = v; $('#pagePill').hidden = !v; $('#pageBtn').setAttribute('aria-checked', String(v)); fitPills(); }
 $('#pageBtn').onclick = () => { closeMenus(); setPage(!pageOn); $('#q').focus(); };
 $('#pagePill').onclick = () => { setPage(false); $('#q').focus(); };
-// what's highlighted on the page (bookmarklet v5 sends it as you select): a pill shows it goes along, × leaves it out
+// what's highlighted on the page (bookmarklet v7 sends it as you select): a pill shows it goes along, × leaves it out
 let hostSel = '', selOff = false;
 function setSel(t) {
   t = t.trim();
@@ -1356,12 +1434,14 @@ function setSel(t) {
   renderSel();
 }
 function renderSel() {
-  const on = pageV5 && !!hostSel && !selOff, p = $('#selPill');
+  const on = pageV7 && !!hostSel && !selOff, p = $('#selPill');
   p.hidden = !on;
+  fitPills();
   if (!on) return;
   const flat = hostSel.replace(/\s+/g, ' ');
   p.querySelector('span').textContent = `✂️ “${flat.length > 24 ? flat.slice(0, 24).trimEnd() + '…' : flat}”`;
   p.title = `Your highlight goes with your next message:\n“${flat.length > 280 ? flat.slice(0, 280) + '…' : flat}”\nClick to leave it out.`;
+  fitPills();
 }
 $('#selPill').onclick = () => { selOff = true; renderSel(); $('#q').focus(); };
 function setImg(dataUrl, kind = 'shot') {
@@ -1371,6 +1451,27 @@ function setImg(dataUrl, kind = 'shot') {
 }
 function clearImg() { img = null; $('#att').hidden = true; $('#att img').removeAttribute('src'); }
 $('#rmAtt').onclick = () => { clearImg(); $('#q').focus(); };
+// region screenshots stay on until you turn them off with the ⛶ Region pill or stop sharing
+const WHOLE = { x: 0, y: 0, w: 1, h: 1, whole: true }; // "Screenshot this tab" keeps going the same way as a region
+function setArea(a) {
+  area = a;
+  const p = $('#areaPill'); p.hidden = !a;
+  if (a) {
+    p.querySelector('.pi').textContent = a.whole ? '📷' : '⛶'; p.querySelector('.pl').textContent = a.whole ? 'Screen' : 'Region';
+    p.title = `Every message sends a new screenshot of ${a.whole ? 'the whole tab' : 'the area you picked'}. Click to turn it off.`;
+  }
+  $('#shotNote').hidden = !a?.whole; $('#areaNote').hidden = !a || !!a.whole;
+  fitPills();
+}
+// screenshots stay on after the first one, until you click the pill or stop sharing
+function keepShooting(a) {
+  if (!area) note(a.whole ? 'Screenshots stay on: every message sends a new shot of this tab. Click 📷 Screen to turn them off.'
+    : 'Region screenshots stay on: every message sends a new shot of this area. Click ⛶ Region to turn them off.');
+  setArea(a);
+}
+$('#areaPill').onclick = () => { setArea(null); $('#q').focus(); };
+function fitPills() { const p = $('.pills'); p.classList.remove('tight'); p.classList.toggle('tight', p.scrollWidth > p.clientWidth); }
+addEventListener('resize', fitPills);
 
 function toJpeg(src, w, h) {
   const s = Math.min(1, 1568 / Math.max(w, h));
@@ -1378,7 +1479,16 @@ function toJpeg(src, w, h) {
   c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
   return c.toDataURL('image/jpeg', 0.82);
 }
-function stopStream() { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; if (video) video.remove(); video = null; }
+// the part of a frame inside a region (given as fractions of the frame, so it still fits if the window was resized)
+function crop(src, a) {
+  const sx = a.x * src.width, sy = a.y * src.height, sw = a.w * src.width, sh = a.h * src.height;
+  const c = el('canvas'); c.width = Math.max(1, Math.round(sw)); c.height = Math.max(1, Math.round(sh));
+  c.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  return toJpeg(c, c.width, c.height);
+}
+function stopStream() { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; if (video) video.remove(); video = null; $('#stopBtn').hidden = true; }
+$('#stopBtn').onclick = () => { closeMenus(); stopStream(); setArea(null); $('#q').focus(); };
+if (!embedded) $('#stopBtn .mt').textContent = 'Stop screen sharing';
 
 // one frame of the shared tab, with the panel hidden while it's taken
 async function grab() {
@@ -1386,8 +1496,14 @@ async function grab() {
   if (!stream || !stream.active) {
     const opts = { video: { displaySurface: 'browser', frameRate: 5 }, audio: false, selfBrowserSurface: 'include', surfaceSwitching: 'exclude' };
     if (embedded) opts.preferCurrentTab = true;
-    stream = await navigator.mediaDevices.getDisplayMedia(opts);
-    stream.getVideoTracks()[0].addEventListener('ended', () => stopStream());
+    const s = stream = await navigator.mediaDevices.getDisplayMedia(opts);
+    $('#stopBtn').hidden = false;
+    // stopped from Chrome's own bar: region screenshots can't keep going without the share
+    s.getVideoTracks()[0].addEventListener('ended', () => {
+      if (stream !== s) return;
+      stopStream();
+      if (area) { setArea(null); note('Screen sharing stopped, so screenshots are off.'); }
+    });
     video = el('video');
     video.muted = true; video.playsInline = true; video.srcObject = stream;
     video.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
@@ -1395,12 +1511,23 @@ async function grab() {
     await video.play();
   }
   if (embedded) await ask('hide', {}, 1000); // so the panel isn't in the shot
-  await wait(350);
-  const w = video.videoWidth, h = video.videoHeight;
+  await wait(350); // frames taken before the panel hid are still on their way
+  // The capture sends a frame only when the page changes, sometimes late, so the video can still show the page as it was
+  // a moment ago. Take a new frame if one comes soon; otherwise the video's latest.
+  const src = (embedded && await nextFrame(300)) || video;
+  const w = src.videoWidth || src.width, h = src.videoHeight || src.height;
   if (!w) { if (embedded) tell('show'); throw new Error('no frame yet, try again'); }
   const c = el('canvas'); c.width = w; c.height = h;
-  c.getContext('2d').drawImage(video, 0, 0, w, h);
+  c.getContext('2d').drawImage(src, 0, 0, w, h);
+  src.close?.();
   return c;
+}
+// the next frame the shared tab sends (Chrome), or null if none comes within ms
+function nextFrame(ms) {
+  return new Promise(res => {
+    setTimeout(() => res(null), ms);
+    try { new ImageCapture(stream.getVideoTracks()[0]).grabFrame().then(res, () => res(null)); } catch { res(null); }
+  });
 }
 function shotFailed(e) {
   if (embedded) tell('show');
@@ -1413,7 +1540,7 @@ $('#shotBtn').onclick = async () => {
   try {
     const c = await grab();
     if (embedded) tell('show');
-    setImg(toJpeg(c, c.width, c.height)); $('#q').focus();
+    setImg(toJpeg(c, c.width, c.height)); keepShooting(WHOLE); focusView();
   } catch (e) { shotFailed(e); }
 };
 $('#areaBtn').onclick = async () => {
@@ -1421,8 +1548,16 @@ $('#areaBtn').onclick = async () => {
   let c;
   try { c = await grab(); } catch (e) { return shotFailed(e); }
   const r = await pickRegion(c);
-  if (r) { setImg(r.url, r.kind); $('#q').focus(); }
+  if (r) setImg(r.url, r.kind);
+  if (r?.area) keepShooting(r.area);
+  focusView();
 };
+// a new shot of the region you picked, for the message being sent
+async function shootArea() {
+  const c = await grab();
+  if (embedded) tell('show');
+  return crop(c, area);
+}
 
 // shows the frozen frame full screen and lets you drag a box on it
 let region = null;
@@ -1457,19 +1592,26 @@ function pickRegion(canvas) {
       if (!start) return;
       const r = box(start, pt(e)); start = null;
       if (r.w < 8 || r.h < 8) return void ov.classList.remove('dragging');
-      const sx = (r.x - g.ox) / g.s, sy = (r.y - g.oy) / g.s, sw = r.w / g.s, sh = r.h / g.s;
-      const c = el('canvas'); c.width = Math.max(1, Math.round(sw)); c.height = Math.max(1, Math.round(sh));
-      c.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, c.width, c.height);
-      done({ url: toJpeg(c, c.width, c.height), kind: 'region' });
+      const a = { x: (r.x - g.ox) / g.w, y: (r.y - g.oy) / g.h, w: r.w / g.w, h: r.h / g.h };
+      done({ url: crop(canvas, a), kind: 'region', area: a });
     });
-    const whole = () => done({ url: toJpeg(canvas, canvas.width, canvas.height), kind: 'shot' });
+    const whole = () => done({ url: toJpeg(canvas, canvas.width, canvas.height), kind: 'shot', area: WHOLE });
     bar.addEventListener('click', e => { const a = e.target.closest('button')?.dataset.a; if (a === 'full') whole(); else if (a === 'x') done(null); });
     region = { cancel: () => done(null), whole };
     async function done(result) {
-      if (finished) return; finished = true; region = null;
-      if (hostV2) await ask('full', { on: false }, 1000);
+      if (finished) return; finished = true;
       ov.remove();
-      if (embedded) requestAnimationFrame(() => tell('show'));
+      if (hostV2) {
+        // paint one empty frame while still full screen, so none of the frozen shot shows in the small panel afterwards
+        document.documentElement.classList.add('blank');
+        await new Promise(r => { requestAnimationFrame(() => requestAnimationFrame(r)); setTimeout(r, 150); });
+        await ask('full', { on: false }, 1000);
+        document.documentElement.classList.remove('blank');
+      }
+      // The bookmarklet hides the panel while it shrinks back, so ask for it straight away. This used to wait for an
+      // animation frame first, but Chrome gives a hidden cross-origin frame none, so the panel stayed invisible for good.
+      if (embedded) tell('show');
+      region = null; // only now, so a second Esc while it hands back doesn't close the panel
       resolve(result);
     }
   });
@@ -1500,7 +1642,8 @@ addEventListener('keydown', e => {
     if (/^[0-9]$/.test(e.key)) { e.preventDefault(); return pinKey(e.key); }
     if (e.key === 'Backspace') { e.preventDefault(); return pinKey('del'); }
   }
-  if (e.key === 'Escape') { if (openMenu) closeMenus(); else if (sheetOpen) closeSheet(); else closePanel(); }
+  // a held-down Esc, or one that just cancels typing in an input method, doesn't close the panel
+  if (e.key === 'Escape' && !e.isComposing) { if (openMenu) closeMenus(); else if (sheetOpen) closeSheet(); else if (!e.repeat) closePanel(); }
 });
 
 // ---- auto-lock after the passcode timeout, and keep the session alive while you're active ----
@@ -1542,7 +1685,7 @@ function finish(bot, out, ev, text) {
   if ('refusal' in ev) {
     bot.classList.add('err');
     out.innerHTML = '<p>⚠ The model declined to answer this' + (ev.refusal ? ` (${esc(String(ev.refusal))})` : '') + '. Try rephrasing it.</p>';
-  } else if (pageV5 && ev.cites?.length && ev.quotes?.length) markQuotes(out, text, ev);
+  } else if (pageV7 && ev.cites?.length && ev.quotes?.length) markQuotes(out, text, ev);
   const srcs = (ev.sources || []).filter(s => /^https?:\/\//.test(s.url));
   if (srcs.length) {
     const box = el('div', 'src'); box.appendChild(el('span', '', 'Sources'));
@@ -1565,24 +1708,33 @@ function finish(bot, out, ev, text) {
 
 async function send() {
   if (busy || view !== 'chat') return;
-  const text = q.value.trim();
+  busy = true; // a second Enter waits while the page text and any region shot come in
   const info = await ask('page', { max: limits.pageTokens * 4 });
   const page = pageOn && info?.page ? info.page : null;
   let selection = info?.selection?.trim() || '';
-  if (pageV5) {
+  if (pageV7) {
     if (selection !== hostSel) { hostSel = selection; selOff = false; } // highlighted a moment ago
     if (selOff) selection = '';
   }
-  if (!text && !img && !page && !selection) return;
+  if (!q.value.trim() && !img && !area && !page && !selection) { busy = false; return; }
 
-  busy = true; $('#sendBtn').disabled = true; setStatus();
+  $('#sendBtn').disabled = true; setStatus();
+  if (area && !img) { // screenshots are on: a new shot of the same area (or the whole tab) goes with this message
+    try { setImg(await shootArea(), area.whole ? 'shot' : 'region'); }
+    catch (e) {
+      busy = false; $('#sendBtn').disabled = false; setStatus();
+      if (e?.name === 'NotAllowedError') setArea(null); // sharing was turned down, so don't ask again on every message
+      return shotFailed(e);
+    }
+  }
+  const text = q.value.trim();
   const tags = [page && '📄 page', selection && '✂️ highlighted', img && (imgKind === 'region' ? '📷 region' : imgKind === 'paste' ? '🖼 image' : '📷 screenshot'), prefs.web && '🌐 web'].filter(Boolean).join(' · ');
   const u = addMsg('user', text ? esc(text).replace(/\n/g, '<br>') : '<i>(no text)</i>', tags);
   if (img) { const im = el('img', 'thumb'); im.src = img; u.appendChild(im); }
 
   const sent = { text, img, imgKind, pageOn, sel: !!selection };
   // cite: this page can find quoted passages, so ask for numbered quotes
-  const reqBody = { conversationId: convId, message: text, page, selection, image: img, model: prefs.model, web: !!prefs.web, cite: pageV5 };
+  const reqBody = { conversationId: convId, message: text, page, selection, image: img, model: prefs.model, web: !!prefs.web, cite: pageV7 };
   q.value = ''; autosize(); clearImg(); setPage(false);
   if (selection) selOff = true; // it's in the chat now; a new highlight brings the pill back
   renderSel();
@@ -1618,7 +1770,7 @@ async function send() {
         if (ev.t === 'd') { acc += ev.v; out.innerHTML = md(acc); scroll(); }
         else if (ev.t === 's') searchStep(bot, ev.q);
         else if (ev.t === 'done') { refused = 'refusal' in ev; finish(bot, out, ev, acc); }
-        else if (ev.t === 'err') throw new Error(ev.v);
+        else if (ev.t === 'err') { if (ev.conversationId) convId = ev.conversationId; throw new Error(ev.v); } // a broken-off answer stays in the chat
       }
     }
     if (!acc && !refused) out.innerHTML = '<i>(empty reply)</i>';
@@ -1628,7 +1780,12 @@ async function send() {
     out.innerHTML = (acc ? md(acc) : '') + '<p>⚠ ' + esc(e.message || String(e)) + '</p>';
   } finally {
     busy = false; $('#sendBtn').disabled = false;
-    if (view === 'chat') { scroll(); if (minimized) unseen = true; else q.focus(); }
+    if (view === 'chat') {
+      scroll();
+      if (minimized) unseen = true;
+      // back to the message box only if you're still in the panel (focusView checks) and not typing somewhere else in it
+      else if ([body, $('#sendBtn'), null].includes(document.activeElement)) focusView();
+    }
     setStatus();
   }
 }
@@ -1678,7 +1835,7 @@ function replaySplash() {
   if (!boot?.classList.contains('armed')) return;
   boot.classList.remove('armed');
   splashT0 = performance.now();
-  if (glassOn) syncGlass(true); // the page behind may have switched between light and dark
+  if (glassOn || clearOn) syncGlass(true); // the page behind may have switched between light and dark
   // refresh settings and the session while the intro plays (an idle lock or approval may have happened meanwhile)
   const ready = loadBoot().catch(() => {});
   endSplash(ready, () => {
@@ -1691,6 +1848,7 @@ for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => replaySp
 
 setPage(true);
 renderPrefs();
+if (embedded && !hostV3) claim(); // older bookmarks don't say when they open the panel, but it only loads when you click one
 (async () => {
   const ready = loadBoot().catch(() => {});
   await endSplash(ready, () => { if (token) route(); else showLogin(cfg ? '' : 'Can’t reach the pagebot server.'); });
