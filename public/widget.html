@@ -121,6 +121,7 @@ body.min .mstat.busy,body.min .mstat.new{display:inline-flex}
 .tb svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tb.model svg{width:13px;height:13px}
 .pills{flex:1;min-width:0;display:flex;gap:5px;overflow:hidden}
+.pills.tight .pl{display:none} /* three pills don't fit beside the model name, so they keep just their icons */
 .pill{flex:none;display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 6px 0 8px;border-radius:99px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:var(--chip-on);color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap}
 .pill i{font-style:normal;color:var(--muted);font-size:13px;line-height:1}
 .pill:hover i{color:var(--text)}
@@ -237,6 +238,10 @@ textarea:focus,input:focus{border-color:var(--focus)}
 .rbar button{background:var(--chip-on);border:1px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:12.5px}
 .region.dragging .rbar{opacity:0;pointer-events:none}
 @keyframes rbarIn{from{opacity:0;transform:translate(-50%,-6px)}}
+/* one empty, see-through frame while the picker hands the panel back, so no part of the frozen shot shows in the small panel */
+:root.blank{background:transparent!important;color-scheme:light!important}
+:root.blank body{visibility:hidden}
+body:focus{outline:none}
 
 /* loadup animation: plays on every open, about 2.5s, never more than 3s. Only transform and opacity animate. */
 #boot{position:fixed;inset:0;z-index:100;display:grid;place-items:center;animation:failsafe 0s 6s forwards}
@@ -300,7 +305,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 @media (max-width:780px){body.standalone{border:0}}
 </style>
 </head>
-<body class="booting">
+<body class="booting" tabindex="-1">
 <div id="boot" aria-hidden="true">
   <div class="bg"></div>
   <div class="c">
@@ -388,8 +393,9 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
     <div class="bar">
       <button class="tb" id="addBtn" type="button" title="Screenshot, page text, web search" aria-label="Add" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
       <div class="pills">
-        <button class="pill" id="pagePill" type="button" title="This page's text goes with your next message. Click to leave it out." hidden>📄 Page<i>×</i></button>
-        <button class="pill" id="webPill" type="button" title="Web search is on. Click to turn it off." hidden>🌐 Web<i>×</i></button>
+        <button class="pill" id="pagePill" type="button" title="This page's text goes with your next message. Click to leave it out." hidden>📄<span class="pl">Page</span><i>×</i></button>
+        <button class="pill" id="areaPill" type="button" title="Every message sends a new screenshot of the area you picked. Click to turn it off." hidden>⛶<span class="pl">Region</span><i>×</i></button>
+        <button class="pill" id="webPill" type="button" title="Web search is on. Click to turn it off." hidden>🌐<span class="pl">Web</span><i>×</i></button>
       </div>
       <button class="tb model" id="modelBtn" type="button" aria-haspopup="menu" aria-expanded="false"><span id="modelName">Haiku 5.5</span><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
       <button class="go" id="sendBtn" type="button" title="Send (Enter)" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
@@ -397,9 +403,10 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
   </div>
   <div class="menu" id="addMenu" role="menu" hidden>
     <button type="button" role="menuitem" id="shotBtn"><span class="mi">📷</span><span class="mt">Screenshot this tab</span></button>
-    <button type="button" role="menuitem" id="areaBtn"><span class="mi">⛶</span><span class="mt">Screenshot a region</span></button>
+    <button type="button" role="menuitem" id="areaBtn"><span class="mi">⛶</span><span class="mt">Screenshot a region<span class="md" id="areaNote" hidden>On for every message · pick again to change it</span></span></button>
     <button type="button" role="menuitemcheckbox" id="pageBtn" aria-checked="false"><span class="mi">📄</span><span class="mt">Page text</span><span class="ck">✓</span></button>
     <button type="button" role="menuitemcheckbox" id="webBtn" aria-checked="false"><span class="mi">🌐</span><span class="mt">Web search<span class="md" id="webNote" hidden>Not turned on for your account</span></span><span class="ck">✓</span></button>
+    <button type="button" role="menuitem" id="stopBtn" hidden><span class="mi">⏹</span><span class="mt">Stop sharing this tab</span></button>
     <div class="tip">You can also paste an image.</div>
   </div>
   <div class="menu right" id="modelMenu" role="menu" hidden></div>
@@ -434,7 +441,34 @@ let prefs = { theme: store.get('pb_theme') || 'ember', model: 'haiku', web: fals
 let limits = { maxTokens: 2048, pageTokens: 5000, maxSearches: 3 };
 let models = [{ key: 'haiku', label: 'Haiku 5.5' }, { key: 'sonnet', label: 'Sonnet 5.5' }];
 let view = 'boot', convId = null, pageOn = true, img = null, imgKind = 'shot', busy = false, stream = null, video = null;
+let area = null; // the region you picked, as fractions of the shared frame; while it's set, every message sends a new shot of it
 let minimized = false, unseen = false;
+
+// ---- keyboard focus: the panel takes it only when you open it with the bookmark ----
+// After that, focus moves within the panel only while the panel already has it, so an answer finishing, a screenshot,
+// a lock or an approval never pulls your typing out of the page or out of another tab.
+const shown = e => !!e && e.getClientRects().length > 0;
+function viewTarget() {
+  if (view === 'chat') return sheetOpen ? null : $('#q');
+  if (view === 'lock') return pinMode() ? $('#login') : lockMode === 'owner' ? $('#pw') : $('#uName').value ? $('#uPass') : $('#uName');
+  return null;
+}
+function claim() { // you just opened or restored the panel with the bookmark
+  // wait for its first frame on screen (a panel that was hidden can't take focus yet), unless that's long after
+  const t0 = performance.now();
+  requestAnimationFrame(() => {
+    if (minimized || document.visibilityState !== 'visible' || performance.now() - t0 > 3000) return;
+    const t = viewTarget();
+    (shown(t) ? t : body).focus(); // during the first intro there's no box yet; the panel holds focus until there is
+  });
+}
+function focusView() { if (!minimized && document.hasFocus()) viewTarget()?.focus(); }
+// hand the keyboard back to the page when the panel closes or shrinks, so what you type next doesn't vanish into it
+function release() {
+  if (!embedded || !document.hasFocus()) return;
+  document.activeElement?.blur();
+  try { parent.focus(); } catch {}
+}
 
 // ---- talk to the host page (bookmarklet) ----
 const pending = new Map(); let seq = 0;
@@ -451,9 +485,9 @@ addEventListener('message', e => {
   if (!target || e.source !== target) return;
   const d = e.data || {};
   if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); }
-  else if (d.type === 'restore') setMin(false);
-  else if (d.type === 'open') replaySplash();
-  else if (d.type === 'hidden') armSplash();
+  else if (d.type === 'restore') { setMin(false); claim(); }
+  else if (d.type === 'open') { claim(); replaySplash(); }
+  else if (d.type === 'hidden') { release(); armSplash(); }
 });
 let savedPos = null;
 try { savedPos = JSON.parse(store.get('pb_pos')); } catch {}
@@ -583,7 +617,8 @@ function showChat(enter) {
   if (!log.children.length) empty();
   if (enter) { body.classList.add('enter'); setTimeout(() => body.classList.remove('enter'), 600); }
   lastActive = Date.now();
-  if (!minimized) setTimeout(() => $('#q').focus(), 50);
+  fitPills();
+  setTimeout(focusView, 50);
 }
 // once we know who's signed in: the chat, or the waiting screen for accounts not approved yet
 function route(enter) {
@@ -640,7 +675,7 @@ function renderLock(msg) {
   $('#loginErr').textContent = msg || '';
   $('#dots').className = 'dots'; // drop the green "unlocked" state from last time
   pin = ''; pinBusy = false; renderDots();
-  if (!minimized) setTimeout(() => (usePin ? $('#login') : owner ? $('#pw') : $('#uName').value ? $('#uPass') : $('#uName')).focus(), 60);
+  setTimeout(focusView, 60);
 }
 
 // PIN pad
@@ -753,13 +788,14 @@ function lock(msg) {
   token = null; store.set('pb_token', null);
   showLogin(msg);
 }
-function logout(msg) { convId = null; log.innerHTML = ''; clearImg(); lock(msg); }
+function logout(msg) { convId = null; log.innerHTML = ''; clearImg(); stopStream(); setArea(null); lock(msg); }
 $('#outBtn').onclick = () => logout();
 $('#lockBtn').onclick = $('#lockNow').onclick = () => lock();
 $('#newBtn').onclick = () => { convId = null; setPage(true); clearImg(); closeSheet(); empty(); $('#q').focus(); };
+// Screen sharing stays on when the panel closes, so the next screenshot doesn't ask again. It ends when you stop it
+// (+ menu or Chrome's own bar), log out, or leave the page.
 function closePanel() {
-  stopStream();
-  if (embedded) tell('close'); // the bookmarklet answers with "hidden" once it has faded out
+  if (embedded) { release(); tell('close'); } // the bookmarklet answers with "hidden" once it has faded out
   else if (popup) window.close();
 }
 $('#closeBtn').onclick = closePanel;
@@ -858,6 +894,7 @@ function renderPrefs() {
   $('#tokSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.n === limits.maxTokens));
   document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t === prefs.theme));
   $('#glassNote').hidden = !(embedded && !hostV5 && prefs.theme === 'glass');
+  fitPills();
 }
 async function savePrefs(patch) {
   if ('maxTokens' in patch) limits.maxTokens = patch.maxTokens; else Object.assign(prefs, patch);
@@ -909,10 +946,10 @@ function setMin(on) {
   if (!hostV2 || minimized === on) return;
   minimized = on; body.classList.toggle('min', on);
   $('#minBtn').title = on ? 'Expand' : 'Minimize';
-  if (on) { closeSheet(); closeMenus(); } else unseen = false;
+  if (on) { closeSheet(); closeMenus(); release(); } else unseen = false;
   tell('min', { on, w: 200, h: 46 });
   setStatus();
-  if (!on && view === 'chat') setTimeout(() => $('#q').focus(), 220);
+  if (!on) setTimeout(focusView, 220);
 }
 $('#minBtn').onclick = () => setMin(!minimized);
 let drag = null;
@@ -939,7 +976,7 @@ hd.addEventListener('pointerup', endDrag);
 hd.addEventListener('pointercancel', endDrag);
 
 // ---- attachments ----
-function setPage(v) { pageOn = v; $('#pagePill').hidden = !v; $('#pageBtn').setAttribute('aria-checked', String(v)); }
+function setPage(v) { pageOn = v; $('#pagePill').hidden = !v; $('#pageBtn').setAttribute('aria-checked', String(v)); fitPills(); }
 $('#pageBtn').onclick = () => { closeMenus(); setPage(!pageOn); $('#q').focus(); };
 $('#pagePill').onclick = () => { setPage(false); $('#q').focus(); };
 function setImg(dataUrl, kind = 'shot') {
@@ -949,6 +986,11 @@ function setImg(dataUrl, kind = 'shot') {
 }
 function clearImg() { img = null; $('#att').hidden = true; $('#att img').removeAttribute('src'); }
 $('#rmAtt').onclick = () => { clearImg(); $('#q').focus(); };
+// region screenshots stay on until you turn them off with the ⛶ Region pill or stop sharing
+function setArea(a) { area = a; $('#areaPill').hidden = $('#areaNote').hidden = !a; fitPills(); }
+$('#areaPill').onclick = () => { setArea(null); $('#q').focus(); };
+function fitPills() { const p = $('.pills'); p.classList.remove('tight'); p.classList.toggle('tight', p.scrollWidth > p.clientWidth); }
+addEventListener('resize', fitPills);
 
 function toJpeg(src, w, h) {
   const s = Math.min(1, 1568 / Math.max(w, h));
@@ -956,7 +998,16 @@ function toJpeg(src, w, h) {
   c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
   return c.toDataURL('image/jpeg', 0.82);
 }
-function stopStream() { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; if (video) video.remove(); video = null; }
+// the part of a frame inside a region (given as fractions of the frame, so it still fits if the window was resized)
+function crop(src, a) {
+  const sx = a.x * src.width, sy = a.y * src.height, sw = a.w * src.width, sh = a.h * src.height;
+  const c = el('canvas'); c.width = Math.max(1, Math.round(sw)); c.height = Math.max(1, Math.round(sh));
+  c.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  return toJpeg(c, c.width, c.height);
+}
+function stopStream() { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; if (video) video.remove(); video = null; $('#stopBtn').hidden = true; }
+$('#stopBtn').onclick = () => { closeMenus(); stopStream(); setArea(null); $('#q').focus(); };
+if (!embedded) $('#stopBtn .mt').textContent = 'Stop screen sharing';
 
 // one frame of the shared tab, with the panel hidden while it's taken
 async function grab() {
@@ -964,8 +1015,14 @@ async function grab() {
   if (!stream || !stream.active) {
     const opts = { video: { displaySurface: 'browser', frameRate: 5 }, audio: false, selfBrowserSurface: 'include', surfaceSwitching: 'exclude' };
     if (embedded) opts.preferCurrentTab = true;
-    stream = await navigator.mediaDevices.getDisplayMedia(opts);
-    stream.getVideoTracks()[0].addEventListener('ended', () => stopStream());
+    const s = stream = await navigator.mediaDevices.getDisplayMedia(opts);
+    $('#stopBtn').hidden = false;
+    // stopped from Chrome's own bar: region screenshots can't keep going without the share
+    s.getVideoTracks()[0].addEventListener('ended', () => {
+      if (stream !== s) return;
+      stopStream();
+      if (area) { setArea(null); note('Screen sharing stopped, so region screenshots are off.'); }
+    });
     video = el('video');
     video.muted = true; video.playsInline = true; video.srcObject = stream;
     video.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
@@ -973,12 +1030,23 @@ async function grab() {
     await video.play();
   }
   if (embedded) await ask('hide', {}, 1000); // so the panel isn't in the shot
-  await wait(350);
-  const w = video.videoWidth, h = video.videoHeight;
+  await wait(350); // frames taken before the panel hid are still on their way
+  // The capture sends a frame only when the page changes, sometimes late, so the video can still show the page as it was
+  // a moment ago. Take a new frame if one comes soon; otherwise the video's latest.
+  const src = (embedded && await nextFrame(300)) || video;
+  const w = src.videoWidth || src.width, h = src.videoHeight || src.height;
   if (!w) { if (embedded) tell('show'); throw new Error('no frame yet, try again'); }
   const c = el('canvas'); c.width = w; c.height = h;
-  c.getContext('2d').drawImage(video, 0, 0, w, h);
+  c.getContext('2d').drawImage(src, 0, 0, w, h);
+  src.close?.();
   return c;
+}
+// the next frame the shared tab sends (Chrome), or null if none comes within ms
+function nextFrame(ms) {
+  return new Promise(res => {
+    setTimeout(() => res(null), ms);
+    try { new ImageCapture(stream.getVideoTracks()[0]).grabFrame().then(res, () => res(null)); } catch { res(null); }
+  });
 }
 function shotFailed(e) {
   if (embedded) tell('show');
@@ -991,7 +1059,7 @@ $('#shotBtn').onclick = async () => {
   try {
     const c = await grab();
     if (embedded) tell('show');
-    setImg(toJpeg(c, c.width, c.height)); $('#q').focus();
+    setImg(toJpeg(c, c.width, c.height)); focusView();
   } catch (e) { shotFailed(e); }
 };
 $('#areaBtn').onclick = async () => {
@@ -999,8 +1067,19 @@ $('#areaBtn').onclick = async () => {
   let c;
   try { c = await grab(); } catch (e) { return shotFailed(e); }
   const r = await pickRegion(c);
-  if (r) { setImg(r.url, r.kind); $('#q').focus(); }
+  if (r) setImg(r.url, r.kind);
+  if (r?.area) {
+    if (!area) note('Region screenshots stay on: every message sends a new shot of this area. Click ⛶ Region to turn them off.');
+    setArea(r.area);
+  }
+  focusView();
 };
+// a new shot of the region you picked, for the message being sent
+async function shootArea() {
+  const c = await grab();
+  if (embedded) tell('show');
+  return crop(c, area);
+}
 
 // shows the frozen frame full screen and lets you drag a box on it
 let region = null;
@@ -1035,19 +1114,26 @@ function pickRegion(canvas) {
       if (!start) return;
       const r = box(start, pt(e)); start = null;
       if (r.w < 8 || r.h < 8) return void ov.classList.remove('dragging');
-      const sx = (r.x - g.ox) / g.s, sy = (r.y - g.oy) / g.s, sw = r.w / g.s, sh = r.h / g.s;
-      const c = el('canvas'); c.width = Math.max(1, Math.round(sw)); c.height = Math.max(1, Math.round(sh));
-      c.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, c.width, c.height);
-      done({ url: toJpeg(c, c.width, c.height), kind: 'region' });
+      const a = { x: (r.x - g.ox) / g.w, y: (r.y - g.oy) / g.h, w: r.w / g.w, h: r.h / g.h };
+      done({ url: crop(canvas, a), kind: 'region', area: a });
     });
     const whole = () => done({ url: toJpeg(canvas, canvas.width, canvas.height), kind: 'shot' });
     bar.addEventListener('click', e => { const a = e.target.closest('button')?.dataset.a; if (a === 'full') whole(); else if (a === 'x') done(null); });
     region = { cancel: () => done(null), whole };
     async function done(result) {
-      if (finished) return; finished = true; region = null;
-      if (hostV2) await ask('full', { on: false }, 1000);
+      if (finished) return; finished = true;
       ov.remove();
-      if (embedded) requestAnimationFrame(() => tell('show'));
+      if (hostV2) {
+        // paint one empty frame while still full screen, so none of the frozen shot shows in the small panel afterwards
+        document.documentElement.classList.add('blank');
+        await new Promise(r => { requestAnimationFrame(() => requestAnimationFrame(r)); setTimeout(r, 150); });
+        await ask('full', { on: false }, 1000);
+        document.documentElement.classList.remove('blank');
+      }
+      // The bookmarklet hides the panel while it shrinks back, so ask for it straight away. This used to wait for an
+      // animation frame first, but Chrome gives a hidden cross-origin frame none, so the panel stayed invisible for good.
+      if (embedded) tell('show');
+      region = null; // only now, so a second Esc while it hands back doesn't close the panel
       resolve(result);
     }
   });
@@ -1072,7 +1158,8 @@ addEventListener('keydown', e => {
     if (/^[0-9]$/.test(e.key)) { e.preventDefault(); return pinKey(e.key); }
     if (e.key === 'Backspace') { e.preventDefault(); return pinKey('del'); }
   }
-  if (e.key === 'Escape') { if (openMenu) closeMenus(); else if (sheetOpen) closeSheet(); else closePanel(); }
+  // a held-down Esc, or one that just cancels typing in an input method, doesn't close the panel
+  if (e.key === 'Escape' && !e.isComposing) { if (openMenu) closeMenus(); else if (sheetOpen) closeSheet(); else if (!e.repeat) closePanel(); }
 });
 
 // ---- auto-lock after the passcode timeout, and keep the session alive while you're active ----
@@ -1137,13 +1224,22 @@ function finish(bot, out, ev) {
 
 async function send() {
   if (busy || view !== 'chat') return;
-  const text = q.value.trim();
+  busy = true; // a second Enter waits while the page text and any region shot come in
   const info = await ask('page', { max: limits.pageTokens * 4 });
   const page = pageOn && info?.page ? info.page : null;
   const selection = info?.selection?.trim() || '';
-  if (!text && !img && !page && !selection) return;
+  if (!q.value.trim() && !img && !area && !page && !selection) { busy = false; return; }
 
-  busy = true; $('#sendBtn').disabled = true; setStatus();
+  $('#sendBtn').disabled = true; setStatus();
+  if (area && !img) { // region screenshots are on: a new shot of the same area goes with this message
+    try { setImg(await shootArea(), 'region'); }
+    catch (e) {
+      busy = false; $('#sendBtn').disabled = false; setStatus();
+      if (e?.name === 'NotAllowedError') setArea(null); // sharing was turned down, so don't ask again on every message
+      return shotFailed(e);
+    }
+  }
+  const text = q.value.trim();
   const tags = [page && '📄 page', selection && '✂️ highlighted', img && (imgKind === 'region' ? '📷 region' : imgKind === 'paste' ? '🖼 image' : '📷 screenshot'), prefs.web && '🌐 web'].filter(Boolean).join(' · ');
   const u = addMsg('user', text ? esc(text).replace(/\n/g, '<br>') : '<i>(no text)</i>', tags);
   if (img) { const im = el('img', 'thumb'); im.src = img; u.appendChild(im); }
@@ -1195,7 +1291,12 @@ async function send() {
     out.innerHTML = (acc ? md(acc) : '') + '<p>⚠ ' + esc(e.message || String(e)) + '</p>';
   } finally {
     busy = false; $('#sendBtn').disabled = false;
-    if (view === 'chat') { scroll(); if (minimized) unseen = true; else q.focus(); }
+    if (view === 'chat') {
+      scroll();
+      if (minimized) unseen = true;
+      // back to the message box only if you're still in the panel (focusView checks) and not typing somewhere else in it
+      else if ([body, $('#sendBtn'), null].includes(document.activeElement)) focusView();
+    }
     setStatus();
   }
 }
@@ -1258,6 +1359,7 @@ for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => replaySp
 
 setPage(true);
 renderPrefs();
+if (embedded && !hostV3) claim(); // older bookmarks don't say when they open the panel, but it only loads when you click one
 (async () => {
   const ready = loadBoot().catch(() => {});
   await endSplash(ready, () => { if (token) route(); else showLogin(cfg ? '' : 'Can’t reach the pagebot server.'); });

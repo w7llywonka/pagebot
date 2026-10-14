@@ -57,11 +57,14 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
 ## Using it
 
 - Click the bookmark to open the panel. Click it again to hide it. Esc closes it.
+- The panel takes the keyboard only when you open it with the bookmark. An answer arriving, a screenshot, or a lock never pulls your typing out of the page or another tab, and closing or minimizing the panel gives the keyboard back to the page.
 - **Signing in**: while sign-ups are open (or anyone has an account), the panel opens on **Sign in**. **Owner? Unlock here** takes you to your passcode or password, and after that, the panel goes straight to it on that site. New people choose **Create an account**, pick a username and password, and can leave a note for you. Until you accept them, they see a screen saying they're waiting to be accepted into the program, and the panel opens up by itself once you do.
 - **Drag the top bar** to move the panel anywhere on the page. It remembers where you put it on each site.
 - **Minimize** (the – button) shrinks it to a small pill. A dot on the pill means an answer finished while it was minimized. Click the pill or the bookmark to open it again.
 - The **+** button under the message box has everything you can add:
-  - **Screenshot this tab**, or **Screenshot a region** to drag a box over just the part you mean. Chrome asks to share the tab once per page load, and the panel hides itself while the shot is taken. You can also paste any image with Ctrl/Cmd+V.
+  - **Screenshot this tab**, or **Screenshot a region** to drag a box over just the part you mean. The panel hides itself while the shot is taken. You can also paste any image with Ctrl/Cmd+V.
+  - Region screenshots stay on (shown as a ⛶ Region pill): every message you send takes a new shot of that same area. Pick a region again to change it, or click the pill to turn it off.
+  - Chrome asks to share the tab the first time. Sharing then stays on, even when you close the panel, until you choose **Stop sharing this tab** in the + menu or Chrome's own Stop sharing button.
   - **Page text** sends the page along. It's on for the first message of each chat (shown as a 📄 Page pill) and off after that, since the page stays in the chat history anyway.
   - **Web search** lets the model search the web (shown as a 🌐 Web pill). Answers that used it list their sources.
   - Click a pill's × to turn that thing off.
