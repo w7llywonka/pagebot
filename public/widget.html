@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>pagebot</title>
+<style>
+:root{--bg:#141414;--panel:#1d1d1d;--line:#2b2b2b;--text:#ebe8e1;--muted:#8e8a82;--accent:#d97757;--user:#2b2622;--err:#ff8a7a;
+  font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text)}
+body{display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit}
+header{display:flex;align-items:center;gap:4px;padding:8px 8px 8px 12px;border-bottom:1px solid var(--line);user-select:none}
+.title{flex:1;display:flex;align-items:center;gap:8px;font-weight:600;letter-spacing:.2px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.ib{background:none;border:0;color:var(--muted);width:30px;height:30px;border-radius:8px;cursor:pointer;display:grid;place-items:center;font-size:15px}
+.ib:hover{background:var(--line);color:var(--text)}
+.ib svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#log{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin}
+.empty{margin:auto;text-align:center;color:var(--muted);font-size:13px;max-width:260px}
+.empty b{color:var(--text);font-weight:600}
+.msg{max-width:92%;padding:8px 11px;border-radius:12px;overflow-wrap:anywhere}
+.msg.user{align-self:flex-end;background:var(--user)}
+.msg.bot{align-self:flex-start;background:var(--panel);border:1px solid var(--line)}
+.msg.err .body{color:var(--err)}
+.msg p{margin:0 0 7px}.msg p:last-child{margin:0}
+.msg pre{background:#0e0e0e;border:1px solid var(--line);padding:8px;border-radius:8px;overflow-x:auto;margin:6px 0;white-space:pre}
+.msg code{font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.msg :not(pre)>code{background:#0e0e0e;padding:1px 4px;border-radius:4px}
+.msg ul,.msg ol{margin:4px 0 7px;padding-left:20px}
+.tags{font-size:11px;color:var(--muted);margin-bottom:3px}
+.meta{font-size:11px;color:var(--muted);margin-top:5px}
+.thumb{display:block;max-width:100%;max-height:120px;border-radius:6px;margin-top:6px;border:1px solid var(--line)}
+.note{align-self:center;font-size:12px;color:var(--muted);text-align:center;max-width:90%}
+.typing{display:inline-flex;gap:3px}.typing i{width:5px;height:5px;border-radius:50%;background:var(--muted);animation:b 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,80%,100%{opacity:.25}40%{opacity:1}}
+#composer{border-top:1px solid var(--line);padding:8px;display:flex;flex-direction:column;gap:6px}
+#att{display:none;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+#att img{height:44px;border-radius:6px;border:1px solid var(--line)}
+.tools{display:flex;gap:6px;align-items:center}
+.chip{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;display:inline-flex;gap:5px;align-items:center}
+.chip:hover{color:var(--text)}
+.chip.on{color:var(--text);border-color:var(--accent);background:#2a201b}
+.spacer{flex:1}
+.hint{font-size:11px;color:var(--muted)}
+.row{display:flex;gap:6px;align-items:flex-end}
+textarea{flex:1;resize:none;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 10px;font:inherit;max-height:140px;min-height:40px;outline:none}
+textarea:focus,input:focus{border-color:#4a4a4a}
+.send{background:var(--accent);color:#fff;border:0;border-radius:10px;height:40px;padding:0 14px;font-weight:600;cursor:pointer}
+.send:disabled{opacity:.45;cursor:default}
+#login{flex:1;display:none;flex-direction:column;justify-content:center;gap:10px;padding:28px}
+#login h2{margin:0;font-size:16px}
+#login p{margin:0;color:var(--muted);font-size:13px}
+#login input{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;outline:none}
+#loginErr{color:var(--err);font-size:13px;min-height:18px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="title"><span class="dot"></span>pagebot</div>
+  <button class="ib" id="newBtn" title="New chat" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="ib" id="outBtn" title="Log out" hidden><svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg></button>
+  <button class="ib" id="closeBtn" title="Close (Esc)"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+</header>
+
+<form id="login" autocomplete="off">
+  <h2>Locked</h2>
+  <p>Enter your pagebot password.</p>
+  <input id="pw" type="password" placeholder="Password" autocomplete="current-password">
+  <button class="send" type="submit">Unlock</button>
+  <div id="loginErr"></div>
+</form>
+
+<div id="log" hidden></div>
+
+<div id="composer" hidden>
+  <div id="att"><img alt=""><span>Screenshot attached</span><button class="ib" id="rmAtt" title="Remove"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+  <div class="tools">
+    <button class="chip" id="pageBtn" type="button" title="Attach this page's text to the next message">📄 Page</button>
+    <button class="chip" id="shotBtn" type="button" title="Screenshot the page">📷 Screenshot</button>
+    <span class="spacer"></span><span class="hint">or paste an image</span>
+  </div>
+  <div class="row">
+    <textarea id="q" rows="1" placeholder="Ask about this page…"></textarea>
+    <button class="send" id="sendBtn" type="button">Send</button>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const embedded = window.parent !== window;
+const popup = !embedded && !!window.opener;
+const target = embedded ? window.parent : (popup ? window.opener : null);
+
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch { return null; } },
+  set(k,v){ try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
+};
+
+let token = store.get('pb_token');
+let convId = null, pageOn = true, img = null, busy = false, stream = null, video = null;
+
+// ---- talk to the host page (bookmarklet) ----
+const pending = new Map(); let seq = 0;
+function ask(type, ms = 2500) {
+  if (!target) return Promise.resolve(null);
+  return new Promise(res => {
+    const id = ++seq; pending.set(id, res);
+    try { target.postMessage({ type, id }, '*'); } catch { pending.delete(id); return res(null); }
+    setTimeout(() => { if (pending.has(id)) { pending.delete(id); res(null); } }, ms);
+  });
+}
+function tell(type) { if (target) try { target.postMessage({ type }, '*'); } catch {} }
+addEventListener('message', e => {
+  if (!target || e.source !== target) return;
+  const d = e.data || {};
+  if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); }
+});
+tell('ready');
+
+// ---- rendering ----
+const log = $('#log');
+const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function inline(s) {
+  return s.replace(/`([^`\n]+)`/g, '<code>$1</code>')
+          .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+}
+function block(txt) {
+  const lines = txt.split('\n'); let html = '', list = null, para = [];
+  const flushP = () => { if (para.length) { html += '<p>' + para.map(inline).join('<br>') + '</p>'; para = []; } };
+  const flushL = () => { if (list) { html += `<${list.t}>` + list.items.map(i => '<li>' + inline(i) + '</li>').join('') + `</${list.t}>`; list = null; } };
+  for (const raw of lines) {
+    const ul = /^\s*[-*•]\s+(.*)$/.exec(raw), ol = /^\s*\d+[.)]\s+(.*)$/.exec(raw);
+    if (ul || ol) {
+      flushP(); const t = ul ? 'ul' : 'ol';
+      if (!list || list.t !== t) { flushL(); list = { t, items: [] }; }
+      list.items.push((ul || ol)[1]);
+    } else if (!raw.trim()) { flushP(); flushL(); }
+    else {
+      flushL();
+      const h = /^#{1,6}\s+(.*)$/.exec(raw);
+      para.push(h ? `**${h[1]}**` : raw);
+    }
+  }
+  flushP(); flushL(); return html;
+}
+function md(src) {
+  return src.split('```').map((p, i) => {
+    if (i % 2) { const nl = p.indexOf('\n'); const code = nl >= 0 && /^[\w+#.-]*$/.test(p.slice(0, nl).trim()) ? p.slice(nl + 1) : p;
+      return '<pre><code>' + esc(code.replace(/\n$/, '')) + '</code></pre>'; }
+    return block(esc(p));
+  }).join('');
+}
+function clearEmpty() { const e = log.querySelector('.empty'); if (e) e.remove(); }
+function addMsg(role, html, tags) {
+  clearEmpty();
+  const el = document.createElement('div'); el.className = 'msg ' + role;
+  if (tags) { const t = document.createElement('div'); t.className = 'tags'; t.textContent = tags; el.appendChild(t); }
+  const b = document.createElement('div'); b.className = 'body'; b.innerHTML = html; el.appendChild(b);
+  log.appendChild(el); scroll(); return el;
+}
+function note(text) { clearEmpty(); const n = document.createElement('div'); n.className = 'note'; n.textContent = text; log.appendChild(n); scroll(); }
+function scroll() { log.scrollTop = log.scrollHeight; }
+const fmt = n => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n);
+function empty() {
+  log.innerHTML = '<div class="empty"><b>Ask about this page.</b><br>📄 attaches the page text (on for the first message), 📷 grabs a screenshot, or paste an image. Highlighted text is included automatically.</div>';
+}
+
+// ---- views ----
+function showLogin(msg) {
+  $('#login').style.display = 'flex'; log.hidden = true; $('#composer').hidden = true;
+  $('#newBtn').hidden = $('#outBtn').hidden = true;
+  $('#loginErr').textContent = msg || ''; setTimeout(() => $('#pw').focus(), 50);
+}
+function showChat() {
+  $('#login').style.display = 'none'; log.hidden = false; $('#composer').hidden = false;
+  $('#newBtn').hidden = $('#outBtn').hidden = false;
+  if (!log.children.length) empty();
+  setTimeout(() => $('#q').focus(), 50);
+}
+
+$('#login').addEventListener('submit', async e => {
+  e.preventDefault();
+  const pw = $('#pw').value; if (!pw) return;
+  $('#loginErr').textContent = '';
+  try {
+    const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return void ($('#loginErr').textContent = j.error || 'Login failed');
+    token = j.token; store.set('pb_token', token); $('#pw').value = ''; showChat();
+  } catch { $('#loginErr').textContent = 'Network error'; }
+});
+
+function logout(msg) { token = null; store.set('pb_token', null); convId = null; log.innerHTML = ''; showLogin(msg); }
+$('#outBtn').onclick = () => {
+  if (token) fetch('/api/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }).catch(() => {});
+  logout();
+};
+$('#newBtn').onclick = () => { convId = null; setPage(true); clearImg(); empty(); $('#q').focus(); };
+function closePanel() {
+  stopStream();
+  if (embedded) tell('close'); else if (popup) window.close();
+}
+$('#closeBtn').onclick = closePanel;
+addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+if (!embedded && !popup) $('#closeBtn').hidden = true;
+
+// ---- attachments ----
+function setPage(v) { pageOn = v; $('#pageBtn').classList.toggle('on', v); }
+$('#pageBtn').onclick = () => setPage(!pageOn);
+function setImg(dataUrl) { img = dataUrl; $('#att img').src = dataUrl; $('#att').style.display = 'flex'; }
+function clearImg() { img = null; $('#att').style.display = 'none'; $('#att img').removeAttribute('src'); }
+$('#rmAtt').onclick = clearImg;
+
+function toJpeg(src, w, h) {
+  const s = Math.min(1, 1568 / Math.max(w, h));
+  const c = document.createElement('canvas'); c.width = Math.round(w * s); c.height = Math.round(h * s);
+  c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.82);
+}
+function stopStream() { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; if (video) video.remove(); video = null; }
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+$('#shotBtn').onclick = async () => {
+  if (!navigator.mediaDevices?.getDisplayMedia) return note('Screenshots aren’t supported in this browser — paste one instead.');
+  try {
+    if (!stream || !stream.active) {
+      const opts = { video: { displaySurface: 'browser', frameRate: 5 }, audio: false, selfBrowserSurface: 'include', surfaceSwitching: 'exclude' };
+      if (embedded) opts.preferCurrentTab = true;
+      stream = await navigator.mediaDevices.getDisplayMedia(opts);
+      stream.getVideoTracks()[0].addEventListener('ended', () => stopStream());
+      video = document.createElement('video');
+      video.muted = true; video.playsInline = true; video.srcObject = stream;
+      video.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+      document.body.appendChild(video);
+      await video.play();
+    }
+    if (embedded) await ask('hide', 1000);   // hide the panel so it isn't in the shot
+    await wait(350);
+    const w = video.videoWidth, h = video.videoHeight;
+    if (embedded) tell('show');
+    if (!w) throw new Error('no frame yet, try again');
+    setImg(toJpeg(video, w, h));
+    $('#q').focus();
+  } catch (e) {
+    if (embedded) tell('show');
+    note(e?.name === 'NotAllowedError'
+      ? 'Screenshot cancelled or blocked on this site. You can paste one instead (Win+Shift+S / Cmd+Ctrl+Shift+4, then Ctrl/Cmd+V).'
+      : 'Screenshot failed: ' + (e?.message || e));
+  }
+};
+
+$('#q').addEventListener('paste', async e => {
+  const it = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+  if (!it) return;
+  e.preventDefault();
+  try { const bmp = await createImageBitmap(it.getAsFile()); setImg(toJpeg(bmp, bmp.width, bmp.height)); }
+  catch { note('Couldn’t read that image.'); }
+});
+
+// ---- composer ----
+const q = $('#q');
+function autosize() { q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight, 140) + 'px'; }
+q.addEventListener('input', autosize);
+q.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
+$('#sendBtn').onclick = send;
+
+async function send() {
+  if (busy) return;
+  const text = q.value.trim();
+  const info = await ask('page');
+  const page = pageOn && info?.page ? info.page : null;
+  const selection = info?.selection?.trim() || '';
+  if (!text && !img && !page && !selection) return;
+
+  busy = true; $('#sendBtn').disabled = true;
+  const tags = [page && '📄 page', selection && '✂️ highlighted', img && '📷 screenshot'].filter(Boolean).join(' · ');
+  const u = addMsg('user', text ? esc(text).replace(/\n/g, '<br>') : '<i>(no text)</i>', tags);
+  if (img) { const im = document.createElement('img'); im.className = 'thumb'; im.src = img; u.appendChild(im); }
+
+  const body = { conversationId: convId, message: text, page, selection, image: img };
+  q.value = ''; autosize(); clearImg(); setPage(false);
+
+  const bot = addMsg('bot', '<span class="typing"><i></i><i></i><i></i></span>');
+  const out = bot.querySelector('.body');
+  let acc = '';
+  try {
+    const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(body) });
+    if (r.status === 401) { logout('Session expired — log in again.'); return; }
+    if (!r.ok || !r.body) { const j = await r.json().catch(() => ({})); throw new Error(j.error || 'HTTP ' + r.status); }
+    const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '';
+    for (;;) {
+      const { done, value } = await rd.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i); buf = buf.slice(i + 1);
+        if (!line.trim()) continue;
+        const ev = JSON.parse(line);
+        if (ev.t === 'd') { acc += ev.v; out.innerHTML = md(acc); scroll(); }
+        else if (ev.t === 'done') {
+          convId = ev.conversationId;
+          const m = document.createElement('div'); m.className = 'meta';
+          m.textContent = `${fmt(ev.usage.in)} in · ${fmt(ev.usage.out)} out` + (ev.stop === 'max_tokens' ? ' · cut off' : '');
+          bot.appendChild(m);
+        }
+        else if (ev.t === 'err') throw new Error(ev.v);
+      }
+    }
+    if (!acc) out.innerHTML = '<i>(empty reply)</i>';
+  } catch (e) {
+    bot.classList.add('err');
+    out.innerHTML = (acc ? md(acc) : '') + '<p>⚠ ' + esc(e.message || String(e)) + '</p>';
+  } finally {
+    busy = false; $('#sendBtn').disabled = false; scroll(); q.focus();
+  }
+}
+
+setPage(true);
+token ? showChat() : showLogin();
+})();
+</script>
+</body>
+</html>

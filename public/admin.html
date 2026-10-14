@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>pagebot admin</title>
+<style>
+:root{--bg:#141414;--panel:#1d1d1d;--line:#2b2b2b;--text:#ebe8e1;--muted:#8e8a82;--accent:#d97757;--ok:#7fc99a;--err:#ff8a7a;
+  font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text)}
+main{max-width:560px;margin:0 auto;padding:32px 16px 48px}
+h1{font-size:20px;margin:0 0 20px;display:flex;align-items:center;gap:10px}
+h1 .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+h2{font-size:14px;margin:0 0 12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
+input{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;outline:none;margin-bottom:8px}
+input:focus{border-color:#4a4a4a}
+button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:9px 14px;font:600 14px system-ui,sans-serif;cursor:pointer}
+button.ghost{background:none;border:1px solid var(--line);color:var(--text)}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+.stat{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.stat .v{font-size:20px;font-weight:650;font-variant-numeric:tabular-nums}
+.stat .l{font-size:12px;color:var(--muted)}
+.bar{height:8px;background:var(--bg);border:1px solid var(--line);border-radius:99px;overflow:hidden}
+.bar div{height:100%;background:var(--accent);width:0}
+.muted{color:var(--muted);font-size:13px}
+.msg{font-size:13px;min-height:20px;margin-top:6px}.msg.ok{color:var(--ok)}.msg.err{color:var(--err)}
+.foot{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:18px}
+a{color:var(--accent)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <h1><span class="dot"></span>pagebot admin</h1>
+
+  <form class="card" id="unlock" autocomplete="off">
+    <h2>Admin token</h2>
+    <input id="tok" type="password" placeholder="ADMIN_TOKEN">
+    <button type="submit">Unlock</button>
+    <div class="msg err" id="unlockMsg"></div>
+  </form>
+
+  <div id="panel" hidden>
+    <div class="card">
+      <h2>Usage</h2>
+      <div class="stats">
+        <div class="stat"><div class="v" id="sToday">–</div><div class="l">tokens today</div></div>
+        <div class="stat"><div class="v" id="sWeek">–</div><div class="l">tokens, last 7 days</div></div>
+        <div class="stat"><div class="v" id="sTotal">–</div><div class="l">tokens all time</div></div>
+        <div class="stat"><div class="v" id="sQ">–</div><div class="l">questions (today / all)</div></div>
+      </div>
+      <div class="bar"><div id="fill"></div></div>
+      <p class="muted" id="budget"></p>
+    </div>
+
+    <form class="card" id="pwForm" autocomplete="off">
+      <h2>Access password</h2>
+      <p class="muted" id="pwState" style="margin-top:0"></p>
+      <input id="p1" type="password" placeholder="New password (min 6)" autocomplete="new-password">
+      <input id="p2" type="password" placeholder="Confirm" autocomplete="new-password">
+      <button type="submit">Change password</button>
+      <div class="msg" id="pwMsg"></div>
+      <p class="muted">Changing it signs out every device using the bookmarklet.</p>
+    </form>
+
+    <div class="card">
+      <h2>Sessions</h2>
+      <p class="muted" id="sess" style="margin-top:0"></p>
+      <button class="ghost" id="signout" type="button">Sign out all devices</button>
+      <div class="msg" id="soMsg"></div>
+    </div>
+
+    <div class="foot"><a href="/install">Bookmarklet install page</a><button class="ghost" id="lock" type="button">Lock</button></div>
+  </div>
+</main>
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const ss = { get(k){ try { return sessionStorage.getItem(k); } catch { return null; } }, set(k,v){ try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k,v); } catch {} } };
+let tok = ss.get('pb_admin');
+const nf = new Intl.NumberFormat();
+const short = n => n >= 1e6 ? (n/1e6).toFixed(n >= 1e8 ? 0 : 1) + 'M' : n >= 1e3 ? (n/1e3).toFixed(n >= 1e5 ? 0 : 1) + 'k' : String(n);
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', 'x-admin-token': tok || '', ...(opts.headers || {}) } });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || 'HTTP ' + r.status); e.status = r.status; throw e; }
+  return j;
+}
+
+async function load() {
+  const s = await api('/api/admin/stats');
+  $('#unlock').hidden = true; $('#panel').hidden = false;
+  $('#sToday').textContent = short(s.today);
+  $('#sWeek').textContent = short(s.week);
+  $('#sTotal').textContent = short(s.total);
+  $('#sQ').textContent = `${s.questions_today} / ${s.questions}`;
+  const pct = Math.min(100, s.total / s.budget * 100);
+  $('#fill').style.width = pct + '%';
+  const left = Math.max(0, s.budget - s.total), perDay = s.week / 7;
+  $('#budget').textContent = `${nf.format(left)} of ${nf.format(s.budget)} tokens left (${(100 - pct).toFixed(1)}%)` +
+    (perDay > 0 ? ` · at your 7-day pace (~${short(Math.round(perDay))}/day) that's about ${nf.format(Math.round(left / perDay))} days.` : '.') +
+    ` Model: ${s.model}.`;
+  $('#pwState').textContent = s.passwordSet ? 'A password is set.' : 'No password set yet — the bookmarklet can’t log in until you set one.';
+  $('#sess').textContent = `${s.sessions} signed-in device${s.sessions === 1 ? '' : 's'}.`;
+}
+
+$('#unlock').addEventListener('submit', async e => {
+  e.preventDefault(); tok = $('#tok').value.trim(); $('#unlockMsg').textContent = '';
+  try { await load(); ss.set('pb_admin', tok); $('#tok').value = ''; }
+  catch (err) { tok = null; $('#unlockMsg').textContent = err.message; }
+});
+
+$('#pwForm').addEventListener('submit', async e => {
+  e.preventDefault(); const m = $('#pwMsg'); m.className = 'msg';
+  const a = $('#p1').value, b = $('#p2').value;
+  if (a !== b) { m.classList.add('err'); m.textContent = 'Passwords don’t match.'; return; }
+  try {
+    const r = await api('/api/admin/password', { method: 'POST', body: JSON.stringify({ password: a }) });
+    m.classList.add('ok'); m.textContent = `Password updated. Signed out ${r.signedOut} device${r.signedOut === 1 ? '' : 's'}.`;
+    $('#p1').value = $('#p2').value = ''; load();
+  } catch (err) { m.classList.add('err'); m.textContent = err.message; }
+});
+
+$('#signout').onclick = async () => {
+  const m = $('#soMsg'); m.className = 'msg';
+  try { const r = await api('/api/admin/signout-all', { method: 'POST' }); m.classList.add('ok'); m.textContent = `Signed out ${r.signedOut}.`; load(); }
+  catch (err) { m.classList.add('err'); m.textContent = err.message; }
+};
+
+$('#lock').onclick = () => { ss.set('pb_admin', null); tok = null; $('#panel').hidden = true; $('#unlock').hidden = false; };
+
+if (tok) load().catch(() => { ss.set('pb_admin', null); tok = null; });
+})();
+</script>
+</body>
+</html>

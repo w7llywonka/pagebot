@@ -1,0 +1,19 @@
+{
+  "name": "pagebot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --env-file=.env server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
+    "express": "^5.1.0",
+    "pg": "^8.13.0"
+  }
+}

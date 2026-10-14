@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>pagebot</title>
+<style>
+:root{--bg:#141414;--panel:#1d1d1d;--line:#2b2b2b;--text:#ebe8e1;--muted:#8e8a82;--accent:#d97757;
+  font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text)}
+main{max-width:600px;margin:0 auto;padding:40px 16px 56px}
+h1{font-size:24px;margin:0 0 6px;display:flex;align-items:center;gap:10px}
+h1 .dot{width:11px;height:11px;border-radius:50%;background:var(--accent)}
+.sub{color:var(--muted);margin:0 0 28px}
+.drag{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;text-decoration:none;font-weight:650;padding:12px 20px;border-radius:12px;cursor:grab;box-shadow:0 6px 24px rgba(217,119,87,.25)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:22px 0}
+ol{margin:0;padding-left:20px}li{margin:4px 0}
+textarea{width:100%;height:84px;background:var(--bg);color:var(--muted);border:1px solid var(--line);border-radius:10px;padding:10px;font:12px ui-monospace,Menlo,Consolas,monospace;resize:vertical}
+button{background:none;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:7px 12px;font:inherit;cursor:pointer;margin-top:8px}
+.muted{color:var(--muted);font-size:13px}
+a.l{color:var(--accent)}
+code{background:var(--bg);padding:1px 5px;border-radius:5px;font-size:13px}
+</style>
+</head>
+<body>
+<main>
+  <h1><span class="dot"></span>pagebot</h1>
+  <p class="sub">A small chat panel that reads the page you're on. Runs on <code>{{ORIGIN}}</code>.</p>
+
+  <a class="drag" href="{{HREF}}" onclick="event.preventDefault();alert('Drag this to your bookmarks bar, then click it on any page.')">📌 pagebot</a>
+
+  <div class="card">
+    <ol>
+      <li>Show your bookmarks bar (<code>Ctrl+Shift+B</code> / <code>Cmd+Shift+B</code>) and drag the button above onto it.</li>
+      <li>On any page, click the bookmark. Click again to hide/show.</li>
+      <li>Enter your password once per site; it's remembered after that.</li>
+      <li>📄 sends the page text, 📷 grabs a screenshot (Chrome asks to share the tab the first time per page), or paste any image.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <p class="muted" style="margin-top:0">Can't drag? Make a new bookmark and paste this as the URL:</p>
+    <textarea id="code" readonly>{{HREF}}</textarea>
+    <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('code').value).then(()=>this.textContent='Copied')">Copy</button>
+  </div>
+
+  <p class="muted">Some sites block overlays; on those the bookmark shows an “Open pagebot” button that opens it in a small window instead. Manage the password and see token usage at <a class="l" href="/admin">/admin</a>.</p>
+</main>
+</body>
+</html>
