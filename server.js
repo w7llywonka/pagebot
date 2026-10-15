@@ -739,7 +739,7 @@ function cutUsage(msg) {
   };
 }
 
-// chat (streams NDJSON: {t:'d',v:text} | {t:'s',q?} search started/query | {t:'done',...} | {t:'err',v,conversationId?})
+// chat (streams NDJSON: {t:'id',conversationId} first | {t:'d',v:text} | {t:'s',q?} search started/query | {t:'done',...} | {t:'err',v,conversationId?})
 // Accounts get one answer at a time, so a burst of parallel questions can't all slip under the daily limit.
 const answering = new Set();
 app.post('/api/chat', limit(60, 'chat'), auth, trusted, chatJson, async (req, res) => {
@@ -866,10 +866,13 @@ async function chat(req, res) {
     'X-Accel-Buffering': 'no',
   });
   const out = o => { if (!res.writableEnded && !res.destroyed) res.write(JSON.stringify(o) + '\n'); };
+  // the panel learns which chat this is right away, so an answer you stop still belongs to it for follow-ups
+  out({ t: 'id', conversationId: convId });
 
   // the panel went away mid-answer (closed, reloaded, or stopped): stop spending tokens. What was used so far still counts.
   let stream = null, closed = false;
   res.on('close', () => { if (!res.writableFinished) { closed = true; stream?.abort(); } });
+  if (res.destroyed) closed = true; // it went away while the chat was loading, before there was anything to listen to
 
   const tot = { in: 0, out: 0, usd: 0, searches: 0 };
   const sources = new Map();
@@ -920,7 +923,10 @@ async function chat(req, res) {
     cut = stream?.currentMessage;
     if (cut) addUsage(tot, cutUsage(cut), cut.model || m.id);
   }
-  if (!final && !tot.in) { // nothing reached the model
+  // Stopped before the model said anything: the panel already shows the question, and the page and screenshot it
+  // sent won't be sent again, so keep the question in the chat with an empty, stopped answer.
+  if (closed && !failed && !final) failed = new Anthropic.APIUserAbortError();
+  if (!final && !tot.in && !closed) { // nothing reached the model
     if (failed) out({ t: 'err', v: friendly(failed, m.id) });
     return void res.end();
   }

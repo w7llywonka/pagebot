@@ -72,12 +72,16 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
   - **Web search** lets the model search the web (shown as a 🌐 Web pill). Answers that used it list their sources.
   - Click a pill's × to turn that thing off.
 - The model name next to the send button picks the model: ⚡ Haiku 5.5 is fast and cheap; ✦ Sonnet 5.5 is smarter.
+- While an answer is coming in, the send button turns into a **stop** button. What arrived so far stays in the chat, and follow-ups can build on it.
+- Scroll up while an answer is coming in and the panel stays where you are. **Jump to latest** takes you back down.
+- A new chat offers one-click starters: **Summarize this page**, **Key points**, and **Explain it simply**.
+- Each answer has a copy button next to its details, and code blocks get their own **Copy** button when you hover them.
 - Every time you open the panel, a short animation plays while it loads (under 3 seconds).
 - **⚙ Settings**: pick a theme (Auto, Ember, Paper, Midnight, Forest, Dusk, Sakura, Terminal, Glass, or Clear) and the max tokens per answer, from presets between 512 and 8k (anything up to 100,000 can be set in `/admin`). Settings apply everywhere you use pagebot, and each account has its own.
 - **✨ Your pagebot Wrapped** (top of ⚙ Settings): your year on pagebot, one card at a time — how many questions you asked, your most-asked sites, the hours you ask most, your go-to model, your favorite theme, and your longest streak of days in a row. Tap (or use ← →) to go through it. Early in a new year it shows the year before.
 - **Glass** is see-through: the page shows through a soft blur, and the text switches between dark and light to match the page behind it.
 - **Clear** drops the panel entirely: no tint, no blur, no shadow, only the words, buttons and message box floating over the page. Text gets a thin halo so it stays readable, and switches between dark and light like Glass.
-- Links in answers show which site they go to, in grey after the link text.
+- Answers show headings, lists, tables, quotes, bold and italics. Links show which site they go to, in grey after the link text.
 - With an account, Settings also shows how much of today's limit is used, and lets you change your password and set a passcode. Each answer shows what's left for the day.
 - **Announcements** from the owner show at the top of the panel until you press **Got it**.
 - **Highlighted text** goes with your next message. While something on the page is highlighted, a ✂️ pill shows the start of it; click its × to leave it out. Once it's been sent, it isn't sent again unless you highlight something new.
@@ -92,7 +96,7 @@ Updating from an older version? Drag the button from the homepage to your bookma
 
 - **Daily limits hold**:
   - Each account gets one answer at a time.
-  - An answer that's stopped partway (the panel closed or the page reloaded) stops there, but what it used still counts: the whole question, the answer so far, and any web searches it ran.
+  - An answer that's stopped partway (you press stop, close the panel, or reload the page) stops there, but what it used still counts: the whole question, the answer so far, and any web searches it ran.
   - A question that wouldn't fit in what's left of the day is turned down, and the answer length is capped to fit.
 - **Logins**:
   - Each address gets 10 tries a minute and 30 wrong logins an hour.
