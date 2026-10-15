@@ -43,6 +43,7 @@ h1 .w{display:inline-block;white-space:nowrap}
 .btn:hover{background:var(--teal-d);transform:translateY(-1px);box-shadow:0 12px 28px rgba(15,95,87,.28)}
 .btn:active{cursor:grabbing;transform:translateY(1px)}
 .hint{margin-top:14px;font-size:13.5px;color:var(--muted)}
+.hint.up{color:var(--ink);font-weight:600}
 .cove{position:absolute;left:0;right:0;bottom:0;height:54%;overflow:hidden;z-index:1}
 .cove canvas{position:absolute;left:0;bottom:0}
 
@@ -139,7 +140,7 @@ footer a{color:var(--muted)}
     <span class="pill">A chat panel for any web page</span>
     <h1 id="h1">Less skimming.<br>More knowing.</h1>
     <p class="lede">pagebot opens on top of any site, reads the page, your highlighted text, or a screenshot, and answers in a second.</p>
-    <a class="btn" id="bm" href="{{HREF}}" title="Drag me to your bookmarks bar">📌 pagebot</a>
+    <a class="btn" id="bm" href="{{HREF}}" title="Drag me to your bookmarks bar" data-v="{{VERSION}}">📌 pagebot</a>
     <div class="hint" id="hint">Drag the button to your bookmarks bar.</div>
   </div>
   <div class="cove" data-scene="cove" aria-hidden="true"><canvas class="px"></canvas></div>
@@ -209,7 +210,7 @@ footer a{color:var(--muted)}
   </div>
 </section>
 
-<div class="wrap"><footer><span>pagebot · running on <code>{{ORIGIN}}</code></span><span><a href="/chat">Web chat</a> · <a href="/admin">Admin</a></span></footer></div>
+<div class="wrap"><footer><span>pagebot v{{VERSION}} · running on <code>{{ORIGIN}}</code></span><span><a href="/chat">Web chat</a> · <a href="/admin">Admin</a></span></footer></div>
 
 <script>
 (() => {
@@ -219,6 +220,11 @@ $('#bm').addEventListener('click', e => {
   e.preventDefault();
   $('#hint').textContent = 'Drag that button onto your bookmarks bar (Ctrl/Cmd+Shift+B shows it), then click it on any page.';
 });
+// the panel sends people here when their bookmark is from an older version
+if (new URLSearchParams(location.search).has('update')) {
+  $('#hint').textContent = `Drag this button to your bookmarks bar again to get pagebot v${$('#bm').dataset.v}. Then you can delete the old bookmark.`;
+  $('#hint').classList.add('up');
+}
 $('#copy').addEventListener('click', e => {
   navigator.clipboard.writeText($('#code').value).then(() => { e.target.textContent = 'Copied'; });
 });

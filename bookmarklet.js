@@ -2,7 +2,7 @@
 var O="__ORIGIN__",ID="__pagebot",W=window,D=document,P=W.__pb,TR="opacity .22s ease,transform .22s cubic-bezier(.2,.8,.2,1),width .18s ease,height .18s ease,border-radius .18s ease";
 if(P&&P.f&&P.f.isConnected){if(P.ready||Date.now()-P.t<4000){P.toggle();return;}P.f.remove();P.f=null;P.blocked=1;}
 if(!P){
-P=W.__pb={r:16,b:16,w:380,h:560,mw:200,mh:46,dw:420,v:7};
+P=W.__pb={r:16,b:16,w:380,h:560,mw:200,mh:46,dw:420,v:__VERSION__};
 P.lit=function(){var e=[D.body,D.documentElement],i,c,m;for(i=0;i<2;i++){if(e[i]){c=getComputedStyle(e[i]).backgroundColor;m=c.match(/[\d.]+/g);if(m&&(m.length<4||+m[3]>.5)){return .299*m[0]+.587*m[1]+.114*m[2]>140;}}}return true;};
 P.win=function(){if(P.pop&&!P.pop.closed){P.pop.focus();}else{P.pop=W.open(O+"/widget?popup=1&v="+P.v,"pagebot","width=420,height=680");}};
 P.place=function(now){
