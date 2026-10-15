@@ -6,9 +6,10 @@
 <meta name="robots" content="noindex">
 <title>pagebot</title>
 <style>
-/* The whole page is one ASCII pond world in pixel-art colors: banks of rock, sand and plants, and water that goes
-   calm and dark wherever there's something to read. The cursor ripples the water anywhere on the page and lights the
-   rocks near it; headings, cards and the panel float on the water. Down the left runs a numbered margin, with a
+/* The whole page is one ASCII waterfall in pixel-art colors: falls pour down a gorge between cliffs, pooling calm and
+   dark wherever there's something to read, with spray and loose letters tumbling down behind everything. The cursor
+   parts the falls, throws spray, ripples the pools and lights the rocks near it; headings, cards and the panel float
+   on the pools. Down the left runs a numbered margin, with a
    reading ruler on the line under the cursor, because pagebot reads pages. */
 :root{--bg:#1c1915;--ink:#efe6d2;--soft:#d6ccb8;--muted:#9d9381;--faint:#5f574a;--line:#3a342c;
   --sand:#dcb27a;--sand-d:#8d6b42;--teal-l:#86d0b0;--moss:#b5d67c;--slab:rgba(24,21,18,.86);
@@ -143,7 +144,7 @@ footer a{color:var(--muted)}
     </div>
     <div class="pond-space"></div>
   </div>
-  <div class="mock float" id="mock" aria-hidden="true">
+  <div class="mock float calm" id="mock" aria-hidden="true">
     <header><i></i>pagebot</header>
     <div class="log">
       <div class="m u"><div class="t">📄 page</div>tl;dr?</div>
@@ -274,7 +275,7 @@ const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a
 
 // Glyphs are drawn once into an atlas (one row per color, one column per character) and stamped from there,
 // which is much faster than drawing text for every cell on every frame.
-const CHARS = " .:-=+*#%@~vwY/\\|·'";
+const CHARS = " .:-=+*#%@~vwY/\\|·'!,abeghiknoprstuy";
 const CI = Object.fromEntries([...CHARS].map((c, i) => [c, i]));
 let atlas, actx, gw = 0, gh = 0, nColors = 0;
 const colorRow = new Int16Array(32768);
@@ -317,6 +318,9 @@ function tile(ti) {
 }
 
 let W = null;
+// kinds: 0 falling water, 1 scree, 2 rock, 3 plant, 4 pool
+const FALL = 0, ROCK = 2, PLANT = 3, POOL = 4;
+const isLand = k => k >= 1 && k <= 3;
 function buildWorld() {
   tiles.clear();
   const dpr = Math.min(2, devicePixelRatio || 1), vw = document.documentElement.clientWidth, vh = innerHeight;
@@ -327,11 +331,11 @@ function buildWorld() {
   W = { dpr, vw, vh, fs, cw, ch, cols, rows, docH, a: new Float32Array(n), b: new Float32Array(n), t: 0, last: -1, cy2: .5 * (cw / ch) ** 2 };
   newAtlas(W);
 
-  // how calm the water is: dark and still behind anything there is to read, easing off around it
+  // how calm the water is: it pools, dark and still, behind anything there is to read, easing off around it
   const quiet = new Float32Array(n);
   for (const el of document.querySelectorAll('.calm')) {
     const r = el.getBoundingClientRect(); if (!r.width) continue;
-    const m = el.classList.contains('card') || el.tagName === 'DETAILS' ? 22 : 46;
+    const m = el.classList.contains('card') || el.tagName === 'DETAILS' || el.id === 'mock' ? 22 : 46;
     const L = r.left + scrollX, T = r.top + scrollY, R = r.right + scrollX, B = r.bottom + scrollY;
     const x0 = Math.max(0, Math.floor((L - m) / cw)), x1 = Math.min(cols - 1, Math.ceil((R + m) / cw));
     const y0 = Math.max(0, Math.floor((T - m) / ch)), y1 = Math.min(rows - 1, Math.ceil((B + m) / ch));
@@ -343,111 +347,212 @@ function buildWorld() {
     }
   }
 
-  // the land: banks of rock and sand that crowd the edges, pile up at the very bottom, rise as islands in between,
-  // and keep clear of anything there is to read, so the banks wrap around the words like a shore
+  // the gorge: cliffs down both sides, the odd outcrop in the falls, a bank under the plunge pool at the bottom
   const kind = new Uint8Array(n), base = new Float32Array(n), vis = new Float32Array(n), land = new Float32Array(n);
-  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
-    const i = y * cols + x, fx = x / cols, py = y * ch;
-    const g = fbm(x * .045, y * .06), g2 = fbm(x * .14 + 7, y * .2 + 3);
-    const edge = Math.max(0, .14 - fx) * 3.2 + Math.max(0, fx - .84) * 3.2;
-    const bottom = Math.max(0, (py - (docH - 220)) / 220) * .9;
-    const top = py < vh * .55 ? -.35 : 0; // open water across the top of the hero
-    const L = g * .72 + g2 * .28 + edge + bottom + top - quiet[i] * .7;
-    land[i] = L;
-    if (L > .66) { kind[i] = 2; base[i] = fbm(x * .09 + 9, y * .18 + 3) * .75 + fbm(x * .55, y * 1.1) * .25; }
-    else if (L > .6) { kind[i] = 1; base[i] = fbm(x * .3, y * .5); }
-    else { base[i] = .28 + Math.max(0, L - .3) * 1.3 + (fbm(x * .04 + 30, y * .06) - .5) * .35; vis[i] = 1 - quiet[i]; }
+  const narrow = vw < 700;
+  for (let y = 0; y < rows; y++) {
+    const py = y * ch;
+    const lw = (narrow ? .05 : .11) + .05 * Math.sin(py * .0035 + 1) + (fbm(3, y * .03) - .5) * .09;
+    const rw = (narrow ? .95 : .89) - .05 * Math.sin(py * .0028 + 4) + (fbm(9, y * .03) - .5) * .09;
+    for (let x = 0; x < cols; x++) {
+      const i = y * cols + x, fx = x / cols, g = fbm(x * .05, y * .07), g2 = fbm(x * .16 + 7, y * .22 + 3);
+      let L = fx < lw ? .74 + (lw - fx) * 2 + g * .2 : fx > rw ? .74 + (fx - rw) * 2 + g * .2 : g * .55 + g2 * .2 - .06;
+      L += Math.max(0, (py - (docH - 150)) / 150) * .9;
+      L -= quiet[i] * .8;
+      land[i] = L;
+      if (L > .66) { kind[i] = ROCK; base[i] = fbm(x * .09 + 9, y * .18 + 3) * .75 + fbm(x * .55, y * 1.1) * .25; }
+      else if (L > .61) { kind[i] = 1; base[i] = fbm(x * .3, y * .5); }
+      else if (quiet[i] > .18 || py > docH - 420) { kind[i] = POOL; base[i] = .28 + Math.max(0, L - .3) * 1.3 + (fbm(x * .04 + 30, y * .06) - .5) * .35; vis[i] = 1 - quiet[i]; }
+      else { kind[i] = FALL; base[i] = smooth(0, .07, Math.min(fx - lw, rw - fx)); vis[i] = 1 - quiet[i]; } // darker in the cliffs' shadow
+    }
   }
-  for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) { // plants grow in clumps along the shore
+  for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) { // plants cling to the cliffs
     const i = y * cols + x;
-    if (kind[i] === 2 && land[i] < .76 && hash(x >> 2, y >> 1) > .84 && hash(x, y) > .35) kind[i] = 3;
+    if (kind[i] === ROCK && land[i] < .8 && hash(x >> 2, y >> 1) > .85 && hash(x, y) > .35) kind[i] = PLANT;
+  }
+  // where falling water breaks over an edge (lip) or lands in a pool (foot), it turns white
+  const edge = new Uint8Array(n);
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    const i = y * cols + x; if (kind[i] !== FALL) continue;
+    for (let k = 1; k <= 2; k++) {
+      if (y - k >= 0 && kind[i - k * cols] !== FALL) edge[i] = Math.max(edge[i], 3 - k); // 2 or 1: just over a lip
+      if (y + k < rows && kind[i + k * cols] === POOL) edge[i] = Math.max(edge[i], 5 - k); // 4 or 3: about to land
+    }
+  }
+  // each column of the falls has its own streaks and speed, as a looping strip of light and dark
+  const LEN = 512, streak = new Float32Array(cols * LEN), speed = new Float32Array(cols), gain = new Float32Array(cols);
+  for (let x = 0; x < cols; x++) {
+    speed[x] = .75 + hash(x, 17) * .6;
+    gain[x] = Math.min(1.1, .72 + vnoise(x * .3, 4) * .3 + hash(x, 5) * .2); // some strands of the falls are heavier than others
+    const s = streak.subarray(x * LEN, (x + 1) * LEN), tmp = new Float32Array(LEN);
+    for (let j = 0; j < LEN; j++) s[j] = hash(x * 13, j) ** 1.6;
+    for (const r of [5, 3]) { // two passes of a looping blur make long soft streaks
+      for (let j = 0; j < LEN; j++) { let sum = 0; for (let o = -r; o <= r; o++) sum += s[(j + o + LEN) & (LEN - 1)]; tmp[j] = sum / (2 * r + 1); }
+      s.set(tmp);
+    }
+    let lo = 1, hi = 0; for (const v of s) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    for (let j = 0; j < LEN; j++) s[j] = (s[j] - lo) / (hi - lo || 1);
   }
   // the land doesn't move, so its glyphs are worked out once: normal, and lit for when the cursor is near
   const still = new Int32Array(n).fill(-1), lit = new Int32Array(n).fill(-1);
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
-    const i = y * cols + x, k = kind[i]; if (k === 0) continue;
+    const i = y * cols + x, k = kind[i]; if (!isLand(k)) continue;
     const v = base[i], d = BAYER[(y & 3) * 4 + (x & 3)], dim = 1 - quiet[i] * .8;
     let col, chr;
-    if (k === 3) { col = hash(x, y * 3) > .5 ? PAL.leaf : PAL.lime; chr = 'vwY/\\|'[Math.floor(hash(x * 5, y) * 6)]; }
+    if (k === PLANT) { col = hash(x, y * 3) > .5 ? PAL.leaf : PAL.lime; chr = 'vwY/\\|'[Math.floor(hash(x * 5, y) * 6)]; }
     else if (k === 1) { col = v + d * .25 > .55 ? PAL.sand : PAL.rock2; chr = v > .5 ? ':' : '.'; }
     else {
       // light comes from above: a rock's top edge is sand-bright, its body darker
-      const above = y > 1 && kind[i - cols] < 2 ? .3 : y > 2 && kind[i - 2 * cols] < 2 ? .15 : 0;
-      const l = v + above + (d - .5) * .22 - (land[i] - .66) * .5;
+      const open = j => !isLand(kind[j]);
+      const above = y > 1 && open(i - cols) ? .3 : y > 2 && open(i - 2 * cols) ? .15 : 0;
+      const l = v + above + (d - .5) * .22 - (land[i] - .66) * .4;
       col = l > .8 ? PAL.sand : l > .6 ? PAL.rock2 : l > .42 ? PAL.rock1 : PAL.rock0;
       chr = l > .8 ? '=' : l > .6 ? '%' : l > .42 ? '#' : (d > .5 ? '#' : '@');
     }
     still[i] = glyph(mix(BG, col, dim), chr);
     lit[i] = glyph(mix(col, PAL.foam, .35), chr);
   }
-  Object.assign(W, { kind, base, vis, still, lit });
+  Object.assign(W, { kind, base, vis, still, lit, edge, streak, speed, gain, LEN });
+  seedDrops();
 }
 
-// ---- ripples: wherever the cursor goes, plus a drop now and then; only the rows near the screen are simulated ----
+// ---- spray and loose letters tumbling down the falls, behind everything ----
+const LETTERS = 'askanythingaboutthepageyoureon';
+let drops = [];
+function newDrop(d, top) {
+  const letter = Math.random() < .28;
+  d.x = Math.random() * W.vw; d.y = top ? scrollY - Math.random() * 120 : scrollY + Math.random() * W.vh;
+  d.vx = (Math.random() - .5) * .4; d.vy = 1.5 + Math.random() * 3.5;
+  d.chr = letter ? LETTERS[Math.floor(Math.random() * LETTERS.length)] : ".',:"[Math.floor(Math.random() * 4)];
+  d.col = letter ? PAL.sand : PAL.foam; d.a = letter ? .7 : .4 + Math.random() * .35; d.life = 1e9; d.splash = false;
+  return d;
+}
+function seedDrops() { const count = W.vw < 700 ? 60 : 150; drops = Array.from({ length: count }, () => newDrop({}, false)); }
+function splash(x, y, n) { // the cursor going through the falls throws spray
+  for (let k = 0; k < n; k++) {
+    const ang = -Math.PI / 2 + (Math.random() - .5) * 2.4, sp = 2 + Math.random() * 3;
+    drops.push({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, chr: ".'*"[k % 3], col: PAL.foam, a: .85, life: 40 + Math.random() * 30, splash: true });
+  }
+  if (drops.length > 260) drops.splice(0, drops.length - 260);
+}
+function stepDrops() {
+  const { cw, ch, cols, rows, kind, a } = W, bottom = scrollY + W.vh + 30;
+  for (let k = drops.length - 1; k >= 0; k--) {
+    const d = drops[k];
+    d.vy = Math.min(9, d.vy + .14); d.vx *= .97;
+    const dx = d.x - mouse.x, dy = d.y - mouse.y, r2 = dx * dx + dy * dy;
+    if (r2 < 110 * 110 && r2 > 1) { const r = Math.sqrt(r2), f = (1 - r / 110) * 1.4; d.vx += dx / r * f; d.vy += dy / r * f * .5; } // pushed aside
+    d.x += d.vx; d.y += d.vy;
+    if (d.splash && --d.life < 0) { drops.splice(k, 1); continue; }
+    const gx = Math.floor(d.x / cw), gy = Math.floor(d.y / ch);
+    const kk = gx >= 0 && gy >= 0 && gx < cols && gy < rows ? kind[gy * cols + gx] : FALL;
+    if (kk === POOL && d.vy > 0) { a[gy * cols + gx] -= d.splash ? .8 : 1.6; } // lands with a ripple
+    if (kk === POOL || isLand(kk) || d.y > bottom || d.x < -20 || d.x > W.vw + 20) {
+      if (d.splash) drops.splice(k, 1); else newDrop(d, true);
+    }
+  }
+}
+
+// ---- ripples in the pools: wherever the cursor goes, and where drops land; only rows near the screen ----
+let lastSplash = 0;
 function stepWorld() {
   if (!W) return;
-  const { cols, rows, kind, vis, cw, ch, cy2 } = W;
+  const { cols, rows, kind, cw, ch, cy2 } = W;
   let { a, b } = W;
   if (mouse.x !== OFF) {
     const gx = Math.floor(mouse.x / cw), gy = Math.floor(mouse.y / ch), i = gy * cols + gx;
     if (i !== W.last && gx > 0 && gy > 0 && gx < cols - 1 && gy < rows - 1) {
       for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
-        const j = (gy + oy) * cols + gx + ox; if (kind[j] === 0) a[j] -= ox || oy ? 1.3 : 2.6;
+        const j = (gy + oy) * cols + gx + ox; if (kind[j] === POOL) a[j] -= ox || oy ? 1.3 : 2.6;
       }
+      if (kind[i] === FALL && performance.now() - lastSplash > 45) { splash(mouse.x, mouse.y - 40, 3); lastSplash = performance.now(); }
     }
     W.last = i;
   }
   const y0 = Math.max(1, Math.floor(scrollY / ch) - 12), y1 = Math.min(rows - 1, Math.ceil((scrollY + W.vh) / ch) + 12);
-  for (let k = 0; k < 2; k++) if (Math.random() < .05) { // drops land in the open water on screen
-    const j = (y0 + Math.floor(Math.random() * (y1 - y0))) * cols + Math.floor(Math.random() * cols);
-    if (kind[j] === 0 && vis[j] > .6) a[j] -= 2.5;
-  }
-  for (let y = y0; y < y1; y++) for (let x = 1; x < cols - 1; x++) { // the banks are walls; spreads evenly though cells are tall
-    const i = y * cols + x; if (kind[i] !== 0) continue;
+  for (let y = y0; y < y1; y++) for (let x = 1; x < cols - 1; x++) { // spreads evenly though cells are tall; anything not pool is a wall
+    const i = y * cols + x; if (kind[i] !== POOL) continue;
     const ai = a[i];
     b[i] = (2 * ai - b[i] + .5 * (a[i - 1] + a[i + 1] - 2 * ai) + cy2 * (a[i - cols] + a[i + cols] - 2 * ai)) * .982;
   }
   W.a = b; W.b = a; W.t += 1 / 60;
+  stepDrops();
 }
 
 function drawWorld() {
   if (!W) return;
-  const { dpr, cw, ch, cols, rows, kind, base, vis, still, lit, a, t } = W;
+  const { dpr, cw, ch, cols, rows, kind, base, vis, lit, edge, streak, speed, gain, LEN, a, t } = W;
+  const frameNo = Math.floor(t * 20);
   const sy = scrollY, cols3 = CHARS.length;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = 'rgb(28,25,21)'; ctx.fillRect(0, 0, cv.width, cv.height);
   const y0 = Math.max(0, Math.floor(sy / ch)), y1 = Math.min(rows, Math.ceil((sy + W.vh) / ch) + 1);
   for (let ti = Math.floor(y0 / TILE_ROWS); ti <= Math.floor((y1 - 1) / TILE_ROWS); ti++) ctx.drawImage(tile(ti), 0, Math.round((ti * TILE_ROWS * ch - sy) * dpr));
-  const lx = mouse.x / cw, ly = mouse.y / ch; // the cursor's light, in cells
-  const stamp = (id, x, y) => ctx.drawImage(atlas, (id % cols3) * gw, Math.floor(id / cols3) * gh, gw, gh, Math.round(x * cw * dpr), Math.round((y * ch - sy) * dpr), gw, gh);
+  const mx = mouse.x, my = mouse.y, lx = mx / cw, ly = my / ch;
+  const stamp = (id, x, y) => ctx.drawImage(atlas, (id % cols3) * gw, Math.floor(id / cols3) * gh, gw, gh, Math.round(x * dpr), Math.round((y - sy) * dpr), gw, gh);
+  const fallRows = t * 30; // the falls move about 30 rows a second
   for (let y = y0; y < y1; y++) {
     const dy = (y - ly) * ch, lightRow = Math.abs(dy) < 120;
     for (let x = 0; x < cols; x++) {
-    const i = y * cols + x, k = kind[i];
-    if (k !== 0) { // land: already on its tile; near the cursor it catches the light
-      if (!lightRow) continue;
-      const dx = (x - lx) * cw;
-      if (dx * dx + dy * dy < 120 * 120 && hash(x, y + Math.floor(t * 8)) < 1 - Math.hypot(dx, dy) / 120) stamp(lit[i], x, y);
-      continue;
+      const i = y * cols + x, k = kind[i], px = x * cw, py = y * ch;
+      if (k !== FALL && k !== POOL) { // land: already on its tile; near the cursor it catches the light
+        if (!lightRow) continue;
+        const dx = (x - lx) * cw;
+        if (dx * dx + dy * dy < 120 * 120 && hash(x, y + Math.floor(t * 8)) < 1 - Math.hypot(dx, dy) / 120) stamp(lit[i], px, py);
+        continue;
+      }
+      const vi = vis[i], d = BAYER[(y & 3) * 4 + (x & 3)];
+      if (k === FALL) {
+        // the cursor parts the falls: a gap with a ring of foam around it
+        const ex = px - mx, ey = (py - my) * .8, e2 = ex * ex + ey * ey;
+        if (e2 < 52 * 52) {
+          if (e2 > 44 * 44 && hash(x, y + Math.floor(t * 20)) > .35) stamp(glyph(PAL.foam, hash(x * 3, y) > .5 ? '*' : '~'), px, py);
+          continue;
+        }
+        const ed = edge[i];
+        if (ed >= 3) { // white water where the falls land: ragged, churning spray rather than a line
+          const h = hash(x * 7 + frameNo, y * 3 - frameNo);
+          if (h < (ed === 4 ? .25 : .55)) continue;
+          stamp(glyph(mix(BG, mix(PAL.hi, PAL.foam, hash(x, y + frameNo)), vi), "*~.'"[Math.floor(hash(x + frameNo * 3, y) * 4)]), px, py);
+          continue;
+        }
+        const yy = Math.floor(y - fallRows * speed[x]);
+        let v = (streak[x * LEN + ((yy % LEN + LEN) % LEN)] * .75 + streak[(x + 1 < cols ? x + 1 : x) * LEN + (((yy + 37) % LEN + LEN) % LEN)] * .25) * gain[x];
+        v = v * (.72 + base[i] * .28) + .08 + (d - .5) * .18;
+        if (ed && hash(x, y + frameNo) > .5) v = Math.max(v, .5 + ed * .1); // catching the light as it breaks over a lip
+        if (v * vi + (d - .5) * .25 < .14) continue;
+        v = Math.min(1, v);
+        let col = v < .45 ? mix(PAL.deep, PAL.mid, v / .45) : v < .78 ? mix(PAL.mid, PAL.hi, (v - .45) / .33) : mix(PAL.hi, PAL.foam, (v - .78) / .22);
+        col = mix(BG, col, Math.min(1, vi * 1.1));
+        const chr = v > .82 ? '|' : v > .66 ? (d > .45 ? '!' : "'") : v > .5 ? (d > .5 ? ':' : "'") : v > .36 ? (d > .4 ? "'" : '.') : '.';
+        stamp(glyph(col, chr), px, py);
+        continue;
+      }
+      // a pool: calm, with ripples showing as light and shadow
+      const ht = a[i], slope = x > 0 && x < cols - 1 ? a[i + 1] - a[i - 1] : 0;
+      if (vi < .05) { // behind the words: only the ripples show, faintly
+        const m = Math.abs(ht); if (m < .45) continue;
+        stamp(glyph(mix(BG, PAL.wet, Math.min(.36, m * .14)), Math.abs(slope) > .6 ? '~' : '·'), px, py);
+        continue;
+      }
+      const caus = Math.sin(x * .33 + t * 1.2) * Math.sin(y * .52 - t * .9) * .2 + Math.sin((x + y) * .2 - t * .7) * .08;
+      let v = base[i] + caus - ht * .2 + slope * .14 + (d - .5) * .14;
+      if (v * vi + (d - .5) * .3 < .16) continue;
+      v = Math.max(0, Math.min(1, v));
+      let col = v < .4 ? mix(PAL.deep, PAL.mid, v / .4) : v < .75 ? mix(PAL.mid, PAL.hi, (v - .4) / .35) : mix(PAL.hi, PAL.lime, (v - .75) / .25);
+      if (base[i] > .7 && v < .5) col = mix(col, PAL.rim, .4);
+      col = mix(BG, col, Math.min(1, vi * 1.15));
+      let chr = v < .3 ? (d > .5 ? '.' : ' ') : v < .55 ? (d > .3 ? ':' : '.') : v < .8 ? (d > .4 ? '=' : ':') : '+';
+      if (Math.abs(slope) > 1.15) { col = PAL.foam; chr = '~'; }
+      else if (vi > .5 && hash(x + Math.floor(t * 3) * 131, y) > .9975) { col = PAL.foam; chr = '*'; }
+      if (chr !== ' ') stamp(glyph(col, chr), px, py);
     }
-    const ht = a[i], slope = x > 0 && x < cols - 1 ? a[i + 1] - a[i - 1] : 0, vi = vis[i], d = BAYER[(y & 3) * 4 + (x & 3)];
-    if (vi < .05) { // calm water behind the words: only the ripples show, faintly
-      const m = Math.abs(ht); if (m < .45) continue;
-      stamp(glyph(mix(BG, PAL.wet, Math.min(.36, m * .14)), Math.abs(slope) > .6 ? '~' : '·'), x, y);
-      continue;
-    }
-    const caus = Math.sin(x * .33 + t * 1.2) * Math.sin(y * .52 - t * .9) * .2 + Math.sin((x + y) * .2 - t * .7) * .08;
-    let v = base[i] + caus - ht * .2 + slope * .14 + (d - .5) * .14; // ripples show as light and shadow
-    if (v * vi + (d - .5) * .3 < .16) continue; // the surface frays into the calm, dithered
-    v = Math.max(0, Math.min(1, v));
-    let col = v < .4 ? mix(PAL.deep, PAL.mid, v / .4) : v < .75 ? mix(PAL.mid, PAL.hi, (v - .4) / .35) : mix(PAL.hi, PAL.lime, (v - .75) / .25);
-    if (base[i] > .7 && v < .5) col = mix(col, PAL.rim, .4); // the cool edge along the shallows
-    col = mix(BG, col, Math.min(1, vi * 1.15));
-    let chr = v < .3 ? (d > .5 ? '.' : ' ') : v < .55 ? (d > .3 ? ':' : '.') : v < .8 ? (d > .4 ? '=' : ':') : '+';
-    if (Math.abs(slope) > 1.15) { col = PAL.foam; chr = '~'; }
-    else if (vi > .5 && hash(x + Math.floor(t * 3) * 131, y) > .9975) { col = PAL.foam; chr = '*'; } // sparkles
-    if (chr !== ' ') stamp(glyph(col, chr), x, y);
-    }
+  }
+  // spray and letters, last, so they fall in front of the water
+  for (const p of drops) {
+    if (p.y < sy - 20 || p.y > sy + W.vh + 20) continue;
+    const gx = Math.floor(p.x / cw), gy = Math.floor(p.y / ch), q = gx >= 0 && gy >= 0 && gx < cols && gy < rows ? vis[gy * cols + gx] : 1;
+    stamp(glyph(mix(BG, p.col, p.a * Math.max(.25, q)), p.chr), p.x, p.y);
   }
 }
 
