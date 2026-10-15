@@ -6,10 +6,12 @@
 <meta name="robots" content="noindex">
 <title>pagebot</title>
 <style>
-/* pagebot reads pages, so this one is laid out like a page being read: numbered lines down the margin and a reading
-   ruler on the line under your cursor. The hero is an ASCII pond in pixel-art colors, and the type floats on it. */
-:root{--bg:#1c1915;--bg2:#23201b;--ink:#efe6d2;--soft:#d6ccb8;--muted:#9d9381;--faint:#5f574a;--line:#37312a;
-  --sand:#dcb27a;--sand-d:#8d6b42;--teal:#4ea596;--teal-l:#86d0b0;--moss:#b5d67c;
+/* The whole page is one ASCII pond world in pixel-art colors: banks of rock, sand and plants, and water that goes
+   calm and dark wherever there's something to read. The cursor ripples the water anywhere on the page and lights the
+   rocks near it; headings, cards and the panel float on the water. Down the left runs a numbered margin, with a
+   reading ruler on the line under the cursor, because pagebot reads pages. */
+:root{--bg:#1c1915;--ink:#efe6d2;--soft:#d6ccb8;--muted:#9d9381;--faint:#5f574a;--line:#3a342c;
+  --sand:#dcb27a;--sand-d:#8d6b42;--teal-l:#86d0b0;--moss:#b5d67c;--slab:rgba(24,21,18,.86);
   --serif:Georgia,"Iowan Old Style","Times New Roman",serif;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   --gut:58px;--lh:24px;
   font:16px/1.6 var(--sans);color-scheme:dark}
@@ -18,26 +20,26 @@ html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--ink);position:relative;overflow-x:hidden}
 a{color:inherit}
 ::selection{background:var(--sand);color:var(--bg)}
+#world{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0;pointer-events:none}
+.layer{position:relative;z-index:2}
 .wrap{max-width:1260px;margin:0 auto;padding:0 clamp(20px,4vw,48px) 0 calc(var(--gut) + clamp(16px,3vw,40px))}
 
 /* the margin: line numbers, and the reading ruler on the cursor's line */
-#gutter{position:absolute;left:0;top:0;width:var(--gut);margin:0;padding:0 0 0 14px;font:10.5px/var(--lh) var(--mono);color:var(--faint);white-space:pre;pointer-events:none;user-select:none;z-index:3;border-right:1px solid var(--line)}
+#gutter{position:absolute;left:0;top:0;width:var(--gut);margin:0;padding:0 0 0 14px;font:10.5px/var(--lh) var(--mono);color:var(--faint);white-space:pre;pointer-events:none;user-select:none;z-index:3;
+  background:rgba(28,25,21,.8);border-right:1px solid var(--line)}
 #ruler{position:absolute;left:0;right:0;top:0;height:var(--lh);pointer-events:none;z-index:1;opacity:0;
-  background:linear-gradient(90deg,rgba(220,178,122,.13),rgba(220,178,122,.04) 45%,rgba(220,178,122,0) 85%)}
-#ruler.on{opacity:1}
+  background:linear-gradient(90deg,rgba(220,178,122,.14),rgba(220,178,122,.05) 45%,rgba(220,178,122,0) 85%)}
 #rulerNo{position:absolute;left:0;top:0;width:var(--gut);height:var(--lh);padding-left:14px;font:600 10.5px/var(--lh) var(--mono);color:var(--sand);pointer-events:none;z-index:4;opacity:0}
-#rulerNo.on{opacity:1}
 #rulerNo::before{content:"";position:absolute;left:4px;top:8px;border:4px solid transparent;border-left:5px solid var(--sand)}
+#ruler.on,#rulerNo.on{opacity:1}
 
-/* ---- hero: the pond ---- */
-.hero{position:relative;overflow:hidden}
-#water{position:absolute;inset:0;width:100%;height:100%;display:block}
-nav{position:relative;z-index:2;display:flex;align-items:center;gap:28px;height:76px;font-size:14px}
+/* ---- hero ---- */
+nav{display:flex;align-items:center;gap:28px;height:76px;font-size:14px}
 .brand{flex:1;display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:600;letter-spacing:.2px}
 .brand svg{width:18px;height:18px;shape-rendering:crispEdges}
 nav a.n{color:var(--muted);text-decoration:none}
 nav a.n:hover{color:var(--ink)}
-.hero-in{position:relative;z-index:2;padding-top:clamp(28px,8vh,96px)}
+.hero-in{padding-top:clamp(28px,8vh,96px);max-width:900px}
 .kicker{margin:0 0 26px;font:12px/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--teal-l)}
 .kicker i{display:inline-block;width:8px;height:8px;background:var(--moss);margin-right:12px}
 h1{margin:0;max-width:10.6em;font:400 clamp(50px,7.8vw,116px)/.98 var(--serif);letter-spacing:-.025em}
@@ -50,13 +52,14 @@ h1 em{color:var(--sand)}
 .btn.primary{background:var(--sand);color:#1c1915;box-shadow:4px 4px 0 var(--sand-d);cursor:grab}
 .btn.primary:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 var(--sand-d)}
 .btn.primary:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--sand-d);cursor:grabbing}
-.btn.ghost{border:1px dashed var(--faint);color:var(--ink)}
+.btn.ghost{background:var(--slab);border:1px dashed var(--faint);color:var(--ink)}
 .btn.ghost:hover{border-style:solid;border-color:var(--muted)}
 .hint{margin-top:16px;font:12px/1.5 var(--mono);color:var(--muted)}
-.pond-space{height:clamp(260px,44vh,480px)}
+.hero{position:relative}
+.pond-space{height:clamp(280px,46vh,500px)}
 
 /* the panel, floating on the water */
-.mock{position:absolute;z-index:2;right:clamp(24px,6vw,96px);bottom:clamp(56px,10vh,110px);width:300px;background:#141310;border:1px solid var(--line);box-shadow:6px 6px 0 rgba(0,0,0,.45);font-size:12.5px;pointer-events:none;will-change:transform}
+.mock{position:absolute;z-index:2;right:clamp(24px,6vw,96px);bottom:clamp(40px,8vh,96px);width:300px;background:#141310;border:1px solid var(--line);box-shadow:6px 6px 0 rgba(0,0,0,.45);font-size:12.5px;pointer-events:none;will-change:transform}
 .mock header{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);font-weight:600}
 .mock header i{width:7px;height:7px;border-radius:50%;background:#d97757}
 .mock .log{padding:10px;display:flex;flex-direction:column;gap:8px}
@@ -69,41 +72,36 @@ h1 em{color:var(--sand)}
 .mock .comp{margin:0 8px 8px;border:1px solid var(--line);border-radius:11px;padding:8px 8px 6px;color:var(--muted);font-size:11.5px;display:flex;justify-content:space-between;align-items:center}
 .mock .comp b{width:20px;height:20px;border-radius:50%;background:#d97757;color:#fff;display:grid;place-items:center;font-size:11px}
 
-/* ---- the rest of the page ---- */
-canvas.waterline{display:block;width:100%;height:40px;position:relative;z-index:2}
-section{padding:76px 0 92px}
-.sh{display:flex;align-items:baseline;gap:18px;margin-bottom:42px}
+/* ---- sections, out on the water ---- */
+section{padding:clamp(90px,14vh,150px) 0}
+.sh{display:flex;align-items:baseline;gap:18px;margin-bottom:48px}
 .sh .no{font:12px var(--mono);letter-spacing:.09em;color:var(--teal-l)}
-h2{margin:0;font:400 clamp(40px,5.2vw,70px)/1 var(--serif);letter-spacing:-.02em}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line)}
-.card{position:relative;padding:26px 24px 30px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
-.card:nth-child(3n){border-right:0}
-.card:nth-last-child(-n+3){border-bottom:0}
-.card:hover{background-image:repeating-conic-gradient(rgba(78,165,150,.09) 0 25%,transparent 0 50%);background-size:4px 4px}
+h2{margin:0;font:400 clamp(42px,5.4vw,74px)/1 var(--serif);letter-spacing:-.02em}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(16px,2.4vw,30px)}
+.card{position:relative;padding:26px 24px 30px;background:var(--slab);border:1px solid var(--line);box-shadow:5px 5px 0 rgba(0,0,0,.35);will-change:transform;transition:border-color .15s}
+.card:hover{border-color:#5a6d58;background-image:repeating-conic-gradient(rgba(78,165,150,.1) 0 25%,transparent 0 50%);background-size:4px 4px}
 .card .k{font:11.5px var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--sand)}
 .card .k b{font-weight:400;color:var(--teal-l);margin-right:8px}
 .card h3{margin:16px 0 10px;font:400 27px/1.15 var(--serif);letter-spacing:-.01em}
 .card p{margin:0;font-size:15px;color:var(--muted)}
+.install{max-width:800px}
 .steps{list-style:none;counter-reset:s;margin:0;padding:0}
 .steps li{counter-increment:s;display:grid;grid-template-columns:96px 1fr;align-items:baseline;padding:20px 0;border-top:1px dashed var(--line);font-size:18px;color:var(--soft)}
 .steps li:last-child{border-bottom:1px dashed var(--line)}
 .steps li::before{content:counter(s,decimal-leading-zero);font:italic 400 42px/1 var(--serif);color:var(--sand)}
-code{font:13px var(--mono);background:var(--bg2);border:1px solid var(--line);padding:2px 7px;color:var(--ink)}
+code{font:13px var(--mono);background:#24201b;border:1px solid var(--line);padding:2px 7px;color:var(--ink)}
 .note{margin:22px 0 0;font:12.5px/1.6 var(--mono);color:var(--muted)}
-details{margin-top:28px;border:1px dashed var(--faint);padding:16px 20px}
+details{margin-top:28px;background:var(--slab);border:1px dashed var(--faint);padding:16px 20px;box-shadow:5px 5px 0 rgba(0,0,0,.35)}
 details[open]{border-style:solid;border-color:var(--line)}
 summary{cursor:pointer;color:var(--soft)}
-textarea{width:100%;height:90px;margin-top:14px;background:var(--bg2);color:var(--muted);border:1px solid var(--line);padding:10px;font:12px var(--mono);resize:vertical}
+textarea{width:100%;height:90px;margin-top:14px;background:#24201b;color:var(--muted);border:1px solid var(--line);padding:10px;font:12px var(--mono);resize:vertical}
 .copy{margin-top:10px;background:var(--bg);border:1px solid var(--faint);color:var(--ink);padding:8px 16px;font:inherit;font-size:14px;cursor:pointer;box-shadow:3px 3px 0 var(--line)}
 .copy:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--line)}
-footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:30px 0 46px;font-size:13px;color:var(--muted)}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:40px 0 140px;font-size:13px;color:var(--muted)}
 footer a{color:var(--muted)}
 
 @media (max-width:980px){
   .grid{grid-template-columns:1fr 1fr}
-  .card:nth-child(n){border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
-  .card:nth-child(2n){border-right:0}
-  .card:nth-last-child(-n+2){border-bottom:0}
   .mock{display:none}
 }
 @media (max-width:700px){
@@ -112,42 +110,40 @@ footer a{color:var(--muted)}
   .wrap{padding:0 20px}
   nav a.n.hide{display:none}
   .grid{grid-template-columns:1fr}
-  .card:nth-child(n){border-right:0;border-bottom:1px solid var(--line)}
-  .card:last-child{border-bottom:0}
   .steps li{grid-template-columns:58px 1fr;font-size:16px}
   .steps li::before{font-size:30px}
   .pond-space{height:240px}
 }
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn{transition:none}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn,.card{transition:none}}
 </style>
 </head>
 <body>
+<canvas id="world" aria-hidden="true"></canvas>
 <pre id="gutter" aria-hidden="true"></pre>
 <div id="ruler" aria-hidden="true"></div>
 <div id="rulerNo" aria-hidden="true"></div>
 
-<header class="hero" id="hero">
-  <canvas id="water" aria-hidden="true"></canvas>
+<header class="hero layer" id="hero">
   <div class="wrap">
-    <nav>
+    <nav class="calm">
       <a class="brand" href="/"><svg viewBox="0 0 6 6" aria-hidden="true"><rect x="2" y="0" width="2" height="2" fill="#dcb27a"/><rect x="0" y="3" width="6" height="3" fill="#4ea596"/><rect x="1" y="4" width="2" height="1" fill="#86d0b0"/><rect x="4" y="5" width="1" height="1" fill="#b5d67c"/></svg>pagebot</a>
       <a class="n hide" href="#how">How it works</a>
       <a class="n" href="/chat">Web chat</a>
       <a class="n" href="/admin">Admin</a>
     </nav>
-    <div class="hero-in" id="heroIn">
-      <p class="kicker"><i></i>A chat panel for any web page</p>
-      <h1 class="wv" data-mode="water">Ask anything about <em>the page</em> you're on.</h1>
-      <p class="lede">It opens on top of any site, reads the page, your highlighted text, or a screenshot, and answers in a second.</p>
-      <div class="ctas">
+    <div class="hero-in">
+      <p class="kicker calm"><i></i>A chat panel for any web page</p>
+      <h1 class="wv calm">Ask anything about <em>the page</em> you're on.</h1>
+      <p class="lede calm">It opens on top of any site, reads the page, your highlighted text, or a screenshot, and answers in a second.</p>
+      <div class="ctas calm">
         <a class="btn primary" id="bm" href="{{HREF}}" title="Drag me to your bookmarks bar">📌 pagebot</a>
         <a class="btn ghost" href="/chat">Open web chat →</a>
       </div>
-      <div class="hint" id="hint">Drag the sand-colored button to your bookmarks bar.</div>
+      <div class="hint calm" id="hint">Drag the sand-colored button to your bookmarks bar.</div>
     </div>
     <div class="pond-space"></div>
   </div>
-  <div class="mock" id="mock" aria-hidden="true">
+  <div class="mock float" id="mock" aria-hidden="true">
     <header><i></i>pagebot</header>
     <div class="log">
       <div class="m u"><div class="t">📄 page</div>tl;dr?</div>
@@ -157,46 +153,42 @@ footer a{color:var(--muted)}
   </div>
 </header>
 
-<canvas class="waterline" aria-hidden="true"></canvas>
-
-<section id="how">
+<section id="how" class="layer">
   <div class="wrap">
-    <div class="sh"><span class="no">§ 01</span><h2 class="wv">What it does</h2></div>
+    <div class="sh calm"><span class="no">§ 01</span><h2 class="wv">What it does</h2></div>
     <div class="grid">
-      <div class="card"><div class="k"><b>01</b>page</div><h3 class="wv">Reads the page</h3><p>Sends the page text once per chat, so follow-ups stay cheap, and marks the passages it used. Click one to jump to it on the page. Anything you highlight goes along too.</p></div>
-      <div class="card"><div class="k"><b>02</b>screenshots</div><h3 class="wv">Sees what you see</h3><p>Captures the whole tab, or drag a box over just the part you mean. The panel hides itself first. You can also paste any image.</p></div>
-      <div class="card"><div class="k"><b>03</b>web</div><h3 class="wv">Searches the web</h3><p>Turn on web search when the page isn't enough, and answers come with their sources.</p></div>
-      <div class="card"><div class="k"><b>04</b>models</div><h3 class="wv">Haiku or Sonnet</h3><p>Haiku 5.5 for quick answers, Sonnet 5.5 when it needs more thought. One click to switch.</p></div>
-      <div class="card"><div class="k"><b>05</b>panel</div><h3 class="wv">Stays out of the way</h3><p>Drag it anywhere, resize it, dock it to the side, or shrink it to a pill, and pick from ten themes, including see-through Glass and Clear.</p></div>
-      <div class="card"><div class="k"><b>06</b>access</div><h3 class="wv">You decide who's in</h3><p>Runs on your own server behind passwords or 5-digit passcodes. Friends can ask for an account, and you accept them, set their daily limit, and post announcements in <a href="/admin">/admin</a>.</p></div>
+      <div class="card float calm"><div class="k"><b>01</b>page</div><h3 class="wv">Reads the page</h3><p>Sends the page text once per chat, so follow-ups stay cheap, and marks the passages it used. Click one to jump to it on the page. Anything you highlight goes along too.</p></div>
+      <div class="card float calm"><div class="k"><b>02</b>screenshots</div><h3 class="wv">Sees what you see</h3><p>Captures the whole tab, or drag a box over just the part you mean. The panel hides itself first. You can also paste any image.</p></div>
+      <div class="card float calm"><div class="k"><b>03</b>web</div><h3 class="wv">Searches the web</h3><p>Turn on web search when the page isn't enough, and answers come with their sources.</p></div>
+      <div class="card float calm"><div class="k"><b>04</b>models</div><h3 class="wv">Haiku or Sonnet</h3><p>Haiku 5.5 for quick answers, Sonnet 5.5 when it needs more thought. One click to switch.</p></div>
+      <div class="card float calm"><div class="k"><b>05</b>panel</div><h3 class="wv">Stays out of the way</h3><p>Drag it anywhere, resize it, dock it to the side, or shrink it to a pill, and pick from ten themes, including see-through Glass and Clear.</p></div>
+      <div class="card float calm"><div class="k"><b>06</b>access</div><h3 class="wv">You decide who's in</h3><p>Runs on your own server behind passwords or 5-digit passcodes. Friends can ask for an account, and you accept them, set their daily limit, and post announcements in <a href="/admin">/admin</a>.</p></div>
     </div>
   </div>
 </section>
 
-<canvas class="waterline" aria-hidden="true"></canvas>
-
-<section>
+<section class="layer">
   <div class="wrap">
-    <div class="sh"><span class="no">§ 02</span><h2 class="wv">Install</h2></div>
-    <ol class="steps">
-      <li><div>Show your bookmarks bar with <code>Ctrl+Shift+B</code> (<code>Cmd+Shift+B</code> on Mac).</div></li>
-      <li><div>Drag the sand-colored <b>📌 pagebot</b> button above onto it.</div></li>
-      <li><div>On any page, click the bookmark. Click it again to hide it, or press Esc.</div></li>
-      <li><div>Sign in once per site. New people create an account and wait to be accepted. If you set a passcode, the panel unlocks with it after that.</div></li>
-    </ol>
-    <p class="note">Already have pagebot in your bookmarks? Drag the button again to get the latest version.</p>
-    <details>
-      <summary>Can't drag? Paste it in by hand</summary>
-      <textarea id="code" readonly>{{HREF}}</textarea>
-      <button class="copy" id="copy" type="button">Copy</button>
-      <p class="note">Create a new bookmark and paste this as its URL. Some sites block overlays; on those, pagebot opens in a small window instead.</p>
-    </details>
+    <div class="install">
+      <div class="sh calm"><span class="no">§ 02</span><h2 class="wv">Install</h2></div>
+      <ol class="steps calm">
+        <li><div>Show your bookmarks bar with <code>Ctrl+Shift+B</code> (<code>Cmd+Shift+B</code> on Mac).</div></li>
+        <li><div>Drag the sand-colored <b>📌 pagebot</b> button above onto it.</div></li>
+        <li><div>On any page, click the bookmark. Click it again to hide it, or press Esc.</div></li>
+        <li><div>Sign in once per site. New people create an account and wait to be accepted. If you set a passcode, the panel unlocks with it after that.</div></li>
+      </ol>
+      <p class="note calm">Already have pagebot in your bookmarks? Drag the button again to get the latest version.</p>
+      <details class="calm">
+        <summary>Can't drag? Paste it in by hand</summary>
+        <textarea id="code" readonly>{{HREF}}</textarea>
+        <button class="copy" id="copy" type="button">Copy</button>
+        <p class="note">Create a new bookmark and paste this as its URL. Some sites block overlays; on those, pagebot opens in a small window instead.</p>
+      </details>
+    </div>
   </div>
 </section>
 
-<canvas class="waterline" aria-hidden="true"></canvas>
-
-<footer class="wrap"><span>pagebot · running on <code>{{ORIGIN}}</code></span><span><a href="/chat">Web chat</a> · <a href="/admin">Admin</a></span></footer>
+<footer class="wrap layer"><span class="calm">pagebot · running on <code>{{ORIGIN}}</code></span><span class="calm"><a href="/chat">Web chat</a> · <a href="/admin">Admin</a></span></footer>
 
 <script>
 (() => {
@@ -214,19 +206,9 @@ const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const hover = matchMedia('(hover: hover)').matches;
 const OFF = -1e5;
 const mouse = { x: OFF, y: OFF, cx: OFF, cy: OFF }; // page and viewport coordinates
-const drops = []; // where the cursor touched down lately; headings ripple out from these
-let lastDrop = { x: OFF, y: OFF, t: 0 };
-addEventListener('pointermove', e => {
-  mouse.x = e.pageX; mouse.y = e.pageY; mouse.cx = e.clientX; mouse.cy = e.clientY;
-  const now = performance.now();
-  if (Math.hypot(e.pageX - lastDrop.x, e.pageY - lastDrop.y) > 26 && now - lastDrop.t > 40) {
-    lastDrop = { x: e.pageX, y: e.pageY, t: now }; drops.push(lastDrop);
-    if (drops.length > 14) drops.shift();
-  }
-  ruler();
-}, { passive: true });
+addEventListener('pointermove', e => { mouse.x = e.pageX; mouse.y = e.pageY; mouse.cx = e.clientX; mouse.cy = e.clientY; ruler(); }, { passive: true });
 document.addEventListener('mouseleave', () => { mouse.x = mouse.y = mouse.cx = mouse.cy = OFF; ruler(); });
-addEventListener('scroll', () => { if (mouse.cy !== OFF) { mouse.y = mouse.cy + scrollY; ruler(); } }, { passive: true });
+addEventListener('scroll', () => { if (mouse.cy !== OFF) { mouse.y = mouse.cy + scrollY; ruler(); } if (calm) requestDraw(); }, { passive: true });
 
 // ---- the margin: a numbered line every 24px, and the reading ruler on the line under the cursor ----
 const LH = 24, gutter = $('#gutter'), rulerEl = $('#ruler'), rulerNo = $('#rulerNo');
@@ -246,11 +228,10 @@ function ruler() {
   rulerNo.textContent = String(i + 1).padStart(3, '0');
 }
 
-// ---- type: headings are split into letters (whole words stay together; screen readers get the heading text) ----
+// ---- headings are split into letters so each can float (whole words stay together; screen readers get the text) ----
 const letters = [];
 for (const h of document.querySelectorAll('.wv')) {
   h.setAttribute('aria-label', h.textContent.replace(/\s+/g, ' ').trim());
-  const mode = h.dataset.mode || 'drop';
   (function walk(node) {
     for (const n of [...node.childNodes]) {
       if (n.nodeType === 1) { walk(n); continue; }
@@ -262,7 +243,7 @@ for (const h of document.querySelectorAll('.wv')) {
         const w = document.createElement('span'); w.className = 'w'; w.setAttribute('aria-hidden', 'true');
         for (const ch of part) {
           const c = document.createElement('span'); c.className = 'c'; c.textContent = ch;
-          w.appendChild(c); letters.push({ el: c, mode, cx: 0, cy: 0, y: 0, r: 0, heat: 0, base: null, live: false });
+          w.appendChild(c); letters.push({ el: c, cx: 0, cy: 0, y: 0, r: 0, heat: 0, base: [239, 230, 210], live: false });
         }
         frag.appendChild(w);
       }
@@ -270,51 +251,15 @@ for (const h of document.querySelectorAll('.wv')) {
     }
   })(h);
 }
-function measure() { // centers in page coordinates, without the current bob
-  for (const l of letters) {
-    const b = l.el.getBoundingClientRect();
-    l.cx = b.left + b.width / 2 + scrollX; l.cy = b.top + b.height / 2 + scrollY - l.y;
-    if (!l.live) l.base = (getComputedStyle(l.el).color.match(/\d+/g) || [239, 230, 210]).slice(0, 3).map(Number);
-  }
-}
-const WET = [134, 208, 176];
-function paint(l, y, r, heat) {
-  if (Math.abs(y) < .06 && Math.abs(r) < .06 && heat < .02) {
-    if (l.live) { l.el.style.transform = l.el.style.color = ''; l.live = false; }
-    return;
-  }
-  l.live = true;
-  l.el.style.transform = `translateY(${y.toFixed(2)}px) rotate(${r.toFixed(2)}deg)`;
-  const k = Math.min(1, heat);
-  l.el.style.color = `rgb(${l.base.map((v, i) => Math.round(v + (WET[i] - v) * k)).join(',')})`;
-}
+const floaters = [...document.querySelectorAll('.float')].map(el => ({ el, l: 0, r: 0, b: 0, ty: 0, tr: 0 }));
 
-// headings outside the pond ripple out from where the cursor moves, like drops landing near them
-function stepDropLetters(now) {
-  while (drops.length && now - drops[0].t > 1800) drops.shift();
-  const top = scrollY - 200, bottom = scrollY + innerHeight + 200;
-  for (const l of letters) {
-    if (l.mode !== 'drop' || l.cy < top || l.cy > bottom) continue;
-    let dy = 0, heat = 0;
-    for (const d of drops) {
-      const vy = l.cy - d.y; if (Math.abs(vy) > 170) continue;
-      const age = (now - d.t) / 1000, dist = Math.hypot(l.cx - d.x, vy * 1.4), front = age * 420;
-      if (dist > front + 30) continue;
-      const env = Math.exp(-age * 2.4) * Math.exp(-dist / 230);
-      dy += 10 * env * Math.sin((dist - front) * .05); heat += env * .9;
-    }
-    l.y += (dy - l.y) * .4;
-    paint(l, l.y, l.y * .45, heat);
-  }
-}
-
-// ---- the pond: an ASCII scene in pixel-art pond colors, with ripples wherever the cursor goes ----
-const hero = $('#hero'), heroIn = $('#heroIn'), cv = $('#water'), ctx = cv.getContext('2d'), mock = $('#mock');
-const RAMP = ' .,:;-=+*#%@';
+// ---- the world: one grid of characters as tall as the page ----
+const cv = $('#world'), ctx = cv.getContext('2d');
 const MONO = 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace';
+const BG = [28, 25, 21];
 const PAL = {
   deep: [34, 80, 76], mid: [70, 156, 136], hi: [150, 206, 140], lime: [190, 222, 128], foam: [238, 244, 216], rim: [78, 112, 138],
-  rock0: [52, 44, 36], rock1: [92, 76, 58], rock2: [140, 112, 80], sand: [222, 184, 124], leaf: [120, 176, 100],
+  rock0: [52, 44, 36], rock1: [92, 76, 58], rock2: [140, 112, 80], sand: [222, 184, 124], leaf: [120, 176, 100], wet: [134, 208, 176],
 };
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => v / 16);
 const hash = (x, y) => { let h = x * 374761393 + y * 668265263; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967295; };
@@ -324,193 +269,255 @@ function vnoise(x, y) {
   return a + (b - a) * s(xf) + (c - a) * s(yf) + (a - b - c + d) * s(xf) * s(yf);
 }
 const fbm = (x, y) => vnoise(x, y) * .55 + vnoise(x * 2.1, y * 2.1) * .3 + vnoise(x * 4.3, y * 4.3) * .15;
-const mix = (a, b, t) => [0, 1, 2].map(i => (a[i] + (b[i] - a[i]) * t) & ~3); // rounded down to share fill colors
-const css = c => `rgb(${c[0]},${c[1]},${c[2]})`;
+const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-let P = null;
 
-function buildPond() {
-  const dpr = Math.min(2, devicePixelRatio || 1), w = hero.clientWidth, h = hero.clientHeight;
-  if (!w || !h) return;
-  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
-  const fs = w < 700 ? 10 : 12, cw = fs * .62, ch = fs * 1.1;
-  const cols = Math.ceil(w / cw), rows = Math.ceil(h / ch), n = cols * rows;
-  const textEnd = Math.min(.8, (heroIn.offsetTop + heroIn.offsetHeight) / h); // the water stays dark under the words
-  const cx = w < 700 ? .5 : .55;
-  // kind: 0 water, 1 sand, 2 rock, 3 plant; base: how light that spot is
-  const kind = new Uint8Array(n), base = new Float32Array(n), vis = new Float32Array(n), shore = new Float32Array(n);
+// Glyphs are drawn once into an atlas (one row per color, one column per character) and stamped from there,
+// which is much faster than drawing text for every cell on every frame.
+const CHARS = " .:-=+*#%@~vwY/\\|·'";
+const CI = Object.fromEntries([...CHARS].map((c, i) => [c, i]));
+let atlas, actx, gw = 0, gh = 0, nColors = 0;
+const colorRow = new Int16Array(32768);
+function newAtlas(W) {
+  gw = Math.ceil(W.cw * W.dpr) + 1; gh = Math.ceil(W.ch * W.dpr) + 1;
+  atlas = document.createElement('canvas'); atlas.width = CHARS.length * gw; atlas.height = 360 * gh;
+  actx = atlas.getContext('2d'); actx.font = `${W.fs * W.dpr}px ${MONO}`; actx.textBaseline = 'top';
+  colorRow.fill(-1); nColors = 0;
+}
+function glyph(col, chr) { // a glyph id for this color and character
+  const r = Math.max(0, Math.min(255, col[0])) & 248, g = Math.max(0, Math.min(255, col[1])) & 248, b = Math.max(0, Math.min(255, col[2])) & 248;
+  const k = (r << 7) | (g << 2) | (b >> 3);
+  let row = colorRow[k];
+  if (row < 0) {
+    if (nColors >= 360) row = 0;
+    else {
+      row = colorRow[k] = nColors++;
+      actx.fillStyle = `rgb(${r},${g},${b})`;
+      for (let c = 1; c < CHARS.length; c++) actx.fillText(CHARS[c], c * gw, row * gh);
+    }
+  }
+  return row * CHARS.length + CI[chr];
+}
+
+// The land never moves, so it's drawn into tiles of rows once and reused (a few at a time, as you scroll).
+const TILE_ROWS = 72, tiles = new Map();
+function tile(ti) {
+  let c = tiles.get(ti);
+  if (c) { tiles.delete(ti); tiles.set(ti, c); return c; }
+  const { dpr, cw, ch, cols, rows, still } = W, cols3 = CHARS.length;
+  c = document.createElement('canvas'); c.width = cv.width; c.height = Math.ceil(TILE_ROWS * ch * dpr) + gh;
+  const tc = c.getContext('2d');
+  for (let y = ti * TILE_ROWS, end = Math.min(rows, y + TILE_ROWS); y < end; y++) for (let x = 0; x < cols; x++) {
+    const id = still[y * cols + x]; if (id < 0) continue;
+    tc.drawImage(atlas, (id % cols3) * gw, Math.floor(id / cols3) * gh, gw, gh, Math.round(x * cw * dpr), Math.round((y - ti * TILE_ROWS) * ch * dpr), gw, gh);
+  }
+  tiles.set(ti, c);
+  if (tiles.size > 4) tiles.delete(tiles.keys().next().value);
+  return c;
+}
+
+let W = null;
+function buildWorld() {
+  tiles.clear();
+  const dpr = Math.min(2, devicePixelRatio || 1), vw = document.documentElement.clientWidth, vh = innerHeight;
+  cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr);
+  const fs = vw < 700 ? 10 : 12, cw = fs * .62, ch = fs * 1.1;
+  const docH = document.documentElement.scrollHeight;
+  const cols = Math.ceil(vw / cw) + 1, rows = Math.ceil(docH / ch) + 1, n = cols * rows;
+  W = { dpr, vw, vh, fs, cw, ch, cols, rows, docH, a: new Float32Array(n), b: new Float32Array(n), t: 0, last: -1, cy2: .5 * (cw / ch) ** 2 };
+  newAtlas(W);
+
+  // how calm the water is: dark and still behind anything there is to read, easing off around it
+  const quiet = new Float32Array(n);
+  for (const el of document.querySelectorAll('.calm')) {
+    const r = el.getBoundingClientRect(); if (!r.width) continue;
+    const m = el.classList.contains('card') || el.tagName === 'DETAILS' ? 22 : 46;
+    const L = r.left + scrollX, T = r.top + scrollY, R = r.right + scrollX, B = r.bottom + scrollY;
+    const x0 = Math.max(0, Math.floor((L - m) / cw)), x1 = Math.min(cols - 1, Math.ceil((R + m) / cw));
+    const y0 = Math.max(0, Math.floor((T - m) / ch)), y1 = Math.min(rows - 1, Math.ceil((B + m) / ch));
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const px = (x + .5) * cw, py = (y + .5) * ch;
+      const d = Math.hypot(Math.max(L - px, 0, px - R), Math.max(T - py, 0, py - B));
+      const q = 1 - smooth(0, m, d), i = y * cols + x;
+      if (q > quiet[i]) quiet[i] = q;
+    }
+  }
+
+  // the land: banks of rock and sand that crowd the edges, pile up at the very bottom, rise as islands in between,
+  // and keep clear of anything there is to read, so the banks wrap around the words like a shore
+  const kind = new Uint8Array(n), base = new Float32Array(n), vis = new Float32Array(n), land = new Float32Array(n);
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
-    const i = y * cols + x, fx = x / cols, py = (y / rows - textEnd) / (1 - textEnd), g = fbm(x * .05, y * .1);
-    // the pool: wide where it opens into the dark, narrowing toward the bottom bank
-    const hw = (w < 700 ? .62 : .44) - .14 * Math.max(0, py) ** 2;
-    let d = (Math.abs(fx - cx) / hw) ** 2.6 + (Math.max(0, py) / .9) ** 5 + (g - .5) * .55;
-    if (py < -.03 + (g - .5) * .3) d = Math.min(d, .4); // above the banks it's all open water
-    shore[i] = d;
-    if (d > 1.1) { kind[i] = 2; base[i] = fbm(x * .09 + 9, y * .18 + 3) * .75 + fbm(x * .55, y * 1.1) * .25; }
-    else if (d > .97) { kind[i] = 1; base[i] = fbm(x * .3, y * .5); }
-    else { base[i] = .3 + Math.min(.5, Math.max(0, d - .45)) * .9 + (fbm(x * .04 + 30, y * .08) - .5) * .35; vis[i] = smooth(-.12, .22, py); }
+    const i = y * cols + x, fx = x / cols, py = y * ch;
+    const g = fbm(x * .045, y * .06), g2 = fbm(x * .14 + 7, y * .2 + 3);
+    const edge = Math.max(0, .14 - fx) * 3.2 + Math.max(0, fx - .84) * 3.2;
+    const bottom = Math.max(0, (py - (docH - 220)) / 220) * .9;
+    const top = py < vh * .55 ? -.35 : 0; // open water across the top of the hero
+    const L = g * .72 + g2 * .28 + edge + bottom + top - quiet[i] * .7;
+    land[i] = L;
+    if (L > .66) { kind[i] = 2; base[i] = fbm(x * .09 + 9, y * .18 + 3) * .75 + fbm(x * .55, y * 1.1) * .25; }
+    else if (L > .6) { kind[i] = 1; base[i] = fbm(x * .3, y * .5); }
+    else { base[i] = .28 + Math.max(0, L - .3) * 1.3 + (fbm(x * .04 + 30, y * .06) - .5) * .35; vis[i] = 1 - quiet[i]; }
   }
-  // plants grow in clumps where the banks meet the water
-  for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) {
+  for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) { // plants grow in clumps along the shore
     const i = y * cols + x;
-    if (kind[i] === 2 && shore[i] < 1.35 && hash(x >> 2, y >> 1) > .86 && hash(x, y) > .35) kind[i] = 3;
+    if (kind[i] === 2 && land[i] < .76 && hash(x >> 2, y >> 1) > .84 && hash(x, y) > .35) kind[i] = 3;
   }
-  // rock, sand and plants don't move, so they're drawn once
-  const stat = document.createElement('canvas'); stat.width = cv.width; stat.height = cv.height;
-  const s = stat.getContext('2d');
-  s.setTransform(dpr, 0, 0, dpr, 0, 0); s.font = `${fs}px ${MONO}`; s.textBaseline = 'top';
-  s.fillStyle = '#1c1915'; s.fillRect(0, 0, w, h);
+  // the land doesn't move, so its glyphs are worked out once: normal, and lit for when the cursor is near
+  const still = new Int32Array(n).fill(-1), lit = new Int32Array(n).fill(-1);
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
     const i = y * cols + x, k = kind[i]; if (k === 0) continue;
-    const v = base[i], d = BAYER[(y & 3) * 4 + (x & 3)];
+    const v = base[i], d = BAYER[(y & 3) * 4 + (x & 3)], dim = 1 - quiet[i] * .8;
     let col, chr;
     if (k === 3) { col = hash(x, y * 3) > .5 ? PAL.leaf : PAL.lime; chr = 'vwY/\\|'[Math.floor(hash(x * 5, y) * 6)]; }
     else if (k === 1) { col = v + d * .25 > .55 ? PAL.sand : PAL.rock2; chr = v > .5 ? ':' : '.'; }
     else {
-      // light comes from above: a rock's top edge (open space above it) is sand-bright, its body darker
-      const above = y > 1 && kind[i - cols] !== 2 && kind[i - cols] !== 3 ? .3 : y > 2 && kind[i - 2 * cols] !== 2 ? .15 : 0;
-      const lit = v + above + (d - .5) * .22 - (shore[i] - 1.1) * .12;
-      col = lit > .78 ? PAL.sand : lit > .58 ? PAL.rock2 : lit > .4 ? PAL.rock1 : PAL.rock0;
-      chr = lit > .78 ? '=' : lit > .58 ? '%' : lit > .4 ? '#' : (d > .5 ? '#' : '@');
+      // light comes from above: a rock's top edge is sand-bright, its body darker
+      const above = y > 1 && kind[i - cols] < 2 ? .3 : y > 2 && kind[i - 2 * cols] < 2 ? .15 : 0;
+      const l = v + above + (d - .5) * .22 - (land[i] - .66) * .5;
+      col = l > .8 ? PAL.sand : l > .6 ? PAL.rock2 : l > .42 ? PAL.rock1 : PAL.rock0;
+      chr = l > .8 ? '=' : l > .6 ? '%' : l > .42 ? '#' : (d > .5 ? '#' : '@');
     }
-    s.fillStyle = css(col); s.fillText(chr, x * cw, y * ch);
+    still[i] = glyph(mix(BG, col, dim), chr);
+    lit[i] = glyph(mix(col, PAL.foam, .35), chr);
   }
-  // ripples spread at the same speed across and down, though cells are taller than wide
-  P = { dpr, w, h, fs, cw, ch, cols, rows, kind, base, vis, stat, a: new Float32Array(n), b: new Float32Array(n), t: 0, last: -1, cy2: .5 * (cw / ch) ** 2 };
+  Object.assign(W, { kind, base, vis, still, lit });
 }
 
-function stepPond() {
-  if (!P) return;
-  const { cols, rows, kind, vis, cw, ch } = P;
-  const r = cv.getBoundingClientRect(), mx = mouse.cx - r.left, my = mouse.cy - r.top;
-  let { a, b } = P;
-  if (mx >= 0 && my >= 0 && mx < r.width && my < r.height) { // the cursor drags through the water, even under the words
-    const gx = Math.floor(mx / cw), gy = Math.floor(my / ch), i = gy * cols + gx;
-    if (i !== P.last) for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
-      const j = (gy + oy) * cols + gx + ox; if (j >= 0 && j < a.length && kind[j] === 0) a[j] -= ox || oy ? 1.3 : 2.6;
+// ---- ripples: wherever the cursor goes, plus a drop now and then; only the rows near the screen are simulated ----
+function stepWorld() {
+  if (!W) return;
+  const { cols, rows, kind, vis, cw, ch, cy2 } = W;
+  let { a, b } = W;
+  if (mouse.x !== OFF) {
+    const gx = Math.floor(mouse.x / cw), gy = Math.floor(mouse.y / ch), i = gy * cols + gx;
+    if (i !== W.last && gx > 0 && gy > 0 && gx < cols - 1 && gy < rows - 1) {
+      for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+        const j = (gy + oy) * cols + gx + ox; if (kind[j] === 0) a[j] -= ox || oy ? 1.3 : 2.6;
+      }
     }
-    P.last = i;
-  } else P.last = -1;
-  if (Math.random() < .05) { const j = Math.floor(Math.random() * a.length); if (kind[j] === 0 && vis[j] > .4) a[j] -= 2.5; } // a drop now and then
-  const cy2 = P.cy2;
-  for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) { // ripples, with the banks as walls
+    W.last = i;
+  }
+  const y0 = Math.max(1, Math.floor(scrollY / ch) - 12), y1 = Math.min(rows - 1, Math.ceil((scrollY + W.vh) / ch) + 12);
+  for (let k = 0; k < 2; k++) if (Math.random() < .05) { // drops land in the open water on screen
+    const j = (y0 + Math.floor(Math.random() * (y1 - y0))) * cols + Math.floor(Math.random() * cols);
+    if (kind[j] === 0 && vis[j] > .6) a[j] -= 2.5;
+  }
+  for (let y = y0; y < y1; y++) for (let x = 1; x < cols - 1; x++) { // the banks are walls; spreads evenly though cells are tall
     const i = y * cols + x; if (kind[i] !== 0) continue;
     const ai = a[i];
     b[i] = (2 * ai - b[i] + .5 * (a[i - 1] + a[i + 1] - 2 * ai) + cy2 * (a[i - cols] + a[i + cols] - 2 * ai)) * .982;
   }
-  P.a = b; P.b = a; P.t += 1 / 60;
-  drawPond();
+  W.a = b; W.b = a; W.t += 1 / 60;
 }
 
-function drawPond() {
-  const { dpr, fs, cw, ch, cols, rows, kind, base, vis, stat, a, t } = P;
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(stat, 0, 0);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.font = `${fs}px ${MONO}`; ctx.textBaseline = 'top';
-  let last = '';
-  const set = c => { if (c !== last) { ctx.fillStyle = c; last = c; } };
-  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
-    const i = y * cols + x; if (kind[i] !== 0) continue;
+function drawWorld() {
+  if (!W) return;
+  const { dpr, cw, ch, cols, rows, kind, base, vis, still, lit, a, t } = W;
+  const sy = scrollY, cols3 = CHARS.length;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = 'rgb(28,25,21)'; ctx.fillRect(0, 0, cv.width, cv.height);
+  const y0 = Math.max(0, Math.floor(sy / ch)), y1 = Math.min(rows, Math.ceil((sy + W.vh) / ch) + 1);
+  for (let ti = Math.floor(y0 / TILE_ROWS); ti <= Math.floor((y1 - 1) / TILE_ROWS); ti++) ctx.drawImage(tile(ti), 0, Math.round((ti * TILE_ROWS * ch - sy) * dpr));
+  const lx = mouse.x / cw, ly = mouse.y / ch; // the cursor's light, in cells
+  const stamp = (id, x, y) => ctx.drawImage(atlas, (id % cols3) * gw, Math.floor(id / cols3) * gh, gw, gh, Math.round(x * cw * dpr), Math.round((y * ch - sy) * dpr), gw, gh);
+  for (let y = y0; y < y1; y++) {
+    const dy = (y - ly) * ch, lightRow = Math.abs(dy) < 120;
+    for (let x = 0; x < cols; x++) {
+    const i = y * cols + x, k = kind[i];
+    if (k !== 0) { // land: already on its tile; near the cursor it catches the light
+      if (!lightRow) continue;
+      const dx = (x - lx) * cw;
+      if (dx * dx + dy * dy < 120 * 120 && hash(x, y + Math.floor(t * 8)) < 1 - Math.hypot(dx, dy) / 120) stamp(lit[i], x, y);
+      continue;
+    }
     const ht = a[i], slope = x > 0 && x < cols - 1 ? a[i + 1] - a[i - 1] : 0, vi = vis[i], d = BAYER[(y & 3) * 4 + (x & 3)];
-    if (vi < .03) { // dark water under the words: only the ripples show, faintly
-      const m = Math.abs(ht);
-      if (m < .45) continue;
-      set(`rgba(134,208,176,${Math.min(.38, m * .15).toFixed(2)})`);
-      ctx.fillText(Math.abs(slope) > .6 ? '~' : '·', x * cw, y * ch);
+    if (vi < .05) { // calm water behind the words: only the ripples show, faintly
+      const m = Math.abs(ht); if (m < .45) continue;
+      stamp(glyph(mix(BG, PAL.wet, Math.min(.36, m * .14)), Math.abs(slope) > .6 ? '~' : '·'), x, y);
       continue;
     }
     const caus = Math.sin(x * .33 + t * 1.2) * Math.sin(y * .52 - t * .9) * .2 + Math.sin((x + y) * .2 - t * .7) * .08;
-    let v = base[i] + caus - ht * .2 + slope * .14 + (d - .5) * .14; // ripples show as light and shadow on the water
-    if (v * vi + (d - .5) * .3 < .16) continue; // the surface frays into the dark, dithered
+    let v = base[i] + caus - ht * .2 + slope * .14 + (d - .5) * .14; // ripples show as light and shadow
+    if (v * vi + (d - .5) * .3 < .16) continue; // the surface frays into the calm, dithered
     v = Math.max(0, Math.min(1, v));
     let col = v < .4 ? mix(PAL.deep, PAL.mid, v / .4) : v < .75 ? mix(PAL.mid, PAL.hi, (v - .4) / .35) : mix(PAL.hi, PAL.lime, (v - .75) / .25);
     if (base[i] > .7 && v < .5) col = mix(col, PAL.rim, .4); // the cool edge along the shallows
-    col = mix([28, 25, 21], col, Math.min(1, vi * 1.15));
+    col = mix(BG, col, Math.min(1, vi * 1.15));
     let chr = v < .3 ? (d > .5 ? '.' : ' ') : v < .55 ? (d > .3 ? ':' : '.') : v < .8 ? (d > .4 ? '=' : ':') : '+';
     if (Math.abs(slope) > 1.15) { col = PAL.foam; chr = '~'; }
-    else if (vi > .5 && hash(x + Math.floor(t * 3) * 131, y) > .9972) { col = PAL.foam; chr = '*'; } // sparkles
-    set(css(col)); ctx.fillText(chr, x * cw, y * ch);
+    else if (vi > .5 && hash(x + Math.floor(t * 3) * 131, y) > .9975) { col = PAL.foam; chr = '*'; } // sparkles
+    if (chr !== ' ') stamp(glyph(col, chr), x, y);
+    }
   }
 }
-// the big heading and the panel float on the water: they bob as ripples pass under them
-const sample = (px, py) => { // ripple height at a point in page coordinates
-  if (!P) return [0, 0];
-  const x = Math.floor((px - hero.offsetLeft) / P.cw), y = Math.floor((py - hero.offsetTop) / P.ch);
-  if (x < 1 || y < 1 || x >= P.cols - 1 || y >= P.rows - 1) return [0, 0];
-  const i = y * P.cols + x, a = P.a;
-  return [(a[i] * 2 + a[i - 1] + a[i + 1] + a[i - P.cols] + a[i + P.cols]) / 6, a[i + 1] - a[i - 1]];
+
+// ---- everything with words on it floats: headings letter by letter, the cards and the panel as a whole ----
+const sample = (px, py) => { // ripple height and slope at a point in page coordinates
+  if (!W) return [0, 0];
+  const x = Math.floor(px / W.cw), y = Math.floor(py / W.ch);
+  if (x < 1 || y < 1 || x >= W.cols - 1 || y >= W.rows - 1) return [0, 0];
+  const i = y * W.cols + x, a = W.a;
+  return [(a[i] * 2 + a[i - 1] + a[i + 1] + a[i - W.cols] + a[i + W.cols]) / 6, a[i + 1] - a[i - 1]];
 };
+function paint(l) {
+  if (Math.abs(l.y) < .06 && Math.abs(l.r) < .06 && l.heat < .02) {
+    if (l.live) { l.el.style.transform = l.el.style.color = ''; l.live = false; }
+    return;
+  }
+  l.live = true;
+  l.el.style.transform = `translateY(${l.y.toFixed(2)}px) rotate(${l.r.toFixed(2)}deg)`;
+  const k = Math.min(1, l.heat);
+  l.el.style.color = `rgb(${l.base.map((v, i) => Math.round(v + (PAL.wet[i] - v) * k)).join(',')})`;
+}
 function stepFloaters() {
+  const top = scrollY - 100, bottom = scrollY + innerHeight + 100;
   for (const l of letters) {
-    if (l.mode !== 'water') continue;
+    if (l.cy < top || l.cy > bottom) continue;
     const [ht, sl] = sample(l.cx, l.cy);
     l.y += (Math.max(-16, Math.min(16, ht * -5)) - l.y) * .25;
     l.r += (Math.max(-9, Math.min(9, sl * 3.5)) - l.r) * .25;
     l.heat += (Math.min(1, Math.abs(ht) * .45) - l.heat) * .2;
-    paint(l, l.y, l.r, l.heat);
+    paint(l);
   }
-  if (mock.offsetParent) {
-    const m = mock.getBoundingClientRect(), by = m.bottom + scrollY - 6;
-    const [h1] = sample(m.left + scrollX + 30, by), [h2] = sample(m.left + m.width / 2 + scrollX, by), [h3] = sample(m.right + scrollX - 30, by);
-    const ty = Math.max(-10, Math.min(10, (h1 + h2 + h3) / 3 * -3)), tr = Math.max(-2.5, Math.min(2.5, (h3 - h1) * 1.2));
-    mock.ty = (mock.ty || 0) + (ty - (mock.ty || 0)) * .12; mock.tr = (mock.tr || 0) + (tr - (mock.tr || 0)) * .12;
-    mock.style.transform = `translateY(${mock.ty.toFixed(2)}px) rotate(${mock.tr.toFixed(2)}deg)`;
+  for (const f of floaters) {
+    if (f.b < top || f.b - 400 > bottom || !f.el.offsetParent) continue;
+    const [h1] = sample(f.l + 24, f.b - 4), [h2] = sample((f.l + f.r) / 2, f.b - 4), [h3] = sample(f.r - 24, f.b - 4);
+    const ty = Math.max(-9, Math.min(9, (h1 + h2 + h3) / 3 * -3)), tr = Math.max(-2, Math.min(2, (h3 - h1) * 1.1));
+    f.ty += (ty - f.ty) * .12; f.tr += (tr - f.tr) * .12;
+    f.el.style.transform = Math.abs(f.ty) < .05 && Math.abs(f.tr) < .02 ? '' : `translateY(${f.ty.toFixed(2)}px) rotate(${f.tr.toFixed(2)}deg)`;
   }
 }
 
-// ---- waterlines between the sections: a row of characters that ripples as the cursor passes ----
-class Waterline {
-  constructor(el) { this.el = el; this.ctx = el.getContext('2d'); this.on = false; new IntersectionObserver(e => { this.on = e[0].isIntersecting; }).observe(el); this.build(); }
-  build() {
-    const dpr = Math.min(2, devicePixelRatio || 1), w = this.el.clientWidth, h = this.el.clientHeight;
-    this.el.width = Math.round(w * dpr); this.el.height = Math.round(h * dpr);
-    Object.assign(this, { dpr, w, h, cw: 7.44, last: -1 });
-    this.n = Math.ceil(w / this.cw) + 1; this.u = new Float32Array(this.n); this.p = new Float32Array(this.n);
-    this.draw();
-  }
-  step() {
-    const r = this.el.getBoundingClientRect(), mx = mouse.cx - r.left, my = mouse.cy - r.top - r.height / 2;
-    if (Math.abs(my) < 80 && mx >= 0 && mx < r.width) {
-      const i = Math.floor(mx / this.cw);
-      if (i !== this.last) { const s = 2.4 * (1 - Math.abs(my) / 80); this.u[i] += s; if (i > 0) this.u[i - 1] += s / 2; if (i < this.n - 1) this.u[i + 1] += s / 2; }
-      this.last = i;
-    } else this.last = -1;
-    if (Math.random() < .03) this.u[Math.floor(Math.random() * this.n)] += .7;
-    const { u, p, n } = this;
-    for (let i = 1; i < n - 1; i++) p[i] = (2 * u[i] - p[i] + .45 * (u[i - 1] - 2 * u[i] + u[i + 1])) * .985;
-    this.u = p; this.p = u;
-    this.draw();
-  }
-  draw() {
-    const { ctx, dpr, w, h, cw, u, n } = this;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
-    ctx.font = `12px ${MONO}`; ctx.textBaseline = 'middle';
-    for (let i = 0; i < n; i++) {
-      const v = u[i], m = Math.min(1, Math.abs(v) / 1.6);
-      ctx.fillStyle = css(mix([84, 76, 63], m > .7 ? [238, 244, 216] : [134, 208, 176], m));
-      ctx.fillText(m > .7 ? '≈' : m > .12 ? '~' : '-', i * cw, h / 2 + Math.max(-13, Math.min(13, -v * 3.2)));
-    }
+// ---- keep the world in step with the layout ----
+function measure() { // positions without any bob, in page coordinates
+  for (const f of floaters) f.el.style.transform = '';
+  for (const l of letters) { l.el.style.transform = l.el.style.color = ''; l.live = false; l.y = l.r = l.heat = 0; }
+  for (const f of floaters) { const r = f.el.getBoundingClientRect(); f.l = r.left + scrollX; f.r = r.right + scrollX; f.b = r.bottom + scrollY; f.ty = f.tr = 0; }
+  for (const l of letters) {
+    const b = l.el.getBoundingClientRect();
+    l.cx = b.left + b.width / 2 + scrollX; l.cy = b.top + b.height / 2 + scrollY;
+    l.base = (getComputedStyle(l.el).color.match(/\d+/g) || [239, 230, 210]).slice(0, 3).map(Number);
   }
 }
-const waterlines = [...document.querySelectorAll('canvas.waterline')].map(el => new Waterline(el));
+function rebuild() { measure(); buildWorld(); buildGutter(); requestDraw(); }
+let rt = 0, lastW = 0, lastH = 0;
+new ResizeObserver(() => {
+  const w = document.documentElement.clientWidth, h = document.documentElement.scrollHeight;
+  if (w === lastW && h === lastH) return;
+  lastW = w; lastH = h;
+  clearTimeout(rt); rt = setTimeout(rebuild, 120);
+}).observe(document.body);
+addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(rebuild, 120); });
+document.fonts?.ready.then(rebuild);
+let drawQueued = false;
+function requestDraw() { if (drawQueued) return; drawQueued = true; requestAnimationFrame(() => { drawQueued = false; drawWorld(); }); }
 
-// ---- keep everything in step with the layout ----
-let heroOn = true, raf = 0;
-new IntersectionObserver(e => { heroOn = e[0].isIntersecting; }).observe(hero);
-function relayout() { buildGutter(); measure(); }
-let rt = 0;
-new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(() => { buildPond(); waterlines.forEach(w => w.build()); relayout(); if (calm && P) drawPond(); }, 100); }).observe(hero);
-new ResizeObserver(() => relayout()).observe(document.body);
-addEventListener('load', relayout);
-document.fonts?.ready.then(relayout);
-buildPond(); relayout();
-if (calm) { if (P) drawPond(); return; } // a still pond and still type; the margin's ruler still follows you
-(function frame(now) {
-  if (heroOn) { stepPond(); stepFloaters(); }
-  stepDropLetters(now);
-  for (const w of waterlines) if (w.on) w.step();
-  raf = requestAnimationFrame(frame);
-})(performance.now());
+rebuild();
+if (calm) return; // a still world and still type; it's redrawn as you scroll, and the margin's ruler still follows you
+(function frame() {
+  stepWorld(); drawWorld(); stepFloaters();
+  requestAnimationFrame(frame);
+})();
 })();
 </script>
 </body>
