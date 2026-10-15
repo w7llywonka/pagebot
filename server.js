@@ -14,7 +14,7 @@ const PUB = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
 // pagebot's version. It's written into the bookmark people drag from the homepage, so raise it by one to release an
 // update: panels opened from an older bookmark then send people to the homepage to drag the new one.
-const VERSION = 7;
+const VERSION = 8;
 // the two models the panel can switch between; web search tool versions differ per model
 const MODELS = {
   haiku: { id: process.env.HAIKU_MODEL || process.env.MODEL || 'claude-haiku-5-5', label: 'Haiku 5.5', search: 'web_search_20250305' },
@@ -61,6 +61,8 @@ const PASSCODE_WINDOW = 24 * 3600_000; // a right passcode doesn't wipe earlier 
 const LOGIN_FAILS_PER_IP = 30; // wrong logins one address gets per hour (on top of 10 tries a minute)
 const OWNER_FAILS_PER_HOUR = 200; // wrong owner passwords from everywhere before password logins pause
 const MAX_ANNOUNCEMENT = 500;
+const MAX_MEMORY_SITES = 100;
+const MAX_MEMORY_INSTRUCTIONS = 4000;
 
 // other people's accounts: they sign up, wait for approval, then use pagebot within a daily limit
 const DEFAULT_ACCOUNT = { limitKind: 'tokens', limitValue: 100_000, allowSonnet: true, allowWeb: true };
@@ -100,6 +102,15 @@ CREATE TABLE IF NOT EXISTS users (
   last_seen TIMESTAMPTZ
 );
 CREATE UNIQUE INDEX IF NOT EXISTS users_name_idx ON users (lower(username));
+CREATE TABLE IF NOT EXISTS site_memories (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+  site TEXT NOT NULL,
+  instructions TEXT NOT NULL CHECK (char_length(instructions) BETWEEN 1 AND ${MAX_MEMORY_INSTRUCTIONS}),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- NULL identifies the owner, whose sites must be unique too; account ids start at 1.
+CREATE UNIQUE INDEX IF NOT EXISTS site_memories_user_site_idx ON site_memories (COALESCE(user_id, 0), site);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS passcode_hash TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS passcode_fails INT NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS passcode_fails_at TIMESTAMPTZ; -- when the current run of wrong passcodes started
@@ -124,6 +135,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   page_title TEXT
 );
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS user_id BIGINT;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS memory_site TEXT;
 CREATE TABLE IF NOT EXISTS messages (
   id BIGSERIAL PRIMARY KEY,
   conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
@@ -198,6 +210,26 @@ function clampInt(v, lo, hi) {
 }
 function parseJSON(s) {
   try { const v = JSON.parse(s); return v && typeof v === 'object' ? v : {}; } catch { return {}; }
+}
+// Memory belongs to an exact hostname, across protocols, paths and ports. URL handles IDNs and IPv6.
+function memorySite(value) {
+  if (typeof value !== 'string') return null;
+  const input = value.trim();
+  if (!input || input.length > 2000 || /[\s\\]/.test(input)) return null;
+  try {
+    const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(input) ? input : `https://${input}`);
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null;
+    const site = url.hostname.toLowerCase().replace(/\.$/, '');
+    if (!site || site.length > 253) return null;
+    if (!site.startsWith('[') && !site.split('.').every(label => /^[a-z\d](?:[a-z\d-]{0,61}[a-z\d])?$/.test(label))) return null;
+    return site;
+  } catch { return null; }
+}
+const publicMemory = row => ({ site: row.site, instructions: row.instructions, updatedAt: row.updated_at });
+async function getMemory(userId, site) {
+  if (!site) return null;
+  const r = await pool.query('SELECT site, instructions, updated_at FROM site_memories WHERE COALESCE(user_id, 0)=$1 AND site=$2', [userId ?? 0, site]);
+  return r.rows[0] ? publicMemory(r.rows[0]) : null;
 }
 function cleanPrefs(p = {}) {
   const o = {};
@@ -641,6 +673,58 @@ app.post('/api/prefs', limit(60, 'prefs'), auth, async (req, res) => {
   res.json({ prefs: prefsFor(cfg, u), limits: limitsFor(cfg, u) });
 });
 
+// These are the signed-in person's instructions, never shared with other accounts or learned from page text.
+app.get('/api/site-memory', limit(60, 'memory-read'), auth, trusted, async (req, res) => {
+  const uid = req.user?.id ?? null;
+  const bounds = { maxSites: MAX_MEMORY_SITES, maxInstructions: MAX_MEMORY_INSTRUCTIONS };
+  if (req.query.site != null) {
+    const site = memorySite(req.query.site);
+    if (!site) return res.status(400).json({ error: 'Enter a website hostname or an http(s) URL.' });
+    return res.json({ site, memory: await getMemory(uid, site), ...bounds });
+  }
+  const r = await pool.query('SELECT site, instructions, updated_at FROM site_memories WHERE COALESCE(user_id, 0)=$1 ORDER BY site', [uid ?? 0]);
+  res.json({ memories: r.rows.map(publicMemory), ...bounds });
+});
+
+app.put('/api/site-memory', limit(60, 'memory-write'), auth, trusted, async (req, res) => {
+  const site = memorySite(req.body?.site), raw = req.body?.instructions;
+  if (!site) return res.status(400).json({ error: 'Enter a website hostname or an http(s) URL.' });
+  if (typeof raw !== 'string') return res.status(400).json({ error: 'Instructions must be text.' });
+  if (raw.length > MAX_MEMORY_INSTRUCTIONS) return res.status(400).json({ error: `Use at most ${MAX_MEMORY_INSTRUCTIONS} characters for this website.` });
+  const instructions = raw.trim(), uid = req.user?.id ?? null;
+  if (!instructions) {
+    await pool.query('DELETE FROM site_memories WHERE COALESCE(user_id, 0)=$1 AND site=$2', [uid ?? 0, site]);
+    return res.json({ memory: null });
+  }
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+    // Serialize only this person's saves so concurrent new sites cannot exceed the cap.
+    await db.query('SELECT pg_advisory_xact_lock($1::bigint)', [uid ?? 0]);
+    const count = await db.query('SELECT COUNT(*)::int AS n FROM site_memories WHERE COALESCE(user_id, 0)=$1 AND site <> $2', [uid ?? 0, site]);
+    if (count.rows[0].n >= MAX_MEMORY_SITES) {
+      await db.query('ROLLBACK');
+      return res.status(400).json({ error: `You can save instructions for ${MAX_MEMORY_SITES} websites. Remove one before adding another.` });
+    }
+    const r = await db.query(
+      `INSERT INTO site_memories(user_id, site, instructions) VALUES ($1,$2,$3)
+       ON CONFLICT (COALESCE(user_id, 0), site) DO UPDATE SET instructions=EXCLUDED.instructions, updated_at=now()
+       RETURNING site, instructions, updated_at`, [uid, site, instructions]);
+    await db.query('COMMIT');
+    res.json({ memory: publicMemory(r.rows[0]) });
+  } catch (e) {
+    await db.query('ROLLBACK');
+    throw e;
+  } finally { db.release(); }
+});
+
+app.delete('/api/site-memory', limit(60, 'memory-write'), auth, trusted, async (req, res) => {
+  const site = memorySite(req.query.site);
+  if (!site) return res.status(400).json({ error: 'Enter a website hostname or an http(s) URL.' });
+  await pool.query('DELETE FROM site_memories WHERE COALESCE(user_id, 0)=$1 AND site=$2', [req.user?.id ?? 0, site]);
+  res.json({ ok: true });
+});
+
 // accounts can change their own password (other devices get signed out)
 app.post('/api/account/password', limit(10, 'login'), auth, async (req, res) => {
   if (tooManyFails(req)) return res.status(429).json({ error: FAILS_MSG });
@@ -696,7 +780,8 @@ app.post('/api/announcements/seen', limit(30, 'prefs'), auth, async (req, res) =
   res.json({ ok: true });
 });
 
-const today = () => new Intl.DateTimeFormat('en-US', { timeZone: TIMEZONE, dateStyle: 'full' }).format(new Date());
+const dateFormatter = new Intl.DateTimeFormat('en-US', { timeZone: TIMEZONE, dateStyle: 'full' });
+const today = () => dateFormatter.format(new Date());
 const searchNote = () => `
 
 You can search the web with the web_search tool. The current date is ${today()}. Your training data ends well before today's date. Records, office holders, prices, versions, rules and anything "latest" may have changed since then, so search for those before you answer, even when you feel sure. Facts that can't change need no search. When the answer depends on where the user is, put the user's country or region in the search query.`;
@@ -830,6 +915,11 @@ async function chat(req, res) {
     text: String(b.page.text || '').slice(0, limits.pageTokens * 4), // ~4 characters per token; it goes in a document block
   } : null;
   const selection = fence(String(b.selection || '').slice(0, 8000));
+  const hasSite = Object.hasOwn(b, 'site');
+  const explicitSite = hasSite && b.site != null && b.site !== '';
+  // An explicit null clears context (for example when the bookmarklet cannot read the current site).
+  let site = explicitSite ? memorySite(b.site) : hasSite ? null : page ? memorySite(page.url) : null;
+  if (explicitSite && !site) return res.status(400).json({ error: 'Enter a website hostname or an http(s) URL.' });
 
   let image = null;
   if (b.image) {
@@ -845,8 +935,9 @@ async function chat(req, res) {
   let convId = Number.isSafeInteger(b.conversationId) ? b.conversationId : null;
   let history = [];
   if (convId) {
-    const c = await pool.query('SELECT 1 FROM conversations WHERE id=$1 AND user_id IS NOT DISTINCT FROM $2', [convId, uid]);
+    const c = await pool.query('SELECT memory_site, page_url FROM conversations WHERE id=$1 AND user_id IS NOT DISTINCT FROM $2', [convId, uid]);
     if (c.rowCount) {
+      if (!hasSite && !page) site = c.rows[0].memory_site ?? memorySite(c.rows[0].page_url);
       history = (await pool.query(
         'SELECT role, content, had_image, page_doc FROM messages WHERE conversation_id=$1 AND NOT refused ORDER BY id', [convId])).rows;
     } else convId = null;
@@ -884,7 +975,9 @@ async function chat(req, res) {
   cur.push({ type: 'text', text: userText, ...(!m.openrouter && { cache_control: { type: 'ephemeral' } }) });
   messages.push({ role: 'user', content: cur });
 
-  const system = SYSTEM + (web ? searchNote() : '');
+  const memory = await getMemory(uid, site);
+  const system = SYSTEM + (web ? searchNote() : '') + (memory
+    ? `\n\nThe user saved these website instructions in their settings for ${site}. Apply them to this conversation while this website is active:\n${memory.instructions}` : '');
   let maxTokens = limits.maxTokens;
   // the prompt's size, estimated on the high side at 3 characters a token, plus the screenshot
   const chars = system.length + userText.length + (doc ? doc.text.length : 0) +
@@ -908,9 +1001,11 @@ async function chat(req, res) {
   }
 
   if (!convId) {
-    const r = await pool.query('INSERT INTO conversations(page_url, page_title, user_id) VALUES($1,$2,$3) RETURNING id',
-      [page?.url || null, page?.title || null, uid]);
+    const r = await pool.query('INSERT INTO conversations(page_url, page_title, user_id, memory_site) VALUES($1,$2,$3,$4) RETURNING id',
+      [page?.url || null, page?.title || null, uid, site || (hasSite || page ? '' : null)]);
     convId = Number(r.rows[0].id);
+  } else if (hasSite || page) {
+    await pool.query('UPDATE conversations SET memory_site=$2 WHERE id=$1', [convId, site || '']);
   }
 
   const params = { model: m.id, max_tokens: maxTokens, system, messages, output_config: { effort: EFFORT } };

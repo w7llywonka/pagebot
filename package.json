@@ -6,7 +6,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --env-file=.env server.js"
+    "dev": "node --env-file=.env server.js",
+    "test": "node --test tests/bookmarklet.test.js tests/site-memory.test.js",
+    "test:browser": "node --test tests/widget.test.js"
   },
   "engines": {
     "node": ">=20"

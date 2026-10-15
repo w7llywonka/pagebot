@@ -222,6 +222,14 @@ textarea:focus,input:focus{border-color:var(--focus)}
 .ghost{background:none;border:1px solid var(--line);border-radius:9px;padding:6px 11px;cursor:pointer;font-size:13px}
 .ghost:hover{border-color:var(--focus)}
 .acct a{margin-left:auto;font-size:12.5px;color:var(--muted)}
+.memory-form{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.memory-form label{font-size:12.5px;font-weight:600}
+.memory-form input,.memory-form textarea,.memory-form select{width:100%;min-width:0;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit}
+.memory-form textarea{resize:vertical;min-height:100px;max-height:280px}
+.memory-form .fine{margin:0}
+.memory-form .ghost:disabled{opacity:.5;cursor:default}
+#memoryStatus{min-height:1.45em;overflow-wrap:anywhere}
+#memoryStatus.error{color:var(--err)}
 
 /* lock screen */
 #login{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px 24px;text-align:center;overflow-y:auto;outline:none}
@@ -526,16 +534,34 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 
 <div id="sheet" hidden>
   <section id="quotaSec" hidden>
-    <h3>Today</h3>
+    <h3>Usage today</h3>
     <div class="qbar"><i id="quotaFill"></i></div>
     <p class="qtext"><b id="quotaText"></b> <span id="quotaSub"></span></p>
   </section>
+  <section id="memorySec" aria-labelledby="memoryTitle">
+    <h3 id="memoryTitle">Website memory</h3>
+    <p class="fine" id="memoryHint">Save instructions for a website. Pagebot uses them on every visit, even when Page text is off. Each subdomain has its own instructions.</p>
+    <form class="memory-form" id="memoryForm">
+      <label for="memorySites">Saved websites</label>
+      <select id="memorySites"><option value="">Choose a saved website…</option></select>
+      <label for="memorySite">Website</label>
+      <input id="memorySite" type="text" placeholder="example.com or https://example.com" autocapitalize="off" autocomplete="off" spellcheck="false" aria-describedby="memoryScope">
+      <div class="acct"><button class="ghost" id="memoryLoad" type="button">Load website</button><button class="ghost" id="memoryCurrent" type="button" hidden>Use current website</button></div>
+      <p class="fine" id="memoryScope">Instructions are private to your account and apply across this website’s pages.</p>
+      <label for="memoryInstructions">Instructions</label>
+      <textarea id="memoryInstructions" rows="4" maxlength="4000" placeholder="For example: Explain unfamiliar terms and keep summaries brief." aria-describedby="memoryCount" disabled></textarea>
+      <p class="fine" id="memoryCount">0 / 4,000 characters</p>
+      <div class="acct"><button class="ghost" id="memorySave" type="submit" disabled>Save instructions</button><button class="ghost" id="memoryDelete" type="button" disabled>Delete saved instructions</button></div>
+      <p class="fine" id="memoryStatus" role="status" aria-live="polite"></p>
+    </form>
+  </section>
   <section id="wrapSec"><button class="wcta" id="wrapBtn" type="button"><b>✨ Your pagebot Wrapped</b><span>Your year in questions, sites, hours and streaks</span></button></section>
-  <section><h3>Theme</h3><div class="themes" id="themes"></div>
+  <section><h3>Appearance</h3><div class="themes" id="themes"></div>
     <p class="fine" id="glassNote" hidden>To make <span id="glassName">Glass</span> see-through on every site, including dark-mode ones, drag the button from the pagebot homepage to your bookmarks bar again.</p></section>
   <section id="tokSec">
-    <h3>Max tokens per answer</h3>
+    <h3>Answer length</h3>
     <div class="seg" id="tokSeg"></div>
+    <p class="fine">Maximum tokens per reply. Higher limits allow longer answers and use more of your allowance.</p>
     <p class="fine" id="tokNote" hidden></p>
   </section>
   <section>
@@ -549,7 +575,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
     <div class="acct" id="acctBtns"><button class="ghost" id="pwChange" type="button" hidden>Change password</button><button class="ghost" id="lockNow" type="button" hidden>Lock now</button><button class="ghost" id="outBtn" type="button">Log out</button><a id="adminLink" href="/admin" target="_blank" rel="noopener">Usage &amp; admin ↗</a></div>
   </section>
   <section id="pcSec" hidden>
-    <h3>Passcode</h3>
+    <h3>Quick unlock</h3>
     <p class="fine" id="pcState" style="margin:0 0 10px"></p>
     <form class="pwform" id="pcForm" autocomplete="off" hidden>
       <input id="pcA" type="password" inputmode="numeric" maxlength="5" placeholder="New 5-digit passcode" autocomplete="new-password" aria-label="New passcode">
@@ -672,8 +698,8 @@ addEventListener('message', e => {
   const d = e.data || {};
   if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); }
   else if (d.type === 'restore') { setMin(false); claim(); }
-  else if (d.type === 'open') { claim(); replaySplash(); }
-  else if (d.type === 'hidden') { release(); armSplash(); }
+  else if (d.type === 'open') { claim(); refreshOnOpen(); }
+  else if (d.type === 'hidden') release();
   else if (d.type === 'sel') setSel(String(d.text || ''));
 });
 let savedPos = null, savedSize = null;
@@ -806,6 +832,21 @@ function md(src) {
     return block(esc(p));
   }).join('');
 }
+// Network chunks often contain many tiny deltas. Coalesce them and limit expensive markdown/DOM work
+// to 20 updates per second, while flushing the exact final text before citations or errors are rendered.
+function answerRenderer(out, current) {
+  let latest = '', painted = '', timer = 0, frame = 0;
+  function cancel() { clearTimeout(timer); cancelAnimationFrame(frame); timer = frame = 0; }
+  function flush() {
+    cancel();
+    if (!current() || latest === painted) return;
+    out.innerHTML = md(latest); painted = latest; scroll();
+  }
+  return {
+    queue(text) { latest = text; if (!timer && !frame) timer = setTimeout(() => { timer = 0; frame = requestAnimationFrame(flush); }, 50); },
+    flush, cancel,
+  };
+}
 async function copyText(t) {
   try { await navigator.clipboard.writeText(t); return true; } catch {}
   // older bookmarks may not let the panel use the clipboard API, but a selected textarea still copies
@@ -936,7 +977,7 @@ const whoKey = () => cfg?.who === 'user' ? 'u:' + (cfg.user?.name || '').toLower
 function showChat(enter) {
   hideViews(); view = 'chat';
   const k = whoKey();
-  if (chatWho && k !== chatWho) { leaveChat(); log.replaceChildren(); clearImg(); setPage(true); stopStream(); setArea(null); annGone = 0; }
+  if (chatWho && k !== chatWho) { leaveChat(); resetSiteMemory(); log.replaceChildren(); clearImg(); setPage(true); stopStream(); setArea(null); annGone = 0; }
   chatWho = k;
   log.hidden = false; $('#composer').hidden = false;
   setHeader(true); renderAccount(); renderAnn(); renderUpd();
@@ -1105,7 +1146,7 @@ async function login(path, data) {
     const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(data) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) return { error: j.error || 'That didn’t work — try again.', status: r.status, usePassword: !!j.usePassword };
-    token = j.token; store.set('pb_token', token); pwMode = false;
+    resetSiteMemory(); token = j.token; store.set('pb_token', token); pwMode = false;
     await loadBoot().catch(() => {});
     return { ok: true };
   } catch { return { error: 'Network error' }; }
@@ -1151,7 +1192,7 @@ $('#waitOut').onclick = () => logout();
 
 function lock(msg) {
   if (token) fetch('/api/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }).catch(() => {});
-  token = null; store.set('pb_token', null);
+  token = null; store.set('pb_token', null); resetSiteMemory(); chatGen++; ctrl?.abort();
   showLogin(msg);
 }
 function logout(msg) { leaveChat(); chatWho = null; annGone = 0; log.innerHTML = ''; clearImg(); setPage(true); stopStream(); setArea(null); lock(msg); }
@@ -1189,21 +1230,154 @@ async function apiGet(path) {
   return j;
 }
 async function loadBoot() {
-  const r = await fetch('/api/boot', { headers: token ? { Authorization: 'Bearer ' + token } : {} });
+  const session = token;
+  const r = await fetch('/api/boot', { headers: session ? { Authorization: 'Bearer ' + session } : {} });
   if (!r.ok) throw new Error('HTTP ' + r.status);
-  cfg = await r.json();
+  const next = await r.json();
+  if (session !== token) return cfg; // a refresh from the previous login must not replace the current account
+  cfg = next;
   prefs.theme = cfg.theme;
   applyTheme(cfg.theme, true);
   if (cfg.authed && cfg.who) store.set('pb_who', cfg.who); // so a later lock opens on the right screen (logins from before accounts too)
   // and an account with a passcode gets its number pad back on this site
   if (cfg.authed && cfg.user) { store.set('pb_user', cfg.user.name); store.set('pb_pin', cfg.user.passcode ? '1' : null); }
   if (cfg.authed && cfg.prefs) { Object.assign(prefs, cfg.prefs); limits = cfg.limits; models = cfg.models || models; }
-  else if (!cfg.authed && token) { token = null; store.set('pb_token', null); }
+  else if (!cfg.authed && token) { token = null; store.set('pb_token', null); resetSiteMemory(); }
   renderPrefs(); renderAccount(); renderAnn(); renderUpd();
   return cfg;
 }
 const lockedMsg = () => pinWho() ? 'Locked — enter your passcode to pick up where you left off.'
   : store.get('pb_who') === 'user' ? 'You were signed out. Sign in again to keep going.' : 'Session expired — log in again.';
+
+// ---- private website instructions; drafts stay local until explicitly saved ----
+let currentSite = '', memorySite = '', memoryRecords = [], memoryLoaded = false, memorySaving = false;
+let memoryEpoch = 0, memoryRequest = 0, contextRequest = 0;
+const memoryDrafts = new Map();
+function normalizeMemorySite(value) {
+  const input = String(value || '').trim();
+  if (!input || input.length > 2000 || /[\s\\]/.test(input)) return '';
+  try {
+    const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(input) ? input : `https://${input}`);
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return '';
+    const site = url.hostname.toLowerCase().replace(/\.$/, '');
+    if (!site || site.length > 253 || (!site.startsWith('[') && !site.split('.').every(label => /^[a-z\d](?:[a-z\d-]{0,61}[a-z\d])?$/.test(label)))) return '';
+    return site;
+  } catch { return ''; }
+}
+function memoryMessage(text, error = false) {
+  $('#memoryStatus').textContent = text;
+  $('#memoryStatus').classList.toggle('error', error);
+}
+function rememberMemoryDraft() {
+  if (!memorySite || !memoryLoaded) return;
+  const text = $('#memoryInstructions').value, saved = memoryRecords.find(m => m.site === memorySite)?.instructions || '';
+  if (text === saved) memoryDrafts.delete(memorySite); else memoryDrafts.set(memorySite, text);
+}
+function renderMemoryControls() {
+  const selected = memorySite && normalizeMemorySite($('#memorySite').value) === memorySite;
+  $('#memoryInstructions').disabled = !selected || !memoryLoaded || memorySaving;
+  $('#memorySave').disabled = !selected || !memoryLoaded || memorySaving;
+  $('#memoryDelete').disabled = !selected || memorySaving || !memoryRecords.some(m => m.site === memorySite);
+  for (const id of ['memorySite', 'memorySites', 'memoryLoad', 'memoryCurrent']) $('#' + id).disabled = memorySaving;
+  $('#memoryCurrent').hidden = !currentSite || standalone;
+  $('#memoryCount').textContent = `${$('#memoryInstructions').value.length.toLocaleString()} / ${$('#memoryInstructions').maxLength.toLocaleString()} characters`;
+}
+function renderMemorySites() {
+  const list = $('#memorySites'); list.replaceChildren(new Option(memoryRecords.length ? 'Choose a saved website…' : 'No saved websites yet', ''));
+  for (const m of memoryRecords) list.add(new Option(m.site, m.site));
+  list.value = memoryRecords.some(m => m.site === memorySite) ? memorySite : '';
+  renderMemoryControls();
+}
+function selectMemorySite(value) {
+  const site = normalizeMemorySite(value);
+  if (!site) { memoryMessage('Enter a website hostname or an http(s) URL.', true); renderMemoryControls(); return false; }
+  if (site !== memorySite) rememberMemoryDraft();
+  memorySite = site;
+  $('#memorySite').value = site;
+  $('#memoryInstructions').value = memoryDrafts.get(site) ?? memoryRecords.find(m => m.site === site)?.instructions ?? '';
+  memoryMessage(memoryLoaded ? (memoryRecords.some(m => m.site === site) ? `Instructions for ${site}. Changes apply after saving.` : `No saved instructions for ${site} yet.`) : 'Loading saved instructions…');
+  renderMemorySites();
+  return true;
+}
+function resetSiteMemory() {
+  memoryEpoch++; memoryRequest++; contextRequest++;
+  memorySite = ''; memoryRecords = []; memoryLoaded = memorySaving = false; memoryDrafts.clear();
+  $('#memorySite').value = $('#memoryInstructions').value = '';
+  memoryMessage(''); renderMemorySites();
+}
+function updateSiteContext(info) {
+  if (!info?.page) return;
+  const site = normalizeMemorySite(info?.page?.url);
+  if (!site) { currentSite = ''; renderMemoryControls(); return; }
+  if (site !== currentSite) {
+    currentSite = site;
+    if (sheetOpen) selectMemorySite(site);
+  } else if (sheetOpen && !memorySite) selectMemorySite(site);
+  renderMemoryControls();
+}
+async function refreshSiteContext() {
+  if (!target) return;
+  const request = ++contextRequest, epoch = memoryEpoch;
+  const info = await ask('page', { max: 1 });
+  if (request === contextRequest && epoch === memoryEpoch) updateSiteContext(info);
+}
+async function loadSiteMemories() {
+  if (!token || view !== 'chat' || memorySaving) return;
+  const session = token, epoch = memoryEpoch, request = ++memoryRequest;
+  memoryMessage('Loading saved instructions…');
+  try {
+    const data = await apiGet('/api/site-memory');
+    if (session !== token || epoch !== memoryEpoch || request !== memoryRequest) return;
+    memoryRecords = data.memories || []; memoryLoaded = true;
+    $('#memoryInstructions').maxLength = data.maxInstructions || 4000;
+    if (memorySite) selectMemorySite(memorySite);
+    else { memoryMessage('Choose a saved website or enter one above.'); renderMemorySites(); }
+  } catch (e) {
+    if (session !== token || epoch !== memoryEpoch || request !== memoryRequest) return;
+    if (e.status === 401) return lock(lockedMsg());
+    memoryMessage('Couldn’t load website memory: ' + e.message, true);
+  }
+}
+async function writeSiteMemory(remove) {
+  if (!memorySite || memorySaving || !token || !memoryLoaded) return;
+  const site = memorySite, session = token, epoch = memoryEpoch;
+  const instructions = $('#memoryInstructions').value.trim();
+  memoryRequest++; memorySaving = true; renderMemoryControls(); memoryMessage(remove ? 'Deleting…' : 'Saving…');
+  try {
+    const r = await fetch('/api/site-memory' + (remove ? '?site=' + encodeURIComponent(site) : ''), {
+      method: remove ? 'DELETE' : 'PUT', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session },
+      ...(remove ? {} : { body: JSON.stringify({ site, instructions }) }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (session !== token || epoch !== memoryEpoch) return;
+    if (!r.ok) throw Object.assign(new Error(data.error || 'HTTP ' + r.status), { status: r.status });
+    memoryRequest++; // invalidate a settings refresh started before this write completed
+    memoryRecords = memoryRecords.filter(m => m.site !== site);
+    if (data.memory) memoryRecords.push(data.memory);
+    memoryRecords.sort((a, b) => a.site.localeCompare(b.site));
+    memoryDrafts.delete(site);
+    if (memorySite === site) {
+      $('#memoryInstructions').value = data.memory?.instructions || '';
+      memoryMessage(data.memory ? `Saved for ${site}. These instructions apply to your next message on that website.` : `Deleted instructions for ${site}.`);
+    }
+    renderMemorySites();
+  } catch (e) {
+    if (session !== token || epoch !== memoryEpoch) return;
+    if (e.status === 401) return lock(lockedMsg());
+    memoryMessage('Couldn’t save website memory: ' + e.message, true);
+  } finally {
+    if (session === token && epoch === memoryEpoch) { memorySaving = false; renderMemoryControls(); }
+  }
+}
+$('#memoryForm').addEventListener('submit', e => { e.preventDefault(); writeSiteMemory(false); });
+$('#memoryDelete').onclick = () => writeSiteMemory(true);
+$('#memoryLoad').onclick = () => { if (selectMemorySite($('#memorySite').value) && !memoryLoaded) loadSiteMemories(); };
+$('#memoryCurrent').onclick = () => selectMemorySite(currentSite);
+$('#memorySites').onchange = () => { if ($('#memorySites').value) selectMemorySite($('#memorySites').value); };
+$('#memorySite').addEventListener('input', renderMemoryControls);
+$('#memorySite').addEventListener('change', () => selectMemorySite($('#memorySite').value));
+$('#memoryInstructions').addEventListener('input', () => { rememberMemoryDraft(); renderMemoryControls(); memoryMessage('Unsaved changes. Save to apply these instructions.'); });
+if (standalone) $('#memoryHint').textContent = 'Manage instructions for your websites here. They apply when you open Pagebot on that website. Each subdomain has its own instructions.';
 
 // ---- the owner's announcement, until it's closed ----
 let annGone = 0;
@@ -1493,6 +1667,7 @@ let sheetOpen = false;
 function openSheet(focusTokens) {
   if (view !== 'chat') return;
   sheetOpen = true; $('#sheet').hidden = false; $('#setBtn').classList.add('on'); body.classList.add('sheet');
+  refreshSiteContext(); loadSiteMemories();
   if (focusTokens) { $('#tokSec').scrollIntoView({ block: 'center' }); ($('#tokSeg button.on:not([hidden])') || $('#tokSeg button:not([hidden])'))?.focus(); }
 }
 function closeSheet() { sheetOpen = false; $('#sheet').hidden = true; $('#setBtn').classList.remove('on'); body.classList.remove('sheet'); }
@@ -1624,7 +1799,16 @@ function keepShooting(a) {
   setArea(a);
 }
 $('#areaPill').onclick = () => { setArea(null); $('#q').focus(); };
-function fitPills() { const p = $('.pills'); p.classList.remove('tight'); p.classList.toggle('tight', p.scrollWidth > p.clientWidth); }
+let fitFrame = 0;
+function fitPills() {
+  if (fitFrame) return;
+  fitFrame = requestAnimationFrame(() => {
+    fitFrame = 0;
+    const p = $('.pills');
+    if (!p.clientWidth) return;
+    p.classList.remove('tight'); p.classList.toggle('tight', p.scrollWidth > p.clientWidth);
+  });
+}
 addEventListener('resize', () => { fitPills(); scroll(); }); // a resized panel stays at the newest message if you were there
 
 function toJpeg(src, w, h) {
@@ -1707,10 +1891,10 @@ $('#areaBtn').onclick = async () => {
   focusView();
 };
 // a new shot of the region you picked, for the message being sent
-async function shootArea() {
+async function shootArea(captureArea) {
   const c = await grab();
   if (embedded) tell('show');
-  return crop(c, area);
+  return crop(c, captureArea);
 }
 
 // shows the frozen frame full screen and lets you drag a box on it
@@ -1874,7 +2058,12 @@ function finish(bot, out, ev, text) {
 async function send() {
   if (busy || view !== 'chat') return;
   busy = true; // a second Enter waits while the page text and any region shot come in
-  const info = await ask('page', { max: limits.pageTokens * 4 });
+  const gen = chatGen, session = token, pageRequest = ++contextRequest;
+  const stale = () => gen !== chatGen || session !== token || view !== 'chat';
+  const cancelPreparing = () => { busy = false; $('#sendBtn').disabled = false; setStatus(); };
+  const info = await ask('page', { max: pageOn ? limits.pageTokens * 4 : 1 });
+  if (stale()) return cancelPreparing();
+  if (pageRequest === contextRequest) updateSiteContext(info);
   const page = pageOn && info?.page ? info.page : null;
   let selection = info?.selection?.trim() || '';
   if (pageV7) {
@@ -1885,8 +2074,10 @@ async function send() {
 
   $('#sendBtn').disabled = true; setStatus();
   if (area && !img) { // screenshots are on: a new shot of the same area (or the whole tab) goes with this message
-    try { setImg(await shootArea(), area.whole ? 'shot' : 'region'); }
+    const captureArea = area;
+    try { const shot = await shootArea(captureArea); if (stale()) return cancelPreparing(); setImg(shot, captureArea.whole ? 'shot' : 'region'); }
     catch (e) {
+      if (stale()) return cancelPreparing();
       busy = false; $('#sendBtn').disabled = false; setStatus();
       if (e?.name === 'NotAllowedError') setArea(null); // sharing was turned down, so don't ask again on every message
       return shotFailed(e);
@@ -1899,7 +2090,7 @@ async function send() {
 
   const sent = { text, img, imgKind, pageOn, sel: !!selection };
   // cite: this page can find quoted passages, so ask for numbered quotes
-  const reqBody = { conversationId: convId, message: text, page, selection, image: img, model: prefs.model, web: !!prefs.web, cite: pageV7 };
+  const reqBody = { conversationId: convId, message: text, page, site: normalizeMemorySite(info?.page?.url) || null, selection, image: img, model: prefs.model, web: !!prefs.web, cite: pageV7 };
   q.value = ''; autosize(); clearImg(); setPage(false);
   if (selection) selOff = true; // it's in the chat now; a new highlight brings the pill back
   renderSel();
@@ -1911,11 +2102,13 @@ async function send() {
 
   const bot = addMsg('bot', '<span class="typing"><i></i><i></i><i></i></span>');
   const out = bot.querySelector('.body');
-  const gen = chatGen, mine = ctrl = new AbortController();
+  const mine = ctrl = new AbortController();
+  const renderer = answerRenderer(out, () => !stale());
   $('#sendBtn').disabled = false; stopMode(true);
   let acc = '', refused = false, named = false; // named: the server has the question (it sent the chat id)
   try {
-    const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(reqBody), signal: mine.signal });
+    const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session }, body: JSON.stringify(reqBody), signal: mine.signal });
+    if (stale()) { await r.body?.cancel(); return; }
     if (r.status === 401) { unsend(); lock(lockedMsg()); return; } // put the message back so nothing typed is lost, then lock
     if (r.status === 403) { // this account isn't approved (anymore)
       unsend(); await loadBoot().catch(() => {}); route(); return;
@@ -1928,6 +2121,7 @@ async function send() {
     const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '';
     for (;;) {
       const { done, value } = await rd.read(); if (done) break;
+      if (stale()) { await rd.cancel(); return; }
       buf += dec.decode(value, { stream: true });
       let i;
       while ((i = buf.indexOf('\n')) >= 0) {
@@ -1937,14 +2131,17 @@ async function send() {
         // the server names the chat as soon as the answer starts, so one you stop (or that breaks off) stays part of it
         if (ev.conversationId) named = true;
         if (ev.conversationId && gen === chatGen) convId = ev.conversationId;
-        if (ev.t === 'd') { acc += ev.v; out.innerHTML = md(acc); scroll(); }
+        if (ev.t === 'd') { acc += ev.v; renderer.queue(acc); }
         else if (ev.t === 's') searchStep(bot, ev.q);
-        else if (ev.t === 'done') { refused = 'refusal' in ev; if (ctrl === mine) { ctrl = null; stopMode(false); } finish(bot, out, ev, acc); }
+        else if (ev.t === 'done') { renderer.flush(); refused = 'refusal' in ev; if (ctrl === mine) { ctrl = null; stopMode(false); } finish(bot, out, ev, acc); }
         else if (ev.t === 'err') throw new Error(ev.v); // a broken-off answer stays in the chat
       }
     }
+    renderer.flush();
     if (!acc && !refused) out.innerHTML = '<i>(empty reply)</i>';
   } catch (e) {
+    renderer.cancel();
+    if (stale()) return;
     bot.querySelectorAll('.step.live').forEach(s => s.remove());
     if (mine.signal.aborted && !named && gen === chatGen) return void unsend(); // stopped before the server had it: put it all back to send again
     if (mine.signal.aborted) { // you pressed stop
@@ -1955,6 +2152,7 @@ async function send() {
       out.innerHTML = (acc ? md(acc) : '') + '<p>⚠ ' + esc(e.message || String(e)) + '</p>';
     }
   } finally {
+    renderer.cancel();
     if (ctrl === mine) ctrl = null;
     stopMode(false);
     busy = false; $('#sendBtn').disabled = false;
@@ -1968,15 +2166,13 @@ async function send() {
   }
 }
 
-// ---- the loadup animation: on first load and every time the panel opens again ----
-const bootHTML = $('#boot').outerHTML;
-const HOLD = calm ? 120 : 1700; // the intro runs this long before fading into the chat...
-const CAP = calm ? 600 : 2150;  // ...or until data arrives, but never past this (the whole thing stays under 3s)
+// ---- first-load animation; an already loaded panel reopens immediately ----
+const CAP = calm ? 600 : 2150; // don't keep a slow network request behind the intro indefinitely
 let splashT0 = performance.now(), splashing = true;
 const sinceSplash = t => wait(Math.max(0, splashT0 + t - performance.now()));
 async function endSplash(ready, setView) {
   const boot = $('#boot');
-  await Promise.race([Promise.all([sinceSplash(HOLD), ready]), sinceSplash(CAP)]);
+  await Promise.race([ready, sinceSplash(CAP)]);
   setView?.();
   body.classList.add('reveal');
   boot.classList.add('out');
@@ -1998,31 +2194,18 @@ async function endSplash(ready, setView) {
   splashing = false;
   setTimeout(() => { if (!splashing) body.classList.remove('reveal'); }, 900);
 }
-// While the panel is hidden, put a paused copy of the intro in place so it's there on the first frame it shows again.
-function armSplash() {
-  if (splashing || !hostV3) return; // only bookmarklets that announce re-opening can replay it
-  $('#boot')?.remove();
-  body.insertAdjacentHTML('afterbegin', bootHTML);
-  $('#boot').classList.add('armed');
-  $('#bootTag').textContent = cfg?.user?.name ? `Welcome back, ${cfg.user.name}` : 'Welcome back';
-  body.classList.add('booting'); body.classList.remove('reveal');
-  splashing = true;
-}
-function replaySplash() {
-  const boot = $('#boot');
-  if (!boot?.classList.contains('armed')) return;
-  boot.classList.remove('armed');
-  splashT0 = performance.now();
+let refreshingOpen = false;
+async function refreshOnOpen() {
+  if (splashing || refreshingOpen) return;
+  refreshingOpen = true;
   if (glassOn || clearOn) syncGlass(true); // the page behind may have switched between light and dark
-  // refresh settings and the session while the intro plays (an idle lock or approval may have happened meanwhile)
-  const ready = loadBoot().catch(() => {});
-  endSplash(ready, () => {
+  refreshSiteContext();
+  try {
+    await loadBoot(); // refresh settings/session in the background; the existing chat stays interactive
     if (!token) { if (view !== 'lock') showLogin(pinWho() ? '' : lockedMsg()); }
     else route();
-  });
+  } catch {} finally { refreshingOpen = false; }
 }
-// safety net: if an "open" message ever goes missing, the first click or key starts the waiting intro
-for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => replaySplash(), { capture: true });
 
 setPage(true);
 renderPrefs();

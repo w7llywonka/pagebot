@@ -79,8 +79,9 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
 - Scroll up while an answer is coming in and the panel stays where you are. **Jump to latest** takes you back down.
 - A new chat offers one-click starters: **Summarize this page**, **Key points**, and **Explain it simply**.
 - Each answer has a copy button next to its details, and code blocks get their own **Copy** button when you hover them.
-- Every time you open the panel, a short animation plays while it loads (under 3 seconds).
+- The panel opens as soon as its settings load. Reopening an existing panel goes straight back to the chat while refreshing your session.
 - **⚙ Settings**: pick a theme (Auto, Ember, Paper, Midnight, Forest, Dusk, Sakura, Terminal, Glass, or Clear) and the max tokens per answer, from presets between 512 and 8k (anything up to 100,000 can be set in `/admin`). Settings apply everywhere you use pagebot, and each account has its own.
+- **Website memory** in Settings saves instructions for a particular website, such as “Explain code with examples” or “Keep answers to three bullet points.” Open Settings on that website, write your instructions, and save them. You can also enter another website or choose a saved one to edit or delete it, including from `/chat`. Instructions apply automatically to your next question on that website, even with Page text off, and persist across visits and devices. Each account has its own memory, with up to 100 websites and 4,000 characters per website. Matching uses the exact hostname: paths and ports share instructions, while subdomains such as `www.example.com` and `docs.example.com` are separate. Memory stores only the instructions you save; it does not automatically save facts or conversations as instructions.
 - **✨ Your pagebot Wrapped** (top of ⚙ Settings): your year on pagebot, one card at a time — how many questions you asked, your most-asked sites, the hours you ask most, your go-to model, your favorite theme, and your longest streak of days in a row. Tap (or use ← →) to go through it. Early in a new year it shows the year before.
 - **Glass** is see-through: the page shows through a soft blur, and the text switches between dark and light to match the page behind it.
 - **Clear** drops the panel entirely: no tint, no blur, no shadow, only the words, buttons and message box floating over the page. Text gets a thin halo so it stays readable, and switches between dark and light like Glass.
@@ -93,7 +94,7 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
 - Some sites block overlays. On those, pagebot opens in a small window instead. If your browser blocks that pop-up, click the bookmark again.
 - You log in once per site, and it's remembered there. With a passcode set (yours, or an account's own), the panel locks itself after the idle time you chose, or right away with the 🔒 button.
 
-Updating from an older version? Drag the button from the homepage to your bookmarks bar again. Old bookmarks still work, but only the newest one gets resizing, docking, the ✂️ highlight pill, and "show me where" quotes (older bookmarks include highlighted text without a pill). Older ones also miss the see-through Glass on every site and the shadow-free Clear (with older ones they turn solid grey on dark-mode sites like Google's), the bigger panel, the animation on every open, and (for the oldest ones) moving, minimizing, and full-page region shots.
+Updating from an older version? Drag the button from the homepage to your bookmarks bar again to get smoother dragging and resizing, faster quote lookup, and lighter page requests when Page text is off. Old bookmarks still work, but only newer ones get resizing, docking, the ✂️ highlight pill, and "show me where" quotes (older bookmarks include highlighted text without a pill). Older ones also miss the see-through Glass on every site and the shadow-free Clear (with older ones they turn solid grey on dark-mode sites like Google's), the bigger panel, and (for the oldest ones) moving, minimizing, and full-page region shots.
 
 ## Security
 
@@ -117,7 +118,7 @@ Updating from an older version? Drag the button from the homepage to your bookma
 
 ## Versions
 
-pagebot's version is `VERSION` at the top of `server.js` (now 7). It's written into the bookmark people drag from the homepage. To release an update, raise it by one and deploy. Panels opened from an older bookmark then point people to the homepage to drag the new one.
+pagebot's version is `VERSION` at the top of `server.js` (now 8). It's written into the bookmark people drag from the homepage. To release an update, raise it by one and deploy. Panels opened from an older bookmark then point people to the homepage to drag the new one.
 
 Changes to the panel and the server reach everyone as soon as you deploy, whatever their bookmark. Raise the version whenever `bookmarklet.js` changes, or whenever you want everyone to get a fresh bookmark.
 
@@ -125,6 +126,10 @@ Changes to the panel and the server reach everyone as soon as you deploy, whatev
 
 ```
 cp .env.example .env   # set DATABASE_URL to a local Postgres
-npm install
+npm ci
 npm run dev
 ```
+
+Node 20 or newer and PostgreSQL are required. The server creates its tables and applies additive schema updates at startup, including website memory. Set `INITIAL_PASSWORD` and a 16-character-or-longer `ADMIN_TOKEN` for local sign-in and administration. An `ANTHROPIC_API_KEY` is required for real Claude replies; `OPENROUTER_API_KEY` is optional. Keep credentials in environment variables or the ignored `.env` file.
+
+Run `npm test` for bookmarklet regression tests. To also run website-memory integration tests, point `PAGEBOT_TEST_DATABASE_URL` at a disposable PostgreSQL database before running `npm test`; without it, those integration tests are explicitly skipped. They create and clean up a separate schema and use local mock model servers, so they need no AI keys or credits. Browser regression tests run with `npm run test:browser` and require Playwright and Chromium.
