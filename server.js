@@ -17,6 +17,12 @@ const MODELS = {
   haiku: { id: process.env.HAIKU_MODEL || process.env.MODEL || 'claude-haiku-5-5', label: 'Haiku 5.5', search: 'web_search_20250305' },
   sonnet: { id: process.env.SONNET_MODEL || 'claude-sonnet-5-5', label: 'Sonnet 5.5', search: 'web_search_20260209', fallback: process.env.SONNET_FALLBACK !== 'off' },
 };
+// a third model that runs on your OpenRouter credits instead of Anthropic's; it only shows up once OPENROUTER_API_KEY is set
+const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY || '';
+if (OPENROUTER_KEY) {
+  const id = process.env.OPENROUTER_MODEL || 'meta/muse-spark-1.3-contributor';
+  MODELS.openrouter = { id, label: process.env.OPENROUTER_MODEL ? modelLabel(id) : 'Muse Spark 1.3', openrouter: true };
+}
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 // both models think by default and thinking counts toward max_tokens; low effort keeps chat replies quick
 const EFFORT = ['low', 'medium', 'high', 'xhigh', 'max'].includes(process.env.EFFORT) ? process.env.EFFORT : 'low';
@@ -35,6 +41,8 @@ const PRICES = {
   'claude-haiku-5-5': { in: 0.10, write: 0.125, read: 0.01, out: 0.50, long: { over: 100_000, in: 0.50, write: 0.625, read: 0.05, out: 2.50 } },
   'claude-sonnet-5-5': { in: 2, write: 2.50, read: 0.10, out: 10 },
   'claude-sonnet-5': { in: 2, write: 2.50, read: 0.20, out: 10 },
+  // OpenRouter's price (October 2026). OpenRouter reports what each answer actually cost; this is for estimates.
+  'meta/muse-spark-1.3-contributor': { in: 0.10, write: 0.10, read: 0.002, out: 0.20 },
 };
 const SEARCH_USD = 0.01; // $10 per 1,000 web searches
 const SEARCH_TOKENS = 3000; // rough prompt tokens one search's results add, for estimates
@@ -689,12 +697,14 @@ const searchNote = () => `
 
 You can search the web with the web_search tool. The current date is ${today()}. Your training data ends well before today's date. Records, office holders, prices, versions, rules and anything "latest" may have changed since then, so search for those before you answer, even when you feel sure. Facts that can't change need no search. When the answer depends on where the user is, put the user's country or region in the search query.`;
 
-// "claude-sonnet-5-5" -> "Sonnet 5.5"
-const modelLabel = id => {
+// "claude-sonnet-5-5" -> "Sonnet 5.5"; OpenRouter's "meta/muse-spark-1.3" -> "Muse Spark 1.3"
+function modelLabel(id) {
   for (const m of Object.values(MODELS)) if (m.id === id) return m.label;
-  const [name, ...v] = String(id || '').replace(/^claude-/, '').split('-');
+  const s = String(id || '');
+  if (s.includes('/')) return s.split('/').pop().split(/[-_]/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+  const [name, ...v] = s.replace(/^claude-/, '').split('-');
   return name ? name[0].toUpperCase() + name.slice(1) + (v.length ? ' ' + v.join('.') : '') : 'Claude';
-};
+}
 
 const priceFor = id => PRICES[id] || (/haiku/.test(id) ? PRICES['claude-haiku-5-5'] : /sonnet-5$/.test(id) ? PRICES['claude-sonnet-5'] : PRICES['claude-sonnet-5-5']);
 function tokenCost(model, x) {
@@ -737,6 +747,47 @@ function cutUsage(msg) {
       server_tool_use: { web_search_requests: searches },
     },
   };
+}
+
+// OpenRouter reports its own charge (`cost`, in dollars, searches included) with the usage
+function addRouterUsage(tot, u, model) {
+  const i = u.prompt_tokens || 0, o = u.completion_tokens || 0, searches = u.server_tool_use?.web_search_requests || 0;
+  tot.in += i; tot.out += o; tot.searches += searches;
+  tot.usd += typeof u.cost === 'number' ? u.cost : tokenCost(model, { input_tokens: i, output_tokens: o }) + searches * SEARCH_USD;
+}
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const ROUTER_STOP = { stop: 'end_turn', length: 'max_tokens', content_filter: 'refusal' };
+const routerError = (status, body) => Object.assign(new Error(String(body?.error?.message || `OpenRouter error ${status}`)), { status, router: true });
+// One answer from OpenRouter: OpenAI-style chat completions, streamed as server-sent events. `s` fills in as it
+// streams (whether it got going, its usage, the web pages it cites), so an answer that breaks off still counts.
+async function askRouter(body, signal, s, onText) {
+  const r = await fetch(OPENROUTER_URL, {
+    method: 'POST', signal,
+    headers: { Authorization: `Bearer ${OPENROUTER_KEY}`, 'Content-Type': 'application/json', 'X-Title': 'pagebot' },
+    body: JSON.stringify({ ...body, stream: true }),
+  });
+  if (!r.ok) throw routerError(r.status, await r.json().catch(() => null));
+  s.started = true;
+  const dec = new TextDecoder();
+  let buf = '', finish = null;
+  for await (const chunk of r.body) {
+    buf += dec.decode(chunk, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith('data:')) continue; // blank lines and ": OPENROUTER PROCESSING" keep-alives
+      const data = line.slice(5).trim();
+      let ev;
+      try { ev = JSON.parse(data); } catch { continue; } // the closing [DONE] too
+      if (ev.error) throw routerError(ev.error.code, ev); // an error after the answer started comes as an event
+      if (ev.usage) s.usage = ev.usage; // with the last event
+      const c = ev.choices?.[0];
+      if (c?.finish_reason) finish = c.finish_reason;
+      for (const a of c?.delta?.annotations || []) if (a?.type === 'url_citation' && a.url_citation) s.sources.push(a.url_citation);
+      if (c?.delta?.content) onText(c.delta.content);
+    }
+  }
+  return { model: body.model, stop_reason: ROUTER_STOP[finish] || finish || 'end_turn' };
 }
 
 // chat (streams NDJSON: {t:'id',conversationId} first | {t:'d',v:text} | {t:'s',q?} search started/query | {t:'done',...} | {t:'err',v,conversationId?})
@@ -801,14 +852,15 @@ async function chat(req, res) {
   // page), the API marks which passages back each part of the answer, and the panel can point at them.
   const cite = b.cite === true;
   const doc = page?.text.trim() ? page : null;
-  const docBlock = d => ({
+  const attr = s => s.replace(/"/g, '&quot;');
+  // OpenRouter models take the page as plain text in <page> tags instead (no citations there)
+  const docBlock = d => m.openrouter ? { type: 'text', text: `<page url="${attr(d.url || '')}" title="${attr(d.title || '')}">\n${fence(d.text)}\n</page>` } : {
     type: 'document', source: { type: 'text', media_type: 'text/plain', data: d.text },
     title: (d.title || d.url || 'Web page').slice(0, 300), ...(d.url && { context: `URL: ${d.url}` }),
     citations: { enabled: cite },
-  });
+  };
 
   // build this turn's text
-  const attr = s => s.replace(/"/g, '&quot;');
   const parts = [];
   if (page && !doc) parts.push(`<page url="${attr(page.url)}" title="${attr(page.title)}"></page>`);
   if (selection) parts.push(`<highlighted_text>\n${selection}\n</highlighted_text>`);
@@ -822,19 +874,22 @@ async function chat(req, res) {
     return { role: h.role, content: d?.text ? [docBlock(d), { type: 'text', text }] : text };
   });
   const cur = [];
-  if (image) cur.push({ type: 'image', source: { type: 'base64', media_type: image.media_type, data: image.data } });
+  if (image) cur.push(m.openrouter ? { type: 'image_url', image_url: { url: `data:${image.media_type};base64,${image.data}` } }
+    : { type: 'image', source: { type: 'base64', media_type: image.media_type, data: image.data } });
   if (doc) cur.push(docBlock(doc));
-  cur.push({ type: 'text', text: userText, cache_control: { type: 'ephemeral' } });
+  cur.push({ type: 'text', text: userText, ...(!m.openrouter && { cache_control: { type: 'ephemeral' } }) });
   messages.push({ role: 'user', content: cur });
 
   const system = SYSTEM + (web ? searchNote() : '');
   let maxTokens = limits.maxTokens;
+  // the prompt's size, estimated on the high side at 3 characters a token, plus the screenshot
+  const chars = system.length + userText.length + (doc ? doc.text.length : 0) +
+    history.reduce((n, h) => n + h.content.length + (h.page_doc ? h.page_doc.length : 0), 0);
+  const promptEst = Math.ceil(chars / 3) + (image ? 1600 : 0);
   if (q0) {
-    // Make sure the whole question fits in what's left today: the prompt (estimated on the high side at
-    // 3 characters a token), screenshots and search results, plus the answer, whose length gets capped to fit.
-    const chars = system.length + userText.length + (doc ? doc.text.length : 0) +
-      history.reduce((n, h) => n + h.content.length + (h.page_doc ? h.page_doc.length : 0), 0);
-    const estIn = Math.ceil(chars / 3) + (image ? 1600 : 0) + (web ? limits.maxSearches * SEARCH_TOKENS : 0);
+    // Make sure the whole question fits in what's left today: the prompt and any search results, plus the answer,
+    // whose length gets capped to fit.
+    const estIn = promptEst + (web ? limits.maxSearches * SEARCH_TOKENS : 0);
     let room;
     if (q0.kind === 'tokens') room = q0.left - estIn;
     else {
@@ -879,9 +934,22 @@ async function chat(req, res) {
   // quoted passages of the page, and where in the reply each group of them backs up what was just said
   const quotes = [], quoteIdx = new Map(), cites = [];
   let reply = '', final = null, failed = null, cut = null;
+  const rs = m.openrouter ? { started: false, usage: null, sources: [] } : null;
   try {
+    if (m.openrouter && !closed) {
+      stream = new AbortController(); // so stream.abort() above stops it too
+      final = await askRouter({
+        model: m.id, max_tokens: maxTokens, messages: [{ role: 'system', content: system }, ...messages],
+        reasoning: { effort: EFFORT, exclude: true }, // it always thinks first; the thinking isn't shown, but counts toward max_tokens
+        ...(web && { tools: [{ type: 'openrouter:web_search', parameters: { max_uses: limits.maxSearches } }], max_tool_calls: limits.maxSearches }),
+      }, stream.signal, rs, t => { reply += t; out({ t: 'd', v: t }); });
+      addRouterUsage(tot, rs.usage || { prompt_tokens: promptEst, completion_tokens: Math.ceil(reply.length / 3) }, m.id);
+      for (const c of rs.sources) {
+        if (/^https?:\/\//.test(c.url || '') && !sources.has(c.url)) sources.set(c.url, String(c.title || '').slice(0, 200));
+      }
+    }
     // a long server-side search loop can pause the turn; resend it as-is to let it continue
-    for (let i = 0; i < 4 && !closed; i++) {
+    for (let i = 0; i < 4 && !closed && !m.openrouter; i++) {
       stream = api.stream(params);
       stream.on('text', t => { reply += t; out({ t: 'd', v: t }); });
       stream.on('streamEvent', ev => {
@@ -918,10 +986,12 @@ async function chat(req, res) {
     }
   } catch (e) {
     failed = e;
-    if (!(e instanceof Anthropic.APIUserAbortError)) console.error('chat error:', e?.status, e?.message);
+    if (!(e instanceof Anthropic.APIUserAbortError) && e?.name !== 'AbortError') console.error('chat error:', e?.status, e?.message);
     // a request cut short is still billed for what it used; the SDK keeps the message as far as it got
     cut = stream?.currentMessage;
     if (cut) addUsage(tot, cutUsage(cut), cut.model || m.id);
+    // OpenRouter only totals usage at the end, so estimate it from the prompt and what streamed in
+    else if (rs?.started) addRouterUsage(tot, rs.usage || { prompt_tokens: promptEst, completion_tokens: Math.ceil(reply.length / 3) }, m.id);
   }
   // Stopped before the model said anything: the panel already shows the question, and the page and screenshot it
   // sent won't be sent again, so keep the question in the chat with an empty, stopped answer.
@@ -956,6 +1026,9 @@ async function chat(req, res) {
 
 function friendly(e, model) {
   const s = e?.status;
+  if (e?.router && s === 401) return 'OpenRouter API key is invalid (check OPENROUTER_API_KEY).';
+  if (e?.router && s === 402) return 'Your OpenRouter account is out of credits.';
+  if (e?.router && s === 404) return `Model "${model}" not found on OpenRouter (check OPENROUTER_MODEL).`;
   if (s === 401) return 'Anthropic API key is invalid (check ANTHROPIC_API_KEY).';
   if (s === 404) return `Model "${model}" not found (check HAIKU_MODEL / SONNET_MODEL).`;
   if (s === 429) return 'Rate limited by the API — try again in a moment.';
@@ -1054,13 +1127,13 @@ app.get('/api/admin/stats', limit(30, 'admin'), admin, async (req, res) => {
   const n = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Number(v)]));
   res.json({
     ...n(m), sessions: Number(sessions), budget: BUDGET, effort: EFFORT,
-    models: Object.values(MODELS).map(x => ({ label: x.label, id: x.id })),
+    models: Object.values(MODELS).map(x => ({ label: x.label, id: x.id, openrouter: !!x.openrouter })),
     passwordSet: cfg.passwordSet, limits: cfg.limits, limitRanges: LIMIT_RANGES,
     lock: { on: cfg.lock.on, minutes: cfg.lock.minutes, fails: Math.min(cfg.lock.fails, MAX_PASSCODE_FAILS), maxFails: MAX_PASSCODE_FAILS, choices: LOCK_CHOICES },
   });
 });
 
-// daily token usage for the chart, in TIMEZONE days; `user` narrows it to 'owner' or one account id
+// daily token usage for the chart, in TIMEZONE days (OpenRouter's model ids are the ones with a slash); `user` narrows it to 'owner' or one account id
 app.get('/api/admin/usage', limit(30, 'admin'), admin, async (req, res) => {
   const days = clampInt(req.query.days || 30, 1, 365);
   const who = req.query.user === 'owner' ? 'owner' : /^\d+$/.test(String(req.query.user || '')) ? String(req.query.user) : 'all';
@@ -1078,9 +1151,11 @@ app.get('/api/admin/usage', limit(30, 'admin'), admin, async (req, res) => {
       COALESCE(SUM(m.output_tokens), 0)::bigint AS output,
       COUNT(m.role) FILTER (WHERE m.role = 'user')::bigint AS questions,
       COALESCE(SUM(m.web_searches), 0)::bigint AS searches,
-      COALESCE(SUM(m.input_tokens + m.output_tokens) FILTER (WHERE m.model LIKE '%sonnet%'), 0)::bigint AS sonnet,
+      COALESCE(SUM(m.input_tokens + m.output_tokens) FILTER (WHERE m.model LIKE '%sonnet%' AND m.model NOT LIKE '%/%'), 0)::bigint AS sonnet,
+      COALESCE(SUM(m.input_tokens + m.output_tokens) FILTER (WHERE m.model LIKE '%/%'), 0)::bigint AS router,
       COALESCE(SUM(m.usd), 0)::float8 AS usd,
-      COALESCE(SUM(m.usd) FILTER (WHERE m.model LIKE '%sonnet%'), 0)::float8 AS sonnet_usd
+      COALESCE(SUM(m.usd) FILTER (WHERE m.model LIKE '%sonnet%' AND m.model NOT LIKE '%/%'), 0)::float8 AS sonnet_usd,
+      COALESCE(SUM(m.usd) FILTER (WHERE m.model LIKE '%/%'), 0)::float8 AS router_usd
     FROM generate_series((SELECT start FROM bounds), date_trunc('day', now() AT TIME ZONE $1), interval '1 day') AS d(day)
     LEFT JOIN m ON m.day = d.day::date
     GROUP BY d.day ORDER BY d.day`, [TIMEZONE, days, who]);
@@ -1088,7 +1163,7 @@ app.get('/api/admin/usage', limit(30, 'admin'), admin, async (req, res) => {
     timezone: TIMEZONE,
     days: r.rows.map(x => ({
       day: x.day, input: +x.input, output: +x.output, questions: +x.questions, searches: +x.searches,
-      sonnet: +x.sonnet, usd: +x.usd, sonnetUsd: +x.sonnet_usd,
+      sonnet: +x.sonnet, router: +x.router, usd: +x.usd, sonnetUsd: +x.sonnet_usd, routerUsd: +x.router_usd,
     })),
   });
 });

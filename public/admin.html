@@ -7,7 +7,7 @@
 <title>pagebot admin</title>
 <style>
 :root{--bg:#141414;--panel:#1d1d1d;--line:#2b2b2b;--text:#ebe8e1;--muted:#8e8a82;--accent:#d97757;--ok:#7fc99a;--err:#ff8a7a;
-  --s-haiku:#3987e5;--s-sonnet:#d95926;--axis:#383835;
+  --s-haiku:#3987e5;--s-sonnet:#d95926;--s-router:#a06ee0;--axis:#383835;
   font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text)}
@@ -338,16 +338,19 @@ async function loadUsage() {
     const u = await api(`/api/admin/usage?days=${days}&user=${encodeURIComponent(who)}`);
     series = u.days.map(d => ({
       ...d,
-      tokens: { total: d.input + d.output, haiku: Math.max(0, d.input + d.output - d.sonnet), sonnet: d.sonnet },
-      usd: { total: d.usd, haiku: Math.max(0, d.usd - d.sonnetUsd), sonnet: d.sonnetUsd },
+      tokens: { total: d.input + d.output, haiku: Math.max(0, d.input + d.output - d.sonnet - d.router), sonnet: d.sonnet, router: d.router },
+      usd: { total: d.usd, haiku: Math.max(0, d.usd - d.sonnetUsd - d.routerUsd), sonnet: d.sonnetUsd, router: d.routerUsd },
     }));
     drawChart(); fillTable();
   } finally { $('#chart').classList.remove('loading'); }
 }
 const names = () => {
   const m = stats?.models || [];
-  return { haiku: m[0]?.label || 'Haiku', sonnet: m[1]?.label || 'Sonnet' };
+  return { haiku: m[0]?.label || 'Haiku', sonnet: m[1]?.label || 'Sonnet', router: m.find(x => x.openrouter)?.label || 'OpenRouter' };
 };
+// the OpenRouter model only gets a color once it's set up or has been used
+const SERIES = [['haiku', 'var(--s-haiku)'], ['sonnet', 'var(--s-sonnet)'], ['router', 'var(--s-router)']];
+const shown = () => SERIES.filter(([k]) => k !== 'router' || stats?.models?.some(x => x.openrouter) || series.some(d => d.router));
 const val = (d, k) => d[unit][k];
 const fmtV = v => unit === 'usd' ? money(v) : short(v);
 function drawChart() {
@@ -378,7 +381,7 @@ function drawChart() {
   const cols = svgEl('g', {}, svg);
   series.forEach((d, i) => {
     const x = left + band * i + (band - barW) / 2, g = svgEl('g', { class: 'col', 'data-i': i }, cols);
-    const segs = [[val(d, 'haiku'), 'var(--s-haiku)'], [val(d, 'sonnet'), 'var(--s-sonnet)']].filter(s => s[0] > 0);
+    const segs = SERIES.map(([k, color]) => [val(d, k), color]).filter(s => s[0] > 0);
     let base = top + plotH;
     segs.forEach(([v, color], k) => {
       let h = v / max * plotH;
@@ -412,7 +415,7 @@ function drawChart() {
     (tot.s ? ` · ${nf.format(tot.s)} web search${tot.s === 1 ? '' : 'es'}` : '') + (who === 'all' ? '' : ' · <span class="who"></span>');
   if (who !== 'all') $('#sum .who').textContent = whoName;
   $('#legend').innerHTML = '';
-  for (const [key, color] of [['haiku', 'var(--s-haiku)'], ['sonnet', 'var(--s-sonnet)']]) {
+  for (const [key, color] of shown()) {
     const s = document.createElement('span'), i = document.createElement('i');
     i.style.background = color; s.append(i, document.createTextNode(N[key])); $('#legend').appendChild(s);
   }
@@ -427,7 +430,7 @@ function show(i) {
   const line = (cls, text) => { const e = document.createElement('div'); e.className = cls; e.textContent = text; tip.appendChild(e); return e; };
   line('d', longFmt.format(asDate(d.day)));
   line('t', unit === 'usd' ? `${money(d.usd.total, 4)} estimated` : `${nf.format(d.tokens.total)} tokens`);
-  for (const [key, color] of [['haiku', 'var(--s-haiku)'], ['sonnet', 'var(--s-sonnet)']]) {
+  for (const [key, color] of shown()) {
     const r = line('r', ''), k = document.createElement('i'), b = document.createElement('b');
     k.style.background = color; b.textContent = unit === 'usd' ? money(d.usd[key], 4) : short(d.tokens[key]);
     r.append(k, b, document.createTextNode(N[key]));
@@ -454,9 +457,10 @@ function fillTable() {
   const N = names(), t = $('#tbl');
   t.replaceChildren();
   const tr = (cells, th) => { const r = t.insertRow(); for (const c of cells) { const e = document.createElement(th ? 'th' : 'td'); e.textContent = c; r.appendChild(e); } };
-  tr(['Day', N.haiku, N.sonnet, 'Total tokens', 'Est. cost', 'Questions', 'Searches'], true);
+  const keys = shown().map(([k]) => k);
+  tr(['Day', ...keys.map(k => N[k]), 'Total tokens', 'Est. cost', 'Questions', 'Searches'], true);
   for (const d of [...series].reverse())
-    tr([dayFmt.format(asDate(d.day)), nf.format(d.tokens.haiku), nf.format(d.tokens.sonnet), nf.format(d.tokens.total), money(d.usd.total, 3), d.questions, d.searches]);
+    tr([dayFmt.format(asDate(d.day)), ...keys.map(k => nf.format(d.tokens[k])), nf.format(d.tokens.total), money(d.usd.total, 3), d.questions, d.searches]);
 }
 $('#range').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;

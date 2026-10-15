@@ -14,6 +14,7 @@ You own it and log in with your password or passcode. Other people can create th
    |---|---|
    | `DATABASE_URL` | Leave as `${{Postgres.DATABASE_URL}}`. Railway fills it in. |
    | `ANTHROPIC_API_KEY` | Your key from console.anthropic.com |
+   | `OPENROUTER_API_KEY` | Optional. Your key from openrouter.ai/keys. It adds ◆ Muse Spark 1.3 to the model menu, which runs on your OpenRouter credits. Leave it blank to skip it. |
    | `ADMIN_TOKEN` | Your personal admin token. Use a long random string (16+ chars). It unlocks `/admin`. |
    | `INITIAL_PASSWORD` | The first password for the bookmarklet. It's only used if no password is set yet. You can delete it after the first deploy. |
    | `TOKEN_BUDGET` | Used for the "tokens left" bar in `/admin` |
@@ -33,6 +34,7 @@ Optional variables:
 | `HAIKU_MODEL` | `claude-haiku-5-5` | Model for the ⚡ Haiku setting. The older `MODEL` variable still works for this. |
 | `SONNET_MODEL` | `claude-sonnet-5-5` | Model for the ✦ Sonnet setting. |
 | `EFFORT` | `low` | How hard the models think before answering (`low`, `medium`, `high`, `xhigh`, `max`). Thinking counts toward each answer's token limit. |
+| `OPENROUTER_MODEL` | `meta/muse-spark-1.3-contributor` | Model for the ◆ setting, as an OpenRouter model id. Only used when `OPENROUTER_API_KEY` is set. |
 | `SONNET_FALLBACK` | on | If Sonnet declines a request, the API retries it on the model Anthropic recommends. Set to `off` to turn that off. |
 | `MAX_TOKENS` | `2048` | Starting value for "max tokens per answer" (100,000 at most). After that, change it in `/admin` or the panel's settings. |
 | `SYSTEM_PROMPT` | built in | Replaces the default instructions. |
@@ -71,7 +73,7 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
   - **Page text** sends the page along. It's on for the first message of each chat (shown as a 📄 Page pill) and off after that, since the page stays in the chat history anyway.
   - **Web search** lets the model search the web (shown as a 🌐 Web pill). Answers that used it list their sources.
   - Click a pill's × to turn that thing off.
-- The model name next to the send button picks the model: ⚡ Haiku 5.5 is fast and cheap; ✦ Sonnet 5.5 is smarter.
+- The model name next to the send button picks the model: ⚡ Haiku 5.5 is fast and cheap; ✦ Sonnet 5.5 is smarter. With `OPENROUTER_API_KEY` set there's also ◆ Muse Spark 1.3, Meta's model through OpenRouter (the cheapest of the three). Its answers don't point at passages on the page.
 - While an answer is coming in, the send button turns into a **stop** button. What arrived so far stays in the chat, and follow-ups can build on it.
 - Scroll up while an answer is coming in and the panel stays where you are. **Jump to latest** takes you back down.
 - A new chat offers one-click starters: **Summarize this page**, **Key points**, and **Explain it simply**.

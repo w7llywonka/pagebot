@@ -1405,7 +1405,7 @@ for (const [n, label] of TOK) {
   b.onclick = () => savePrefs({ maxTokens: n });
   $('#tokSeg').appendChild(b);
 }
-const MODEL_INFO = { haiku: ['⚡', 'Fast and cheap'], sonnet: ['✦', 'Smarter, a little slower'] };
+const MODEL_INFO = { haiku: ['⚡', 'Fast and cheap'], sonnet: ['✦', 'Smarter, a little slower'], openrouter: ['◆', 'Via OpenRouter'] };
 function renderPrefs() {
   const webOk = !isUser() || !!cfg.user?.allowWeb;
   if (!webOk) prefs.web = false;
