@@ -6,189 +6,210 @@
 <meta name="robots" content="noindex">
 <title>pagebot</title>
 <style>
-/* A pixel-art night: waterfalls pour between dark cliffs under a sky of stars, in deep glowing blues, with one warm
-   accent. Everything there is to read sits in a dark pool with a glowing rim, so the words float on the water.
-   The cursor parts the falls, throws spray, ripples the pools and lights up the night around it. Down the left
-   runs a numbered margin with a reading ruler on the cursor's line, because pagebot reads pages. */
-:root{--bg:#03050f;--ink:#e6eeff;--soft:#b9c6e8;--muted:#7f8db6;--faint:#3a4673;--line:#1b2552;
-  --cyan:#8fd3ff;--blue:#3b78ff;--warm:#f2a14e;--warm-d:#8a4f1c;--slab:rgba(4,8,26,.82);
-  --serif:Georgia,"Iowan Old Style","Times New Roman",serif;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  --gut:58px;--lh:24px;
-  font:16px/1.6 var(--sans);color-scheme:dark}
+/* A calm white page with landscapes drawn into it as dithered pixels: a cove of turquoise water between rocky,
+   pine-covered cliffs under the headline, a dithered band of what pagebot reads, and a coastline behind the panel
+   in the install section. The water is live: it moves on its own, and the cursor sends ripples across it. */
+:root{--bg:#fff;--ink:#22302c;--soft:#56645f;--muted:#8a9590;--line:#e6eae4;--pill:#eef1eb;--card:#f5f7f2;
+  --teal:#0f5f57;--teal-d:#0a443e;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font:16px/1.6 var(--sans);color-scheme:light}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);position:relative;overflow-x:hidden}
+body{margin:0;background:var(--bg);color:var(--ink);overflow-x:hidden}
 a{color:inherit}
-::selection{background:var(--cyan);color:var(--bg)}
-#world{position:fixed;left:0;top:0;display:block;z-index:0;pointer-events:none;image-rendering:pixelated;image-rendering:crisp-edges}
-.layer{position:relative;z-index:2}
-.wrap{max-width:1260px;margin:0 auto;padding:0 clamp(20px,4vw,48px) 0 calc(var(--gut) + clamp(16px,3vw,40px))}
+::selection{background:#cfe7e2}
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(20px,4vw,56px)}
+canvas.px{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+.pill{display:inline-block;padding:5px 15px;border-radius:999px;background:var(--pill);font-size:15px;color:var(--ink)}
 
-/* the margin: line numbers, and the reading ruler on the cursor's line */
-#gutter{position:absolute;left:0;top:0;width:var(--gut);margin:0;padding:0 0 0 14px;font:10.5px/var(--lh) var(--mono);color:var(--faint);white-space:pre;pointer-events:none;user-select:none;z-index:3;
-  background:rgba(3,5,15,.82);border-right:1px solid var(--line)}
-#ruler{position:absolute;left:0;right:0;top:0;height:var(--lh);pointer-events:none;z-index:1;opacity:0;
-  background:linear-gradient(90deg,rgba(143,211,255,.14),rgba(143,211,255,.05) 45%,rgba(143,211,255,0) 85%)}
-#rulerNo{position:absolute;left:0;top:0;width:var(--gut);height:var(--lh);padding-left:14px;font:600 10.5px/var(--lh) var(--mono);color:var(--cyan);pointer-events:none;z-index:4;opacity:0}
-#rulerNo::before{content:"";position:absolute;left:4px;top:8px;border:4px solid transparent;border-left:5px solid var(--cyan)}
-#ruler.on,#rulerNo.on{opacity:1}
+/* ---- top ---- */
+nav{position:relative;z-index:3;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:92px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font:400 27px/1 var(--serif);letter-spacing:-.01em}
+.brand svg{width:26px;height:26px}
+.links{display:flex;gap:44px;font-size:17px}
+.links a{color:var(--soft);text-decoration:none}
+.links a:hover{color:var(--ink)}
+.go{justify-self:end;display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:999px;background:var(--pill);text-decoration:none;font-weight:500;font-size:16px;transition:background .15s}
+.go:hover{background:#e3e8df}
 
-/* ---- hero ---- */
-nav{display:flex;align-items:center;gap:28px;height:76px;font-size:14px}
-.brand{flex:1;display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:600;letter-spacing:.2px}
-.brand svg{width:18px;height:18px;shape-rendering:crispEdges}
-nav a.n{color:var(--muted);text-decoration:none}
-nav a.n:hover{color:var(--ink)}
-.hero-in{padding-top:clamp(28px,8vh,96px);max-width:900px}
-.kicker{margin:0 0 26px;font:12px/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--cyan)}
-.kicker i{display:inline-block;width:8px;height:8px;background:var(--warm);margin-right:12px;box-shadow:0 0 10px rgba(242,161,78,.7)}
-h1{margin:0;max-width:10.6em;font:400 clamp(50px,7.8vw,116px)/.98 var(--serif);letter-spacing:-.025em;text-shadow:0 0 28px rgba(59,120,255,.35)}
-h1 em{color:var(--cyan);text-shadow:0 0 22px rgba(143,211,255,.55)}
-.wv .w{display:inline-block;white-space:nowrap}
-.wv .c{display:inline-block;will-change:transform}
-.lede{max-width:31em;margin:30px 0 0;font-size:18.5px;line-height:1.55;color:var(--soft)}
-.ctas{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:34px}
-.btn{display:inline-flex;align-items:center;gap:9px;padding:13px 20px;font:600 15px var(--sans);text-decoration:none;transition:transform .08s,box-shadow .08s,border-color .15s}
-.btn.primary{background:var(--warm);color:#140a02;box-shadow:4px 4px 0 var(--warm-d),0 0 26px rgba(242,161,78,.35);cursor:grab}
-.btn.primary:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 var(--warm-d),0 0 32px rgba(242,161,78,.5)}
-.btn.primary:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--warm-d);cursor:grabbing}
-.btn.ghost{background:var(--slab);border:1px solid #2a3a7a;color:var(--ink);box-shadow:inset 0 0 0 1px rgba(143,211,255,.06)}
-.btn.ghost:hover{border-color:var(--cyan);box-shadow:0 0 18px rgba(143,211,255,.25)}
-.hint{margin-top:16px;font:12px/1.5 var(--mono);color:var(--muted)}
-.hero{position:relative}
-.pond-space{height:clamp(280px,46vh,500px)}
+.hero{position:relative;min-height:max(860px,100svh);display:flex;flex-direction:column}
+.hero>.wrap{width:100%}
+.hero-in{position:relative;z-index:2;text-align:center;padding-top:clamp(56px,14vh,150px);display:flex;flex-direction:column;align-items:center}
+h1{margin:22px 0 0;font:400 clamp(48px,6.6vw,92px)/.98 var(--serif);letter-spacing:-.035em;color:var(--ink)}
+h1 .c{display:inline-block;will-change:transform}
+h1 .w{display:inline-block;white-space:nowrap}
+.lede{max-width:34em;margin:26px auto 0;font-size:19px;line-height:1.5;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;gap:10px;margin-top:38px;padding:15px 34px;border-radius:999px;background:var(--teal);color:#fff;font-size:19px;font-weight:500;text-decoration:none;cursor:grab;box-shadow:0 8px 24px rgba(15,95,87,.22);transition:transform .12s,background .15s,box-shadow .15s}
+.btn:hover{background:var(--teal-d);transform:translateY(-1px);box-shadow:0 12px 28px rgba(15,95,87,.28)}
+.btn:active{cursor:grabbing;transform:translateY(1px)}
+.hint{margin-top:14px;font-size:13.5px;color:var(--muted)}
+.cove{position:absolute;left:0;right:0;bottom:0;height:54%;overflow:hidden;z-index:1}
+.cove canvas{position:absolute;left:0;bottom:0}
 
-/* the panel, floating */
-.mock{position:absolute;z-index:2;right:clamp(24px,6vw,96px);bottom:clamp(40px,8vh,96px);width:300px;background:#0a0b14;border:1px solid #2a3a7a;box-shadow:6px 6px 0 rgba(0,0,0,.5),0 0 40px rgba(59,120,255,.25);font-size:12.5px;pointer-events:none;will-change:transform}
-.mock header{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);font-weight:600}
-.mock header i{width:7px;height:7px;border-radius:50%;background:#d97757}
-.mock .log{padding:10px;display:flex;flex-direction:column;gap:8px}
-.mock .m{padding:7px 10px;border-radius:10px;max-width:90%}
-.mock .u{align-self:flex-end;background:#1d2340}
-.mock .b{align-self:flex-start;background:#10142a;border:1px solid var(--line)}
-.mock .t,.mock .meta{font-size:10.5px;color:var(--muted)}
-.mock .t{margin-bottom:2px}
-.mock .meta{margin-top:4px}
-.mock .comp{margin:0 8px 8px;border:1px solid var(--line);border-radius:11px;padding:8px 8px 6px;color:var(--muted);font-size:11.5px;display:flex;justify-content:space-between;align-items:center}
-.mock .comp b{width:20px;height:20px;border-radius:50%;background:#d97757;color:#fff;display:grid;place-items:center;font-size:11px}
+/* ---- the band of things it reads ---- */
+.band{position:relative;height:108px;overflow:hidden}
+.band canvas{position:absolute;left:0;top:0}
+.band ul{position:relative;list-style:none;margin:0;padding:0;height:100%;display:grid;grid-template-columns:repeat(7,1fr)}
+.band li{display:flex;align-items:center;justify-content:center;gap:10px;border-left:1px solid rgba(255,255,255,.45);font:600 19px var(--sans);letter-spacing:-.01em}
+.band li:first-child{border-left:0}
+.band li svg{width:20px;height:20px;flex:none}
 
 /* ---- sections ---- */
-section{padding:clamp(90px,14vh,150px) 0}
-.sh{display:flex;align-items:baseline;gap:18px;margin-bottom:48px}
-.sh .no{font:12px var(--mono);letter-spacing:.09em;color:var(--cyan)}
-h2{margin:0;font:400 clamp(42px,5.4vw,74px)/1 var(--serif);letter-spacing:-.02em;text-shadow:0 0 24px rgba(59,120,255,.3)}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(16px,2.4vw,30px)}
-.card{position:relative;padding:26px 24px 30px;background:var(--slab);border:1px solid #22306a;box-shadow:5px 5px 0 rgba(0,0,0,.45),inset 0 1px 0 rgba(143,211,255,.08);will-change:transform;transition:border-color .15s,box-shadow .15s}
-.card:hover{border-color:#4f86d9;box-shadow:5px 5px 0 rgba(0,0,0,.45),0 0 28px rgba(59,120,255,.28);background-image:repeating-conic-gradient(rgba(59,120,255,.1) 0 25%,transparent 0 50%);background-size:4px 4px}
-.card .k{font:11.5px var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--cyan)}
-.card .k b{font-weight:400;color:var(--warm);margin-right:8px}
-.card h3{margin:16px 0 10px;font:400 27px/1.15 var(--serif);letter-spacing:-.01em}
-.card p{margin:0;font-size:15px;color:var(--muted)}
-.install{max-width:800px}
-.steps{list-style:none;counter-reset:s;margin:0;padding:0}
-.steps li{counter-increment:s;display:grid;grid-template-columns:96px 1fr;align-items:baseline;padding:20px 0;border-top:1px dashed var(--line);font-size:18px;color:var(--soft)}
-.steps li:last-child{border-bottom:1px dashed var(--line)}
-.steps li::before{content:counter(s,decimal-leading-zero);font:italic 400 42px/1 var(--serif);color:var(--cyan);text-shadow:0 0 16px rgba(143,211,255,.45)}
-code{font:13px var(--mono);background:#0b1030;border:1px solid var(--line);padding:2px 7px;color:var(--ink)}
-.note{margin:22px 0 0;font:12.5px/1.6 var(--mono);color:var(--muted)}
-details{margin-top:28px;background:var(--slab);border:1px dashed var(--faint);padding:16px 20px;box-shadow:5px 5px 0 rgba(0,0,0,.45)}
-details[open]{border-style:solid;border-color:#22306a}
-summary{cursor:pointer;color:var(--soft)}
-textarea{width:100%;height:90px;margin-top:14px;background:#0b1030;color:var(--muted);border:1px solid var(--line);padding:10px;font:12px var(--mono);resize:vertical}
-.copy{margin-top:10px;background:var(--bg);border:1px solid var(--faint);color:var(--ink);padding:8px 16px;font:inherit;font-size:14px;cursor:pointer;box-shadow:3px 3px 0 var(--line)}
-.copy:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--line)}
-footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:40px 0 140px;font-size:13px;color:var(--muted)}
+section{padding:clamp(100px,15vh,160px) 0}
+.head{text-align:center;max-width:760px;margin:0 auto 64px}
+h2{margin:20px 0 0;font:400 clamp(40px,5vw,68px)/1.02 var(--serif);letter-spacing:-.03em}
+.head p{margin:20px auto 0;max-width:34em;font-size:18px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.card{padding:30px 30px 34px;border-radius:22px;background:var(--card);transition:background .2s,transform .2s}
+.card:hover{background:#eef2ea;transform:translateY(-2px)}
+.card .k{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--muted)}
+.card .k b{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#fff;color:var(--teal);font:600 12px var(--mono)}
+.card h3{margin:22px 0 10px;font:400 28px/1.12 var(--serif);letter-spacing:-.02em}
+.card p{margin:0;font-size:15.5px;color:var(--soft)}
+.card a{color:var(--teal)}
+
+.install{display:grid;grid-template-columns:1fr 1.05fr;gap:clamp(36px,6vw,90px);align-items:center}
+.steps{list-style:none;counter-reset:s;margin:40px 0 0;padding:0}
+.steps li{counter-increment:s;display:grid;grid-template-columns:52px 1fr;align-items:baseline;padding:16px 0;border-top:1px solid var(--line);font-size:17px;color:var(--soft)}
+.steps li:last-child{border-bottom:1px solid var(--line)}
+.steps li::before{content:counter(s,decimal-leading-zero);font:400 24px/1 var(--serif);color:var(--teal)}
+code{font:13px var(--mono);background:var(--pill);border-radius:6px;padding:2px 7px;color:var(--ink)}
+.note{margin:20px 0 0;font-size:14px;color:var(--muted)}
+details{margin-top:24px;border-radius:16px;background:var(--card);padding:16px 20px}
+summary{cursor:pointer;color:var(--ink)}
+textarea{width:100%;height:84px;margin-top:14px;background:#fff;color:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px;font:12px var(--mono);resize:vertical}
+.copy{margin-top:10px;border:0;border-radius:999px;background:var(--teal);color:#fff;padding:9px 20px;font:inherit;font-size:14px;cursor:pointer}
+.copy:hover{background:var(--teal-d)}
+
+/* the coastline, with the panel sitting on it */
+.shot{position:relative;margin:0;border-radius:26px;overflow:hidden;aspect-ratio:1/1.02;background:#fff}
+.shot canvas{position:absolute;left:0;top:0}
+.mock{position:absolute;right:7%;bottom:8%;width:min(300px,74%);border-radius:16px;background:rgba(255,255,255,.94);box-shadow:0 24px 60px rgba(10,40,36,.28);font-size:12.5px;backdrop-filter:blur(6px)}
+.mock header{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);font-weight:600}
+.mock header i{width:7px;height:7px;border-radius:50%;background:var(--teal)}
+.mock .log{padding:12px;display:flex;flex-direction:column;gap:8px}
+.mock .m{padding:8px 11px;border-radius:12px;max-width:90%}
+.mock .u{align-self:flex-end;background:var(--teal);color:#fff}
+.mock .b{align-self:flex-start;background:var(--card)}
+.mock .t,.mock .meta{font-size:10.5px;opacity:.7}
+.mock .t{margin-bottom:2px}
+.mock .meta{margin-top:4px}
+.mock .comp{margin:0 10px 10px;border:1px solid var(--line);border-radius:12px;padding:8px 8px 8px 12px;color:var(--muted);font-size:11.5px;display:flex;justify-content:space-between;align-items:center}
+.mock .comp b{width:22px;height:22px;border-radius:50%;background:var(--teal);color:#fff;display:grid;place-items:center;font-size:11px}
+
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:36px 0 48px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
 footer a{color:var(--muted)}
 
-@media (max-width:980px){
+@media (max-width:1000px){
+  .links{display:none}
+  nav{grid-template-columns:1fr auto}
   .grid{grid-template-columns:1fr 1fr}
-  .mock{display:none}
+  .install{grid-template-columns:1fr}
+  .band ul{grid-template-columns:repeat(4,1fr)}
+  .band li:nth-child(n+5){display:none}
 }
-@media (max-width:700px){
-  :root{--gut:0px}
-  #gutter,#ruler,#rulerNo{display:none}
-  .wrap{padding:0 20px}
-  nav a.n.hide{display:none}
+@media (max-width:640px){
+  nav{height:76px}
+  .brand{font-size:24px}
+  .go{padding:10px 18px;font-size:15px}
+  .hero{min-height:880px}
+  .cove{height:40%}
+  .lede{font-size:17px}
   .grid{grid-template-columns:1fr}
-  .steps li{grid-template-columns:58px 1fr;font-size:16px}
-  .steps li::before{font-size:30px}
-  .pond-space{height:240px}
+  .band{height:84px}
+  .band ul{grid-template-columns:repeat(3,1fr)}
+  .band li{font-size:15px}
+  .band li:nth-child(n+4){display:none}
+  .shot{aspect-ratio:1/1.2}
 }
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn,.card{transition:none}}
 </style>
 </head>
 <body>
-<canvas id="world" aria-hidden="true"></canvas>
-<pre id="gutter" aria-hidden="true"></pre>
-<div id="ruler" aria-hidden="true"></div>
-<div id="rulerNo" aria-hidden="true"></div>
 
-<header class="hero layer" id="hero">
+<header class="hero">
   <div class="wrap">
-    <nav class="calm">
-      <a class="brand" href="/"><svg viewBox="0 0 6 6" aria-hidden="true"><rect x="2" y="0" width="2" height="2" fill="#dcb27a"/><rect x="0" y="3" width="6" height="3" fill="#4ea596"/><rect x="1" y="4" width="2" height="1" fill="#86d0b0"/><rect x="4" y="5" width="1" height="1" fill="#b5d67c"/></svg>pagebot</a>
-      <a class="n hide" href="#how">How it works</a>
-      <a class="n" href="/chat">Web chat</a>
-      <a class="n" href="/admin">Admin</a>
+    <nav>
+      <a class="brand" href="/"><svg viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="12" fill="none" stroke="#0f5f57" stroke-width="2"/><path d="M7 15.5c2-1.6 4-1.6 6 0s4 1.6 6 0M7 11c2-1.6 4-1.6 6 0s4 1.6 6 0" fill="none" stroke="#2c8f8a" stroke-width="1.8" stroke-linecap="round"/></svg>pagebot</a>
+      <div class="links"><a href="#how">How it works</a><a href="#install">Install</a><a href="/admin">Admin</a></div>
+      <a class="go" href="/chat">Open web chat →</a>
     </nav>
-    <div class="hero-in">
-      <p class="kicker calm"><i></i>A chat panel for any web page</p>
-      <h1 class="wv calm">Ask anything about <em>the page</em> you're on.</h1>
-      <p class="lede calm">It opens on top of any site, reads the page, your highlighted text, or a screenshot, and answers in a second.</p>
-      <div class="ctas calm">
-        <a class="btn primary" id="bm" href="{{HREF}}" title="Drag me to your bookmarks bar">📌 pagebot</a>
-        <a class="btn ghost" href="/chat">Open web chat →</a>
-      </div>
-      <div class="hint calm" id="hint">Drag the sand-colored button to your bookmarks bar.</div>
-    </div>
-    <div class="pond-space"></div>
   </div>
-  <div class="mock float calm" id="mock" aria-hidden="true">
-    <header><i></i>pagebot</header>
-    <div class="log">
-      <div class="m u"><div class="t">📄 page</div>tl;dr?</div>
-      <div class="m b">Three changes ship Friday: new pricing, a dark mode toggle, and faster search. Nothing breaks for existing users.<div class="meta">4.1k in · 52 out</div></div>
-    </div>
-    <div class="comp">Ask about this page… <b>↑</b></div>
+  <div class="hero-in wrap">
+    <span class="pill">A chat panel for any web page</span>
+    <h1 id="h1">Less skimming.<br>More knowing.</h1>
+    <p class="lede">pagebot opens on top of any site, reads the page, your highlighted text, or a screenshot, and answers in a second.</p>
+    <a class="btn" id="bm" href="{{HREF}}" title="Drag me to your bookmarks bar">📌 pagebot</a>
+    <div class="hint" id="hint">Drag the button to your bookmarks bar.</div>
   </div>
+  <div class="cove" data-scene="cove" aria-hidden="true"><canvas class="px"></canvas></div>
 </header>
 
-<section id="how" class="layer">
+<div class="band" data-scene="band" aria-hidden="true">
+  <canvas class="px"></canvas>
+  <ul>
+    <li><svg viewBox="0 0 20 20"><path d="M4 2h8l4 4v12H4z M12 2v4h4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Articles</li>
+    <li><svg viewBox="0 0 20 20"><path d="M3 4h14M3 8h14M3 12h9M3 16h11" stroke="currentColor" stroke-width="1.6"/></svg>Docs</li>
+    <li><svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 13l3-3 2 2 3-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Dashboards</li>
+    <li><svg viewBox="0 0 20 20"><path d="M3 15h14M5 12l6-8 3 3-6 8H5z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Highlights</li>
+    <li><svg viewBox="0 0 20 20"><path d="M2 7V3h4M14 3h4v4M18 13v4h-4M6 17H2v-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Screenshots</li>
+    <li><svg viewBox="0 0 20 20"><path d="M7 4L2 10l5 6M13 4l5 6-5 6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Code</li>
+    <li><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.5 10h15M10 2.5c3 3.5 3 11.5 0 15M10 2.5c-3 3.5-3 11.5 0 15" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>The web</li>
+  </ul>
+</div>
+
+<section id="how">
   <div class="wrap">
-    <div class="sh calm"><span class="no">§ 01</span><h2 class="wv">What it does</h2></div>
+    <div class="head">
+      <span class="pill">What it does</span>
+      <h2>One panel. Every page.</h2>
+      <p>Everything it needs is already on your screen. pagebot reads it, so you can just ask.</p>
+    </div>
     <div class="grid">
-      <div class="card float calm"><div class="k"><b>01</b>page</div><h3 class="wv">Reads the page</h3><p>Sends the page text once per chat, so follow-ups stay cheap, and marks the passages it used. Click one to jump to it on the page. Anything you highlight goes along too.</p></div>
-      <div class="card float calm"><div class="k"><b>02</b>screenshots</div><h3 class="wv">Sees what you see</h3><p>Captures the whole tab, or drag a box over just the part you mean. The panel hides itself first. You can also paste any image.</p></div>
-      <div class="card float calm"><div class="k"><b>03</b>web</div><h3 class="wv">Searches the web</h3><p>Turn on web search when the page isn't enough, and answers come with their sources.</p></div>
-      <div class="card float calm"><div class="k"><b>04</b>models</div><h3 class="wv">Haiku or Sonnet</h3><p>Haiku 5.5 for quick answers, Sonnet 5.5 when it needs more thought. One click to switch.</p></div>
-      <div class="card float calm"><div class="k"><b>05</b>panel</div><h3 class="wv">Stays out of the way</h3><p>Drag it anywhere, resize it, dock it to the side, or shrink it to a pill, and pick from ten themes, including see-through Glass and Clear.</p></div>
-      <div class="card float calm"><div class="k"><b>06</b>access</div><h3 class="wv">You decide who's in</h3><p>Runs on your own server behind passwords or 5-digit passcodes. Friends can ask for an account, and you accept them, set their daily limit, and post announcements in <a href="/admin">/admin</a>.</p></div>
+      <div class="card"><div class="k"><b>01</b>Page</div><h3>Reads the page</h3><p>Sends the page text once per chat, so follow-ups stay cheap, and marks the passages it used. Click one to jump to it on the page. Anything you highlight goes along too.</p></div>
+      <div class="card"><div class="k"><b>02</b>Screenshots</div><h3>Sees what you see</h3><p>Captures the whole tab, or drag a box over just the part you mean. The panel hides itself first. You can also paste any image.</p></div>
+      <div class="card"><div class="k"><b>03</b>Web</div><h3>Searches the web</h3><p>Turn on web search when the page isn't enough, and answers come with their sources.</p></div>
+      <div class="card"><div class="k"><b>04</b>Models</div><h3>Haiku or Sonnet</h3><p>Haiku 5.5 for quick answers, Sonnet 5.5 when it needs more thought. One click to switch.</p></div>
+      <div class="card"><div class="k"><b>05</b>Panel</div><h3>Stays out of the way</h3><p>Drag it anywhere, resize it, dock it to the side, or shrink it to a pill, and pick from ten themes, including see-through Glass and Clear.</p></div>
+      <div class="card"><div class="k"><b>06</b>Access</div><h3>You decide who's in</h3><p>Runs on your own server behind passwords or 5-digit passcodes. Friends can ask for an account, and you accept them, set their daily limit, and post announcements in <a href="/admin">/admin</a>.</p></div>
     </div>
   </div>
 </section>
 
-<section class="layer">
-  <div class="wrap">
-    <div class="install">
-      <div class="sh calm"><span class="no">§ 02</span><h2 class="wv">Install</h2></div>
-      <ol class="steps calm">
+<section id="install">
+  <div class="wrap install">
+    <div>
+      <span class="pill">Install</span>
+      <h2>Up and running in a minute.</h2>
+      <ol class="steps">
         <li><div>Show your bookmarks bar with <code>Ctrl+Shift+B</code> (<code>Cmd+Shift+B</code> on Mac).</div></li>
-        <li><div>Drag the sand-colored <b>📌 pagebot</b> button above onto it.</div></li>
+        <li><div>Drag the green <b>📌 pagebot</b> button at the top of this page onto it.</div></li>
         <li><div>On any page, click the bookmark. Click it again to hide it, or press Esc.</div></li>
         <li><div>Sign in once per site. New people create an account and wait to be accepted. If you set a passcode, the panel unlocks with it after that.</div></li>
       </ol>
-      <p class="note calm">Already have pagebot in your bookmarks? Drag the button again to get the latest version.</p>
-      <details class="calm">
+      <p class="note">Already have pagebot in your bookmarks? Drag the button again to get the latest version.</p>
+      <details>
         <summary>Can't drag? Paste it in by hand</summary>
         <textarea id="code" readonly>{{HREF}}</textarea>
         <button class="copy" id="copy" type="button">Copy</button>
         <p class="note">Create a new bookmark and paste this as its URL. Some sites block overlays; on those, pagebot opens in a small window instead.</p>
       </details>
     </div>
+    <figure class="shot" data-scene="coast" aria-hidden="true">
+      <canvas class="px"></canvas>
+      <div class="mock">
+        <header><i></i>pagebot</header>
+        <div class="log">
+          <div class="m u"><div class="t">📄 page</div>tl;dr?</div>
+          <div class="m b">Three changes ship Friday: new pricing, a dark mode toggle, and faster search. Nothing breaks for existing users.<div class="meta">4.1k in · 52 out</div></div>
+        </div>
+        <div class="comp">Ask about this page… <b>↑</b></div>
+      </div>
+    </figure>
   </div>
 </section>
 
-<footer class="wrap layer"><span class="calm">pagebot · running on <code>{{ORIGIN}}</code></span><span class="calm"><a href="/chat">Web chat</a> · <a href="/admin">Admin</a></span></footer>
+<div class="wrap"><footer><span>pagebot · running on <code>{{ORIGIN}}</code></span><span><a href="/chat">Web chat</a> · <a href="/admin">Admin</a></span></footer></div>
 
 <script>
 (() => {
@@ -203,341 +224,253 @@ $('#copy').addEventListener('click', e => {
 });
 
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const hover = matchMedia('(hover: hover)').matches;
 const OFF = -1e5;
-const mouse = { x: OFF, y: OFF, cx: OFF, cy: OFF }; // page and viewport coordinates
-addEventListener('pointermove', e => { mouse.x = e.pageX; mouse.y = e.pageY; mouse.cx = e.clientX; mouse.cy = e.clientY; ruler(); }, { passive: true });
-document.addEventListener('mouseleave', () => { mouse.x = mouse.y = mouse.cx = mouse.cy = OFF; ruler(); });
-addEventListener('scroll', () => { if (mouse.cy !== OFF) { mouse.y = mouse.cy + scrollY; ruler(); } if (calm) requestDraw(); }, { passive: true });
+const mouse = { x: OFF, y: OFF, moved: false }; // viewport coordinates
+addEventListener('pointermove', e => { mouse.x = e.clientX; mouse.y = e.clientY; mouse.moved = true; }, { passive: true });
+document.addEventListener('mouseleave', () => { mouse.x = mouse.y = OFF; });
 
-// ---- the margin: a numbered line every 24px, and the reading ruler on the line under the cursor ----
-const LH = 24, gutter = $('#gutter'), rulerEl = $('#ruler'), rulerNo = $('#rulerNo');
-let lines = 0;
-function buildGutter() {
-  const n = Math.ceil(document.documentElement.scrollHeight / LH);
-  if (n === lines) return;
-  lines = n;
-  gutter.textContent = Array.from({ length: n }, (_, i) => String(i + 1).padStart(3, '0')).join('\n');
+// ---- noise ----
+const hash = (x, y) => { let h = (x | 0) * 374761393 + (y | 0) * 668265263; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967295; };
+const sm = t => t * t * (3 - 2 * t);
+function vnoise(x, y, p) { // value noise; with p, it wraps every p units
+  const xi = Math.floor(x), yi = Math.floor(y), xf = sm(x - xi), yf = sm(y - yi);
+  const X0 = p ? ((xi % p) + p) % p : xi, Y0 = p ? ((yi % p) + p) % p : yi, X1 = p ? (X0 + 1) % p : xi + 1, Y1 = p ? (Y0 + 1) % p : yi + 1;
+  const a = hash(X0, Y0), b = hash(X1, Y0), c = hash(X0, Y1), d = hash(X1, Y1);
+  return a + (b - a) * xf + (c - a) * yf + (a - b - c + d) * xf * yf;
 }
-function ruler() {
-  const on = hover && mouse.y !== OFF;
-  rulerEl.classList.toggle('on', on); rulerNo.classList.toggle('on', on);
-  if (!on) return;
-  const i = Math.max(0, Math.floor(mouse.y / LH));
-  rulerEl.style.transform = rulerNo.style.transform = `translateY(${i * LH}px)`;
-  rulerNo.textContent = String(i + 1).padStart(3, '0');
+const fbm = (x, y) => vnoise(x, y) * .5 + vnoise(x * 2.03 + 17, y * 2.03 + 5) * .3 + vnoise(x * 4.1 + 3, y * 4.1 + 31) * .2;
+function worley(x, y) { // distance to the nearest and second-nearest scattered point, and the nearest one's id
+  const xi = Math.floor(x), yi = Math.floor(y); let f1 = 9, f2 = 9, id = 0, ox = 0, oy = 0;
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const cx = xi + dx, cy = yi + dy, ex = x - cx - hash(cx, cy * 7 + 1), ey = y - cy - hash(cx * 5 + 3, cy), d = Math.hypot(ex, ey);
+    if (d < f1) { f2 = f1; f1 = d; id = hash(cx * 3 + 11, cy * 3 + 5); ox = ex; oy = ey; } else if (d < f2) f2 = d;
+  }
+  return [f1, f2, id, ox, oy]; // ox, oy: where we are from that point, for shading it round
 }
+const clamp = (v, a = 0, b = 1) => v < a ? a : v > b ? b : v;
+const smooth = (a, b, x) => sm(clamp((x - a) / (b - a)));
+const mix = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t];
 
-// ---- headings are split into letters so each can float (whole words stay together; screen readers get the text) ----
-const letters = [];
-for (const h of document.querySelectorAll('.wv')) {
-  h.setAttribute('aria-label', h.textContent.replace(/\s+/g, ' ').trim());
-  (function walk(node) {
-    for (const n of [...node.childNodes]) {
-      if (n.nodeType === 1) { walk(n); continue; }
-      if (n.nodeType !== 3) continue;
-      const frag = document.createDocumentFragment();
-      for (const part of n.textContent.split(/(\s+)/)) {
-        if (!part) continue;
-        if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(' ')); continue; }
-        const w = document.createElement('span'); w.className = 'w'; w.setAttribute('aria-hidden', 'true');
-        for (const ch of part) {
-          const c = document.createElement('span'); c.className = 'c'; c.textContent = ch;
-          w.appendChild(c); letters.push({ el: c, cx: 0, cy: 0, y: 0, r: 0, heat: 0, base: [230, 238, 255], live: false });
-        }
-        frag.appendChild(w);
-      }
-      n.replaceWith(frag);
-    }
-  })(h);
-}
-const floaters = [...document.querySelectorAll('.float')].map(el => ({ el, l: 0, r: 0, b: 0, ty: 0, tr: 0 }));
-
-// ---- the night: drawn as real pixels into a small canvas that's scaled up crisp ----
-const cv = $('#world'), ctx = cv.getContext('2d');
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => v / 16 - .47);
-// one blue ramp from black to white, like the reference: every color in the scene is a step on it
-const RAMP = ['#02030b', '#040820', '#071038', '#0b1a5c', '#11288a', '#1a3cba', '#2556e6', '#3b78ff', '#5aa0ff', '#86c8ff', '#bfe6ff', '#f2fbff']
-  .map(h => { const n = parseInt(h.slice(1), 16); return (0xff000000 | ((n & 255) << 16) | (n & 0xff00) | (n >> 16)) >>> 0; });
-const TOP = RAMP.length - 1;
-const hash = (x, y) => { let h = x * 374761393 + y * 668265263; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967295; };
-function vnoise(x, y) {
-  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, s = t => t * t * (3 - 2 * t);
-  const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
-  return a + (b - a) * s(xf) + (c - a) * s(yf) + (a - b - c + d) * s(xf) * s(yf);
-}
-const fbm = (x, y) => vnoise(x, y) * .55 + vnoise(x * 2.1, y * 2.1) * .3 + vnoise(x * 4.3, y * 4.3) * .15;
-const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-const SKY = 0, FALL = 1, ROCK = 2, POOL = 3;
-
-let W = null, img = null, buf = null;
-function buildWorld() {
-  const vw = document.documentElement.clientWidth, vh = innerHeight, Px = vw < 700 ? 2 : 3;
-  const cols = Math.ceil(vw / Px), vrows = Math.ceil(vh / Px) + 2;
-  cv.width = cols; cv.height = vrows; cv.style.width = cols * Px + 'px'; cv.style.height = vrows * Px + 'px';
-  img = ctx.createImageData(cols, vrows); buf = new Uint32Array(img.data.buffer);
-  const docH = document.documentElement.scrollHeight, rows = Math.ceil(docH / Px) + 2, n = cols * rows;
-  W = { Px, cols, rows, vrows, vw, vh, docH, a: new Float32Array(n), b: new Float32Array(n), t: 0, last: -1, sparks: [] };
-
-  // everything there is to read sits in a dark pool; how far each pixel is into one
-  const quiet = new Float32Array(n);
-  for (const el of document.querySelectorAll('.calm')) {
-    const r = el.getBoundingClientRect(); if (!r.width) continue;
-    const m = el.classList.contains('card') || el.tagName === 'DETAILS' || el.id === 'mock' ? 16 : 34;
-    const L = r.left + scrollX, T = r.top + scrollY, R = r.right + scrollX, B = r.bottom + scrollY;
-    const x0 = Math.max(0, Math.floor((L - m) / Px)), x1 = Math.min(cols - 1, Math.ceil((R + m) / Px));
-    const y0 = Math.max(0, Math.floor((T - m) / Px)), y1 = Math.min(rows - 1, Math.ceil((B + m) / Px));
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      const px = (x + .5) * Px, py = (y + .5) * Px;
-      const d = Math.hypot(Math.max(L - px, 0, px - R), Math.max(T - py, 0, py - B));
-      const q = 1 - smooth(0, m, d), i = y * cols + x;
-      if (q > quiet[i]) quiet[i] = q;
-    }
-  }
-
-  // the scene: cliffs down both sides, waterfalls between them, pools under the words, a plunge pool at the bottom
-  const narrow = vw < 700;
-  const falls = narrow ? [{ x: .5, w: .2, p: 1 }] : [{ x: .23, w: .035, p: 1 }, { x: .6, w: .1, p: 2.4 }, { x: .85, w: .045, p: 4.1 }];
-  const kind = new Uint8Array(n), base = new Float32Array(n), across = new Float32Array(n), halo = new Float32Array(n);
-  for (let y = 0; y < rows; y++) {
-    const py = y * Px;
-    const lw = (narrow ? .04 : .075) + .03 * Math.sin(py * .004 + 1) + (fbm(3, py * .012) - .5) * .06;
-    const rw = (narrow ? .96 : .925) - .03 * Math.sin(py * .0033 + 4) + (fbm(9, py * .012) - .5) * .06;
-    const fw = falls.map(f => [f.x + .015 * Math.sin(py * .006 + f.p), f.w * (1 + .25 * Math.sin(py * .004 + f.p * 2))]);
-    const bank = py > docH - 70;
-    for (let x = 0; x < cols; x++) {
-      const i = y * cols + x, fx = x * Px / vw;
-      if (fx < lw || fx > rw || bank) {
-        kind[i] = ROCK;
-        const inner = fx < lw ? lw - fx : fx > rw ? fx - rw : 1; // how deep into the cliff: its inner face catches the water's light
-        base[i] = .1 + fbm(x * .09, y * .09) * .16 + (1 - smooth(0, .025, inner)) * .32 + (hash(x, y) - .5) * .05;
-        continue;
-      }
-      if (quiet[i] > .32 || py > docH - 260) { kind[i] = POOL; continue; }
-      let inFall = 0, near = 1;
-      for (const [cx, w] of fw) {
-        const d = Math.abs(fx - cx) - w;
-        if (d < 0 && -d / .012 > inFall) { inFall = Math.min(1, -d / .012); across[i] = (fx - cx) / w; }
-        near = Math.min(near, d);
-      }
-      if (inFall > 0) { kind[i] = FALL; base[i] = inFall; continue; } // base: 0 at the fall's edges, 1 in its body; across: -1..1 left to right
-      if (near < .035) halo[i] = (1 - near / .035) ** 2 * .13; // the falls glow into the night beside them
-      kind[i] = SKY;
-      const s = hash(x, y);
-      base[i] = s > .9965 ? .45 + hash(y, x) * .5 : 0; // stars
-    }
-  }
-  // big four-point sparkles here and there in the sky, like the reference
-  for (let k = 0, count = Math.round(rows * cols / 9000); k < count; k++) {
-    const x = 3 + Math.floor(hash(k, 77) * (cols - 6)), y = 3 + Math.floor(hash(77, k) * (rows - 6)), i = y * cols + x;
-    if (kind[i] !== SKY) continue;
-    base[i] = 1;
-    for (const [dx, dy, v] of [[1, 0, .7], [-1, 0, .7], [0, 1, .7], [0, -1, .7], [2, 0, .35], [-2, 0, .35], [0, 2, .35], [0, -2, .35]]) {
-      const j = i + dy * cols + dx; if (kind[j] === SKY) base[j] = Math.max(base[j], v);
-    }
-  }
-  // pool rims glow like the edge of glass; where a fall meets a pool it turns to white water and mist
-  const rim = new Uint8Array(n), foam = new Uint8Array(n), glow = new Float32Array(n);
-  for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) {
-    const i = y * cols + x;
-    if (kind[i] === POOL && (kind[i - 1] !== POOL || kind[i + 1] !== POOL || kind[i - cols] !== POOL || kind[i + cols] !== POOL)) rim[i] = 1;
-    if (kind[i] === FALL) for (let k = 1; k <= 4; k++) { if (y + k < rows && kind[i + k * cols] === POOL) { foam[i] = 5 - k; break; } }
-  }
-  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) { // mist glows around the white water
-    const i = y * cols + x; if (foam[i] !== 4) continue;
-    for (let dy = -14; dy <= 6; dy += 2) for (let dx = -10; dx <= 10; dx += 2) {
-      const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= cols || yy >= rows) continue;
-      const g = (1 - Math.hypot(dx / 10, dy / 14)) * .06; if (g <= 0) continue;
-      for (let oy = 0; oy < 2; oy++) for (let ox = 0; ox < 2; ox++) { const j = (yy + oy) * cols + xx + ox; if (j < n) glow[j] = Math.min(.35, glow[j] + g); }
-    }
-  }
-  // each column of a fall has its own streaks and speed, as a looping strip of light and dark
-  const LEN = 512, streak = new Float32Array(cols * LEN), speed = new Float32Array(cols);
-  const tmp = new Float32Array(LEN);
-  for (let x = 0; x < cols; x++) {
-    speed[x] = 1 + hash(x, 17) * .7;
-    const s = streak.subarray(x * LEN, (x + 1) * LEN), gain = .6 + vnoise(x * .2, 4) * .4;
-    for (let j = 0; j < LEN; j++) s[j] = hash(x * 13, j) ** 1.5;
-    for (const r of [6, 3]) {
-      for (let j = 0; j < LEN; j++) { let sum = 0; for (let o = -r; o <= r; o++) sum += s[(j + o + LEN) & (LEN - 1)]; tmp[j] = sum / (2 * r + 1); }
-      s.set(tmp);
-    }
-    let lo = 1, hi = 0; for (const v of s) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
-    for (let j = 0; j < LEN; j++) s[j] = (s[j] - lo) / (hi - lo || 1) * gain;
-  }
-  Object.assign(W, { kind, base, across, halo, quiet, rim, foam, glow, streak, speed, LEN });
-}
-
-// ---- motion: ripples in the pools, spray from the falls and the cursor ----
-let lastSplash = 0;
-function spray(x, y, count, up) {
-  for (let k = 0; k < count; k++) {
-    const ang = -Math.PI / 2 + (Math.random() - .5) * (up ? 2.2 : 3.2), sp = (up ? 1.2 : .6) + Math.random() * (up ? 2.2 : 1.2);
-    W.sparks.push({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: 30 + Math.random() * 40, v: .75 + Math.random() * .25 });
-  }
-  if (W.sparks.length > 700) W.sparks.splice(0, W.sparks.length - 700);
-}
-function stepWorld() {
-  if (!W) return;
-  const { Px, cols, rows, kind, foam } = W;
-  let { a, b } = W;
-  const r0 = Math.floor(scrollY / Px), y0 = Math.max(1, r0 - 10), y1 = Math.min(rows - 1, r0 + W.vrows + 10);
-  if (mouse.x !== OFF) {
-    const gx = Math.floor(mouse.x / Px), gy = Math.floor(mouse.y / Px), i = gy * cols + gx;
-    if (i !== W.last && gx > 2 && gy > 2 && gx < cols - 3 && gy < rows - 3) {
-      for (let oy = -2; oy <= 2; oy++) for (let ox = -2; ox <= 2; ox++) {
-        const j = (gy + oy) * cols + gx + ox; if (kind[j] === POOL) a[j] -= 3.2 / (1 + ox * ox + oy * oy);
-      }
-      if (kind[i] === FALL && performance.now() - lastSplash > 30) { spray(gx, gy - 6, 6, true); lastSplash = performance.now(); }
-    }
-    W.last = i;
-  }
-  // white water throws a little mist on its own, and drops patter into the pools
-  for (let k = 0; k < 6; k++) {
-    const x = Math.floor(Math.random() * cols), y = y0 + Math.floor(Math.random() * (y1 - y0)), i = y * cols + x;
-    if (foam[i] === 4) spray(x, y, 2, false);
-    else if (kind[i] === POOL && Math.random() < .3) a[i] -= 2;
-  }
-  for (let y = y0; y < y1; y++) for (let x = 1; x < cols - 1; x++) { // the classic two-buffer wave; anything not pool is a wall
-    const i = y * cols + x; if (kind[i] !== POOL) continue;
-    b[i] = ((a[i - 1] + a[i + 1] + a[i - cols] + a[i + cols]) / 2 - b[i]) * .975;
-  }
-  W.a = b; W.b = a; W.t += 1 / 60;
-  const sp = W.sparks;
-  for (let k = sp.length - 1; k >= 0; k--) {
-    const p = sp[k]; p.vy += .06; p.x += p.vx; p.y += p.vy; p.vx *= .98;
-    const gx = Math.round(p.x), gy = Math.round(p.y);
-    if (--p.life < 0 || gx < 0 || gy < 0 || gx >= cols || gy >= rows) { sp.splice(k, 1); continue; }
-    if (kind[gy * cols + gx] === POOL && p.vy > 0) { a[gy * cols + gx] -= .7; sp.splice(k, 1); }
-  }
-}
-
-function drawWorld() {
-  if (!W) return;
-  const { Px, cols, rows, vrows, kind, base, across, halo, quiet, rim, foam, glow, streak, speed, LEN, a, t } = W;
-  const sy = scrollY, r0 = Math.floor(sy / Px);
-  cv.style.transform = `translateY(${-(sy - r0 * Px)}px)`;
-  const mx = mouse.x / Px, my = mouse.y / Px, hasMouse = mouse.x !== OFF;
-  const flow = t * 70; // the falls drop about 70 pixels a second (210 CSS px)
-  const tw = Math.floor(t * 6);
-  for (let y = 0; y < vrows; y++) {
-    const wy = r0 + y, o = y * cols;
-    if (wy >= rows) { buf.fill(RAMP[0], o, o + cols); continue; }
-    const by = (wy & 3) * 4, dyc = wy - my, lightRow = hasMouse && Math.abs(dyc) < 70;
-    for (let x = 0; x < cols; x++) {
-      const i = wy * cols + x, k = kind[i], d = BAYER[by + (x & 3)];
-      let light = 0;
-      if (lightRow) { const dx = x - mx, r = Math.sqrt(dx * dx + dyc * dyc); if (r < 70) light = (1 - r / 70) ** 2; } // the cursor lights the night
-      let v;
-      if (k === SKY) {
-        const s = base[i];
-        v = .035 + glow[i] + halo[i] + light * .22;
-        if (s > 0) v = Math.max(v, s * (.55 + .45 * Math.sin(t * 2.2 + hash(x, wy) * 40))); // stars twinkle
-      } else if (k === ROCK) {
-        v = base[i] + glow[i] * .6 + light * .35;
-      } else if (k === FALL) {
-        const ex = x - mx, ey = (wy - my) * .8, e = ex * ex + ey * ey;
-        if (hasMouse && e < 15 * 15) { // the cursor parts the falls: a dark gap with a bright ring
-          v = e > 12 * 12 ? .85 + hash(x, wy + tw) * .2 : .05 + light * .15;
-        } else {
-          const f = foam[i];
-          if (f) v = .6 + f * .08 + (hash(x * 3 + tw, wy) - .5) * .5;
-          else {
-            const st = streak[x * LEN + (((wy - Math.floor(flow * speed[x])) % LEN + LEN) % LEN)];
-            const xs = x & ~3, sh = streak[xs * LEN + ((((wy >> 1) - Math.floor(flow * .5 * speed[xs])) % LEN + LEN) % LEN)]; // broad sheets of water
-            const edge = base[i], u = across[i]; // glassy bright edges; the body is round, lit from the left
-            const round = .78 + .22 * Math.sqrt(Math.max(0, 1 - u * u)) - u * .12;
-            v = (.16 + st * .34 + sh * .3) * round + (1 - edge) * .34 + light * .2;
-          }
-        }
-      } else { // POOL: dark water, glowing rim, ripples as light, and the stars reflected
-        const q = quiet[i], ht = a[i], slope = a[i + 1] - a[i - 1];
-        if (rim[i]) v = .62 + (hash(x, wy) - .5) * .2 + light * .2;
-        else {
-          v = .06 + (1 - q) * .1 + Math.max(-.05, Math.min(q > .9 ? .32 : .55, slope * .09 - ht * .05)) + light * .12 + glow[i] * .5;
-          if (q < .9 && hash(x + tw * 7, wy) > .9985) v = .7; // a star caught in the water
-        }
-      }
-      let lv = Math.round(v * TOP + d);
-      buf[o + x] = RAMP[lv < 0 ? 0 : lv > TOP ? TOP : lv];
-    }
-  }
-  for (const p of W.sparks) { // spray, in front of everything
-    const x = Math.round(p.x), y = Math.round(p.y) - r0;
-    if (x < 0 || y < 0 || x >= cols || y >= vrows) continue;
-    buf[y * cols + x] = RAMP[Math.min(TOP, Math.round((p.v * Math.min(1, p.life / 20)) * TOP))];
-  }
-  ctx.putImageData(img, 0, 0);
-}
-
-// ---- everything with words on it floats on the pools: headings letter by letter, the cards and the panel whole ----
-const WET = [143, 211, 255];
-const sample = (px, py) => {
-  if (!W) return [0, 0];
-  const x = Math.floor(px / W.Px), y = Math.floor(py / W.Px);
-  if (x < 2 || y < 2 || x >= W.cols - 2 || y >= W.rows - 2) return [0, 0];
-  const i = y * W.cols + x, a = W.a;
-  return [(a[i] * 2 + a[i - 2] + a[i + 2] + a[i - 2 * W.cols] + a[i + 2 * W.cols]) / 6, (a[i + 2] - a[i - 2]) / 2];
+// ---- ordered dithering: each channel snaps to a few levels through a 4x4 Bayer matrix, like an old print screen ----
+const LV = 5, BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+const Q = new Uint8Array(16 * 256);
+for (let k = 0; k < 16; k++) for (let c = 0; c < 256; c++) Q[k * 256 + c] = Math.round(Math.min(LV - 1, Math.floor(c / 255 * (LV - 1) + (BAYER[k] + .5) / 16)) * 255 / (LV - 1));
+const ch = c => c < 0 ? 0 : c > 255 ? 255 : c | 0;
+const dither = (x, y, r, g, b) => {
+  const k = ((y & 3) << 2 | (x & 3)) << 8;
+  return (0xff000000 | Q[k + ch(b)] << 16 | Q[k + ch(g)] << 8 | Q[k + ch(r)]) >>> 0;
 };
-function paint(l) {
-  if (Math.abs(l.y) < .06 && Math.abs(l.r) < .06 && l.heat < .02) {
-    if (l.live) { l.el.style.transform = l.el.style.color = ''; l.live = false; }
+
+// a tiling texture of little waves, shared by all the water
+const TEX = new Float32Array(256 * 256);
+for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++)
+  TEX[y * 256 + x] = vnoise(x / 16, y / 16, 16) * .6 + vnoise(x / 8 + 3, y / 8 + 7, 32) * .28 + vnoise(x / 4, y / 4, 64) * .12;
+
+// ---- the scenes ----
+const SKY = [255, 255, 255];
+const ROCK_D = [86, 84, 72], ROCK_L = [232, 226, 208], WETROCK = [70, 74, 64];
+const PINE_D = [34, 52, 22], PINE_L = [168, 176, 64];
+const W_FAR = [150, 204, 200], W_MID = [36, 156, 162], W_NEAR = [22, 122, 134], W_SHALLOW = [96, 206, 198], SAND = [222, 220, 184];
+const CFG = {
+  cove: narrow => ({ hz: narrow ? .48 : .6, sky: () => SKY,
+    sides: [{ dir: 0, top: narrow ? .14 : .1, reach: narrow ? .4 : .37, shore: .03, seed: 1 }, { dir: 1, top: narrow ? .06 : .0, reach: narrow ? .38 : .34, shore: .08, seed: 2 }],
+    bushes: true }),
+  coast: () => ({ hz: .44, sky: () => SKY,
+    sides: [{ dir: 0, top: .44 - .06, reach: .34, flat: true, seed: 7 }, { dir: 1, top: .03, reach: .5, shore: .3, seed: 5 }],
+    bushes: false }),
+};
+
+function cliffProfile(c, uu, hz) { // where this cliff's top edge is at uu (0 at the page edge), or 2 if it doesn't reach that far
+  if (uu >= c.reach) return 2;
+  const t = uu / c.reach, s = c.seed * 13;
+  return c.top + (hz - c.top) * t ** 2.2 + (fbm(s + uu * 7, s) - .5) * .16 * (1 - t * .6) + (vnoise(uu * 60, s) - .5) * .035 * (1 - t);
+}
+
+function buildScene(S) {
+  const r = S.box.getBoundingClientRect(), narrow = innerWidth < 640, Px = 2;
+  const cols = Math.max(4, Math.ceil(r.width / Px)), rows = Math.max(4, Math.ceil(r.height / Px)), n = cols * rows;
+  if (S.cols === cols && S.rows === rows) return;
+  Object.assign(S, { Px, cols, rows });
+  S.cv.width = cols; S.cv.height = rows;
+  S.cv.style.width = cols * Px + 'px'; S.cv.style.height = rows * Px + 'px';
+  S.img = S.ctx.createImageData(cols, rows); S.buf = new Uint32Array(S.img.data.buffer);
+  S.a = new Float32Array(n); S.b = new Float32Array(n);
+  const buf = S.buf;
+
+  if (S.kind === 'band') { // a dithered sweep from pale moss to dark olive, like light going down into deep water
+    const stops = [[0, [236, 238, 182]], [.3, [214, 216, 160]], [.55, [150, 152, 120]], [.78, [82, 88, 72]], [1, [34, 40, 34]]];
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const u = x / cols + (fbm(x / 40, y / 12) - .5) * .08;
+      let k = 1; while (k < stops.length - 1 && u > stops[k][0]) k++;
+      const [u0, c0] = stops[k - 1], [u1, c1] = stops[k];
+      const c = mix(c0, c1, clamp((u - u0) / (u1 - u0)));
+      buf[y * cols + x] = dither(x, y, c[0], c[1], c[2]);
+    }
+    S.water = new Int32Array(0);
+    S.box.querySelectorAll('li').forEach(li => { // text goes light where the band goes dark
+      const b = li.getBoundingClientRect(), u = (b.left + b.width / 2 - r.left) / r.width;
+      li.style.color = u < .5 ? `rgba(34,48,44,${.95 - u * .9})` : `rgba(255,255,255,${.35 + (u - .5) * 1.1})`;
+    });
+    S.ctx.putImageData(S.img, 0, 0);
     return;
   }
-  l.live = true;
-  l.el.style.transform = `translateY(${l.y.toFixed(2)}px) rotate(${l.r.toFixed(2)}deg)`;
-  const k = Math.min(1, l.heat);
-  l.el.style.color = `rgb(${l.base.map((v, i) => Math.round(v + (WET[i] - v) * k)).join(',')})`;
-}
-function stepFloaters() {
-  const top = scrollY - 100, bottom = scrollY + innerHeight + 100;
-  for (const l of letters) {
-    if (l.cy < top || l.cy > bottom) continue;
-    const [ht, sl] = sample(l.cx, l.cy);
-    l.y += (Math.max(-16, Math.min(16, ht * -3)) - l.y) * .25;
-    l.r += (Math.max(-9, Math.min(9, sl * 2.5)) - l.r) * .25;
-    l.heat += (Math.min(1, Math.abs(ht) * .3) - l.heat) * .2;
-    paint(l);
+
+  const cfg = CFG[S.kind](narrow), hz = cfg.hz, Wcss = cols * Px, Hcss = rows * Px;
+  const water = [], wcol = [], wtu = [], wtv = [], wamp = [], wz = [];
+  const tops = cfg.sides.map(c => { const t = new Float32Array(cols); for (let x = 0; x < cols; x++) t[x] = cliffProfile(c, c.dir ? 1 - x / cols : x / cols, hz); return t; });
+  for (let y = 0; y < rows; y++) {
+    const v = y / rows, Y = y * Px, below = v >= hz, z = below ? (v - hz) / (1 - hz) : 0;
+    const shores = cfg.sides.map(c => {
+      if (!below || c.flat) return -1;
+      return c.reach - (c.reach - c.shore) * z ** .45 + (fbm(c.seed * 7, v * 4) - .5) * .09 + (vnoise(c.seed, v * 50) - .5) * .015;
+    });
+    for (let x = 0; x < cols; x++) {
+      const i = y * cols + x, u = x / cols, X = x * Px;
+      let col = null, gap = 9;
+      for (let s = 0; s < cfg.sides.length; s++) {
+        const c = cfg.sides[s], uu = c.dir ? 1 - u : u, top = tops[s][x];
+        // tree crowns along the ridge: little bumps above the rock line
+        const crown = top < 2 ? Math.max(0, vnoise(X / 7, c.seed * 5) - .55) * .07 * (1 - uu / c.reach) + Math.max(0, vnoise(X / 3, c.seed * 9) - .6) * .03 : 0;
+        const inAbove = !below && v > top - crown;
+        const inBelow = below && uu < shores[s];
+        if (below && shores[s] > 0) gap = Math.min(gap, uu - shores[s]);
+        if (!inAbove && !inBelow) continue;
+        // depth: how far off the cliff is, so distant rock fades into the haze
+        const far = c.flat ? .75 : clamp(uu / c.reach) ** 2 * (below ? 1 - z : 1);
+        const rel = below ? 1 : clamp((v - top) / Math.max(.02, hz - top)); // 0 at the ridge, 1 at the water
+        // boulders: big cracked facets, each catching the light differently, with smaller chips on them
+        const sc = 1 + far * 1.4, wx = (fbm(X / 30, Y / 30) - .5) * 1.6, wy = (fbm(X / 30 + 9, Y / 30) - .5) * 1.2; // warped, so they aren't cobbles
+        const big = worley(X * sc / 44 + c.seed * 11 + wx, Y * sc / 28 + wy), chip = worley(X * sc / 12 + wx, Y * sc / 9);
+        const edge = big[1] - big[0];
+        let lit = (.42 + big[2] * .45) * (.82 + chip[2] * .25) + (-big[3] * .25 - big[4] * .55) * .6; // lit from the upper left
+        if (edge < .06 && big[2] > .35) lit *= .35; else if (edge < .12) lit *= .8;
+        if (chip[1] - chip[0] < .05 && chip[2] > .5) lit *= .7;
+        lit += (vnoise(X / 2.5, Y / 2.5) - .5) * .18;
+        lit = clamp(lit + (c.dir ? -.04 : .04) - (below ? z * .15 : 0));
+        let rc = mix(ROCK_D, ROCK_L, lit);
+        // pines and scrub: thick along the ridge, thinning to bare rock toward the water, with a few bushes clinging on
+        const vn = fbm(X * sc / 40 + 40 + c.seed, Y * sc / 26);
+        const veg = vn + .52 - rel * .8 - (below ? .25 + z * .2 : 0) + (v < top ? 1 : 0) + (chip[2] > .9 && rel < .8 ? .3 : 0);
+        if (veg > .62) {
+          const tuft = worley(X * sc / 6, Y * sc / 5); // tufts of needles, lit from the upper left
+          const g = clamp((fbm(X * sc / 5, Y * sc / 5) - .5) * 1.6 + .5 - tuft[4] * .5 - tuft[3] * .2 + (vnoise(X / 2, Y / 2) - .5) * .3) * (veg < .67 ? .5 : 1);
+          rc = mix(PINE_D, PINE_L, g);
+        }
+        if (inBelow && shores[s] - uu < .006) rc = mix(WETROCK, rc, .3); // the wet line where rock meets water
+        col = mix(rc, [238, 242, 238], far * far * .62);
+        break;
+      }
+      if (cfg.bushes) { // shrubs in the near corners
+        const bl = (v - .8) * 3.2 + (.18 - u) * 4 + (fbm(X / 26, Y / 20) - .5) * 1.4;
+        const br = (v - .74) * 3 + (u - .86) * 4 + (fbm(X / 24 + 9, Y / 18) - .5) * 1.4;
+        if (bl > .5 || br > .5) {
+          const g = clamp(fbm(X / 5, Y / 5) * 1.3 - .15);
+          col = mix(PINE_D, PINE_L, g * (Math.max(bl, br) < .62 ? .5 : 1));
+        }
+      }
+      if (col) { buf[i] = dither(x, y, col[0], col[1], col[2]); continue; }
+      if (!below) { const c = cfg.sky(v); buf[i] = dither(x, y, c[0], c[1], c[2]); continue; }
+      // water: pale at the horizon, deep teal in the middle, bright turquoise in the shallows by the rocks and in front
+      let wc = z < .3 ? mix(W_FAR, W_MID, smooth(0, .3, z)) : mix(W_MID, W_NEAR, smooth(.3, .8, z));
+      const shallow = clamp(1 - gap / .06) ** 1.5 * (.4 + z * .6);
+      wc = mix(wc, W_SHALLOW, shallow * .8);
+      if (shallow > .2 && fbm(X / 14, Y / 9) > .62) wc = mix(wc, [40, 110, 108], .45 * shallow); // rocks under the water
+      if (cfg.bushes && z > .84) { // pebbles showing through the shallows in front
+        const sand = smooth(.84, 1, z) * clamp(fbm(X / 40, 3) * 1.5), pb = worley(X / 9, Y / 6);
+        wc = mix(wc, mix(SAND, [150, 150, 120], pb[1] - pb[0] < .1 ? .6 : pb[2] * .3), sand * .8);
+      }
+      const s = z + .045; // perspective: ripples bunch up toward the horizon
+      water.push(i); wcol.push(...wc);
+      wtu.push(((X - Wcss / 2) / s * .17) | 0); wtv.push((1.1 * (1 - hz) * Hcss / s) | 0);
+      wamp.push(smooth(0, .15, z)); wz.push(z);
+    }
   }
-  for (const f of floaters) {
-    if (f.b < top || f.b - 400 > bottom || !f.el.offsetParent) continue;
-    const [h1] = sample(f.l + 24, f.b - 4), [h2] = sample((f.l + f.r) / 2, f.b - 4), [h3] = sample(f.r - 24, f.b - 4);
-    const ty = Math.max(-9, Math.min(9, (h1 + h2 + h3) / 3 * -2)), tr = Math.max(-2, Math.min(2, (h3 - h1) * .7));
-    f.ty += (ty - f.ty) * .12; f.tr += (tr - f.tr) * .12;
-    f.el.style.transform = Math.abs(f.ty) < .05 && Math.abs(f.tr) < .02 ? '' : `translateY(${f.ty.toFixed(2)}px) rotate(${f.tr.toFixed(2)}deg)`;
+  S.water = Int32Array.from(water); S.wcol = Float32Array.from(wcol);
+  S.wtu = Int32Array.from(wtu); S.wtv = Int32Array.from(wtv); S.wamp = Float32Array.from(wamp); S.wz = Float32Array.from(wz);
+  S.isWater = new Uint8Array(n); for (const i of S.water) S.isWater[i] = 1;
+  drawScene(S, 0);
+}
+
+function stepScene(S) {
+  const { cols, rows, a, b, isWater } = S;
+  if (mouse.moved && mouse.x !== OFF) { // the cursor touches the water
+    const r = S.box.getBoundingClientRect();
+    const gx = Math.round((mouse.x - r.left) / S.Px), gy = Math.round((mouse.y - r.top) / S.Px);
+    if (gx > 2 && gy > 2 && gx < cols - 3 && gy < rows - 3)
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -2; dx <= 2; dx++) { const i = (gy + dy) * cols + gx + dx; if (isWater[i]) a[i] -= .9; }
+  }
+  if (Math.random() < .2) { const k = (Math.random() * S.water.length) | 0; if (S.wz[k] > .3) a[S.water[k]] -= .6; } // now and then, a drop
+  for (const i of S.water) {
+    if (i <= cols || i >= cols * (rows - 1)) continue;
+    b[i] = ((a[i - 1] + a[i + 1] + a[i - cols] + a[i + cols]) / 2 - b[i]) * .965;
+  }
+  S.a = b; S.b = a;
+}
+
+function drawScene(S, t) {
+  if (!S.water.length) return;
+  const { cols, buf, water, wcol, wtu, wtv, wamp, wz } = S, A = S.a;
+  const o1 = (t * 5) | 0, o2 = (t * 2.2) | 0, o3 = (t * 3.4) | 0;
+  for (let k = 0; k < water.length; k++) {
+    const i = water[k], x = i % cols, y = (i / cols) | 0, tu = wtu[k], tv = wtv[k];
+    const w = TEX[((tv + o1) & 255) * 256 + ((tu + o2) & 255)] + TEX[(((tv * .7) | 0) - o3 + 91 & 255) * 256 + (((tu * .8) | 0) - o2 + 37 & 255)] - 1;
+    const rip = (A[i - 1] - A[i + 1]) * .6 + ((A[i - cols] || 0) - (A[i + cols] || 0)) * .9;
+    const z = wz[k], amp = wamp[k];
+    const f = 1 + w * .5 * amp + rip * .35;
+    let glint = w > .3 ? (w - .3) * 260 * (1.15 - z) : 0;
+    if (rip > .5) glint += (rip - .5) * 120;
+    buf[i] = dither(x, y, wcol[k * 3] * f + glint, wcol[k * 3 + 1] * f + glint, wcol[k * 3 + 2] * f + glint);
+  }
+  S.ctx.putImageData(S.img, 0, 0);
+}
+
+const scenes = [...document.querySelectorAll('[data-scene]')].map(box => {
+  const cv = box.querySelector('canvas');
+  return { box, cv, ctx: cv.getContext('2d'), kind: box.dataset.scene, on: true, cols: 0, rows: 0, water: new Int32Array(0) };
+});
+const io = new IntersectionObserver(es => es.forEach(e => { const S = scenes.find(s => s.box === e.target); if (S) S.on = e.isIntersecting; }));
+scenes.forEach(S => io.observe(S.box));
+
+// ---- the headline: letters lift and take the water's color as the cursor passes over them ----
+const letters = [];
+(function split(node) {
+  for (const c of [...node.childNodes]) {
+    if (c.nodeType !== 3) { split(c); continue; }
+    const frag = document.createDocumentFragment();
+    for (const word of c.textContent.split(/(\s+)/)) {
+      if (!word) continue;
+      if (/^\s+$/.test(word)) { frag.append(word); continue; }
+      const w = document.createElement('span'); w.className = 'w';
+      for (const l of word) { const s = document.createElement('span'); s.className = 'c'; s.textContent = l; w.append(s); letters.push({ el: s, x: 0, y: 0, f: 0 }); }
+      frag.append(w);
+    }
+    c.replaceWith(frag);
+  }
+})($('#h1'));
+function measure() { for (const L of letters) { const b = L.el.getBoundingClientRect(); L.x = b.left + b.width / 2; L.y = b.top + b.height / 2 + scrollY; } }
+function letterFrame() {
+  const my = mouse.y + scrollY;
+  for (const L of letters) {
+    const d = Math.hypot(L.x - mouse.x, (L.y - my) * 1.3), f = mouse.x === OFF ? 0 : clamp(1 - d / 160) ** 2;
+    L.f += (f - L.f) * .18;
+    if (L.f < .002) { if (L.el.style.transform) { L.el.style.transform = ''; L.el.style.color = ''; } continue; }
+    L.el.style.transform = `translateY(${(-L.f * 7).toFixed(2)}px)`;
+    L.el.style.color = `rgb(${34 + 10 * L.f | 0},${48 + 95 * L.f | 0},${44 + 94 * L.f | 0})`;
   }
 }
 
-// ---- keep the world in step with the layout ----
-function measure() { // positions without any bob, in page coordinates
-  for (const f of floaters) f.el.style.transform = '';
-  for (const l of letters) { l.el.style.transform = l.el.style.color = ''; l.live = false; l.y = l.r = l.heat = 0; }
-  for (const f of floaters) { const r = f.el.getBoundingClientRect(); f.l = r.left + scrollX; f.r = r.right + scrollX; f.b = r.bottom + scrollY; f.ty = f.tr = 0; }
-  for (const l of letters) {
-    const b = l.el.getBoundingClientRect();
-    l.cx = b.left + b.width / 2 + scrollX; l.cy = b.top + b.height / 2 + scrollY;
-    l.base = (getComputedStyle(l.el).color.match(/\d+/g) || [230, 238, 255]).slice(0, 3).map(Number);
-  }
-}
-function rebuild() { measure(); buildWorld(); buildGutter(); requestDraw(); }
-let rt = 0, lastW = 0, lastH = 0;
-new ResizeObserver(() => {
-  const w = document.documentElement.clientWidth, h = document.documentElement.scrollHeight;
-  if (w === lastW && h === lastH) return;
-  lastW = w; lastH = h;
-  clearTimeout(rt); rt = setTimeout(rebuild, 120);
-}).observe(document.body);
-addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(rebuild, 120); });
-document.fonts?.ready.then(rebuild);
-let drawQueued = false;
-function requestDraw() { if (drawQueued) return; drawQueued = true; requestAnimationFrame(() => { drawQueued = false; drawWorld(); }); }
-
-rebuild();
-if (calm) return; // a still night and still type; it's redrawn as you scroll, and the margin's ruler still follows you
-(function frame() {
-  stepWorld(); drawWorld(); stepFloaters();
+let rebuildT = 0;
+new ResizeObserver(() => { clearTimeout(rebuildT); rebuildT = setTimeout(() => { scenes.forEach(buildScene); measure(); }, 120); }).observe(document.body);
+scenes.forEach(buildScene); measure();
+if (calm) return; // reduced motion: the scenes stay as still pictures
+const t0 = performance.now();
+(function frame(now) {
+  const t = (now - t0) / 1000;
+  for (const S of scenes) if (S.on && S.water.length) { stepScene(S); drawScene(S, t); }
+  mouse.moved = false;
+  letterFrame();
   requestAnimationFrame(frame);
-})();
+})(t0);
 })();
 </script>
 </body>
