@@ -74,6 +74,7 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
   - **Web search** lets the model search the web (shown as a 🌐 Web pill). Answers that used it list their sources.
   - Click a pill's × to turn that thing off.
 - The model name next to the send button picks the model: ⚡ Haiku 5.5 is fast and cheap; ✦ Sonnet 5.5 is smarter. With `OPENROUTER_API_KEY` set there's also ◆ Muse Spark 1.3, Meta's model through OpenRouter (the cheapest of the three). Its answers don't point at passages on the page.
+- When a new version of pagebot is out, a panel opened from an older bookmark shows a small strip that links to the homepage, where dragging the button again updates it. The version is in small print at the bottom of ⚙ Settings and in the homepage footer.
 - While an answer is coming in, the send button turns into a **stop** button. What arrived so far stays in the chat, and follow-ups can build on it.
 - Scroll up while an answer is coming in and the panel stays where you are. **Jump to latest** takes you back down.
 - A new chat offers one-click starters: **Summarize this page**, **Key points**, and **Explain it simply**.
@@ -113,6 +114,12 @@ Updating from an older version? Drag the button from the homepage to your bookma
   - The bookmarklet runs inside the page you're on, so a malicious page could draw a fake panel to catch what you type.
   - Answers are generated from that page's text, so a page can try to steer them.
   - If a site looks off, use `/chat` instead.
+
+## Versions
+
+pagebot's version is `VERSION` at the top of `server.js` (now 7). It's written into the bookmark people drag from the homepage. To release an update, raise it by one and deploy. Panels opened from an older bookmark then point people to the homepage to drag the new one.
+
+Changes to the panel and the server reach everyone as soon as you deploy, whatever their bookmark. Raise the version whenever `bookmarklet.js` changes, or whenever you want everyone to get a fresh bookmark.
 
 ## Local dev
 

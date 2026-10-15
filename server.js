@@ -12,6 +12,9 @@ const PUB = path.join(__dirname, 'public');
 
 // ---------- config ----------
 const PORT = process.env.PORT || 3000;
+// pagebot's version. It's written into the bookmark people drag from the homepage, so raise it by one to release an
+// update: panels opened from an older bookmark then send people to the homepage to drag the new one.
+const VERSION = 7;
 // the two models the panel can switch between; web search tool versions differ per model
 const MODELS = {
   haiku: { id: process.env.HAIKU_MODEL || process.env.MODEL || 'claude-haiku-5-5', label: 'Haiku 5.5', search: 'web_search_20250305' },
@@ -458,11 +461,11 @@ function sendPage(res, file, { frames = "'none'", html = s => s, headers = {} } 
 
 app.get(['/', '/install'], (req, res) => {
   const origin = publicOrigin(req);
-  const code = bookmarkletSrc.replaceAll('__ORIGIN__', origin).replace(/\n\s*/g, '');
+  const code = bookmarkletSrc.replaceAll('__ORIGIN__', origin).replaceAll('__VERSION__', VERSION).replace(/\n\s*/g, '');
   const href = 'javascript:' + encodeURIComponent(code);
   sendPage(res, 'install.html', {
     headers: { 'Cache-Control': 'no-store', Vary: 'Host, X-Forwarded-Host, X-Forwarded-Proto' },
-    html: s => s.replaceAll('{{HREF}}', () => escHtml(href)).replaceAll('{{ORIGIN}}', () => escHtml(origin)),
+    html: s => s.replaceAll('{{HREF}}', () => escHtml(href)).replaceAll('{{ORIGIN}}', () => escHtml(origin)).replaceAll('{{VERSION}}', VERSION),
   });
 });
 // the panel loads inside any site's page (that's what the bookmarklet does); everything else refuses to be framed
@@ -472,7 +475,7 @@ app.get('/admin', (req, res) => sendPage(res, 'admin.html'));
 
 app.get('/health', async (req, res) => {
   await pool.query('SELECT 1');
-  res.json({ ok: true, models: Object.fromEntries(Object.entries(MODELS).map(([k, m]) => [k, m.id])) });
+  res.json({ ok: true, version: VERSION, models: Object.fromEntries(Object.entries(MODELS).map(([k, m]) => [k, m.id])) });
 });
 
 // everything the panel needs to start: theme and how to unlock for anyone, the rest once signed in
@@ -483,6 +486,7 @@ app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
   const u = s?.user || null;
   const accountsExist = cfg.signup || (await pool.query(`SELECT 1 FROM users WHERE status <> 'pending' LIMIT 1`)).rowCount > 0;
   const out = {
+    version: VERSION, // panels opened from an older bookmark point to the homepage for the new one
     theme: prefsFor(cfg, u).theme,
     lock: cfg.lock.on ? 'passcode' : cfg.passwordSet ? 'password' : 'none',
     passwordSet: cfg.passwordSet,
