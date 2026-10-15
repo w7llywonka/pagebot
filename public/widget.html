@@ -765,11 +765,11 @@ function markQuotes(out, text, ev) {
   let s = '', last = 0;
   for (const c of [...ev.cites].sort((a, b) => a.at - b.at)) {
     let at = Math.min(text.length, Math.max(last, c.at));
-    while (at > last && /\s/.test(text[at - 1])) at--; // after the words, not after a line break
+    while (at > last && /[\s|]/.test(text[at - 1])) at--; // after the words, not after a line break or a table row's closing |
     s += text.slice(last, at) + c.q.map(i => `\uE000${i + 1}\uE001`).join('');
     last = at;
   }
-  out.innerHTML = md(s + text.slice(last)).replace(/\uE000(\d+)\uE001/g, (_, n) => `<button type="button" class="cite" data-q="${n}">${n}</button>`);
+  out.innerHTML = md(s + text.slice(last)).replace(/\uE000(\d+)\uE001/g, (_, n) => `&#8288;<button type="button" class="cite" data-q="${n}">${n}</button>`); // the word joiner keeps a marker on its word's line
   out.querySelectorAll('.cite').forEach(b => {
     const quote = ev.quotes[+b.dataset.q - 1] || '';
     const short = quote.length > 280 ? quote.slice(0, 280) + '…' : quote;
@@ -808,7 +808,7 @@ const whoKey = () => cfg?.who === 'user' ? 'u:' + (cfg.user?.name || '').toLower
 function showChat(enter) {
   hideViews(); view = 'chat';
   const k = whoKey();
-  if (chatWho && k !== chatWho) { convId = null; log.replaceChildren(); clearImg(); stopStream(); setArea(null); annGone = 0; }
+  if (chatWho && k !== chatWho) { convId = null; log.replaceChildren(); clearImg(); setPage(true); stopStream(); setArea(null); annGone = 0; }
   chatWho = k;
   log.hidden = false; $('#composer').hidden = false;
   setHeader(true); renderAccount(); renderAnn();
@@ -887,8 +887,8 @@ function renderLock(msg) {
   else {
     if (cfg?.accounts?.signup) links.push(['Create an account', () => showLogin('', 'signup')]);
     if (pinWho()) links.push(['Use passcode', () => { pwMode = false; showLogin('', 'pin'); }]);
-    // an owner who only has a passcode can't sign in here with a password
-    else if (cfg?.lock === 'passcode' && !cfg?.passwordSet) links.push(['Owner? Use passcode', () => { store.set('pb_who', 'owner'); pwMode = false; showLogin('', 'pin'); }]);
+    // an owner who only has a passcode can't sign in here with a password (even where an account's pad comes up)
+    if (cfg?.lock === 'passcode' && !cfg?.passwordSet && !pinWho()?.owner) links.push(['Owner? Use passcode', () => { store.set('pb_who', 'owner'); pwMode = false; showLogin('', 'pin'); }]);
   }
   const box = $('#lockLinks'); box.replaceChildren();
   links.forEach(([text, fn], i) => {
@@ -1026,7 +1026,7 @@ function lock(msg) {
   token = null; store.set('pb_token', null);
   showLogin(msg);
 }
-function logout(msg) { convId = null; chatWho = null; log.innerHTML = ''; clearImg(); stopStream(); setArea(null); lock(msg); }
+function logout(msg) { convId = null; chatWho = null; annGone = 0; log.innerHTML = ''; clearImg(); setPage(true); stopStream(); setArea(null); lock(msg); }
 $('#outBtn').onclick = () => logout();
 $('#lockBtn').onclick = $('#lockNow').onclick = () => lock();
 $('#newBtn').onclick = () => { convId = null; setPage(true); clearImg(); closeSheet(); closeWrap(); empty(); $('#q').focus(); };

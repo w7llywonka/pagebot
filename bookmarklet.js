@@ -83,7 +83,7 @@ else if(t==="min"){P.min=d.on?1:0;if(d.w>0&&d.h>0){P.mw=+d.w;P.mh=+d.h;}P.place(
 else if(t==="glass"){P.glass=d.on?1:0;P.place(1);reply({light:P.lit()});}
 else if(t==="clear"){P.clear=d.on?1:0;P.place(1);reply({light:P.lit()});}
 else if(t==="full"){P.full=d.on?1:0;if(!d.on){s.visibility="hidden";}P.place(1);reply({});}
-else if(t==="size"){if(P.dock){if(d.dw>0){P.dw=Math.max(300,Math.min(+d.dw,W.innerWidth-40));}}else{if(d.w>0){P.w=Math.max(300,Math.min(+d.w,W.innerWidth-P.r-16));}if(d.h>0){P.h=Math.max(360,Math.min(+d.h,W.innerHeight-P.b-16));}}P.place(1);}
+else if(t==="size"){if(P.dock){if(d.dw>0){P.dw=Math.max(300,Math.min(+d.dw,W.innerWidth-40));}}else{if(d.w>0){P.w=Math.max(300,Math.min(+d.w,W.innerWidth-P.r));}if(d.h>0){P.h=Math.max(360,Math.min(+d.h,W.innerHeight-P.b));}}P.place(1);}
 else if(t==="dock"){P.dock=d.on?1:0;if(d.w>0){P.dw=+d.w;}P.place();reply({});}
 });
 W.addEventListener("resize",function(){P.place(1);});
