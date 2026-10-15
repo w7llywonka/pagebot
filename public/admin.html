@@ -16,8 +16,9 @@ h1{font-size:20px;margin:0 0 20px;display:flex;align-items:center;gap:10px}
 h1 .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
 h2{font-size:14px;margin:0 0 12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
-input,select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;outline:none;margin-bottom:8px}
-input:focus,select:focus{border-color:#4a4a4a}
+input,select,textarea{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;outline:none;margin-bottom:8px}
+textarea{display:block;resize:vertical;min-height:70px}
+input:focus,select:focus,textarea:focus{border-color:#4a4a4a}
 button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:9px 14px;font:600 14px system-ui,sans-serif;cursor:pointer}
 button.ghost{background:none;border:1px solid var(--line);color:var(--text)}
 button:disabled{opacity:.5;cursor:default}
@@ -131,6 +132,9 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
 button.danger{color:var(--err)}
 .ued .np{display:flex;gap:8px;margin-top:10px}
 .ued .np input{margin:0}
+.annbox{background:var(--bg);border:1px solid rgba(217,119,87,.45);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+#annText{white-space:pre-wrap;overflow-wrap:anywhere}
+.annmeta{font-size:12px;color:var(--muted);margin-top:4px}
 details.defaults{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
 details.defaults summary{cursor:pointer;color:var(--muted);font-size:13px}
 @media (max-width:480px){.meterw .mtext{display:none}.uhead .ago{display:none}.uhead .uname{max-width:9em}}
@@ -199,11 +203,23 @@ details.defaults summary{cursor:pointer;color:var(--muted);font-size:13px}
       </details>
     </div>
 
+    <form class="card" id="annForm" autocomplete="off">
+      <h2>Announcement</h2>
+      <div id="annNow" hidden>
+        <div class="annbox"><div id="annText"></div><div class="annmeta" id="annMeta"></div></div>
+        <div class="btns" style="margin-bottom:14px"><button type="button" class="ghost" id="annDown">Take it down</button></div>
+      </div>
+      <p class="muted" id="annNone" style="margin-top:0">Nothing is showing. Post a message and everyone with an account sees it at the top of their panel until they close it.</p>
+      <textarea id="annBody" rows="3" maxlength="500" placeholder="Write a message for everyone…" aria-label="Announcement"></textarea>
+      <div class="btns" style="align-items:center"><button type="submit" id="annPost">Post to everyone</button><span class="muted" id="annCount"></span></div>
+      <div class="msg" id="annMsg"></div>
+    </form>
+
     <form class="card" id="limForm" autocomplete="off">
       <h2>Limits per question</h2>
       <label class="f" for="lMax">Max tokens per answer</label>
-      <input id="lMax" type="number" step="256">
-      <p class="hint">8,000 at most. Includes the model's thinking. You can also pick it from the panel's ⚙ settings.</p>
+      <input id="lMax" type="number" step="1" inputmode="numeric">
+      <p class="hint">Any number from 256 to 100,000. Includes the model's thinking. The panel's ⚙ settings have presets up to 8k.</p>
       <div class="row2">
         <div><label class="f" for="lPage">Page text per question (tokens)</label><input id="lPage" type="number" step="500"></div>
         <div><label class="f" for="lSearch">Web searches per question</label><input id="lSearch" type="number" step="1"></div>
@@ -564,7 +580,8 @@ function editor(u) {
   line('Last 7 days', `${nf.format(u.week.tokens)} tokens · ${money(u.week.usd)}`);
   line('All time', `${nf.format(u.total.tokens)} tokens · ${money(u.total.usd)} · ${u.total.questions} question${u.total.questions === 1 ? '' : 's'}`);
   st.append(`Joined ${dateFmt.format(new Date(u.createdAt))}` + (u.approvedAt ? ` · accepted ${dateFmt.format(new Date(u.approvedAt))}` : '') +
-    ` · ${u.devices} device${u.devices === 1 ? '' : 's'} signed in`);
+    ` · ${u.devices} device${u.devices === 1 ? '' : 's'} signed in · ` +
+    (!u.passcode ? 'no passcode' : u.lockMinutes ? `passcode on, locks after ${lockName(u.lockMinutes)}` : 'passcode on, no auto-lock'));
   if (u.note) { st.appendChild(document.createElement('br')); st.append(`They wrote: “${u.note}”`); }
   // actions
   const btns = mk('div', 'btns'), msg = mk('div', 'msg');
@@ -580,7 +597,8 @@ function editor(u) {
   const npIn = mk('input'), npGo = mk('button', '', 'Set'); npIn.type = 'text'; npIn.placeholder = 'New password (6+ characters)'; npGo.type = 'button';
   np.append(npIn, npGo);
   reset.onclick = () => { np.hidden = !np.hidden; if (!np.hidden) npIn.focus(); };
-  npGo.onclick = () => act(u, { password: npIn.value }, `Password changed and ${u.name} was signed out. Tell them the new one.`);
+  npGo.onclick = () => act(u, { password: npIn.value }, `Password changed and ${u.name} was signed out.` +
+    (u.passcode ? ' Their passcode was turned off too.' : '') + ' Tell them the new password.');
   out.onclick = () => act(u, { signout: true }, `${u.name} was signed out everywhere.`);
   blk.onclick = () => act(u, { status: u.status === 'blocked' ? 'trusted' : 'blocked' }, u.status === 'blocked' ? `${u.name} can use pagebot again.` : `${u.name} is blocked and signed out.`);
   rm.onclick = async () => { if (confirm(`Delete ${u.name}? They're signed out and the account is gone. Their past usage stays in the totals.`)) await del(u); };
@@ -636,14 +654,50 @@ $('#dSave').onclick = async () => {
     say(m, true, 'Saved. People you accept from now on start with these.');
   } catch (err) { say(m, false, err.message); }
 };
+// ---- announcement: one message everyone with an account sees until they close it ----
+let annMax = 500;
+async function loadAnn() {
+  const d = await api('/api/admin/announcement');
+  const a = d.announcement;
+  annMax = d.max || annMax;
+  $('#annNow').hidden = !a; $('#annNone').hidden = !!a;
+  if (a) {
+    $('#annText').textContent = a.body;
+    $('#annMeta').textContent = `Posted ${ago(a.createdAt)} · ` +
+      (d.people ? `${d.seen} of ${d.people} ${d.people === 1 ? 'person has' : 'people have'} closed it` : 'no one has an account yet');
+  }
+  $('#annPost').textContent = a ? 'Post (replaces this one)' : 'Post to everyone';
+}
+const annCount = () => { const n = $('#annBody').value.length; $('#annCount').textContent = n ? `${n} / ${annMax}` : ''; };
+$('#annBody').addEventListener('input', annCount);
+$('#annForm').addEventListener('submit', async e => {
+  e.preventDefault(); const m = $('#annMsg');
+  const body = $('#annBody').value.trim();
+  if (!body) return say(m, false, 'Write something first.');
+  try {
+    await api('/api/admin/announcement', { method: 'POST', body: JSON.stringify({ body }) });
+    $('#annBody').value = ''; annCount(); await loadAnn();
+    say(m, true, 'Posted. People see it the next time they open pagebot.');
+  } catch (err) { say(m, false, err.message); }
+});
+$('#annDown').onclick = async () => {
+  const m = $('#annMsg');
+  try { await api('/api/admin/announcement', { method: 'DELETE' }); await loadAnn(); say(m, true, 'Taken down. No one sees it anymore.'); }
+  catch (err) { say(m, false, err.message); }
+};
+
 new ResizeObserver(() => { if (series.length) drawChart(); }).observe($('#chart'));
 
 let usersTimer = 0;
 async function unlocked() {
-  await load(); await loadUsers(); await loadUsage();
-  // new sign-ups show up without reloading; skipped while you're typing in the users card
+  await load(); await loadUsers(); await loadUsage(); await loadAnn();
+  // new sign-ups (and who closed the announcement) show up without reloading; skipped while you're typing there
   clearInterval(usersTimer);
-  usersTimer = setInterval(() => { if (tok && !$('#usersCard').contains(document.activeElement)) loadUsers().catch(() => {}); }, 30000);
+  usersTimer = setInterval(() => {
+    if (!tok) return;
+    if (!$('#usersCard').contains(document.activeElement)) loadUsers().catch(() => {});
+    if (!$('#annForm').contains(document.activeElement)) loadAnn().catch(() => {});
+  }, 30000);
 }
 
 $('#unlock').addEventListener('submit', async e => {

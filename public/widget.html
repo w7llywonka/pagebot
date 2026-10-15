@@ -48,7 +48,7 @@ body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition:background-color .3
 :root[data-theme=glass] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,0) 36%,rgba(255,255,255,0) 64%,rgba(255,255,255,.08))}
 :root[data-theme=glass] header{background:rgba(255,255,255,.05)}
 :root[data-theme=glass] .msg.bot,:root[data-theme=glass] .box,:root[data-theme=glass] .pad button{box-shadow:inset 0 1px 0 rgba(255,255,255,.28)}
-:root[data-theme=glass] .menu,:root[data-theme=glass] #sheet,:root[data-theme=glass] #jump{background:var(--pop);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+:root[data-theme=glass] .menu,:root[data-theme=glass] #sheet,:root[data-theme=glass] #wrap,:root[data-theme=glass] #jump{background:var(--pop);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
 :root[data-theme=glass] #boot .bg{background:rgba(16,18,26,.5);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 :root[data-theme=glass][data-page=light] #boot .bg{background:rgba(255,255,255,.5)}
 :root[data-theme=glass] .send,:root[data-theme=glass] .go{box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 45%,transparent)}
@@ -66,7 +66,8 @@ body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition:background-color .3
 /* pop-ups sit over the chat, so they get a plain backing (no blur) to stay legible; the settings sheet hides the chat behind it instead */
 :root[data-theme=clear] .menu,:root[data-theme=clear] .rbar,:root[data-theme=clear] #jump,:root[data-theme=clear] .cc{background:var(--pop);text-shadow:none}
 :root[data-theme=clear] .menu svg,:root[data-theme=clear] .rbar svg,:root[data-theme=clear] #jump svg{filter:none}
-:root[data-theme=clear] body.sheet>#log,:root[data-theme=clear] body.sheet>#composer{visibility:hidden}
+:root[data-theme=clear] body.sheet>#log,:root[data-theme=clear] body.sheet>#composer,:root[data-theme=clear] body.sheet>#ann{visibility:hidden}
+:root[data-theme=clear] #wrap{background:var(--pop);text-shadow:none}
 /* on /chat and in the pop-up window there's no page behind, so glass and clear sit on a colorful backdrop */
 :root.nohost[data-theme=glass],:root.nohost[data-theme=clear]{background:radial-gradient(60% 50% at 15% 20%,#5b7cff 0,transparent 70%),radial-gradient(50% 45% at 85% 25%,#c35bff 0,transparent 70%),radial-gradient(55% 50% at 70% 85%,#ff7a9c 0,transparent 70%),radial-gradient(50% 50% at 20% 85%,#2ec5b6 0,transparent 70%),#1a1d2e;background-attachment:fixed}
 
@@ -82,8 +83,6 @@ body.dragging,body.dragging *{cursor:grabbing!important}
 .ib svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .ib .ex,body.min .ib .mn{display:none}
 body.min .ib .ex{display:block}
-.ib .nw,body.wide .ib .wd{display:none}
-body.wide .ib .nw{display:block}
 .mstat{display:none;align-items:center;margin-left:2px}
 .mstat.new .typing{display:none}
 .mstat.new::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
@@ -122,9 +121,10 @@ body.min .mstat.busy,body.min .mstat.new{display:inline-flex}
 .msg th.c,.msg td.c{text-align:center}
 .msg th.r,.msg td.r{text-align:right}
 .msg blockquote:last-child,.msg .tw:last-child{margin-bottom:0}
+:root[data-theme=glass][data-page=light] .msg :is(th,td,blockquote,hr){border-color:rgba(17,19,26,.2)}
 .cb{position:relative;margin:6px 0}
 .cb pre{margin:0}
-.cc{position:absolute;top:5px;right:5px;opacity:0;background:var(--pop,var(--panel));color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;transition:opacity .12s}
+.cc{position:absolute;top:5px;right:5px;opacity:0;user-select:none;-webkit-user-select:none;background:var(--pop,var(--panel));color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;transition:opacity .12s}
 .cb:hover .cc,.cc:focus-visible{opacity:1}
 .cc:hover{color:var(--text)}
 .tags{font-size:11px;color:var(--muted);margin-bottom:3px}
@@ -143,12 +143,6 @@ body.min .mstat.busy,body.min .mstat.new{display:inline-flex}
 #jump svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 @keyframes jumpIn{from{opacity:0;transform:translate(-50%,4px)}}
 body.sheet #jump{display:none}
-/* drag the top or left edge (or the top-left corner) to resize; the bookmarklet keeps the bottom-right corner in place */
-.rz{position:fixed;z-index:50;touch-action:none}
-.rz.l{left:0;top:12px;bottom:0;width:5px;cursor:ew-resize}
-.rz.t{top:0;left:12px;right:0;height:4px;cursor:ns-resize}
-.rz.c{left:0;top:0;width:12px;height:12px;cursor:nwse-resize}
-body.resizing *{cursor:inherit!important;user-select:none;-webkit-user-select:none}
 .mini{background:none;border:0;padding:0;color:var(--accent);font-size:11px;cursor:pointer;text-decoration:underline}
 .steps{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;font-size:12px;color:var(--muted)}
 .step::before{content:"🌐 "}
@@ -354,6 +348,102 @@ body.enter #composer{animation:rise .4s cubic-bezier(.2,.8,.2,1) .06s both}
 @keyframes rise{from{opacity:0;transform:translateY(12px)}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 
+/* the highlight pill, and numbered quotes from the page that find the passage on the page when clicked */
+.pill.sel{flex:0 1 auto;min-width:0;max-width:210px}
+.pill.sel span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.cite{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;margin:0 1px 0 3px;padding:0 4px;border:0;border-radius:99px;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);font:700 10.5px/1 var(--font);vertical-align:2px;cursor:pointer;transition:background-color .15s,color .15s,transform .1s}
+.cite:hover,.cite.on{background:var(--accent);color:var(--on-accent)}
+.cite:active{transform:scale(.9)}
+.cite.miss{opacity:.45}
+
+/* resize grips on the left and top edges, and the docked sidebar (bookmarklet v7) */
+.grip{position:fixed;z-index:40;display:none;touch-action:none}
+body.sizable .grip{display:block}
+.grip.gl{left:0;top:16px;bottom:16px;width:6px;cursor:ew-resize}
+.grip.gt{top:0;left:16px;right:16px;height:5px;cursor:ns-resize}
+.grip.gc{left:0;top:0;width:16px;height:16px;cursor:nwse-resize}
+.grip.gl:hover,.grip.gt:hover,body.rs-l .grip.gl,body.rs-t .grip.gt{background:color-mix(in srgb,var(--accent) 35%,transparent)}
+.grip.gc:hover,body.rs-c .grip.gc{background:radial-gradient(circle at 0 0,color-mix(in srgb,var(--accent) 50%,transparent) 0 10px,transparent 11px)}
+body.docked .grip.gt,body.docked .grip.gc{display:none}
+body.docked .grip.gl{top:0;bottom:0}
+body.resizing,body.resizing *{user-select:none;-webkit-user-select:none}
+body.rs-l *{cursor:ew-resize!important}
+body.rs-t *{cursor:ns-resize!important}
+body.rs-c *{cursor:nwse-resize!important}
+body.docked:not(.min) header{cursor:default}
+
+/* announcement from the owner */
+#ann{flex:none;display:flex;gap:10px;align-items:flex-start;margin:10px 10px 0;padding:9px 9px 9px 11px;border-radius:12px;background:var(--chip-on);border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));animation:annIn .4s cubic-bezier(.2,.8,.2,1) both}
+@keyframes annIn{from{opacity:0;transform:translateY(-8px)}}
+#ann.out{animation:fadeOut .2s ease forwards}
+#ann .ai{flex:none;font-size:15px;line-height:1.35}
+#ann .ab{flex:1;min-width:0}
+#annText{font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:110px;overflow-y:auto}
+#annMeta{font-size:11px;color:var(--muted);margin-top:3px}
+#annX{flex:none;align-self:center;background:var(--accent);color:var(--on-accent);border:0;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer}
+
+/* settings: Wrapped, the account passcode */
+.wcta{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;padding:12px 14px;border-radius:12px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:radial-gradient(120% 140% at 100% 0%,color-mix(in srgb,var(--accent) 28%,transparent),transparent 60%),var(--panel);cursor:pointer;transition:transform .12s,border-color .15s}
+.wcta:hover{border-color:var(--accent)}
+.wcta:active{transform:scale(.98)}
+.wcta b{font-size:14px}
+.wcta span{font-size:12px;color:var(--muted)}
+.pcl{display:inline-flex;align-items:center;gap:6px;margin:0 0 0 auto}
+.pcl select{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:4px 6px;font:inherit;font-size:12.5px}
+
+/* Wrapped: your year on pagebot, one card at a time */
+#wrap{position:absolute;left:0;right:0;top:var(--hd);bottom:0;z-index:4;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;cursor:pointer;user-select:none;-webkit-user-select:none;animation:sheetIn .25s cubic-bezier(.2,.8,.2,1)}
+.wtop{flex:none;display:flex;align-items:center;gap:8px;padding:8px 6px 0 14px}
+.wbar{flex:1;display:flex;gap:4px}
+.wbar i{flex:1;height:3px;border-radius:2px;background:color-mix(in srgb,var(--text) 16%,transparent)}
+.wbar i.done,.wbar i.cur{background:var(--accent)}
+.wslide{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px 24px 12px;text-align:center;overflow-y:auto;--g:color-mix(in srgb,var(--accent) 22%,transparent);background:radial-gradient(90% 60% at 50% 0%,var(--g),transparent 70%)}
+.wslide[data-k="1"]{background:radial-gradient(80% 55% at 100% 0%,var(--g),transparent 70%)}
+.wslide[data-k="2"]{background:radial-gradient(80% 60% at 0% 100%,var(--g),transparent 70%)}
+.wslide[data-k="3"]{background:radial-gradient(90% 60% at 50% 100%,var(--g),transparent 70%)}
+.wslide[data-k="4"]{background:radial-gradient(80% 60% at 0% 0%,var(--g),transparent 70%)}
+.wslide[data-k="5"]{background:radial-gradient(80% 60% at 100% 100%,var(--g),transparent 70%)}
+.wslide>*,.wsites li,.wgrid div{animation:wIn .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--d,0) * 110ms + 80ms)}
+@keyframes wIn{from{opacity:0;transform:translateY(12px)}}
+.wk{font-size:11.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:650}
+.wbig{font-size:64px;line-height:1;font-weight:800;letter-spacing:-2px;color:var(--accent);font-variant-numeric:tabular-nums}
+.wh{font-size:24px;font-weight:750;letter-spacing:-.4px;max-width:100%;overflow-wrap:anywhere}
+.wsub{margin:0;font-size:14px}
+.wsub b{color:var(--accent)}
+.wpill{font-size:12.5px;padding:4px 11px;border-radius:99px;background:var(--chip-on);border:1px solid var(--line)}
+.wicon{font-size:46px;line-height:1;color:var(--accent)}
+.wsites{list-style:none;margin:6px 0;padding:0;width:100%;display:flex;flex-direction:column;gap:7px}
+.wsites li{display:grid;grid-template-columns:16px minmax(0,1fr) 34% auto;align-items:center;gap:8px;font-size:13px;text-align:left}
+.wsites .wr{color:var(--muted);font-weight:700;font-size:12px}
+.wsites .wn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.wsites .wc{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.wbarw{height:8px;border-radius:99px;background:color-mix(in srgb,var(--text) 10%,transparent);overflow:hidden}
+.wbarw i{display:block;height:100%;width:var(--w);border-radius:99px;background:var(--accent);transform-origin:0 50%;animation:wGrow .9s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--d,0) * 110ms + 220ms)}
+@keyframes wGrow{from{transform:scaleX(0)}}
+.whours{display:flex;align-items:flex-end;gap:2px;width:100%;height:96px;margin-top:6px}
+.whours i{flex:1;height:var(--h);border-radius:3px 3px 1px 1px;background:color-mix(in srgb,var(--accent) 35%,transparent);transform-origin:50% 100%;animation:wRise .6s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 18ms + 260ms)}
+.whours i.pk{background:var(--accent)}
+@keyframes wRise{from{transform:scaleY(0)}}
+.waxis{display:flex;justify-content:space-between;width:100%;font-size:10.5px;color:var(--muted);margin-top:-4px}
+.wsplit{display:flex;gap:2px;width:100%;height:10px;border-radius:99px;overflow:hidden;margin-top:4px}
+.wsplit i,.wlegend i{background:var(--accent);opacity:calc(1 - var(--c) * .35)}
+.wsplit i{width:var(--w)}
+.wlegend{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;font-size:12px;color:var(--muted)}
+.wlegend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.wsw{position:relative;display:block;width:150px;height:96px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.3),inset 0 0 0 1px rgba(128,128,128,.25);overflow:hidden}
+.wsw i{position:absolute;left:12px;top:12px;width:12px;height:12px;border-radius:50%;background:var(--sw-acc)}
+.wsw u{position:absolute;left:12px;bottom:16px;width:62px;height:7px;border-radius:4px;background:var(--sw-text);opacity:.45}
+.wsw u.u2{bottom:30px;width:40px}
+.wsw b{position:absolute;right:12px;top:30px;width:52px;height:20px;border-radius:9px;background:var(--sw-user)}
+.wgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin:6px 0}
+.wgrid div{display:flex;flex-direction:column;gap:2px;padding:12px 10px;border-radius:12px;background:var(--panel);border:1px solid var(--line);min-width:0}
+.wgrid b{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wgrid span{font-size:11.5px;color:var(--muted)}
+.wdone{margin-top:6px;padding:0 26px}
+.whint{flex:none;text-align:center;font-size:11px;color:var(--muted);padding:0 0 8px;min-height:21px}
+.wload{margin:auto;display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);font-size:13px;text-align:center;padding:20px;cursor:default}
+.wload p{margin:0}
+
 /* full-page chat at /chat */
 body.standalone{--hd:54px;max-width:780px;margin:0 auto;border-left:1px solid var(--line);border-right:1px solid var(--line)}
 body.standalone header{padding:0 12px 0 18px}
@@ -388,10 +478,13 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
   <button class="ib hide-min" id="newBtn" title="New chat" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
   <button class="ib hide-min" id="setBtn" title="Settings" hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <button class="ib hide-min" id="lockBtn" title="Lock" hidden><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button>
-  <button class="ib hide-min" id="wideBtn" title="Wide view" aria-pressed="false" hidden><svg class="wd" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><svg class="nw" viewBox="0 0 24 24"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg></button>
+  <button class="ib hide-min" id="dockBtn" title="Dock to the side" hidden><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
   <button class="ib" id="minBtn" title="Minimize" hidden><svg class="mn" viewBox="0 0 24 24"><path d="M6 12h12"/></svg><svg class="ex" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button>
   <button class="ib" id="closeBtn" title="Close (Esc)"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
 </header>
+<div class="grip gl" data-g="l" aria-hidden="true"></div><div class="grip gt" data-g="t" aria-hidden="true"></div><div class="grip gc" data-g="c" aria-hidden="true"></div>
+
+<div id="ann" role="status" hidden><span class="ai" aria-hidden="true">📣</span><div class="ab"><div id="annText"></div><div id="annMeta"></div></div><button id="annX" type="button">Got it</button></div>
 
 <form id="login" autocomplete="off" tabindex="-1">
   <div class="lk"><svg id="lockIcon" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
@@ -429,11 +522,13 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
     <div class="qbar"><i id="quotaFill"></i></div>
     <p class="qtext"><b id="quotaText"></b> <span id="quotaSub"></span></p>
   </section>
+  <section id="wrapSec"><button class="wcta" id="wrapBtn" type="button"><b>✨ Your pagebot Wrapped</b><span>Your year in questions, sites, hours and streaks</span></button></section>
   <section><h3>Theme</h3><div class="themes" id="themes"></div>
     <p class="fine" id="glassNote" hidden>To make <span id="glassName">Glass</span> see-through on every site, including dark-mode ones, drag the button from the pagebot homepage to your bookmarks bar again.</p></section>
   <section id="tokSec">
     <h3>Max tokens per answer</h3>
     <div class="seg" id="tokSeg"></div>
+    <p class="fine" id="tokNote" hidden></p>
   </section>
   <section>
     <h3>Account</h3>
@@ -445,7 +540,20 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
     </form>
     <div class="acct" id="acctBtns"><button class="ghost" id="pwChange" type="button" hidden>Change password</button><button class="ghost" id="lockNow" type="button" hidden>Lock now</button><button class="ghost" id="outBtn" type="button">Log out</button><a id="adminLink" href="/admin" target="_blank" rel="noopener">Usage &amp; admin ↗</a></div>
   </section>
+  <section id="pcSec" hidden>
+    <h3>Passcode</h3>
+    <p class="fine" id="pcState" style="margin:0 0 10px"></p>
+    <form class="pwform" id="pcForm" autocomplete="off" hidden>
+      <input id="pcA" type="password" inputmode="numeric" maxlength="5" placeholder="New 5-digit passcode" autocomplete="new-password" aria-label="New passcode">
+      <input id="pcB" type="password" inputmode="numeric" maxlength="5" placeholder="Type it again" autocomplete="new-password" aria-label="Confirm the passcode">
+      <input id="pcPw" type="password" placeholder="Your password" autocomplete="current-password" aria-label="Your password">
+      <div class="acct"><button class="ghost" type="submit">Save passcode</button><button class="ghost" id="pcCancel" type="button">Cancel</button><span class="fine" id="pcMsg"></span></div>
+    </form>
+    <div class="acct" id="pcBtns"><button class="ghost" id="pcSet" type="button">Set a passcode</button><button class="ghost" id="pcOff" type="button" hidden>Turn off</button><label class="fine pcl" id="pcLockRow" hidden>Lock after <select id="pcLock"></select></label></div>
+  </section>
 </div>
+
+<div id="wrap" hidden></div>
 
 <div id="composer" hidden>
   <button id="jump" type="button" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>Jump to latest</button>
@@ -456,6 +564,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
       <button class="tb" id="addBtn" type="button" title="Screenshot, page text, web search" aria-label="Add" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
       <div class="pills">
         <button class="pill" id="pagePill" type="button" title="This page's text goes with your next message. Click to leave it out." hidden>📄<span class="pl">Page</span><i>×</i></button>
+        <button class="pill sel" id="selPill" type="button" hidden><span></span><i>×</i></button>
         <button class="pill" id="areaPill" type="button" title="Every message sends a new screenshot of the area you picked. Click to turn it off." hidden><span class="pi">⛶</span><span class="pl">Region</span><i>×</i></button>
         <button class="pill" id="webPill" type="button" title="Web search is on. Click to turn it off." hidden>🌐<span class="pl">Web</span><i>×</i></button>
       </div>
@@ -473,7 +582,6 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
   </div>
   <div class="menu right" id="modelMenu" role="menu" hidden></div>
 </div>
-<div class="rz l" data-k="l" hidden></div><div class="rz t" data-k="t" hidden></div><div class="rz c" data-k="c" title="Drag to resize" hidden></div>
 
 <script>
 (() => {
@@ -483,13 +591,16 @@ const qs = new URLSearchParams(location.search);
 const embedded = window.parent !== window;
 const popup = !embedded && !!window.opener;
 const target = embedded ? window.parent : (popup ? window.opener : null);
-const hostV = embedded ? Number(qs.get('v')) || 1 : 0;
+const ver = Number(qs.get('v')) || 0;
+const hostV = embedded ? ver || 1 : 0;
 const hostV2 = hostV >= 2; // bookmarklet that can move, minimize and go full screen
 const hostV3 = hostV >= 3; // ...and tells us when the panel opens and hides
 const hostV4 = hostV >= 4; // ...and can blur the page behind the panel for the glass theme
 const hostV5 = hostV >= 5; // ...and marks the panel light, so Chrome doesn't put a solid backing behind glass on dark-mode sites
 const hostV6 = hostV >= 6; // ...and can drop the panel's shadow for the clear theme
-const hostV7 = hostV >= 7; // ...and can resize the panel while it's open
+const hostV7 = hostV >= 7; // ...and can resize the panel and dock it to the side
+// v7 pages (also behind the pop-up window) send highlights as you make them and can find a quoted passage
+const pageV7 = hostV7 || (popup && ver >= 7);
 const standalone = !embedded && !popup;
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const body = document.body;
@@ -515,8 +626,8 @@ let ctrl = null, chatGen = 0; // stops the answer being streamed; which chat an 
 // a lock or an approval never pulls your typing out of the page or out of another tab.
 const shown = e => !!e && e.getClientRects().length > 0;
 function viewTarget() {
-  if (view === 'chat') return sheetOpen ? null : $('#q');
-  if (view === 'lock') return pinMode() ? $('#login') : lockMode === 'owner' ? $('#pw') : $('#uName').value ? $('#uPass') : $('#uName');
+  if (view === 'chat') return sheetOpen || wrap ? null : $('#q');
+  if (view === 'lock') return pinMode() ? $('#login') : lockTarget || $('#uName'); // renderLock picks the box
   return null;
 }
 function claim() { // you just opened or restored the panel with the bookmark
@@ -554,15 +665,19 @@ addEventListener('message', e => {
   else if (d.type === 'restore') { setMin(false); claim(); }
   else if (d.type === 'open') { claim(); replaySplash(); }
   else if (d.type === 'hidden') { release(); armSplash(); }
+  else if (d.type === 'sel') setSel(String(d.text || ''));
 });
-let savedPos = null;
+let savedPos = null, savedSize = null;
 try { savedPos = JSON.parse(store.get('pb_pos')); } catch {}
-// the size you dragged the panel to, or the wide view (older bookmarks still open at the saved size, they just can't change it)
-const SIZE = { w: 400, h: 600 }, WIDE = { w: 760, h: 4000 }, MIN_W = 300, MIN_H = 340; // the bookmarklet fits these to the window
-let savedSize = null;
-try { const s = JSON.parse(store.get('pb_size')); if (s?.w > 0 && s?.h > 0) savedSize = { w: +s.w, h: +s.h }; } catch {}
-let wide = hostV7 && store.get('pb_wide') === '1';
-tell('ready', { ...(hostV2 && savedPos ? { pos: savedPos } : {}), size: wide ? WIDE : savedSize || SIZE });
+try { savedSize = JSON.parse(store.get('pb_size')); } catch {}
+let docked = hostV7 && store.get('pb_dock') === '1', dockW = Number(store.get('pb_dockw')) || 420;
+tell('ready', {
+  ...(hostV2 && savedPos ? { pos: savedPos } : {}),
+  size: hostV7 && savedSize?.w > 0 && savedSize?.h > 0 ? savedSize : { w: 400, h: 600 },
+  ...(hostV7 ? { dock: docked, dw: dockW } : {}),
+});
+// the pop-up window only hears about highlights made after it opened, so ask for the current one
+if (popup && pageV7) ask('page', { max: 1 }).then(r => { if (r) setSel(r.selection || ''); });
 
 // ---- themes ----
 const THEMES = [
@@ -622,20 +737,22 @@ syncGlass(); // the theme painted on the first frame may already be glass or cle
 const log = $('#log');
 const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // s is already HTML-escaped; links stay http(s) only and show where they go, so a page that steers the answer
-// can't hide a different site behind friendly link text (link text can't contain "[", which keeps this linear)
+// can't hide a different site behind friendly link text (link text can't contain "[", which keeps this linear).
+// Inside code spans, the characters that start bold, italics and links are made inert, so code never gets formatted
+// but bold and links can still wrap it.
+const UNESC = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" };
 function inline(s) {
-  // code spans are split out first, so nothing inside them gets bold, italic or a link
-  return s.split(/(`[^`\n]+`)/).map((p, i) => i % 2 ? '<code>' + p.slice(1, -1) + '</code>' : p
-    .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
-    .replace(/(^|[\s(])\*(?=\S)([^*\n]*?\S)\*(?![\w*])/g, '$1<i>$2</i>')
-    .replace(/\[([^[\]\n]{1,300})\]\((https?:\/\/[^\s)]{1,2000})\)/g, (all, text, url) => {
-      const h = host(url.replace(/&amp;/g, '&'));
-      return `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>` + (text.includes(h) ? '' : ` <span class="lh">(${esc(h)})</span>`);
-    })).join('');
+  return s.replace(/`([^`\n]+)`/g, (all, c) => '<code>' + c.replace(/[*[\]]/g, ch => '&#' + ch.charCodeAt(0) + ';') + '</code>')
+          .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
+          .replace(/(^|[\s(])\*(?=\S)([^*\n]*?\S)\*(?![\w*])/g, '$1<i>$2</i>')
+          .replace(/\[([^[\]\n]{1,300})\]\((https?:\/\/[^\s)]{1,2000})\)/g, (all, text, url) => {
+            const h = host(url.replace(/&(amp|lt|gt|quot|#39);/g, (m, e) => UNESC[e])); // the address the browser will open
+            return `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>` + (text.includes(h) ? '' : ` <span class="lh">(${esc(h)})</span>`);
+          });
 }
 // a markdown table: a header row, a |---|:---:| row, then the body rows
 const TSEP = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/;
-const cells = l => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+const cells = l => l.trim().replace(/\\\|/g, '\0').replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim().replace(/\0/g, '|')); // \| is a pipe inside a cell
 function table(head, sep, rows) {
   const al = cells(sep).map(c => /^:-+:$/.test(c) ? ' class="c"' : /-:$/.test(c) ? ' class="r"' : '');
   const row = (r, tag) => '<tr>' + head.map((_, j) => `<${tag}${al[j] || ''}>${inline(r[j] || '')}</${tag}>`).join('') + '</tr>';
@@ -718,20 +835,59 @@ function addMsg(role, html, tags) {
 function note(text) { clearEmpty(); const n = el('div', 'note'); n.textContent = text; log.appendChild(n); scroll(true); }
 // The chat follows new text only while you're at the bottom. Scroll up to read and it stays put,
 // with a button to jump back down; scrolling back to the bottom picks the answer up again.
-let stick = true;
+let stick = true, lastTop = 0;
 const jump = $('#jump');
 function scroll(force) {
   if (force) stick = true;
   if (stick) log.scrollTop = log.scrollHeight;
+  lastTop = log.scrollTop;
   jump.hidden = stick;
 }
 log.addEventListener('scroll', () => {
-  stick = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+  const dist = log.scrollHeight - log.scrollTop - log.clientHeight;
+  // any move up lets go (even a slow one that's still near the bottom); a move down to near the bottom picks it up again
+  if (dist < 2) stick = true; // also when the page shrank under you
+  else if (log.scrollTop < lastTop - 0.5) stick = false; // even a 1px trackpad nudge
+  else if (dist < 40) stick = true;
+  lastTop = log.scrollTop;
   jump.hidden = stick;
 });
 jump.onclick = () => { scroll(true); focusView(); };
+jump.addEventListener('wheel', e => { log.scrollTop += e.deltaY; }, { passive: true }); // the pill sits over the chat, so let it scroll
 const fmt = n => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n);
 const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
+const ago = t => {
+  const s = (Date.now() - new Date(t)) / 1000;
+  return s < 60 ? 'just now' : s < 3600 ? `${Math.floor(s / 60)}m ago` : s < 86400 ? `${Math.floor(s / 3600)}h ago` : `${Math.floor(s / 86400)}d ago`;
+};
+// plain text with its web addresses made clickable (for the owner's announcements)
+const linkify = raw => String(raw).split(/(https?:\/\/[^\s<>"']*[^\s<>"'.,;:!?)\]])/g)
+  .map((p, i) => i % 2 ? `<a href="${esc(p)}" target="_blank" rel="noopener noreferrer">${esc(p)}</a>` : esc(p)).join('');
+
+// Numbered markers after the parts of an answer that the page backs up. The server says where each one goes
+// (`at`, an offset into the streamed text) and which quoted passages it stands for; clicking finds them on the page.
+function markQuotes(out, text, ev) {
+  let s = '', last = 0;
+  for (const c of [...ev.cites].sort((a, b) => a.at - b.at)) {
+    let at = Math.min(text.length, Math.max(last, c.at));
+    while (at > last && /[\s|]/.test(text[at - 1])) at--; // after the words, not after a line break or a table row's closing |
+    s += text.slice(last, at) + c.q.map(i => `\uE000${i + 1}\uE001`).join('');
+    last = at;
+  }
+  out.innerHTML = md(s + text.slice(last)).replace(/\uE000(\d+)\uE001/g, (_, n) => `&#8288;<button type="button" class="cite" data-q="${n}">${n}</button>`); // the word joiner keeps a marker on its word's line
+  out.querySelectorAll('.cite').forEach(b => {
+    const quote = ev.quotes[+b.dataset.q - 1] || '';
+    const short = quote.length > 280 ? quote.slice(0, 280) + '…' : quote;
+    b.title = `“${short}”\nShow it on the page`;
+    b.setAttribute('aria-label', `Show quote ${b.dataset.q} on the page`);
+    b.onclick = async () => {
+      log.querySelectorAll('.cite.on').forEach(x => x.classList.remove('on'));
+      const r = await ask('find', { text: quote }, 4000);
+      if (r?.found) { b.classList.remove('miss'); b.classList.add('on'); }
+      else { b.classList.add('miss'); b.title = `“${short}”\nCouldn’t find this on the page anymore.`; }
+    };
+  });
+}
 // one click to ask the usual first questions about a page
 const STARTERS = [
   ['Summarize this page', 'Summarize this page.'],
@@ -757,17 +913,24 @@ function empty() {
 const isUser = () => cfg?.who === 'user';
 function setHeader(chat) {
   $('#newBtn').hidden = $('#setBtn').hidden = !chat;
-  $('#lockBtn').hidden = $('#lockNow').hidden = !(chat && cfg?.who === 'owner' && cfg?.lock === 'passcode');
+  // anyone with a passcode (the owner or an account) can lock right away
+  const canLock = chat && (cfg?.who === 'owner' ? cfg?.lock === 'passcode' : !!cfg?.user?.passcode);
+  $('#lockBtn').hidden = $('#lockNow').hidden = !canLock;
 }
 function hideViews() {
   $('#login').style.display = 'none'; $('#login').classList.remove('leave');
-  $('#wait').hidden = true; log.hidden = true; $('#composer').hidden = true;
-  stopWaitPoll();
+  $('#wait').hidden = true; log.hidden = true; $('#composer').hidden = true; $('#ann').hidden = true;
+  stopWaitPoll(); closeWrap();
 }
+let chatWho = null; // whose chat is in the log
+const whoKey = () => cfg?.who === 'user' ? 'u:' + (cfg.user?.name || '').toLowerCase() : cfg?.who || null;
 function showChat(enter) {
   hideViews(); view = 'chat';
+  const k = whoKey();
+  if (chatWho && k !== chatWho) { leaveChat(); log.replaceChildren(); clearImg(); setPage(true); stopStream(); setArea(null); annGone = 0; }
+  chatWho = k;
   log.hidden = false; $('#composer').hidden = false;
-  setHeader(true); renderAccount();
+  setHeader(true); renderAccount(); renderAnn();
   if (!log.children.length) empty();
   if (enter) { body.classList.add('enter'); setTimeout(() => body.classList.remove('enter'), 600); }
   lastActive = Date.now();
@@ -781,45 +944,70 @@ function route(enter) {
   if (view !== 'chat') showChat(enter);
 }
 
-let lockMode = null, pwMode = false, pin = '', pinBusy = false;
+// Lock screen modes: 'pin' (number pad), 'owner' (password box, only when there are no accounts),
+// 'signin' (username + password; the owner leaves the username blank) and 'signup'.
+let lockMode = null, pwMode = false, pin = '', pinBusy = false, lockFill = null, lockFocus = null, lockTarget = null;
 const accountsOn = () => !!cfg?.accounts?.on;
-const pinMode = () => view === 'lock' && lockMode === 'owner' && cfg?.lock === 'passcode' && !pwMode;
+// who can unlock on this site with a passcode: the owner, or the account that signed in here last, if it has one
+function pinWho() {
+  if (!accountsOn() || store.get('pb_who') === 'owner') return cfg?.lock === 'passcode' ? { owner: true } : null;
+  const name = store.get('pb_user');
+  return store.get('pb_who') === 'user' && name && store.get('pb_pin') === '1' ? { name } : null;
+}
+const pinMode = () => view === 'lock' && lockMode === 'pin';
 const ICONS = {
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   add: '<circle cx="10" cy="8" r="4"/><path d="M2 21a8 8 0 0 1 13.4-5.9M19 14v6M16 17h6"/>',
 };
+const defaultLock = () => pinWho() && !pwMode ? 'pin' : accountsOn() ? 'signin' : 'owner';
 function showLogin(msg, mode) {
   hideViews(); view = 'lock'; closeSheet(); closeMenus();
-  // this site remembers whether the owner or an account signed in last
-  lockMode = mode || lockMode || (accountsOn() && store.get('pb_who') !== 'owner' ? 'signin' : 'owner');
+  lockMode = mode || defaultLock();
   $('#login').style.display = 'flex';
   setHeader(false);
   renderLock(msg);
 }
+// from the number pad to a password: an account gets its username filled in, the owner leaves it blank
+function toPassword(msg) {
+  const who = pinWho();
+  pwMode = true;
+  if (!accountsOn()) return showLogin(msg, 'owner');
+  lockFill = who?.name || ''; lockFocus = 'pass';
+  showLogin(msg, 'signin');
+}
 function renderLock(msg) {
-  if (!accountsOn()) lockMode = 'owner';
-  const lock = cfg?.lock || 'password', owner = lockMode === 'owner', signup = lockMode === 'signup', usePin = pinMode();
-  $('#lockIcon').innerHTML = owner ? ICONS.lock : signup ? ICONS.add : ICONS.user;
-  $('#lockTitle').textContent = owner ? 'Locked' : signup ? 'Request access' : 'Sign in';
-  $('#lockSub').textContent = owner
-    ? (lock === 'none' ? 'No password is set yet — set one in /admin.' : usePin ? 'Enter your 5-digit passcode.' : 'Enter your pagebot password.')
+  const lock = cfg?.lock || 'password';
+  // sign-ups or the remembered passcode may have changed since this screen opened
+  if (lockMode === 'pin' && !pinWho()) lockMode = accountsOn() ? 'signin' : 'owner';
+  else if (lockMode !== 'pin') lockMode = !accountsOn() ? 'owner' : lockMode === 'owner' ? 'signin' : lockMode;
+  const who = lockMode === 'pin' ? pinWho() : null, usePin = !!who, owner = lockMode === 'owner', signup = lockMode === 'signup';
+  $('#lockIcon').innerHTML = usePin || owner ? ICONS.lock : signup ? ICONS.add : ICONS.user;
+  $('#lockTitle').textContent = usePin || owner ? 'Locked' : signup ? 'Request access' : 'Sign in';
+  $('#lockSub').textContent = usePin ? (who.name ? `Enter your passcode, ${who.name}.` : 'Enter your 5-digit passcode.')
+    : owner ? (lock === 'none' ? 'No password is set yet — set one in /admin.' : 'Enter your pagebot password.')
     : signup ? 'Pick a username and password. You can start once the owner accepts you.' : 'Sign in to your pagebot account.';
   $('#pin').hidden = $('#pad').hidden = !usePin;
-  $('#pwRow').hidden = !owner || usePin || lock === 'none';
-  $('#acct').hidden = owner;
+  $('#pwRow').hidden = !owner || lock === 'none';
+  $('#acct').hidden = usePin || owner;
   $('#uPass2').hidden = $('#uNote').hidden = !signup;
   $('#uGo').textContent = signup ? 'Request access' : 'Sign in';
   $('#uPass').autocomplete = signup ? 'new-password' : 'current-password';
-  if (!owner && !$('#uName').value) $('#uName').value = store.get('pb_user') || '';
+  if (lockFill != null) $('#uName').value = lockFill;
+  else if (!usePin && !owner && !$('#uName').value && store.get('pb_who') === 'user') $('#uName').value = store.get('pb_user') || '';
   const links = [];
-  if (owner) {
-    if (lock === 'passcode' && cfg?.passwordSet) links.push([pwMode ? 'Use passcode' : 'Use password instead', () => { pwMode = !pwMode; renderLock(); }]);
-    if (accountsOn()) links.push(['Sign in with an account', () => showLogin('', 'signin')]);
-  } else {
-    if (signup) links.push(['I already have an account', () => showLogin('', 'signin')]);
-    else if (cfg?.accounts?.signup) links.push(['Create an account', () => showLogin('', 'signup')]);
-    links.push(['Owner? Unlock here', () => showLogin('', 'owner')]);
+  if (usePin) {
+    // (an owner with only a passcode has no password to switch to, unless it's to an account)
+    if (who.name || cfg?.passwordSet || accountsOn()) links.push(['Use password instead', () => toPassword()]);
+    if (who.name) links.push([`Not ${who.name}?`, () => { lockFill = ''; lockFocus = 'name'; showLogin('', 'signin'); }]);
+  } else if (owner) {
+    if (lock === 'passcode') links.push(['Use passcode', () => { pwMode = false; showLogin('', 'pin'); }]);
+  } else if (signup) links.push(['I already have an account', () => showLogin('', 'signin')]);
+  else {
+    if (cfg?.accounts?.signup) links.push(['Create an account', () => showLogin('', 'signup')]);
+    if (pinWho()) links.push(['Use passcode', () => { pwMode = false; showLogin('', 'pin'); }]);
+    // an owner who only has a passcode can't sign in here with a password (even where an account's pad comes up)
+    if (cfg?.lock === 'passcode' && !cfg?.passwordSet && !pinWho()?.owner) links.push(['Owner? Use passcode', () => { store.set('pb_who', 'owner'); pwMode = false; showLogin('', 'pin'); }]);
   }
   const box = $('#lockLinks'); box.replaceChildren();
   links.forEach(([text, fn], i) => {
@@ -829,6 +1017,10 @@ function renderLock(msg) {
   $('#loginErr').textContent = msg || '';
   $('#dots').className = 'dots'; // drop the green "unlocked" state from last time
   pin = ''; pinBusy = false; renderDots();
+  // on a site the owner signed in on last, go straight to the password (the username stays blank)
+  const pass = lockFocus === 'pass' || (lockFocus !== 'name' && ($('#uName').value || store.get('pb_who') === 'owner'));
+  lockTarget = usePin ? $('#login') : owner ? $('#pw') : !signup && pass ? $('#uPass') : $('#uName');
+  lockFill = lockFocus = null;
   setTimeout(focusView, 60);
 }
 
@@ -852,37 +1044,48 @@ function pinKey(k) {
 }
 async function submitPin() {
   pinBusy = true;
+  const who = pinWho();
   const dots = $('#dots'); dots.className = 'dots busy';
-  const r = await login('/api/login', { passcode: pin });
+  const r = await login('/api/login', who?.name ? { username: who.name, passcode: pin } : { passcode: pin });
   if (r.ok) {
     dots.className = 'dots ok';
     await wait(calm ? 0 : 260);
-    return unlocked('owner');
+    return unlocked(who?.name ? 'user' : 'owner');
   }
   dots.className = 'dots bad';
   await wait(420);
   dots.className = 'dots';
-  if (!pinMode()) return renderLock(r.error);
+  if (r.usePassword) return toPassword(r.error);
+  if (!pinMode()) return;
   pin = ''; renderDots(); pinBusy = false;
   $('#loginErr').textContent = r.error;
 }
 $('#login').addEventListener('submit', async e => {
   e.preventDefault();
   $('#loginErr').textContent = '';
+  if (lockMode === 'pin') return;
   if (lockMode === 'owner') {
-    if (pinMode()) return;
     const pw = $('#pw').value; if (!pw) return;
     const r = await login('/api/login', { password: pw });
     if (r.ok) { $('#pw').value = ''; unlocked('owner'); } else $('#loginErr').textContent = r.error;
     return;
   }
   const name = $('#uName').value.trim(), pass = $('#uPass').value;
-  if (!name || !pass) return void ($('#loginErr').textContent = 'Enter a username and a password.');
   let r;
   if (lockMode === 'signup') {
+    if (!name || !pass) return void ($('#loginErr').textContent = 'Enter a username and a password.');
     if (pass !== $('#uPass2').value) return void ($('#loginErr').textContent = 'The passwords don’t match.');
     r = await login('/api/signup', { username: name, password: pass, note: $('#uNote').value });
-  } else r = await login('/api/login', { username: name, password: pass });
+  } else if (!name) {
+    // the owner signs in here too: no username, just the owner password
+    if (!pass) return void ($('#loginErr').textContent = 'Enter your username and password.');
+    r = await login('/api/login', { password: pass });
+    if (r.ok) { $('#uPass').value = ''; return unlocked('owner'); }
+    return void ($('#loginErr').textContent = r.status === 401 ? 'Wrong username or password.' : r.error);
+  } else {
+    if (!pass) return void ($('#loginErr').textContent = 'Enter your password.');
+    r = await login('/api/login', { username: name, password: pass });
+  }
   if (!r.ok) return void ($('#loginErr').textContent = r.error);
   store.set('pb_user', name);
   $('#uPass').value = $('#uPass2').value = $('#uNote').value = '';
@@ -892,7 +1095,7 @@ async function login(path, data) {
   try {
     const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(data) });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { if (j.usePassword) pwMode = true; return { error: j.error || 'That didn’t work — try again.' }; }
+    if (!r.ok) return { error: j.error || 'That didn’t work — try again.', status: r.status, usePassword: !!j.usePassword };
     token = j.token; store.set('pb_token', token); pwMode = false;
     await loadBoot().catch(() => {});
     return { ok: true };
@@ -942,12 +1145,12 @@ function lock(msg) {
   token = null; store.set('pb_token', null);
   showLogin(msg);
 }
-function logout(msg) { leaveChat(); log.innerHTML = ''; clearImg(); stopStream(); setArea(null); lock(msg); }
+function logout(msg) { leaveChat(); chatWho = null; annGone = 0; log.innerHTML = ''; clearImg(); setPage(true); stopStream(); setArea(null); lock(msg); }
 $('#outBtn').onclick = () => logout();
 $('#lockBtn').onclick = $('#lockNow').onclick = () => lock();
 // stops an answer that's still coming in, so it can't land in (or take over) the next chat
 function leaveChat() { chatGen++; ctrl?.abort(); convId = null; }
-$('#newBtn').onclick = () => { leaveChat(); setPage(true); clearImg(); closeSheet(); empty(); $('#q').focus(); };
+$('#newBtn').onclick = () => { leaveChat(); setPage(true); clearImg(); closeSheet(); closeWrap(); empty(); $('#q').focus(); };
 // Screen sharing stays on when the panel closes, so the next screenshot doesn't ask again. It ends when you stop it
 // (+ menu or Chrome's own bar), log out, or leave the page.
 function closePanel() {
@@ -970,6 +1173,12 @@ async function api(path, data) {
   if (!r.ok) throw Object.assign(new Error(j.error || 'HTTP ' + r.status), { status: r.status });
   return j;
 }
+async function apiGet(path) {
+  const r = await fetch(path, { headers: { Authorization: 'Bearer ' + token } });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || 'HTTP ' + r.status), { status: r.status });
+  return j;
+}
 async function loadBoot() {
   const r = await fetch('/api/boot', { headers: token ? { Authorization: 'Bearer ' + token } : {} });
   if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -977,13 +1186,33 @@ async function loadBoot() {
   prefs.theme = cfg.theme;
   applyTheme(cfg.theme, true);
   if (cfg.authed && cfg.who) store.set('pb_who', cfg.who); // so a later lock opens on the right screen (logins from before accounts too)
+  // and an account with a passcode gets its number pad back on this site
+  if (cfg.authed && cfg.user) { store.set('pb_user', cfg.user.name); store.set('pb_pin', cfg.user.passcode ? '1' : null); }
   if (cfg.authed && cfg.prefs) { Object.assign(prefs, cfg.prefs); limits = cfg.limits; models = cfg.models || models; }
   else if (!cfg.authed && token) { token = null; store.set('pb_token', null); }
-  renderPrefs(); renderAccount();
+  renderPrefs(); renderAccount(); renderAnn();
   return cfg;
 }
-const lockedMsg = () => isUser() ? 'You were signed out. Sign in again to keep going.'
-  : cfg?.lock === 'passcode' ? 'Locked — enter your passcode to pick up where you left off.' : 'Session expired — log in again.';
+const lockedMsg = () => pinWho() ? 'Locked — enter your passcode to pick up where you left off.'
+  : store.get('pb_who') === 'user' ? 'You were signed out. Sign in again to keep going.' : 'Session expired — log in again.';
+
+// ---- the owner's announcement, until it's closed ----
+let annGone = 0;
+function renderAnn() {
+  const a = view === 'chat' && cfg?.announcement?.id > annGone ? cfg.announcement : null;
+  $('#ann').hidden = !a;
+  if (!a) return;
+  $('#annText').innerHTML = linkify(a.body);
+  $('#annMeta').textContent = `From the owner · ${ago(a.createdAt)}`;
+}
+$('#annX').onclick = () => {
+  const a = cfg?.announcement; if (!a) return;
+  annGone = Math.max(annGone, a.id);
+  api('/api/announcements/seen', { id: a.id }).catch(() => {});
+  const box = $('#ann'); box.classList.add('out');
+  setTimeout(() => { box.classList.remove('out'); renderAnn(); }, calm ? 0 : 200);
+  $('#q').focus();
+};
 
 // ---- account bits of the settings sheet ----
 function renderAccount() {
@@ -992,9 +1221,9 @@ function renderAccount() {
   $('#acctName').textContent = user ? `Signed in as ${cfg.user.name}` : '';
   $('#pwChange').hidden = !user || !$('#pwForm').hidden;
   $('#adminLink').hidden = user;
-  const cap = limits.maxTokensCap || 8000;
+  const cap = limits.maxTokensCap || 100000;
   $('#tokSeg').querySelectorAll('button').forEach(b => { b.hidden = +b.dataset.n > cap; });
-  renderQuota();
+  renderQuota(); renderPasscode();
 }
 function renderQuota() {
   const q = isUser() ? cfg.quota : null;
@@ -1012,15 +1241,165 @@ $('#pwCancel').onclick = () => { $('#pwForm').hidden = true; $('#pwCur').value =
 $('#pwForm').addEventListener('submit', async e => {
   e.preventDefault();
   try {
-    await api('/api/account/password', { current: $('#pwCur').value, password: $('#pwNew').value });
+    const r = await api('/api/account/password', { current: $('#pwCur').value, password: $('#pwNew').value });
+    const hadPin = !!cfg.user?.passcode;
+    if (r.user) { Object.assign(cfg.user, r.user); cfg.lockMinutes = r.lockMinutes; store.set('pb_pin', r.user.passcode ? '1' : null); setHeader(view === 'chat'); }
     $('#pwCur').value = $('#pwNew').value = '';
     $('#pwForm').hidden = true; renderAccount();
-    note('Password changed. Your other devices were signed out.');
+    note('Password changed. Your other devices were signed out' + (hadPin && !cfg.user?.passcode ? ', and your passcode was turned off.' : '.'));
   } catch (err) { $('#pwMsg').textContent = err.message; }
 });
 
+// an account's own passcode: 5 digits instead of the password, and the panel locks itself when idle
+const lockName = m => m < 60 ? `${m} minute${m > 1 ? 's' : ''}` : m < 1440 ? `${m / 60} hour${m > 60 ? 's' : ''}` : '1 day';
+function renderPasscode() {
+  const u = isUser() && cfg.user?.status === 'trusted' ? cfg.user : null;
+  $('#pcSec').hidden = !u;
+  if (!u) return;
+  const on = !!u.passcode;
+  $('#pcState').textContent = !on ? 'Unlock with 5 digits instead of typing your password. pagebot locks itself when it sits idle.'
+    : u.lockMinutes ? `On. pagebot locks after ${lockName(u.lockMinutes)} without activity.` : 'On. pagebot locks only when you press 🔒.';
+  $('#pcSet').textContent = on ? 'Change passcode' : 'Set a passcode';
+  $('#pcOff').hidden = $('#pcLockRow').hidden = !on;
+  $('#pcBtns').hidden = !$('#pcForm').hidden;
+  const sel = $('#pcLock');
+  if (!sel.options.length) for (const m of cfg.lockChoices || [0, 1, 5, 15, 30, 60, 240, 1440]) sel.add(new Option(m ? lockName(m) : 'never', m));
+  sel.value = String(u.lockMinutes);
+}
+async function savePasscode(body) {
+  try {
+    const r = await api('/api/account/passcode', body);
+    Object.assign(cfg.user, r.user); cfg.lockMinutes = r.lockMinutes;
+    store.set('pb_pin', r.user.passcode ? '1' : null);
+    lastActive = Date.now(); $('#pcMsg').textContent = '';
+    renderPasscode(); setHeader(view === 'chat');
+  } catch (e) {
+    if (e.status === 401) lock(lockedMsg());
+    throw e;
+  }
+}
+function closePcForm() { $('#pcForm').hidden = true; $('#pcA').value = $('#pcB').value = $('#pcPw').value = ''; $('#pcMsg').textContent = ''; renderPasscode(); }
+$('#pcSet').onclick = () => { $('#pcForm').hidden = false; $('#pcMsg').textContent = ''; renderPasscode(); $('#pcA').focus(); };
+$('#pcCancel').onclick = closePcForm;
+$('#pcForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const a = $('#pcA').value.trim(), b = $('#pcB').value.trim();
+  if (!/^\d{5}$/.test(a)) return void ($('#pcMsg').textContent = 'Use exactly 5 digits.');
+  if (a !== b) return void ($('#pcMsg').textContent = 'The passcodes don’t match.');
+  try { await savePasscode({ passcode: a, current: $('#pcPw').value }); closePcForm(); }
+  catch (err) { if (err.status !== 401) $('#pcMsg').textContent = err.message; }
+});
+$('#pcOff').onclick = () => savePasscode({ passcode: null }).catch(err => { if (err.status !== 401) $('#pcState').textContent = err.message; });
+$('#pcLock').onchange = () => savePasscode({ lockMinutes: +$('#pcLock').value }).catch(err => { if (err.status !== 401) $('#pcState').textContent = err.message; });
+
+// ---- Wrapped: your year on pagebot, one card at a time ----
+let wrap = null; // { slides, i } while it's open
+const tzName = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { return ''; } })();
+const nf = new Intl.NumberFormat();
+const hourName = h => `${h % 12 || 12} ${h < 12 ? 'am' : 'pm'}`;
+const dayName = s => new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(s + 'T00:00:00Z'));
+const vibe = h => h < 5 || h >= 22 ? '🦉 Night owl' : h < 9 ? '🌅 Early bird' : h < 12 ? '☕ Morning person' : h < 17 ? '🌤 Afternoon asker' : '🌆 Evening explorer';
+const modelIcon = l => /haiku/i.test(l) ? '⚡' : /sonnet/i.test(l) ? '✦' : '◆';
+const plural = (n, w) => `${nf.format(n)} ${w}${n === 1 ? '' : 's'}`;
+function swatch(t) {
+  const [key, , bg, acc, user, text] = t;
+  const back = key === 'auto' ? 'linear-gradient(135deg,#141414 50%,#faf9f5 50%)' : key === 'glass' ? 'linear-gradient(135deg,#5b7cff,#c35bff 55%,#ff7a9c)'
+    : key === 'clear' ? 'repeating-conic-gradient(#9aa0ad 0 25%,#c9ccd4 0 50%) 0 0/16px 16px' : bg;
+  return `<span class="wsw" style="background:${back};--sw-acc:${acc || '#d97757'};--sw-user:${user || '#2b2622'};--sw-text:${text || '#8e8a82'}"><i></i><u class="u2"></u><u></u><b></b></span>`;
+}
+function wrapSlides(w) {
+  const y = w.year;
+  if (!w.questions) return [`<div class="wk" style="--d:0">Your ${y}</div><div class="wh" style="--d:1">Nothing to wrap yet</div>
+    <p class="wsub" style="--d:2">Ask pagebot a few questions and come back to see your year.</p><button class="send wdone" type="button" style="--d:3">Done</button>`];
+  const S = [];
+  S.push(`<div class="wk" style="--d:0">Your ${y} on pagebot</div><div class="wbig" style="--d:1" data-n="${w.questions}">0</div>
+    <div class="wsub" style="--d:2">question${w.questions === 1 ? '' : 's'} asked</div><div class="wpill" style="--d:3">across ${plural(w.days, 'day')}</div>`);
+  if (w.sites.length) {
+    const top = w.sites[0].n;
+    S.push(`<div class="wk" style="--d:0">Your top sites</div><ol class="wsites">${w.sites.map((s, i) =>
+      `<li style="--d:${i + 1}"><span class="wr">${i + 1}</span><span class="wn">${esc(s.site)}</span><span class="wbarw"><i style="--w:${Math.max(6, s.n / top * 100)}%"></i></span><span class="wc">${nf.format(s.n)}</span></li>`).join('')}</ol>
+      <p class="wsub" style="--d:${w.sites.length + 1}">You asked about <b>${esc(w.sites[0].site)}</b> the most.</p>`);
+  }
+  const most = Math.max(...w.hours), peak = w.hours.indexOf(most);
+  S.push(`<div class="wk" style="--d:0">When you ask</div><div class="whours" style="--d:1">${w.hours.map((n, h) =>
+    `<i class="${h === peak ? 'pk' : ''}" style="--h:${n ? Math.max(6, n / most * 100) : 2}%;--i:${h}" title="${hourName(h)}: ${n}"></i>`).join('')}</div>
+    <div class="waxis" style="--d:1"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div>
+    <p class="wsub" style="--d:2">Most of your questions land around <b>${hourName(peak)}</b>.</p><div class="wpill" style="--d:3">${vibe(peak)}</div>`);
+  if (w.models.length) {
+    const total = w.models.reduce((a, m) => a + m.n, 0), fav = w.models[0];
+    S.push(`<div class="wk" style="--d:0">Your go-to model</div><div class="wicon" style="--d:1">${modelIcon(fav.label)}</div>
+      <div class="wh" style="--d:2">${esc(fav.label)}</div><p class="wsub" style="--d:3">answered ${Math.round(fav.n / total * 100)}% of your questions</p>
+      <div class="wsplit" style="--d:4">${w.models.map((m, i) => `<i style="--w:${m.n / total * 100}%;--c:${Math.min(i, 2)}"></i>`).join('')}</div>
+      <div class="wlegend" style="--d:4">${w.models.map((m, i) => `<span><i style="--c:${Math.min(i, 2)}"></i>${esc(m.label)} · ${nf.format(m.n)}</span>`).join('')}</div>`);
+  }
+  const th = THEMES.find(t => t[0] === w.theme) || THEMES[1];
+  S.push(`<div class="wk" style="--d:0">Your look</div><div style="--d:1">${swatch(th)}</div><div class="wh" style="--d:2">${esc(th[1])}</div>
+    <p class="wsub" style="--d:3">${w.themeIsCurrent ? 'the theme you’re using now' : 'your most-used theme'}</p>`);
+  const st = w.streak;
+  S.push(`<div class="wk" style="--d:0">Longest streak</div><div class="wbig" style="--d:1" data-n="${st.days}">0</div>
+    <div class="wsub" style="--d:2">day${st.days === 1 ? '' : 's'} in a row</div>
+    ${st.start ? `<div class="wpill" style="--d:3">${st.start === st.stop ? dayName(st.start) : `${dayName(st.start)} – ${dayName(st.stop)}`}</div>` : ''}`);
+  S.push(`<div class="wk" style="--d:0">That was your ${y}</div><div class="wgrid">
+    <div style="--d:1"><b>${nf.format(w.questions)}</b><span>questions</span></div>
+    <div style="--d:2"><b>${esc(w.sites[0]?.site || '—')}</b><span>top site</span></div>
+    <div style="--d:3"><b>${esc(w.models[0]?.label || '—')}</b><span>go-to model</span></div>
+    <div style="--d:4"><b>${plural(st.days, 'day')}</b><span>longest streak</span></div></div>
+    <button class="send wdone" type="button" style="--d:5">Done</button>`);
+  return S;
+}
+function countUp(el, to) {
+  if (calm || to < 2) { el.textContent = nf.format(to); return; }
+  const t0 = performance.now(), ms = Math.min(1200, 500 + to * 8);
+  const tick = t => {
+    const k = Math.min(1, (t - t0) / ms);
+    el.textContent = nf.format(Math.round(to * (1 - Math.pow(1 - k, 3))));
+    if (k < 1 && el.isConnected) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+async function openWrap() {
+  if (view !== 'chat') return;
+  const box = $('#wrap');
+  wrap = { slides: [], i: 0 };
+  box.hidden = false;
+  box.innerHTML = '<div class="wload"><span class="typing"><i></i><i></i><i></i></span><p>Wrapping up your year…</p></div>';
+  try {
+    const w = await apiGet('/api/wrapped?tz=' + encodeURIComponent(tzName));
+    if (!wrap) return; // closed while it loaded
+    wrap.slides = wrapSlides(w);
+    renderWrap();
+  } catch (e) {
+    if (!wrap) return;
+    if (e.status === 401) return lock(lockedMsg());
+    box.innerHTML = `<div class="wload"><p>Couldn’t load your Wrapped: ${esc(e.message)}</p><button class="ghost" type="button" data-w="x">Close</button></div>`;
+  }
+}
+function renderWrap() {
+  const { slides, i } = wrap, n = slides.length;
+  $('#wrap').innerHTML = `<div class="wtop"><div class="wbar">${slides.map((_, k) => `<i class="${k < i ? 'done' : k === i ? 'cur' : ''}"></i>`).join('')}</div>
+    <button class="ib" type="button" data-w="x" title="Close (Esc)" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="wslide" data-k="${i % 6}" role="group" aria-roledescription="slide" aria-label="${i + 1} of ${n}">${slides[i]}</div>
+    <div class="whint">${i < n - 1 ? 'Tap for the next one · ← → keys work too' : ''}</div>`;
+  $('#wrap').querySelectorAll('[data-n]').forEach(el => countUp(el, +el.dataset.n));
+}
+function stepWrap(d) {
+  if (!wrap?.slides.length) return;
+  const i = wrap.i + d;
+  if (i < 0) return;
+  if (i >= wrap.slides.length) return closeWrap();
+  wrap.i = i; renderWrap();
+}
+function closeWrap() { wrap = null; $('#wrap').hidden = true; $('#wrap').replaceChildren(); }
+$('#wrap').addEventListener('click', e => {
+  if (e.target.closest('[data-w=x],.wdone')) return closeWrap();
+  if (!wrap?.slides.length || e.target.closest('a,button')) return;
+  const r = $('#wrap').getBoundingClientRect();
+  stepWrap(e.clientX - r.left < r.width / 3 ? -1 : 1); // the left third goes back
+});
+$('#wrapBtn').onclick = openWrap;
+
 // ---- settings: theme, model, web search, answer limit ----
-const TOK = [[512, '512'], [1024, '1k'], [2048, '2k'], [4096, '4k'], [8000, '8k']]; // 8,000 is the most any answer can use
+const TOK = [[512, '512'], [1024, '1k'], [2048, '2k'], [4096, '4k'], [8000, '8k']]; // presets; /admin can set anything up to 100,000
 for (const [n, label] of TOK) {
   const b = el('button', '', label); b.type = 'button'; b.dataset.n = n;
   b.onclick = () => savePrefs({ maxTokens: n });
@@ -1048,6 +1427,9 @@ function renderPrefs() {
     menu.appendChild(b);
   }
   $('#tokSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.n === limits.maxTokens));
+  const preset = TOK.some(([n]) => n === limits.maxTokens);
+  $('#tokNote').hidden = preset;
+  if (!preset) $('#tokNote').textContent = `Right now it’s ${limits.maxTokens.toLocaleString()} tokens${isUser() ? '' : ' (set in /admin)'}. Pick a size above to change it.`;
   document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t === prefs.theme));
   $('#glassNote').hidden = !(embedded && (prefs.theme === 'glass' && !hostV5 || prefs.theme === 'clear' && !hostV6));
   $('#glassName').textContent = prefs.theme === 'clear' ? 'Clear' : 'Glass';
@@ -1091,7 +1473,7 @@ function openSheet(focusTokens) {
   if (focusTokens) { $('#tokSec').scrollIntoView({ block: 'center' }); ($('#tokSeg button.on:not([hidden])') || $('#tokSeg button:not([hidden])'))?.focus(); }
 }
 function closeSheet() { sheetOpen = false; $('#sheet').hidden = true; $('#setBtn').classList.remove('on'); body.classList.remove('sheet'); }
-$('#setBtn').onclick = () => sheetOpen ? closeSheet() : openSheet();
+$('#setBtn').onclick = () => wrap ? closeWrap() : sheetOpen ? closeSheet() : openSheet();
 
 // ---- move & minimize (needs the new bookmarklet) ----
 const hd = $('header');
@@ -1111,7 +1493,7 @@ function setMin(on) {
 $('#minBtn').onclick = () => setMin(!minimized);
 let drag = null;
 hd.addEventListener('pointerdown', e => {
-  if (!hostV2 || e.button !== 0 || e.target.closest('button,a')) return;
+  if (!hostV2 || e.button !== 0 || e.target.closest('button,a') || (docked && !minimized)) return;
   drag = { x: e.screenX, y: e.screenY, moved: false };
   hd.setPointerCapture(e.pointerId);
 });
@@ -1132,54 +1514,67 @@ async function endDrag(e) {
 hd.addEventListener('pointerup', endDrag);
 hd.addEventListener('pointercancel', endDrag);
 
-// ---- resize & wide view (needs the newest bookmarklet) ----
-// Each site remembers its own size, the way it remembers where you put the panel.
-function setWide(on) {
-  wide = on; store.set('pb_wide', on ? '1' : null);
-  body.classList.toggle('wide', on);
-  $('#wideBtn').title = on ? 'Normal size' : 'Wide view';
-  $('#wideBtn').setAttribute('aria-pressed', String(on));
+// ---- resize from the left and top edges, and dock to the right side (bookmarklet v7) ----
+if (hostV7 && !standalone) { body.classList.add('sizable'); $('#dockBtn').hidden = false; }
+function syncDock() {
+  body.classList.toggle('docked', docked);
+  $('#dockBtn').classList.toggle('on', docked);
+  $('#dockBtn').title = docked ? 'Float the panel' : 'Dock to the side';
 }
-if (hostV7) {
-  $('#wideBtn').hidden = false;
-  document.querySelectorAll('.rz').forEach(h => { h.hidden = false; });
-  setWide(wide);
-}
-$('#wideBtn').onclick = () => { setWide(!wide); tell('size', { ...(wide ? WIDE : savedSize || SIZE), anim: true }); };
-let rs = null;
-document.querySelectorAll('.rz').forEach(h => {
-  h.addEventListener('pointerdown', e => {
-    if (e.button !== 0) return;
+syncDock();
+$('#dockBtn').onclick = () => {
+  docked = !docked; store.set('pb_dock', docked ? '1' : null); syncDock();
+  tell('dock', { on: docked, w: dockW });
+};
+let sizing = null;
+document.querySelectorAll('.grip').forEach(g => {
+  g.addEventListener('pointerdown', e => {
+    if (e.button !== 0 || minimized) return;
     e.preventDefault();
-    rs = { k: h.dataset.k, x: e.screenX, y: e.screenY, w: innerWidth, h: innerHeight, moved: false };
-    h.setPointerCapture(e.pointerId);
-    body.style.cursor = getComputedStyle(h).cursor; body.classList.add('resizing');
+    sizing = { edge: g.dataset.g, x: e.screenX, y: e.screenY, w: innerWidth, h: innerHeight };
+    g.setPointerCapture(e.pointerId); body.classList.add('resizing', 'rs-' + g.dataset.g);
   });
-  h.addEventListener('pointermove', e => {
-    if (!rs) return;
-    const dx = e.screenX - rs.x, dy = e.screenY - rs.y;
-    if (!rs.moved && Math.hypot(dx, dy) < 3) return;
-    rs.moved = true;
-    // the bottom-right corner stays put, so dragging left or up makes the panel bigger
-    tell('size', { w: rs.k === 't' ? rs.w : Math.max(MIN_W, Math.round(rs.w - dx)), h: rs.k === 'l' ? rs.h : Math.max(MIN_H, Math.round(rs.h - dy)) });
+  // Screen coordinates, because the panel itself moves under the pointer while it grows. Each size is worked out from
+  // the size the drag started at, so the edge stays under the pointer even after it hits the smallest or largest size.
+  g.addEventListener('pointermove', e => {
+    if (!sizing) return;
+    const dx = e.screenX - sizing.x, dy = e.screenY - sizing.y;
+    if (docked) return void tell('size', { dw: Math.round(sizing.w - dx) });
+    tell('size', { ...(sizing.edge !== 't' && { w: Math.round(sizing.w - dx) }), ...(sizing.edge !== 'l' && { h: Math.round(sizing.h - dy) }) });
   });
-  const end = () => {
-    if (!rs) return;
-    const moved = rs.moved; rs = null;
-    body.classList.remove('resizing'); body.style.cursor = '';
-    if (!moved) return;
-    if (wide) setWide(false); // a size you drag to replaces the wide view
-    // keep what the bookmarklet actually gave the panel (it never lets it outgrow the window)
-    setTimeout(() => { savedSize = { w: innerWidth, h: innerHeight }; store.set('pb_size', JSON.stringify(savedSize)); }, 80);
+  const end = async () => {
+    if (!sizing) return;
+    sizing = null; body.classList.remove('resizing', 'rs-l', 'rs-t', 'rs-c');
+    const r = await ask('where'); // the page keeps it on screen, so save what it settled on
+    if (r?.size) store.set('pb_size', JSON.stringify(r.size));
+    if (r?.dw) { dockW = r.dw; store.set('pb_dockw', String(r.dw)); }
   };
-  h.addEventListener('pointerup', end);
-  h.addEventListener('pointercancel', end);
+  g.addEventListener('pointerup', end);
+  g.addEventListener('pointercancel', end);
 });
 
 // ---- attachments ----
 function setPage(v) { pageOn = v; $('#pagePill').hidden = !v; $('#pageBtn').setAttribute('aria-checked', String(v)); fitPills(); }
 $('#pageBtn').onclick = () => { closeMenus(); setPage(!pageOn); $('#q').focus(); };
 $('#pagePill').onclick = () => { setPage(false); $('#q').focus(); };
+// what's highlighted on the page (bookmarklet v7 sends it as you select): a pill shows it goes along, × leaves it out
+let hostSel = '', selOff = false;
+function setSel(t) {
+  t = t.trim();
+  if (t !== hostSel) { hostSel = t; selOff = false; }
+  renderSel();
+}
+function renderSel() {
+  const on = pageV7 && !!hostSel && !selOff, p = $('#selPill');
+  p.hidden = !on;
+  fitPills();
+  if (!on) return;
+  const flat = hostSel.replace(/\s+/g, ' ');
+  p.querySelector('span').textContent = `✂️ “${flat.length > 24 ? flat.slice(0, 24).trimEnd() + '…' : flat}”`;
+  p.title = `Your highlight goes with your next message:\n“${flat.length > 280 ? flat.slice(0, 280) + '…' : flat}”\nClick to leave it out.`;
+  fitPills();
+}
+$('#selPill').onclick = () => { selOff = true; renderSel(); $('#q').focus(); };
 function setImg(dataUrl, kind = 'shot') {
   img = dataUrl; imgKind = kind; $('#att img').src = dataUrl;
   $('#att img').alt = kind === 'region' ? 'Region screenshot' : kind === 'paste' ? 'Pasted image' : 'Screenshot';
@@ -1368,6 +1763,12 @@ addEventListener('keydown', e => {
     else if (e.key === 'Enter') { e.preventDefault(); region.whole(); }
     return;
   }
+  if (wrap) {
+    if (e.key === 'Escape') { e.preventDefault(); closeWrap(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); stepWrap(1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); stepWrap(-1); }
+    return;
+  }
   if (pinMode() && !e.metaKey && !e.ctrlKey && !e.altKey) {
     if (/^[0-9]$/.test(e.key)) { e.preventDefault(); return pinKey(e.key); }
     if (e.key === 'Backspace') { e.preventDefault(); return pinKey('del'); }
@@ -1390,7 +1791,7 @@ for (const ev of ['pointerdown', 'keydown', 'wheel', 'input']) addEventListener(
 setInterval(() => {
   const mins = cfg?.lockMinutes || 0;
   if (mins && token && view === 'chat' && !busy && Date.now() - lastActive >= mins * 60_000)
-    lock(`Locked after ${mins >= 60 ? mins / 60 + ' hour' + (mins > 60 ? 's' : '') : mins + ' minute' + (mins > 1 ? 's' : '')} without activity.`);
+    lock(`Locked after ${lockName(mins)} without activity.`);
 }, 5000);
 
 // ---- composer ----
@@ -1401,13 +1802,15 @@ q.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.
 // while an answer is coming in, the send button stops it; what arrived so far stays in the chat
 const ICON_SEND = '<svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
 const ICON_STOP = '<svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" stroke="none"/></svg>';
+let stopAt = 0;
 function stopMode(on) {
   const b = $('#sendBtn');
+  stopAt = on ? performance.now() : 0;
   b.innerHTML = on ? ICON_STOP : ICON_SEND;
   b.title = on ? 'Stop answering' : 'Send (Enter)';
   b.setAttribute('aria-label', on ? 'Stop' : 'Send');
 }
-$('#sendBtn').onclick = () => ctrl ? ctrl.abort() : send();
+$('#sendBtn').onclick = () => ctrl ? performance.now() - stopAt > 400 && ctrl.abort() : send(); // a double-click on send isn't a stop
 
 function searchStep(bot, query) {
   let steps = bot.querySelector('.steps');
@@ -1423,7 +1826,7 @@ function finish(bot, out, ev, text) {
   if ('refusal' in ev) {
     bot.classList.add('err');
     out.innerHTML = '<p>⚠ The model declined to answer this' + (ev.refusal ? ` (${esc(String(ev.refusal))})` : '') + '. Try rephrasing it.</p>';
-  }
+  } else if (pageV7 && ev.cites?.length && ev.quotes?.length) markQuotes(out, text, ev);
   const srcs = (ev.sources || []).filter(s => /^https?:\/\//.test(s.url));
   if (srcs.length) {
     const box = el('div', 'src'); box.appendChild(el('span', '', 'Sources'));
@@ -1450,7 +1853,11 @@ async function send() {
   busy = true; // a second Enter waits while the page text and any region shot come in
   const info = await ask('page', { max: limits.pageTokens * 4 });
   const page = pageOn && info?.page ? info.page : null;
-  const selection = info?.selection?.trim() || '';
+  let selection = info?.selection?.trim() || '';
+  if (pageV7) {
+    if (selection !== hostSel) { hostSel = selection; selOff = false; } // highlighted a moment ago
+    if (selOff) selection = '';
+  }
   if (!q.value.trim() && !img && !area && !page && !selection) { busy = false; return; }
 
   $('#sendBtn').disabled = true; setStatus();
@@ -1467,27 +1874,28 @@ async function send() {
   const u = addMsg('user', text ? esc(text).replace(/\n/g, '<br>') : '<i>(no text)</i>', tags);
   if (img) { const im = el('img', 'thumb'); im.src = img; u.appendChild(im); }
 
-  const sent = { text, img, imgKind, pageOn };
-  const reqBody = { conversationId: convId, message: text, page, selection, image: img, model: prefs.model, web: !!prefs.web };
+  const sent = { text, img, imgKind, pageOn, sel: !!selection };
+  // cite: this page can find quoted passages, so ask for numbered quotes
+  const reqBody = { conversationId: convId, message: text, page, selection, image: img, model: prefs.model, web: !!prefs.web, cite: pageV7 };
   q.value = ''; autosize(); clearImg(); setPage(false);
+  if (selection) selOff = true; // it's in the chat now; a new highlight brings the pill back
+  renderSel();
+  const unsend = () => {
+    u.remove(); bot.remove(); if (!log.querySelector('.msg')) empty();
+    q.value = sent.text; autosize(); if (sent.img) setImg(sent.img, sent.imgKind); setPage(sent.pageOn);
+    if (sent.sel) { selOff = false; renderSel(); }
+  };
 
   const bot = addMsg('bot', '<span class="typing"><i></i><i></i><i></i></span>');
   const out = bot.querySelector('.body');
   const gen = chatGen, mine = ctrl = new AbortController();
   $('#sendBtn').disabled = false; stopMode(true);
-  let acc = '', refused = false;
+  let acc = '', refused = false, named = false; // named: the server has the question (it sent the chat id)
   try {
     const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(reqBody), signal: mine.signal });
-    if (r.status === 401) {
-      // put the message back so nothing typed is lost, then lock
-      u.remove(); bot.remove(); if (!log.querySelector('.msg')) empty();
-      q.value = sent.text; autosize(); if (sent.img) setImg(sent.img, sent.imgKind); setPage(sent.pageOn);
-      lock(lockedMsg()); return;
-    }
+    if (r.status === 401) { unsend(); lock(lockedMsg()); return; } // put the message back so nothing typed is lost, then lock
     if (r.status === 403) { // this account isn't approved (anymore)
-      u.remove(); bot.remove(); if (!log.querySelector('.msg')) empty();
-      q.value = sent.text; autosize(); if (sent.img) setImg(sent.img, sent.imgKind); setPage(sent.pageOn);
-      await loadBoot().catch(() => {}); route(); return;
+      unsend(); await loadBoot().catch(() => {}); route(); return;
     }
     if (!r.ok || !r.body) {
       const j = await r.json().catch(() => ({}));
@@ -1504,16 +1912,18 @@ async function send() {
         if (!line.trim()) continue;
         const ev = JSON.parse(line);
         // the server names the chat as soon as the answer starts, so one you stop (or that breaks off) stays part of it
+        if (ev.conversationId) named = true;
         if (ev.conversationId && gen === chatGen) convId = ev.conversationId;
         if (ev.t === 'd') { acc += ev.v; out.innerHTML = md(acc); scroll(); }
         else if (ev.t === 's') searchStep(bot, ev.q);
-        else if (ev.t === 'done') { refused = 'refusal' in ev; finish(bot, out, ev, acc); }
+        else if (ev.t === 'done') { refused = 'refusal' in ev; if (ctrl === mine) { ctrl = null; stopMode(false); } finish(bot, out, ev, acc); }
         else if (ev.t === 'err') throw new Error(ev.v); // a broken-off answer stays in the chat
       }
     }
     if (!acc && !refused) out.innerHTML = '<i>(empty reply)</i>';
   } catch (e) {
     bot.querySelectorAll('.step.live').forEach(s => s.remove());
+    if (mine.signal.aborted && !named && gen === chatGen) return void unsend(); // stopped before the server had it: put it all back to send again
     if (mine.signal.aborted) { // you pressed stop
       out.innerHTML = acc ? md(acc) : '<span class="stp">Stopped</span>';
       if (acc) { const m = el('div', 'meta', 'Stopped'); copyAct(m, acc); bot.appendChild(m); }
@@ -1584,7 +1994,7 @@ function replaySplash() {
   // refresh settings and the session while the intro plays (an idle lock or approval may have happened meanwhile)
   const ready = loadBoot().catch(() => {});
   endSplash(ready, () => {
-    if (!token) { if (view !== 'lock') showLogin(cfg?.lock === 'passcode' && !isUser() ? '' : lockedMsg()); }
+    if (!token) { if (view !== 'lock') showLogin(pinWho() ? '' : lockedMsg()); }
     else route();
   });
 }

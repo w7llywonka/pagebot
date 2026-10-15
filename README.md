@@ -2,7 +2,7 @@
 
 A bookmarklet that opens a small chat panel on any page. It can read the page text, your highlighted text, and screenshots (the whole tab or just a region), and it answers using Claude Haiku 5.5 or Claude Sonnet 5.5, optionally with web search. It runs on Railway with Postgres.
 
-You own it and log in with your password or passcode. Other people can create their own accounts, but they can't ask anything until you accept them in `/admin`, and each of them gets a daily limit you set.
+You own it and log in with your password or passcode. Other people can create their own accounts (and give them their own passcode), but they can't ask anything until you accept them in `/admin`, and each of them gets a daily limit you set.
 
 ## Deploy on Railway
 
@@ -34,7 +34,7 @@ Optional variables:
 | `SONNET_MODEL` | `claude-sonnet-5-5` | Model for the ✦ Sonnet setting. |
 | `EFFORT` | `low` | How hard the models think before answering (`low`, `medium`, `high`, `xhigh`, `max`). Thinking counts toward each answer's token limit. |
 | `SONNET_FALLBACK` | on | If Sonnet declines a request, the API retries it on the model Anthropic recommends. Set to `off` to turn that off. |
-| `MAX_TOKENS` | `2048` | Starting value for "max tokens per answer" (8,000 at most). After that, change it in `/admin` or the panel's settings. |
+| `MAX_TOKENS` | `2048` | Starting value for "max tokens per answer" (100,000 at most). After that, change it in `/admin` or the panel's settings. |
 | `SYSTEM_PROMPT` | built in | Replaces the default instructions. |
 | `SESSION_DAYS` | `30` | How long a login lasts without use. Applies to accounts, and to you when no passcode is set. |
 
@@ -47,10 +47,11 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
 - **Users**:
   - People who sign up wait under **Waiting to be accepted**, with the note they left. **Accept** lets them in; **Deny** deletes the request.
   - Click someone to set their **daily limit** in tokens or dollars (or no limit), choose whether they can use **Sonnet 5.5** and **web search**, and keep a private note. You also see what they've used today, over the last 7 days, and in total.
-  - **Reset password**, **Sign out** (signs them out on every device), **Block** (signs them out and keeps them out until you unblock them), and **Delete** are there too.
+  - **Reset password**, **Sign out** (signs them out on every device), **Block** (signs them out and keeps them out until you unblock them), and **Delete** are there too. Resetting a password also turns off that person's passcode. Each person's details show whether they have a passcode.
   - The switch at the top opens or closes sign-ups. **What newly accepted users start with** sets the limit and access each new person gets when you accept them.
   - Daily limits reset at midnight in your `TIMEZONE`. Dollar amounts are estimates from Anthropic's list prices.
-- **Limits per question**: max tokens per answer (8,000 at most), how much page text gets sent, and how many web searches one question can run. Accounts can pick a shorter answer length in their settings, but never more than this.
+- **Announcement**: post a message (up to 500 characters) and everyone with an account sees it at the top of their panel the next time they open it, until they close it. Posting a new one replaces it, **Take it down** hides it, and the card shows how many people have closed it.
+- **Limits per question**: max tokens per answer (any number from 256 to 100,000), how much page text gets sent, and how many web searches one question can run. Accounts can pick a shorter answer length in their settings, but never more than this.
 - **Passcode lock**: set a 5-digit passcode and choose how long the panel can sit idle before it locks (1 minute to 1 day, or never). With a passcode set, the panel shows a number pad instead of the password box. Wrong passcodes count for 24 hours, even if the right one is entered in between. After 10, only the password can unlock it.
 - **Access password**: at least 8 characters. Changing it signs out every device you're logged in on. Accounts stay signed in.
 
@@ -58,9 +59,10 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
 
 - Click the bookmark to open the panel. Click it again to hide it. Esc closes it.
 - The panel takes the keyboard only when you open it with the bookmark. An answer arriving, a screenshot, or a lock never pulls your typing out of the page or another tab, and closing or minimizing the panel gives the keyboard back to the page.
-- **Signing in**: while sign-ups are open (or anyone has an account), the panel opens on **Sign in**. **Owner? Unlock here** takes you to your passcode or password, and after that, the panel goes straight to it on that site. New people choose **Create an account**, pick a username and password, and can leave a note for you. Until you accept them, they see a screen saying they're waiting to be accepted into the program, and the panel opens up by itself once you do.
+- **Signing in**: while sign-ups are open (or anyone has an account), the panel opens on **Sign in**. As the owner, leave the username blank and type your password. After that, on that site, the panel goes straight to your passcode (if you set one). New people choose **Create an account**, pick a username and password, and can leave a note for you. Until you accept them, they see a screen saying they're waiting to be accepted into the program, and the panel opens up by itself once you do.
+- **Passcodes for everyone**: anyone with an account can set their own 5-digit passcode in ⚙ Settings (it asks for their password) and pick how long the panel can sit idle before it locks. Their panel then locks like yours, and that site shows their number pad. Wrong passcodes count for 24 hours, even if the right one is entered in between. After 10, only their password works.
 - **Drag the top bar** to move the panel anywhere on the page. It remembers where you put it on each site.
-- **Drag the top or left edge** (or the top-left corner) to resize the panel, and the ⤢ button switches to a wide, tall view for long reads. Each site remembers its own size.
+- **Resize** by dragging the panel's left or top edge, or its top-left corner. The ▯ button next to minimize **docks** it to the right side as a full-height sidebar (drag its left edge to change the width); press it again to float it. Size and docking are remembered on each site.
 - **Minimize** (the – button) shrinks it to a small pill. A dot on the pill means an answer finished while it was minimized. Click the pill or the bookmark to open it again.
 - The **+** button under the message box has everything you can add:
   - **Screenshot this tab**, or **Screenshot a region** to drag a box over just the part you mean. The panel hides itself while the shot is taken. You can also paste any image with Ctrl/Cmd+V.
@@ -75,17 +77,20 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
 - A new chat offers one-click starters: **Summarize this page**, **Key points**, and **Explain it simply**.
 - Each answer has a copy button next to its details, and code blocks get their own **Copy** button when you hover them.
 - Every time you open the panel, a short animation plays while it loads (under 3 seconds).
-- **⚙ Settings**: pick a theme (Auto, Ember, Paper, Midnight, Forest, Dusk, Sakura, Terminal, Glass, or Clear) and the max tokens per answer, from 512 up to 8k. No answer can go past 8,000 tokens. Settings apply everywhere you use pagebot, and each account has its own.
+- **⚙ Settings**: pick a theme (Auto, Ember, Paper, Midnight, Forest, Dusk, Sakura, Terminal, Glass, or Clear) and the max tokens per answer, from presets between 512 and 8k (anything up to 100,000 can be set in `/admin`). Settings apply everywhere you use pagebot, and each account has its own.
+- **✨ Your pagebot Wrapped** (top of ⚙ Settings): your year on pagebot, one card at a time — how many questions you asked, your most-asked sites, the hours you ask most, your go-to model, your favorite theme, and your longest streak of days in a row. Tap (or use ← →) to go through it. Early in a new year it shows the year before.
 - **Glass** is see-through: the page shows through a soft blur, and the text switches between dark and light to match the page behind it.
 - **Clear** drops the panel entirely: no tint, no blur, no shadow, only the words, buttons and message box floating over the page. Text gets a thin halo so it stays readable, and switches between dark and light like Glass.
 - Answers show headings, lists, tables, quotes, bold and italics. Links show which site they go to, in grey after the link text.
-- With an account, Settings also shows how much of today's limit is used, and lets you change your password. Each answer shows what's left for the day.
-- Highlighted text on the page is included automatically.
+- With an account, Settings also shows how much of today's limit is used, and lets you change your password and set a passcode. Each answer shows what's left for the day.
+- **Announcements** from the owner show at the top of the panel until you press **Got it**.
+- **Highlighted text** goes with your next message. While something on the page is highlighted, a ✂️ pill shows the start of it; click its × to leave it out. Once it's been sent, it isn't sent again unless you highlight something new.
+- **Show me where**: when an answer uses the page, it gets small numbered markers. Click one and the page scrolls to the passage it came from and highlights it (click anywhere on the page to clear the highlight). Hover a marker to see the quote.
 - Old screenshots aren't resent on follow-ups, which saves tokens.
 - Some sites block overlays. On those, pagebot opens in a small window instead. If your browser blocks that pop-up, click the bookmark again.
-- You log in once per site, and it's remembered there. With a passcode set, the panel locks itself after the idle time you chose, or right away with the 🔒 button.
+- You log in once per site, and it's remembered there. With a passcode set (yours, or an account's own), the panel locks itself after the idle time you chose, or right away with the 🔒 button.
 
-Updating from an older version? Drag the button from the homepage to your bookmarks bar again. Old bookmarks still work, but only the newest one makes Glass see-through on every site and takes the shadow off Clear (with older ones it turns solid grey on dark-mode sites like Google's), plus resizing and the wide view, the bigger panel, the animation on every open, and (for the oldest ones) moving, minimizing, and full-page region shots.
+Updating from an older version? Drag the button from the homepage to your bookmarks bar again. Old bookmarks still work, but only the newest one gets resizing, docking, the ✂️ highlight pill, and "show me where" quotes (older bookmarks include highlighted text without a pill). Older ones also miss the see-through Glass on every site and the shadow-free Clear (with older ones they turn solid grey on dark-mode sites like Google's), the bigger panel, the animation on every open, and (for the oldest ones) moving, minimizing, and full-page region shots.
 
 ## Security
 
