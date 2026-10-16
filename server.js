@@ -75,7 +75,9 @@ const MAX_PENDING = 200;
 // every sign-in until the account is deleted TERMINATE_DAYS later.
 const BAN_HOURS = [1, 24, 72, 168, 336, 720, 0]; // 0 = permanent
 const TERMINATE_DAYS = 14;
-const MAX_BAN_REASON = 120, MAX_BAN_NOTE = 1000;
+const MAX_BAN_REASON = 120, MAX_BAN_NOTE = 1000, MAX_APPEAL = 1000;
+// A restriction is the lighter option: for a set time an account loses Sonnet, web search, and/or gets a different
+// daily limit, then goes back to its own settings by itself.
 
 if (!process.env.DATABASE_URL) { console.error('DATABASE_URL is not set'); process.exit(1); }
 if (!process.env.ANTHROPIC_API_KEY) console.warn('ANTHROPIC_API_KEY is not set — chat will fail.');
@@ -141,6 +143,27 @@ CREATE TABLE IF NOT EXISTS bans (
 );
 CREATE INDEX IF NOT EXISTS bans_user_idx ON bans (user_id, id);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_id BIGINT; -- the ban or termination in force
+-- restrictions live in bans too (kind 'restrict'), with what they take away as JSON {noSonnet, noWeb, limitKind, limitValue}
+ALTER TABLE bans ADD COLUMN IF NOT EXISTS limits TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS restrict_id BIGINT; -- the restriction in force
+-- one appeal per ban, from the banned person's panel; the owner accepts (which lifts the ban) or denies it
+CREATE TABLE IF NOT EXISTS appeals (
+  id BIGSERIAL PRIMARY KEY,
+  ban_id BIGINT NOT NULL UNIQUE REFERENCES bans(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  decision TEXT, -- 'accepted' or 'denied'
+  decided_at TIMESTAMPTZ,
+  reply TEXT
+);
+-- which browsers each account has used (hashed random ids the panel keeps), so a terminated person can't just sign up again
+CREATE TABLE IF NOT EXISTS user_devices (
+  device TEXT NOT NULL,
+  username TEXT NOT NULL, -- lowercase; kept after an account is deleted, like the moderation log
+  seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (device, username)
+);
+CREATE INDEX IF NOT EXISTS user_devices_name_idx ON user_devices (username);
 CREATE TABLE IF NOT EXISTS announcements (
   id BIGSERIAL PRIMARY KEY,
   body TEXT NOT NULL,
@@ -325,6 +348,7 @@ function toUser(r) {
     createdAt: r.created_at, approvedAt: r.approved_at, lastSeen: r.last_seen,
     passcode: !!r.passcode_hash, lockMinutes: LOCK_CHOICES.includes(Number(r.lock_minutes)) ? Number(r.lock_minutes) : 15,
     annSeen: Number(r.ann_seen) || 0, banId: r.ban_id == null ? null : Number(r.ban_id),
+    restrictId: r.restrict_id == null ? null : Number(r.restrict_id),
   };
 }
 // what the panel shows for an account (never the owner's private note)
@@ -364,19 +388,26 @@ const fmtLimit = (kind, v) => kind === 'usd' ? `$${Number(v).toFixed(2)}` : `${v
 
 // ---------- bans ----------
 // active: banned until ends_at (or for good); ended: the time is up but they haven't re-activated yet;
-// terminated: shown on every sign-in until the account is deleted. The others no longer keep anyone out.
+// terminated: shown on every sign-in until the account is deleted; restricted: a restriction still running.
+// The others no longer keep anyone out or hold anything back.
 function banState(b) {
   if (b.lifted_at) return 'lifted';
   if (b.deleted_at) return 'deleted';
   if (b.kind === 'terminate') return 'terminated';
+  const over = !!b.ends_at && new Date(b.ends_at) <= Date.now();
+  if (b.kind === 'restrict') return over ? 'expired' : 'restricted';
   if (b.reactivated_at) return 'reactivated';
-  return b.ends_at && new Date(b.ends_at) <= Date.now() ? 'ended' : 'active';
+  return over ? 'ended' : 'active';
 }
 const LIVE_BAN = new Set(['active', 'ended', 'terminated']);
-// what the banned person sees, in the panel and on the notice page
+// bans come with their appeal, if there is one
+const BAN_SQL = 'SELECT b.*, (SELECT row_to_json(a) FROM appeals a WHERE a.ban_id = b.id) AS appeal FROM bans b';
+const publicAppeal = a => a && { id: Number(a.id), body: a.body, at: a.created_at, decision: a.decision || null, decidedAt: a.decided_at, reply: a.reply || '' };
+// what the banned (or restricted) person sees in the panel
 const publicBan = b => ({
   id: Number(b.id), kind: b.kind, state: banState(b), name: b.username, reason: b.reason, note: b.note || '',
   hours: b.hours == null ? null : Number(b.hours), at: b.created_at, endsAt: b.ends_at, key: b.notice_key,
+  ...(b.kind === 'restrict' ? { limits: parseJSON(b.limits) } : { appeal: publicAppeal(b.appeal) || null }),
 });
 const adminBan = b => ({
   ...publicBan(b), userId: b.user_id == null ? null : Number(b.user_id),
@@ -386,9 +417,42 @@ const banMsg = b => banState(b) === 'terminated' ? 'This account has been termin
   : banState(b) === 'ended' ? 'Your ban is over. Re-activate your account to keep going.' : 'This account is banned.';
 async function liveBan(id) {
   if (!id) return null;
-  const b = (await pool.query('SELECT * FROM bans WHERE id=$1', [id])).rows[0];
+  const b = (await pool.query(`${BAN_SQL} WHERE b.id=$1`, [id])).rows[0];
   return b && LIVE_BAN.has(banState(b)) ? b : null;
 }
+async function liveRestriction(id) {
+  if (!id) return null;
+  const r = (await pool.query('SELECT * FROM bans WHERE id=$1', [id])).rows[0];
+  return r && banState(r) === 'restricted' ? r : null;
+}
+// while restricted, an account works as if the owner had changed its settings
+function restrictUser(u, r) {
+  const l = parseJSON(r.limits);
+  if (l.noSonnet) u.allowSonnet = false;
+  if (l.noWeb) u.allowWeb = false;
+  if (l.limitKind) { u.limitKind = l.limitKind; u.limitValue = l.limitValue; }
+}
+function cleanRestriction(b) {
+  const l = {};
+  if (b.noSonnet === true) l.noSonnet = true;
+  if (b.noWeb === true) l.noWeb = true;
+  if (b.limitKind != null && b.limitKind !== '' && b.limitKind !== 'none') {
+    const d = cleanDaily(b.limitKind, b.limitValue);
+    if (!d) return null;
+    l.limitKind = d.kind; l.limitValue = d.value;
+  }
+  return l;
+}
+
+// Browsers: the panel keeps a random id in this browser's storage and sends it along. Only its hash is stored.
+const deviceOf = req => { const d = req.get('x-pagebot-device') || ''; return /^[A-Za-z0-9_-]{16,64}$/.test(d) ? sha256('device:' + d) : null; };
+async function noteDevice(req, name) {
+  const d = deviceOf(req);
+  if (d && name) await pool.query(`INSERT INTO user_devices(device, username) VALUES ($1, lower($2))
+    ON CONFLICT (device, username) DO UPDATE SET seen_at = now()`, [d, name]);
+}
+// a termination in force (or one that ran its course) keeps its username, and the browsers it used, from signing up again
+const TERMINATED = `SELECT 1 FROM bans t WHERE t.kind = 'terminate' AND t.lifted_at IS NULL`;
 const markBanSeen = id => pool.query('UPDATE bans SET seen_at = now() WHERE id = $1 AND seen_at IS NULL', [id]);
 // terminated accounts are deleted once their two weeks are up; the notice and the moderation log stay
 async function purgeTerminated() {
@@ -483,6 +547,7 @@ async function touchSession(tok, lock) {
   if (!u.rowCount) return null;
   const user = toUser(u.rows[0]);
   user.ban = await liveBan(user.banId); // a banned account stays signed in, so it keeps seeing why
+  if (!user.ban && (user.restriction = await liveRestriction(user.restrictId))) restrictUser(user, user.restriction);
   return { user };
 }
 async function newSession(userId = null) {
@@ -604,6 +669,7 @@ app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
   if (!s) return res.json(out);
   if (!u) return res.json({ ...out, who: 'owner', lockMinutes: cfg.lock.on ? cfg.lock.minutes : 0, prefs: cfg.prefs, limits: limitsFor(cfg, null), models: modelList() });
   out.who = 'user'; out.lockMinutes = userLockMinutes(u); out.lockChoices = LOCK_CHOICES; out.user = publicUser(u);
+  await noteDevice(req, u.name);
   if (u.ban) {
     await markBanSeen(u.ban.id);
     return res.json({ ...out, ban: publicBan(u.ban) });
@@ -612,7 +678,7 @@ app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
     const a = await currentAnnouncement();
     Object.assign(out, {
       prefs: prefsFor(cfg, u), limits: limitsFor(cfg, u), models: modelsFor(u), quota: quota(u, await usageToday(u.id)),
-      announcement: a && a.id > u.annSeen ? a : null,
+      announcement: a && a.id > u.annSeen ? a : null, restriction: u.restriction ? publicBan(u.restriction) : null,
     });
   }
   res.json(out);
@@ -629,6 +695,10 @@ app.post('/api/signup', limit(5, 'signup'), limit(30, 'signup-hour', 3600_000), 
     return res.status(400).json({ error: 'Pick a username of 3–24 letters, numbers, dots, dashes or underscores.' });
   if (RESERVED_NAMES.has(name.toLowerCase())) return res.status(400).json({ error: 'That username is taken.' });
   if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'Use a password with at least 6 characters.' });
+  if ((await pool.query(`${TERMINATED} AND lower(t.username) = lower($1)`, [name])).rowCount) return res.status(409).json({ error: 'That username is taken.' });
+  const dev = deviceOf(req);
+  if (dev && (await pool.query(`${TERMINATED} AND lower(t.username) IN (SELECT username FROM user_devices WHERE device = $1)`, [dev])).rowCount)
+    return res.status(403).json({ error: 'An account that was terminated was used in this browser, so it can’t create new accounts.' });
   const pending = (await pool.query(`SELECT COUNT(*)::int AS n FROM users WHERE status = 'pending'`)).rows[0].n;
   if (pending >= MAX_PENDING) return res.status(429).json({ error: 'Too many people are waiting already. Try again later.' });
   let id;
@@ -639,6 +709,7 @@ app.post('/api/signup', limit(5, 'signup'), limit(30, 'signup-hour', 3600_000), 
     if (e.code === '23505') return res.status(409).json({ error: 'That username is taken.' });
     throw e;
   }
+  await noteDevice(req, name);
   res.json({ token: await newSession(Number(id)) });
 });
 
@@ -683,6 +754,7 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
     if (u.status === 'blocked') return res.status(403).json({ error: 'This account has been turned off.' });
     if (b.passcode == null) await pool.query('UPDATE users SET passcode_fails = 0, passcode_fails_at = NULL WHERE id = $1', [u.id]); // the password clears wrong passcodes
     if (old) await pool.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(old)]);
+    await noteDevice(req, String(b.username).trim());
     return res.json({ token: await newSession(Number(u.id)) });
   }
   const cfg = await loadConfig();
@@ -869,6 +941,19 @@ app.post('/api/ban-notice/reactivate', limit(10, 'notice-ok'), async (req, res) 
   const r = await pool.query('UPDATE bans SET reactivated_at = now() WHERE id = $1 AND reactivated_at IS NULL RETURNING *', [b.id]);
   await pool.query('UPDATE users SET ban_id = NULL WHERE id = $1 AND ban_id = $2', [b.user_id, b.id]);
   res.json({ ok: true, ban: publicBan(r.rows[0] || b) });
+});
+// one appeal per ban or termination; the owner sees it in /admin and the panel shows the answer
+app.post('/api/ban-notice/appeal', limit(10, 'appeal'), async (req, res) => {
+  const key = noticeKey(req.body?.key);
+  const body = String(req.body?.body ?? '').trim();
+  if (!body) return res.status(400).json({ error: 'Write why the owner should take another look.' });
+  if (body.length > MAX_APPEAL) return res.status(400).json({ error: `Keep it under ${MAX_APPEAL} characters.` });
+  const b = key && (await pool.query('SELECT * FROM bans WHERE notice_key=$1', [key])).rows[0];
+  if (!b || b.kind === 'restrict') return res.status(404).json({ error: 'We couldn’t find that ban.' });
+  if (!['active', 'terminated'].includes(banState(b))) return res.status(409).json({ error: 'This ban can’t be appealed anymore.' });
+  const r = await pool.query('INSERT INTO appeals(ban_id, body) VALUES ($1, $2) ON CONFLICT (ban_id) DO NOTHING RETURNING *', [b.id, body]);
+  if (!r.rowCount) return res.status(409).json({ error: 'You’ve already appealed this ban.' });
+  res.json({ ok: true, appeal: publicAppeal(r.rows[0]) });
 });
 
 app.post('/api/announcements/seen', limit(30, 'prefs'), auth, async (req, res) => {
@@ -1381,7 +1466,12 @@ app.get('/api/admin/users', limit(60, 'admin'), admin, async (req, res) => {
     )
     SELECT u.*, (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id)::int AS devices,
       t.today_tokens, t.today_usd, t.today_q, t.week_tokens, t.week_usd, t.total_tokens, t.total_usd, t.total_q,
-      (SELECT row_to_json(b) FROM bans b WHERE b.id = u.ban_id) AS ban
+      (SELECT row_to_json(x) FROM (${BAN_SQL} WHERE b.id = u.ban_id) x) AS ban,
+      (SELECT row_to_json(r) FROM bans r WHERE r.id = u.restrict_id) AS restriction,
+      (SELECT array_agg(DISTINCT t.username ORDER BY t.username) FROM user_devices d1
+         JOIN user_devices d2 ON d2.device = d1.device AND d2.username <> d1.username
+         JOIN bans t ON lower(t.username) = d2.username AND t.kind = 'terminate' AND t.lifted_at IS NULL
+       WHERE d1.username = lower(u.username)) AS linked
     FROM users u LEFT JOIN t ON t.user_id = u.id
     ORDER BY CASE u.status WHEN 'pending' THEN 0 WHEN 'trusted' THEN 1 ELSE 2 END, u.created_at DESC`, [TIMEZONE]);
   const own = (await pool.query(`
@@ -1389,9 +1479,12 @@ app.get('/api/admin/users', limit(60, 'admin'), admin, async (req, res) => {
       SUM(cost_usd) FILTER (WHERE created_at >= ${todayStartSQL.replaceAll('$2', '$1')}) AS today_usd,
       SUM(input_tokens + output_tokens) AS total_tokens, SUM(cost_usd) AS total_usd
     FROM messages WHERE user_id IS NULL`, [TIMEZONE])).rows[0];
-  const bans = await pool.query('SELECT * FROM bans ORDER BY id DESC LIMIT 100');
+  const bans = await pool.query(`${BAN_SQL} ORDER BY b.id DESC LIMIT 100`);
+  const appeals = await pool.query(`SELECT a.*, (SELECT row_to_json(x) FROM (${BAN_SQL} WHERE b.id = a.ban_id) x) AS ban
+    FROM appeals a WHERE a.decided_at IS NULL ORDER BY a.id`);
   res.json({
     bans: bans.rows.map(adminBan), banHours: BAN_HOURS, terminateDays: TERMINATE_DAYS,
+    appeals: appeals.rows.filter(a => LIVE_BAN.has(banState(a.ban))).map(a => ({ ...publicAppeal(a), ban: adminBan(a.ban) })),
     signup: cfg.signup, defaults: cfg.accountDefaults, ranges: DAILY_RANGES, timezone: TIMEZONE,
     owner: { today: { tokens: +own.today_tokens || 0, usd: +own.today_usd || 0 }, total: { tokens: +own.total_tokens || 0, usd: +own.total_usd || 0 } },
     users: r.rows.map(adminUser),
@@ -1402,6 +1495,7 @@ function adminUser(x) {
   delete u.prefs;
   return {
     ...u, devices: x.devices ?? 0, ban: x.ban && LIVE_BAN.has(banState(x.ban)) ? adminBan(x.ban) : null,
+    restriction: x.restriction && banState(x.restriction) === 'restricted' ? adminBan(x.restriction) : null, linked: x.linked || [],
     today: { tokens: +x.today_tokens || 0, usd: +x.today_usd || 0, questions: +x.today_q || 0 },
     week: { tokens: +x.week_tokens || 0, usd: +x.week_usd || 0 },
     total: { tokens: +x.total_tokens || 0, usd: +x.total_usd || 0, questions: +x.total_q || 0 },
@@ -1453,37 +1547,44 @@ app.post('/api/admin/users/:id', limit(60, 'admin'), admin, async (req, res) => 
 app.delete('/api/admin/users/:id', limit(60, 'admin'), admin, async (req, res) => {
   const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
   // a ban in force goes into the moderation log as deleted, like a termination that ran its course
-  await pool.query('UPDATE bans SET deleted_at = now() WHERE id = (SELECT ban_id FROM users WHERE id = $1) AND lifted_at IS NULL AND deleted_at IS NULL', [id]);
+  await pool.query(`UPDATE bans SET deleted_at = now() WHERE id IN (SELECT unnest(ARRAY[ban_id, restrict_id]) FROM users WHERE id = $1)
+    AND lifted_at IS NULL AND deleted_at IS NULL`, [id]);
   const r = await pool.query('DELETE FROM users WHERE id=$1', [id]);
   if (!r.rowCount) return res.status(404).json({ error: 'No such user.' });
   res.json({ ok: true });
 });
 
-// Ban an account for a while or for good, or terminate it (deleted after TERMINATE_DAYS). It stays signed in,
-// so its panel switches to the notice right away. A new ban replaces the one in force.
-app.post('/api/admin/users/:id/ban', limit(30, 'admin'), admin, async (req, res) => {
+// Ban an account for a while or for good, terminate it (deleted after TERMINATE_DAYS), or restrict it for a while.
+// A banned account stays signed in, so its panel switches to the notice right away. A new ban replaces the one in
+// force, and a new restriction the restriction in force.
+app.post('/api/admin/users/:id/ban', limit(60, 'moderate'), admin, async (req, res) => {
   const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
   const cur = id && (await pool.query('SELECT id, username FROM users WHERE id=$1', [id])).rows[0];
   if (!cur) return res.status(404).json({ error: 'No such user.' });
   const b = req.body || {};
-  const kind = ['ban', 'terminate'].includes(b.kind) ? b.kind : null;
-  if (!kind) return res.status(400).json({ error: 'Pick a ban or a termination.' });
+  const kind = ['ban', 'terminate', 'restrict'].includes(b.kind) ? b.kind : null;
+  if (!kind) return res.status(400).json({ error: 'Pick a ban, a termination or a restriction.' });
   const reason = String(b.reason ?? '').trim().slice(0, MAX_BAN_REASON);
   if (!reason) return res.status(400).json({ error: 'Give a reason. They see it on the notice.' });
   const note = String(b.note ?? '').trim().slice(0, MAX_BAN_NOTE) || null;
-  const hours = kind === 'ban' ? Number(b.hours) : null;
-  if (kind === 'ban' && !BAN_HOURS.includes(hours)) return res.status(400).json({ error: 'Pick one of the listed ban lengths.' });
+  const hours = kind === 'terminate' ? null : Number(b.hours);
+  if (kind !== 'terminate' && !BAN_HOURS.includes(hours)) return res.status(400).json({ error: 'Pick one of the listed lengths.' });
+  if (kind === 'restrict' && !hours) return res.status(400).json({ error: 'A restriction needs an end. For good, change their settings instead.' });
+  const limits = kind === 'restrict' ? cleanRestriction(b) : null;
+  if (kind === 'restrict' && !limits) return res.status(400).json({ error: 'Enter a number for the daily limit.' });
+  if (limits && !Object.keys(limits).length) return res.status(400).json({ error: 'Pick at least one thing to take away.' });
   const ends = kind === 'terminate' ? TERMINATE_DAYS * 24 : hours || null;
+  const col = kind === 'restrict' ? 'restrict_id' : 'ban_id';
   const db = await pool.connect();
   let row;
   try {
     await db.query('BEGIN');
-    await db.query(`UPDATE bans SET lifted_at = now() WHERE id = (SELECT ban_id FROM users WHERE id = $1 FOR UPDATE) AND lifted_at IS NULL`, [id]);
+    await db.query(`UPDATE bans SET lifted_at = now() WHERE id = (SELECT ${col} FROM users WHERE id = $1 FOR UPDATE) AND lifted_at IS NULL`, [id]);
     row = (await db.query(
-      `INSERT INTO bans(user_id, username, kind, hours, reason, note, notice_key, ends_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $8::int IS NULL THEN NULL ELSE now() + make_interval(hours => $8::int) END) RETURNING *`,
-      [id, cur.username, kind, hours || null, reason, note, crypto.randomBytes(24).toString('base64url'), ends])).rows[0];
-    await db.query('UPDATE users SET ban_id = $2 WHERE id = $1', [id, row.id]);
+      `INSERT INTO bans(user_id, username, kind, hours, reason, note, notice_key, ends_at, limits)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $8::int IS NULL THEN NULL ELSE now() + make_interval(hours => $8::int) END, $9) RETURNING *`,
+      [id, cur.username, kind, hours || null, reason, note, crypto.randomBytes(24).toString('base64url'), ends, limits && JSON.stringify(limits)])).rows[0];
+    await db.query(`UPDATE users SET ${col} = $2 WHERE id = $1`, [id, row.id]);
     await db.query('COMMIT');
   } catch (e) {
     await db.query('ROLLBACK');
@@ -1492,13 +1593,38 @@ app.post('/api/admin/users/:id/ban', limit(30, 'admin'), admin, async (req, res)
   res.json({ ok: true, ban: adminBan(row) });
 });
 
-// unban, or reverse a termination before the account is deleted
-app.delete('/api/admin/users/:id/ban', limit(30, 'admin'), admin, async (req, res) => {
+// unban, reverse a termination before the account is deleted, or (?kind=restrict) lift a restriction early
+app.delete('/api/admin/users/:id/ban', limit(60, 'moderate'), admin, async (req, res) => {
   const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+  const col = req.query.kind === 'restrict' ? 'restrict_id' : 'ban_id';
   const r = await pool.query(
-    `UPDATE bans SET lifted_at = now() WHERE id = (SELECT ban_id FROM users WHERE id = $1) AND lifted_at IS NULL AND deleted_at IS NULL RETURNING id`, [id]);
-  await pool.query('UPDATE users SET ban_id = NULL WHERE id = $1', [id]);
-  if (!r.rowCount) return res.status(404).json({ error: 'They aren’t banned.' });
+    `UPDATE bans SET lifted_at = now() WHERE id = (SELECT ${col} FROM users WHERE id = $1) AND lifted_at IS NULL AND deleted_at IS NULL RETURNING id`, [id]);
+  await pool.query(`UPDATE users SET ${col} = NULL WHERE id = $1`, [id]);
+  if (!r.rowCount) return res.status(404).json({ error: col === 'ban_id' ? 'They aren’t banned.' : 'They aren’t restricted.' });
+  res.json({ ok: true });
+});
+
+// accepting an appeal lifts the ban; denying it keeps the ban, and either way the reply shows in their panel
+app.post('/api/admin/appeals/:id', limit(60, 'moderate'), admin, async (req, res) => {
+  const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+  const decision = { accept: 'accepted', deny: 'denied' }[req.body?.decision];
+  if (!decision) return res.status(400).json({ error: 'Accept or deny it.' });
+  const reply = String(req.body?.reply ?? '').trim().slice(0, MAX_BAN_NOTE) || null;
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+    const a = (await db.query(`UPDATE appeals SET decision = $2, decided_at = now(), reply = $3 WHERE id = $1 AND decided_at IS NULL RETURNING ban_id`,
+      [id, decision, reply])).rows[0];
+    if (!a) { await db.query('ROLLBACK'); return res.status(404).json({ error: 'That appeal was already answered.' }); }
+    if (decision === 'accepted') {
+      await db.query('UPDATE bans SET lifted_at = now() WHERE id = $1 AND lifted_at IS NULL AND deleted_at IS NULL', [a.ban_id]);
+      await db.query('UPDATE users SET ban_id = NULL WHERE ban_id = $1', [a.ban_id]);
+    }
+    await db.query('COMMIT');
+  } catch (e) {
+    await db.query('ROLLBACK');
+    throw e;
+  } finally { db.release(); }
   res.json({ ok: true });
 });
 

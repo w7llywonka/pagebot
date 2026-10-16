@@ -119,6 +119,15 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
 /* moderation: bans and terminations */
 .banbox{background:rgba(180,67,47,.1);border:1px solid rgba(255,138,122,.35);border-radius:10px;padding:10px 12px}
 .banbox.term{background:rgba(235,232,225,.06);border-color:#5a5650}
+.banbox.rst{background:rgba(224,160,48,.08);border-color:rgba(224,160,48,.4);margin-bottom:8px}
+.rform{margin-bottom:8px}
+.rform .inl{margin-top:8px}
+.rform .inl input{width:110px}
+button.warnb{background:#b07818}
+.warn{font-size:12.5px;color:#e0a030;margin:2px 0 8px}
+.mrow.appeal{display:block}
+.mrow .abody{margin:6px 0;padding:8px 10px;border-left:3px solid var(--accent);background:var(--bg);border-radius:0 8px 8px 0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13.5px}
+.mrow.appeal input{margin:4px 0 8px}
 .banbox b{font-weight:650}
 .banbox .annmeta{overflow-wrap:anywhere}
 .banbox .btns{margin-top:10px;align-items:center}
@@ -226,7 +235,10 @@ details.defaults summary{cursor:pointer;color:var(--muted);font-size:13px}
     </div>
 
     <div class="card" id="modCard" hidden>
-      <h2>Moderation</h2>
+      <h2>Moderation<span class="count" id="modCount" hidden></span></h2>
+      <div class="subh" id="appealHead" hidden>Appeals waiting</div>
+      <div id="appealList"></div>
+      <div class="subh">Log</div>
       <p class="muted" style="margin-top:0" id="modHint"></p>
       <div id="modList"></div>
     </div>
@@ -515,46 +527,84 @@ const ago = t => {
 const dateFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const limitText = (kind, v) => kind === 'usd' ? money(+v) : `${short(+v)} tokens`;
-// ---- bans and terminations ----
+// ---- bans, terminations, restrictions and appeals ----
 const banDur = h => h == null || h === 0 ? 'permanently' : h < 24 ? `${h} hour${h === 1 ? '' : 's'}` : `${h / 24} day${h === 24 ? '' : 's'}`;
 const until = t => { const s = (new Date(t) - Date.now()) / 1000; return s <= 60 ? 'a minute' : s < 3600 ? `${Math.ceil(s / 60)}m` : s < 86400 ? `${Math.round(s / 3600)}h` : `${Math.round(s / 86400)}d`; };
-const banWhat = b => b.kind === 'terminate' ? 'Terminated' : `Banned ${b.hours == null ? 'permanently' : 'for ' + banDur(b.hours)}`;
+const banWhat = b => b.kind === 'terminate' ? 'Terminated' : b.kind === 'restrict' ? `Restricted for ${banDur(b.hours)}`
+  : `Banned ${b.hours == null ? 'permanently' : 'for ' + banDur(b.hours)}`;
+// what a restriction takes away, in a few words
+const lostText = l => [l?.noSonnet && 'no Sonnet', l?.noWeb && 'no web search', l?.limitKind && `daily limit ${limitText(l.limitKind, l.limitValue)}`].filter(Boolean).join(', ');
 const BAN_STATES = {
   active: b => b.endsAt ? `${until(b.endsAt)} left` : 'in force',
   ended: () => 'over, not re-activated yet',
   terminated: b => `account deleted in ${until(b.endsAt)}`,
+  restricted: b => `${until(b.endsAt)} left`,
+  expired: b => `ended ${ago(b.endsAt)}`,
   reactivated: b => `re-activated ${ago(b.reactivatedAt)}`,
   lifted: b => `lifted ${ago(b.liftedAt)}`,
   deleted: b => `account deleted ${ago(b.deletedAt)}`,
 };
+const LIVE = ['active', 'ended', 'terminated', 'restricted'];
 const banStatus = b => BAN_STATES[b.state]?.(b) || b.state;
+const appealText = a => !a ? '' : a.decision === 'accepted' ? `appeal accepted ${ago(a.decidedAt)}` : a.decision === 'denied' ? `appeal denied ${ago(a.decidedAt)}` : 'appeal waiting';
 function banChip(b) {
   const [cls, text] = b.state === 'terminated' ? ['term', `Terminated · ${until(b.endsAt)}`] : b.state === 'ended' ? ['over', 'Ban over']
-    : ['banned', b.endsAt ? `Banned · ${until(b.endsAt)}` : 'Banned'];
+    : b.state === 'restricted' ? ['over', `Restricted · ${until(b.endsAt)}`] : ['banned', b.endsAt ? `Banned · ${until(b.endsAt)}` : 'Banned'];
   const c = mk('span', 'chip ' + cls, text); c.title = `${banWhat(b)}: ${b.reason}`;
   return c;
 }
-// what a person's details show: the ban in force with an undo, or a form to ban or terminate them, then their history
+// the "same browser as a terminated account" warning
+const linkedNote = u => u.linked?.length ? mk('div', 'warn', `⚠ Used the same browser as ${u.linked.join(', ')} (terminated)`) : null;
+// a ban, termination or restriction in force, with its undo
+function liveBox(u, b) {
+  const box = mk('div', 'banbox' + (b.kind === 'terminate' ? ' term' : b.kind === 'restrict' ? ' rst' : ''));
+  box.append(mk('b', '', banWhat(b)), ' · ' + banStatus(b));
+  if (b.kind === 'restrict') box.appendChild(mk('div', 'unote', `Takes away: ${lostText(b.limits)}`));
+  box.appendChild(mk('div', 'unote', `Reason: ${b.reason}`));
+  if (b.note) box.appendChild(mk('div', 'unote', `Note: ${b.note}`));
+  box.appendChild(mk('div', 'annmeta', `${ago(b.at)}` + (b.endsAt ? ` · ${b.kind === 'terminate' ? 'deleted' : 'ends'} ${dateFmt.format(new Date(b.endsAt))}` : '') +
+    (b.kind === 'restrict' ? '' : b.seenAt ? ` · they saw the notice ${ago(b.seenAt)}` : ' · they haven’t seen the notice yet')));
+  if (b.appeal) {
+    box.appendChild(mk('div', 'unote', `Their appeal (${appealText(b.appeal)}): “${b.appeal.body}”`));
+    if (b.appeal.reply) box.appendChild(mk('div', 'unote', `You replied: “${b.appeal.reply}”`));
+  }
+  const btns = mk('div', 'btns'), undo = mk('button', 'ghost', b.kind === 'terminate' ? 'Reverse termination' : b.kind === 'restrict' ? 'Lift restriction' : 'Unban');
+  undo.type = 'button';
+  undo.onclick = () => unban(u, b);
+  btns.append(undo); box.appendChild(btns);
+  return box;
+}
+// what a person's details show: what's in force with an undo, a form to ban, terminate or restrict them, then their history
 function moderation(u) {
   const f = mk('div', 'field'); f.appendChild(mk('span', 'fl', 'Moderation'));
-  const b = u.ban;
-  if (b) {
-    const box = mk('div', 'banbox' + (b.kind === 'terminate' ? ' term' : ''));
-    box.append(mk('b', '', banWhat(b)), ' · ' + banStatus(b));
-    box.appendChild(mk('div', 'unote', `Reason: ${b.reason}`));
-    if (b.note) box.appendChild(mk('div', 'unote', `Note: ${b.note}`));
-    box.appendChild(mk('div', 'annmeta', `${ago(b.at)} · ` + (b.endsAt ? `${b.kind === 'terminate' ? 'deleted' : 'ends'} ${dateFmt.format(new Date(b.endsAt))} · ` : '') +
-      (b.seenAt ? `they saw the notice ${ago(b.seenAt)}` : 'they haven’t seen the notice yet')));
-    const btns = mk('div', 'btns'), undo = mk('button', 'ghost', b.kind === 'terminate' ? 'Reverse termination' : 'Unban');
-    undo.type = 'button';
-    undo.onclick = () => unban(u, b);
-    btns.append(undo); box.appendChild(btns);
-    f.appendChild(box);
-  } else {
+  const ln = linkedNote(u); if (ln) f.appendChild(ln);
+  if (u.ban) f.appendChild(liveBox(u, u.ban));
+  if (u.restriction && !u.ban) f.appendChild(liveBox(u, u.restriction));
+  if (!u.ban) {
     const form = mk('div', 'banform'), inl = mk('div', 'inl'), seg = mk('div', 'seg'), len = mk('select');
     let kind = 'ban';
-    for (const h of users.banHours) len.add(new Option(h ? 'for ' + banDur(h) : 'permanently', h));
-    len.value = 24; len.setAttribute('aria-label', 'Ban length');
+    const setLens = perm => {
+      const keep = len.value; len.replaceChildren();
+      for (const h of users.banHours) if (h || perm) len.add(new Option(h ? 'for ' + banDur(h) : 'permanently', h));
+      len.value = [...len.options].some(o => o.value === keep) ? keep : '24';
+    };
+    len.setAttribute('aria-label', 'Length');
+    // what a restriction takes away
+    const rbox = mk('div', 'rform'), cb = label => { const l = mk('label', 'ck'), c = mk('input'); c.type = 'checkbox'; l.append(c, ' ' + label); return [l, c]; };
+    const [ls, cs] = cb('Take away Sonnet'), [lw, cw] = cb('Take away web search');
+    const lim = mk('div', 'inl'), lseg = mk('div', 'seg'), lval = mk('input'), lunit = mk('span', 'unit');
+    let lkind = 'none';
+    lval.type = 'number'; lval.min = '0'; lval.step = 'any'; lval.setAttribute('aria-label', 'Daily limit while restricted');
+    const setL = k => {
+      lkind = k; lseg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.k === k));
+      lval.hidden = k === 'none'; lunit.textContent = k === 'usd' ? 'dollars a day' : k === 'tokens' ? 'tokens a day' : 'keep their daily limit';
+      if (k !== 'none' && !lval.value) lval.value = k === 'usd' ? 0.1 : 20000;
+    };
+    for (const [k, label] of [['none', 'Same limit'], ['tokens', 'Tokens'], ['usd', 'Dollars']]) {
+      const x = mk('button', '', label); x.type = 'button'; x.dataset.k = k; x.onclick = () => { lval.value = ''; setL(k); }; lseg.appendChild(x);
+    }
+    lim.append(lseg, lval, lunit); setL('none');
+    rbox.append(ls, lw, lim);
     const reason = mk('input'), note = mk('textarea'), go = mk('button', 'bad', ''), hint = mk('p', 'hint');
     reason.setAttribute('list', 'banReasons'); reason.maxLength = 120; reason.placeholder = 'Reason (they see it)'; reason.setAttribute('aria-label', 'Reason');
     note.maxLength = 1000; note.rows = 2; note.placeholder = 'Moderator note (optional, they see it too)'; note.setAttribute('aria-label', 'Moderator note');
@@ -562,55 +612,87 @@ function moderation(u) {
     const setK = k => {
       kind = k;
       seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.k === k));
-      len.hidden = k !== 'ban';
-      go.className = k === 'ban' ? 'bad' : 'worst';
-      go.textContent = k === 'ban' ? `Ban ${u.name}` : `Terminate ${u.name}`;
-      hint.textContent = k === 'ban' ? 'Their pagebot panel switches to a ban notice right away, with your reason and note. They can re-activate once it ends.'
-        : `Every sign-in shows the termination notice, and the account is deleted in ${users.terminateDays} days. You can reverse it until then.`;
+      len.hidden = k === 'terminate'; setLens(k === 'ban'); rbox.hidden = k !== 'restrict';
+      go.className = k === 'terminate' ? 'worst' : k === 'restrict' ? 'warnb' : 'bad';
+      go.textContent = k === 'ban' ? `Ban ${u.name}` : k === 'restrict' ? `Restrict ${u.name}` : `Terminate ${u.name}`;
+      hint.textContent = k === 'ban' ? 'Their pagebot panel switches to a ban notice right away, with your reason and note. They can appeal it, and re-activate once it ends.'
+        : k === 'restrict' ? 'They keep using pagebot without what you take away, with a note above their chat saying why and until when. It ends by itself.'
+        : `Every sign-in shows the termination notice, and the account is deleted in ${users.terminateDays} days. You can reverse it until then. Its username and browser can’t sign up again.`;
     };
-    for (const [k, label] of [['ban', 'Ban'], ['terminate', 'Terminate']]) {
+    for (const [k, label] of [['ban', 'Ban'], ['restrict', 'Restrict'], ['terminate', 'Terminate']]) {
       const x = mk('button', '', label); x.type = 'button'; x.dataset.k = k; x.onclick = () => setK(k); seg.appendChild(x);
     }
     inl.append(seg, len); setK('ban');
     go.onclick = () => {
-      if (!reason.value.trim()) { reason.focus(); flash = { id: u.id, text: 'Give a reason. They see it on the notice.', err: true }; return showFlash(); }
+      const oops = text => { flash = { id: u.id, text, err: true }; showFlash(); };
+      if (kind === 'restrict' && !cs.checked && !cw.checked && lkind === 'none') return oops('Pick at least one thing to take away.');
+      if (kind === 'restrict' && lkind !== 'none' && !(+lval.value > 0)) return oops('Enter a number above zero for the daily limit.');
+      if (!reason.value.trim()) { reason.focus(); return oops('Give a reason. They see it.'); }
       if (kind === 'terminate' && !confirm(`Terminate ${u.name}? They’ll see the termination notice every time they sign in, and the account is deleted in ${users.terminateDays} days.`)) return;
-      const body = { kind, reason: reason.value, note: note.value, ...(kind === 'ban' && { hours: +len.value }) };
-      act(u, body, kind === 'ban' ? `${u.name} is banned ${len.value === '0' ? 'permanently' : 'for ' + banDur(+len.value)}.` : `${u.name}’s account is terminated.`, false,
-        { path: `/api/admin/users/${u.id}/ban` });
+      const body = { kind, reason: reason.value, note: note.value, ...(kind !== 'terminate' && { hours: +len.value }),
+        ...(kind === 'restrict' && { noSonnet: cs.checked, noWeb: cw.checked, limitKind: lkind, limitValue: +lval.value }) };
+      const done = kind === 'ban' ? `${u.name} is banned ${len.value === '0' ? 'permanently' : 'for ' + banDur(+len.value)}.`
+        : kind === 'restrict' ? `${u.name} is restricted for ${banDur(+len.value)}.` : `${u.name}’s account is terminated.`;
+      act(u, body, done, false, { path: `/api/admin/users/${u.id}/ban` });
     };
     const btns = mk('div', 'btns'); btns.appendChild(go);
-    form.append(inl, reason, note, btns, hint);
+    form.append(inl, rbox, reason, note, btns, hint);
     f.appendChild(form);
   }
-  const past = users.bans.filter(x => x.userId === u.id && x.id !== b?.id);
+  const past = users.bans.filter(x => x.userId === u.id && x.id !== u.ban?.id && x.id !== u.restriction?.id);
   if (past.length) {
     const h = mk('div', 'hist');
-    h.appendChild(mk('div', '', 'Past bans:'));
-    for (const x of past.slice(0, 10)) h.appendChild(mk('div', '', `${dateFmt.format(new Date(x.at))} · ${banWhat(x)} · ${x.reason} · ${banStatus(x)}`));
+    h.appendChild(mk('div', '', 'History:'));
+    for (const x of past.slice(0, 10)) h.appendChild(mk('div', '', `${dateFmt.format(new Date(x.at))} · ${banWhat(x)} · ${x.reason} · ${banStatus(x)}` + (x.appeal ? ` · ${appealText(x.appeal)}` : '')));
     f.appendChild(h);
   }
   return f;
 }
 async function unban(u, b) {
-  const term = b.kind === 'terminate';
-  if (!confirm(term ? `Reverse ${u.name}’s termination? Their account won’t be deleted and they can use pagebot again.` : `Unban ${u.name}?`)) return;
-  await act(u, null, term ? `${u.name}’s termination is reversed.` : `${u.name} is unbanned.`, false, { path: `/api/admin/users/${u.id}/ban`, method: 'DELETE' });
+  const term = b.kind === 'terminate', rst = b.kind === 'restrict';
+  if (!confirm(term ? `Reverse ${u.name}’s termination? Their account won’t be deleted and they can use pagebot again.` : rst ? `Lift ${u.name}’s restriction now?` : `Unban ${u.name}?`)) return;
+  await act(u, null, term ? `${u.name}’s termination is reversed.` : rst ? `${u.name}’s restriction is lifted.` : `${u.name} is unbanned.`, false,
+    { path: `/api/admin/users/${u.id}/ban${rst ? '?kind=restrict' : ''}`, method: 'DELETE' });
+}
+// appeals waiting for an answer, at the top of the Moderation card
+function appealRow(a) {
+  const b = a.ban, row = mk('div', 'mrow appeal'), info = mk('div', 'uinfo');
+  info.append(mk('b', '', b.name), ' ', mk('span', 'ago', `${banWhat(b)} · appealed ${ago(a.at)}`));
+  info.appendChild(mk('div', 'unote', `Banned for: ${b.reason}${b.note ? ` — ${b.note}` : ''}`));
+  info.appendChild(mk('div', 'abody', `“${a.body}”`));
+  const reply = mk('input'); reply.maxLength = 1000; reply.placeholder = 'Reply (optional, they see it)'; reply.setAttribute('aria-label', `Reply to ${b.name}`);
+  const btns = mk('div', 'btns'), yes = mk('button', '', 'Accept & unban'), no = mk('button', 'ghost', 'Deny'), msg = mk('div', 'msg');
+  yes.type = no.type = 'button';
+  const answer = async decision => {
+    if (decision === 'deny' && !confirm(`Deny ${b.name}’s appeal? The ${b.kind === 'terminate' ? 'termination' : 'ban'} stays, and they can’t appeal it again.`)) return;
+    yes.disabled = no.disabled = true;
+    try { await api(`/api/admin/appeals/${a.id}`, { method: 'POST', body: JSON.stringify({ decision, reply: reply.value }) }); await loadUsers(); }
+    catch (err) { say(msg, false, err.message); yes.disabled = no.disabled = false; }
+  };
+  yes.onclick = () => answer('accept'); no.onclick = () => answer('deny');
+  btns.append(yes, no);
+  info.append(reply, btns, msg);
+  row.appendChild(info);
+  return row;
 }
 function renderMod() {
-  const list = users.bans, live = list.filter(b => ['active', 'ended', 'terminated'].includes(b.state));
+  const list = users.bans, live = list.filter(b => LIVE.includes(b.state)), appeals = users.appeals || [];
   $('#modCard').hidden = !list.length;
-  $('#modHint').textContent = `${live.length ? `${live.length} in force. ` : ''}Bans and terminations, newest first. ` +
+  $('#modCount').hidden = !appeals.length; $('#modCount').textContent = appeals.length;
+  $('#appealHead').hidden = !appeals.length;
+  $('#appealList').replaceChildren(...appeals.map(appealRow));
+  $('#modHint').textContent = `${live.length ? `${live.length} in force. ` : ''}Bans, terminations and restrictions, newest first. ` +
     `A terminated account is deleted ${users.terminateDays} days after it’s terminated.`;
   $('#modList').replaceChildren(...list.slice(0, 30).map(b => {
     const row = mk('div', 'mrow'), info = mk('div', 'uinfo');
     info.append(mk('b', '', b.name), ' ', mk('span', 'ago', `${banWhat(b)} · ${ago(b.at)}`));
-    info.appendChild(mk('div', 'unote', `${b.reason}${b.note ? ` — ${b.note}` : ''}`));
-    info.appendChild(mk('div', 'ago', banStatus(b) + (b.seenAt ? ` · seen ${ago(b.seenAt)}` : ' · not seen yet')));
+    info.appendChild(mk('div', 'unote', `${b.kind === 'restrict' ? lostText(b.limits) + ' · ' : ''}${b.reason}${b.note ? ` — ${b.note}` : ''}`));
+    info.appendChild(mk('div', 'ago', banStatus(b) + (b.kind === 'restrict' ? '' : b.seenAt ? ` · seen ${ago(b.seenAt)}` : ' · not seen yet') +
+      (b.appeal ? ` · ${appealText(b.appeal)}` : '')));
     row.appendChild(info);
     const btns = mk('div', 'btns');
-    if (['active', 'ended', 'terminated'].includes(b.state) && b.userId != null) {
-      const x = mk('button', 'ghost', b.kind === 'terminate' ? 'Reverse' : 'Unban'); x.type = 'button';
+    if (LIVE.includes(b.state) && b.userId != null) {
+      const x = mk('button', 'ghost', b.kind === 'terminate' ? 'Reverse' : b.kind === 'restrict' ? 'Lift' : 'Unban'); x.type = 'button';
       x.onclick = () => unban({ id: b.userId, name: b.name }, b);
       btns.appendChild(x);
     }
@@ -640,6 +722,7 @@ function pendingRow(u) {
   const row = mk('div', 'urow pending'), info = mk('div', 'uinfo');
   info.append(mk('b', '', u.name), ' ', mk('span', 'ago', `asked ${ago(u.createdAt)}`));
   if (u.note) info.appendChild(mk('div', 'unote', `“${u.note}”`));
+  const ln = linkedNote(u); if (ln) info.appendChild(ln);
   const btns = mk('div', 'btns'), yes = mk('button', '', 'Accept'), no = mk('button', 'ghost', 'Deny');
   yes.type = no.type = 'button';
   yes.onclick = () => act(u, { status: 'trusted' }, `${u.name} is in.`, true);
@@ -664,7 +747,8 @@ function ownerRow(o) {
 function userRow(u) {
   const row = mk('div', 'urow' + (openUser === u.id ? ' open' : ''));
   const head = mk('button', 'uhead'); head.type = 'button'; head.setAttribute('aria-expanded', String(openUser === u.id));
-  head.append(mk('span', 'uname', u.name), u.ban ? banChip(u.ban) : mk('span', 'chip ' + u.status, u.status === 'trusted' ? 'Trusted' : 'Blocked'));
+  head.append(mk('span', 'uname', u.name), u.ban || u.restriction ? banChip(u.ban || u.restriction) : mk('span', 'chip ' + u.status, u.status === 'trusted' ? 'Trusted' : 'Blocked'));
+  if (u.linked?.length) { const w = mk('span', 'chip term', '⚠'); w.title = `Used the same browser as ${u.linked.join(', ')} (terminated)`; head.appendChild(w); }
   const usedNow = u.limitKind === 'usd' ? u.today.usd : u.today.tokens;
   if (u.limitKind) {
     const m = meter(usedNow, u.limitValue);
