@@ -111,18 +111,15 @@ test('bans and terminations', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_UR
     assert.equal((await boot(again.data.token)).data.ban.reason, 'Spamming');
   });
 
-  await t.test('the notice page reads the ban by key and refuses re-activation until it ends', async () => {
-    const key = (await boot(await session(ids.alice))).data.ban.key;
-    assert.equal((await api('/api/ban-notice', { method: 'POST', body: { key: 'nope' } })).status, 404);
-    assert.equal((await api('/api/ban-notice', { method: 'POST', body: { key: 'x'.repeat(32) } })).status, 404);
-    const n = await api('/api/ban-notice', { method: 'POST', body: { key } });
-    assert.equal(n.status, 200);
-    assert.equal(n.data.ban.name, 'alice');
-    assert.ok(n.data.now);
-    assert.equal((await api('/api/ban-notice/reactivate', { method: 'POST', body: { key, agree: true } })).status, 409);
-    const page = await fetch(origin + '/banned');
-    assert.equal(page.status, 200);
-    assert.match(await page.text(), /Re-activate my account/);
+  await t.test('re-activation needs the ban\'s key and waits until the ban ends', async () => {
+    const b = (await boot(await session(ids.alice))).data.ban;
+    assert.equal(b.name, 'alice');
+    for (const key of ['nope', 'x'.repeat(32)]) {
+      assert.equal((await api('/api/ban-notice/reactivate', { method: 'POST', body: { key, agree: true } })).status, 404);
+    }
+    assert.equal((await api('/api/ban-notice/reactivate', { method: 'POST', body: { key: b.key, agree: true } })).status, 409);
+    assert.equal((await api('/api/ban-notice', { method: 'POST', body: { key: b.key } })).status, 404, 'there is no separate notice page');
+    assert.equal((await fetch(origin + '/banned')).status, 404);
   });
 
   await t.test('once a ban ends, the account re-activates after agreeing to the rules', async () => {
@@ -152,7 +149,7 @@ test('bans and terminations', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_UR
     assert.deepEqual(states, [true, false]);
     assert.equal((await unban(ids.bob)).status, 200);
     assert.equal((await boot(token)).data.ban, undefined);
-    assert.equal((await api('/api/ban-notice', { method: 'POST', body: { key: b.key } })).data.ban.state, 'lifted');
+    assert.ok((await db.query('SELECT lifted_at FROM bans WHERE id=$1', [b.id])).rows[0].lifted_at);
   });
 
   await t.test('a termination shows on every sign-in and deletes the account after two weeks', async () => {
@@ -171,16 +168,13 @@ test('bans and terminations', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_UR
     assert.equal(listed.terminateDays, 14);
     assert.ok(listed.bans.some(b => b.userId === ids.carol && b.kind === 'terminate'));
 
-    const key = r.data.ban.key;
     await db.query("UPDATE bans SET ends_at = now() - interval '1 minute' WHERE id = $1", [r.data.ban.id]);
     assert.equal((await login('carol', 'carol-pass')).status, 401, 'the account is gone');
     assert.equal((await db.query('SELECT 1 FROM users WHERE id=$1', [ids.carol])).rowCount, 0);
-    const n = (await api('/api/ban-notice', { method: 'POST', body: { key } })).data.ban;
-    assert.equal(n.state, 'deleted');
-    assert.equal(n.name, 'carol');
     const log = (await api('/api/admin/users', { admin: true })).data.bans.find(b => b.id === r.data.ban.id);
     assert.equal(log.state, 'deleted');
     assert.equal(log.userId, null);
+    assert.equal(log.name, 'carol', 'the log keeps the username');
   });
 
   await t.test('a termination can be reversed before the account is deleted', async () => {
