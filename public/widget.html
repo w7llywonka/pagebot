@@ -66,7 +66,7 @@ body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition:background-color .3
 /* pop-ups sit over the chat, so they get a plain backing (no blur) to stay legible; the settings sheet hides the chat behind it instead */
 :root[data-theme=clear] .menu,:root[data-theme=clear] .rbar,:root[data-theme=clear] #jump,:root[data-theme=clear] .cc{background:var(--pop);text-shadow:none}
 :root[data-theme=clear] .menu svg,:root[data-theme=clear] .rbar svg,:root[data-theme=clear] #jump svg{filter:none}
-:root[data-theme=clear] body.sheet>#log,:root[data-theme=clear] body.sheet>#composer,:root[data-theme=clear] body.sheet>#ann,:root[data-theme=clear] body.sheet>#upd{visibility:hidden}
+:root[data-theme=clear] body.sheet>#log,:root[data-theme=clear] body.sheet>#composer,:root[data-theme=clear] body.sheet>#ann,:root[data-theme=clear] body.sheet>#rst,:root[data-theme=clear] body.sheet>#upd{visibility:hidden}
 :root[data-theme=clear] #wrap{background:var(--pop);text-shadow:none}
 /* on /chat and in the pop-up window there's no page behind, so glass and clear sit on a colorful backdrop */
 :root.nohost[data-theme=glass],:root.nohost[data-theme=clear]{background:radial-gradient(60% 50% at 15% 20%,#5b7cff 0,transparent 70%),radial-gradient(50% 45% at 85% 25%,#c35bff 0,transparent 70%),radial-gradient(55% 50% at 70% 85%,#ff7a9c 0,transparent 70%),radial-gradient(50% 50% at 20% 85%,#2ec5b6 0,transparent 70%),#1a1d2e;background-attachment:fixed}
@@ -277,7 +277,8 @@ textarea:focus,input:focus{border-color:var(--focus)}
 #wait.in .hg::after{opacity:0}
 
 /* banned or terminated: the notice, like a game's */
-#ban{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:22px 26px;text-align:center;overflow:auto}
+#ban{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:10px;padding:22px 26px;text-align:center;overflow:auto}
+#ban>*{flex-shrink:0} /* a long notice scrolls instead of squashing */
 #ban h2{margin:6px 0 0;font-size:18px}
 #ban p{margin:0;color:var(--muted);font-size:13px;max-width:310px}
 #ban .bk{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--err)}
@@ -298,6 +299,11 @@ textarea:focus,input:focus{border-color:var(--focus)}
 #banReact:disabled{opacity:.45;cursor:default}
 #banErr{color:var(--err)!important;min-height:0}
 #banFine{font-size:11.5px}
+#banAppeal{width:100%;max-width:310px;display:flex;flex-direction:column;gap:8px;align-items:center}
+#banAppealForm{width:100%;display:flex;flex-direction:column;gap:8px}
+#banAppealText{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px;outline:none;resize:vertical;min-height:70px;font:inherit;font-size:13px;color:var(--text)}
+#banAppealState{width:100%;text-align:left;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:8px 11px;font-size:12.5px!important;color:var(--text)!important;white-space:pre-wrap;overflow-wrap:anywhere}
+#banAppealState b{font-weight:650}
 
 /* settings: today's usage and the account */
 .qbar{height:8px;border-radius:99px;background:color-mix(in srgb,var(--accent) 16%,var(--panel));overflow:hidden}
@@ -410,6 +416,12 @@ body.docked:not(.min) header{cursor:default}
 #ann .ab{flex:1;min-width:0}
 #annText{font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:110px;overflow-y:auto}
 #annMeta{font-size:11px;color:var(--muted);margin-top:3px}
+/* restricted: what's taken away, until when, and why */
+#rst{flex:none;display:flex;gap:10px;align-items:flex-start;margin:10px 10px 0;padding:9px 9px 9px 11px;border-radius:12px;background:color-mix(in srgb,#e0a030 12%,var(--panel));border:1px solid color-mix(in srgb,#e0a030 45%,var(--line))}
+#rst .ai{flex:none;font-size:15px;line-height:1.35}
+#rst .ab{flex:1;min-width:0;font-size:13px;overflow-wrap:anywhere}
+#rstMeta{font-size:11px;color:var(--muted);margin-top:3px;white-space:pre-wrap}
+#rstX{flex:none;background:none;border:0;color:var(--muted);font-size:16px;line-height:1;padding:2px 4px;cursor:pointer}
 #annX{flex:none;align-self:center;background:var(--accent);color:var(--on-accent);border:0;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer}
 /* a newer pagebot is out than the bookmark that opened this panel */
 #upd{flex:none;display:flex;align-items:center;gap:8px;margin:10px 10px 0;padding:5px 5px 5px 11px;border-radius:10px;background:var(--chip-on);border:1px solid var(--line);font-size:12.5px;animation:annIn .4s cubic-bezier(.2,.8,.2,1) both}
@@ -523,6 +535,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 <div class="grip gl" data-g="l" aria-hidden="true"></div><div class="grip gt" data-g="t" aria-hidden="true"></div><div class="grip gc" data-g="c" aria-hidden="true"></div>
 
 <div id="upd" role="status" hidden><span>✨ A new version of pagebot is out.</span><a id="updGo" href="/?update" target="_blank" rel="noopener">Get it ↗</a><button id="updX" type="button" title="Not now" aria-label="Not now">×</button></div>
+<div id="rst" role="status" hidden><span class="ai" aria-hidden="true">⚠️</span><div class="ab"><div id="rstText"></div><div id="rstMeta"></div></div><button id="rstX" type="button" title="Hide" aria-label="Hide">×</button></div>
 <div id="ann" role="status" hidden><span class="ai" aria-hidden="true">📣</span><div class="ab"><div id="annText"></div><div id="annMeta"></div></div><button id="annX" type="button">Got it</button></div>
 
 <form id="login" autocomplete="off" tabindex="-1">
@@ -569,6 +582,14 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
   <label class="bagree" id="banAgreeRow" hidden><input type="checkbox" id="banAgree"> I agree to follow pagebot’s rules from now on.</label>
   <button class="send" id="banReact" type="button" disabled hidden>Re-activate my account</button>
   <p id="banErr" role="alert"></p>
+  <div id="banAppeal" hidden>
+    <button class="link" id="banAppealOpen" type="button">Think this is wrong? Appeal it</button>
+    <form id="banAppealForm" hidden>
+      <textarea id="banAppealText" maxlength="1000" rows="3" placeholder="Tell the owner why they should take another look." aria-label="Your appeal"></textarea>
+      <button class="send" type="submit" id="banAppealSend">Send appeal</button>
+    </form>
+    <p id="banAppealState" hidden></p>
+  </div>
   <p class="fine" id="banFine"></p>
   <div class="links"><button class="link" id="banOut" type="button">Sign out</button></div>
 </div>
@@ -690,6 +711,9 @@ const store = {
 };
 
 let token = store.get('pb_token');
+// a random id for this browser, so the owner can keep a terminated account's browser from signing up again
+let device = store.get('pb_dev');
+if (!/^[A-Za-z0-9_-]{16,64}$/.test(device || '')) { device = Array.from(crypto.getRandomValues(new Uint8Array(18)), x => x.toString(16).padStart(2, '0')).join(''); store.set('pb_dev', device); }
 let cfg = null; // /api/boot
 let prefs = { theme: store.get('pb_theme') || 'ember', model: 'haiku', web: false };
 let limits = { maxTokens: 2048, pageTokens: 5000, maxSearches: 3 };
@@ -1012,7 +1036,7 @@ function setHeader(chat) {
 }
 function hideViews() {
   $('#login').style.display = 'none'; $('#login').classList.remove('leave');
-  $('#wait').hidden = true; $('#ban').hidden = true; log.hidden = true; $('#composer').hidden = true; $('#ann').hidden = true; $('#upd').hidden = true;
+  $('#wait').hidden = true; $('#ban').hidden = true; log.hidden = true; $('#composer').hidden = true; $('#ann').hidden = true; $('#rst').hidden = true; $('#upd').hidden = true;
   stopWaitPoll(); closeWrap();
 }
 let chatWho = null; // whose chat is in the log
@@ -1023,7 +1047,7 @@ function showChat(enter) {
   if (chatWho && k !== chatWho) { leaveChat(); resetSiteMemory(); log.replaceChildren(); clearImg(); setPage(true); stopStream(); setArea(null); annGone = 0; }
   chatWho = k;
   log.hidden = false; $('#composer').hidden = false;
-  setHeader(true); renderAccount(); renderAnn(); renderUpd();
+  setHeader(true); renderAccount(); renderAnn(); renderRst(); renderUpd();
   if (!log.children.length) empty();
   if (enter) { body.classList.add('enter'); setTimeout(() => body.classList.remove('enter'), 600); }
   lastActive = Date.now();
@@ -1187,7 +1211,7 @@ $('#login').addEventListener('submit', async e => {
 });
 async function login(path, data) {
   try {
-    const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(data) });
+    const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Pagebot-Device': device, ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(data) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) return { error: j.error || 'That didn’t work — try again.', status: r.status, usePassword: !!j.usePassword };
     resetSiteMemory(); token = j.token; store.set('pb_token', token); pwMode = false;
@@ -1249,6 +1273,7 @@ function showBan() {
   setHeader(false);
   $('#ban').hidden = false;
   $('#banAgree').checked = false; $('#banErr').textContent = '';
+  $('#banAppealForm').hidden = true;
   renderBan();
   waitTimer = setInterval(checkBan, 30000);
 }
@@ -1271,6 +1296,7 @@ function renderBan() {
   if (b.endsAt) { $('#banEndL').textContent = term ? 'Deleted on' : 'Ends'; $('#banEnd').textContent = banWhen.format(new Date(b.endsAt)); }
   $('#banAgreeRow').hidden = $('#banReact').hidden = !over;
   $('#banReact').disabled = !$('#banAgree').checked;
+  renderAppeal(b);
   $('#banFine').textContent = `Notice #${b.id} · If you think this is a mistake, contact the person who runs this pagebot.`;
   clearInterval(banTick); banLeft();
   if (b.endsAt && !over) banTick = setInterval(banLeft, 1000);
@@ -1290,6 +1316,37 @@ async function checkBan() {
   if (!token) return showLogin(cfg?.ban ? '' : 'This account isn’t available anymore.', 'signin');
   if (cfg?.ban) renderBan(); else { stopWaitPoll(); clearInterval(banTick); route(true); }
 }
+// one appeal per ban: the form, then "sent", then the owner's answer (an accepted one lifts the ban, so the chat comes back)
+function renderAppeal(b) {
+  const a = b.appeal, can = ['active', 'terminated'].includes(b.state);
+  $('#banAppeal').hidden = !a && !can;
+  $('#banAppealOpen').hidden = !!a || !$('#banAppealForm').hidden;
+  if (a) $('#banAppealForm').hidden = true;
+  const st = $('#banAppealState');
+  st.hidden = !a;
+  if (!a) return;
+  st.replaceChildren();
+  const head = el('b'); head.textContent = a.decision === 'denied' ? 'Your appeal was denied.' : a.decision === 'accepted' ? 'Your appeal was accepted.' : 'Appeal sent.';
+  st.append(head, ' ' + (a.decision ? '' : `The owner will look at it. This screen updates by itself.`));
+  if (a.reply) st.append(`\nThe owner: “${a.reply}”`);
+  st.append(`\nYou wrote: “${a.body}”`);
+}
+$('#banAppealOpen').onclick = () => { $('#banAppealForm').hidden = false; $('#banAppealOpen').hidden = true; $('#banAppealText').focus(); };
+$('#banAppealForm').onsubmit = async e => {
+  e.preventDefault();
+  const b = cfg?.ban, text = $('#banAppealText').value.trim();
+  if (!b) return;
+  if (!text) return void ($('#banErr').textContent = 'Write why the owner should take another look.');
+  $('#banErr').textContent = ''; $('#banAppealSend').disabled = true;
+  try {
+    const r = await fetch('/api/ban-notice/appeal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: b.key, body: text }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) $('#banErr').textContent = j.error || 'That didn’t work — try again.';
+    else { $('#banAppealText').value = ''; b.appeal = j.appeal; }
+  } catch { $('#banErr').textContent = 'Network error'; }
+  $('#banAppealSend').disabled = false;
+  await checkBan();
+};
 $('#banAgree').onchange = () => { $('#banReact').disabled = !$('#banAgree').checked; };
 $('#banReact').onclick = async () => {
   const b = cfg?.ban; if (!b) return;
@@ -1349,7 +1406,7 @@ async function apiGet(path) {
 }
 async function loadBoot() {
   const session = token;
-  const r = await fetch('/api/boot', { headers: session ? { Authorization: 'Bearer ' + session } : {} });
+  const r = await fetch('/api/boot', { headers: { 'X-Pagebot-Device': device, ...(session ? { Authorization: 'Bearer ' + session } : {}) } });
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const next = await r.json();
   if (session !== token) return cfg; // a refresh from the previous login must not replace the current account
@@ -1361,7 +1418,7 @@ async function loadBoot() {
   if (cfg.authed && cfg.user) { store.set('pb_user', cfg.user.name); store.set('pb_pin', cfg.user.passcode ? '1' : null); }
   if (cfg.authed && cfg.prefs) { Object.assign(prefs, cfg.prefs); limits = cfg.limits; models = cfg.models || models; }
   else if (!cfg.authed && token) { token = null; store.set('pb_token', null); resetSiteMemory(); }
-  renderPrefs(); renderAccount(); renderAnn(); renderUpd();
+  renderPrefs(); renderAccount(); renderAnn(); renderRst(); renderUpd();
   return cfg;
 }
 const lockedMsg = () => pinWho() ? 'Locked — enter your passcode to pick up where you left off.'
@@ -1499,6 +1556,22 @@ if (standalone) $('#memoryHint').textContent = 'Manage instructions for your web
 
 // ---- the owner's announcement, until it's closed ----
 let annGone = 0;
+// a restriction shows above the chat while it runs (× hides it until the panel reloads)
+let rstGone = 0;
+const RST_WHEN = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+function renderRst() {
+  const r = view === 'chat' && cfg?.restriction?.id !== rstGone ? cfg?.restriction : null;
+  $('#rst').hidden = !r;
+  if (!r) return;
+  const l = r.limits || {}, lost = [];
+  if (l.noSonnet) lost.push('no Sonnet');
+  if (l.noWeb) lost.push('no web search');
+  if (l.limitKind) lost.push(`a daily limit of ${l.limitKind === 'usd' ? '$' + Number(l.limitValue).toFixed(2) : Number(l.limitValue).toLocaleString() + ' tokens'}`);
+  $('#rstText').textContent = `Your account is restricted until ${RST_WHEN.format(new Date(r.endsAt))}: ${lost.join(', ')}.`;
+  $('#rstMeta').textContent = `Reason: ${r.reason}` + (r.note ? `\n${r.note}` : '');
+}
+$('#rstX').onclick = () => { rstGone = cfg?.restriction?.id || 0; renderRst(); $('#q').focus(); };
+
 function renderAnn() {
   const a = view === 'chat' && cfg?.announcement?.id > annGone ? cfg.announcement : null;
   $('#ann').hidden = !a;
