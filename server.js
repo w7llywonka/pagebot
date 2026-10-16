@@ -70,6 +70,13 @@ const DAILY_RANGES = { tokens: [1_000, 100_000_000], usd: [0.01, 1000] };
 const RESERVED_NAMES = new Set(['owner', 'admin', 'root', 'pagebot', 'system', 'support']);
 const MAX_PENDING = 200;
 
+// Bans work like a game's: a ban keeps an account out for a while (or for good) and shows them a notice saying why.
+// Once a timed ban runs out they agree to the rules to re-activate the account. A termination shows its notice on
+// every sign-in until the account is deleted TERMINATE_DAYS later.
+const BAN_HOURS = [1, 24, 72, 168, 336, 720, 0]; // 0 = permanent
+const TERMINATE_DAYS = 14;
+const MAX_BAN_REASON = 120, MAX_BAN_NOTE = 1000;
+
 if (!process.env.DATABASE_URL) { console.error('DATABASE_URL is not set'); process.exit(1); }
 if (!process.env.ANTHROPIC_API_KEY) console.warn('ANTHROPIC_API_KEY is not set — chat will fail.');
 if (ADMIN_TOKEN.length < 16) console.warn('ADMIN_TOKEN is missing or under 16 chars — /admin stays locked until you set it.');
@@ -116,6 +123,24 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS passcode_fails INT NOT NULL DEFAULT 0
 ALTER TABLE users ADD COLUMN IF NOT EXISTS passcode_fails_at TIMESTAMPTZ; -- when the current run of wrong passcodes started
 ALTER TABLE users ADD COLUMN IF NOT EXISTS lock_minutes INT NOT NULL DEFAULT 15;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ann_seen BIGINT NOT NULL DEFAULT 0;
+CREATE TABLE IF NOT EXISTS bans (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  username TEXT NOT NULL, -- kept after a terminated account is deleted
+  kind TEXT NOT NULL, -- 'ban' or 'terminate'
+  hours INT, -- how long a ban lasts; NULL = permanent (and for terminations)
+  reason TEXT NOT NULL,
+  note TEXT,
+  notice_key TEXT NOT NULL UNIQUE, -- opens this notice at /banned without signing in
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ends_at TIMESTAMPTZ, -- when a ban ends, or when a terminated account is deleted
+  seen_at TIMESTAMPTZ, -- first time they were shown it
+  reactivated_at TIMESTAMPTZ,
+  lifted_at TIMESTAMPTZ, -- unbanned (or replaced by a newer ban)
+  deleted_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS bans_user_idx ON bans (user_id, id);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_id BIGINT; -- the ban or termination in force
 CREATE TABLE IF NOT EXISTS announcements (
   id BIGSERIAL PRIMARY KEY,
   body TEXT NOT NULL,
@@ -299,7 +324,7 @@ function toUser(r) {
     allowSonnet: r.allow_sonnet, allowWeb: r.allow_web, prefs: parseJSON(r.prefs),
     createdAt: r.created_at, approvedAt: r.approved_at, lastSeen: r.last_seen,
     passcode: !!r.passcode_hash, lockMinutes: LOCK_CHOICES.includes(Number(r.lock_minutes)) ? Number(r.lock_minutes) : 15,
-    annSeen: Number(r.ann_seen) || 0,
+    annSeen: Number(r.ann_seen) || 0, banId: r.ban_id == null ? null : Number(r.ban_id),
   };
 }
 // what the panel shows for an account (never the owner's private note)
@@ -336,6 +361,51 @@ function quota(u, used) {
   return { kind: u.limitKind, limit: u.limitValue, used: spent, left: Math.max(0, u.limitValue - spent) };
 }
 const fmtLimit = (kind, v) => kind === 'usd' ? `$${Number(v).toFixed(2)}` : `${v >= 1000 ? Math.round(v / 100) / 10 + 'K' : v} tokens`;
+
+// ---------- bans ----------
+// active: banned until ends_at (or for good); ended: the time is up but they haven't re-activated yet;
+// terminated: shown on every sign-in until the account is deleted. The others no longer keep anyone out.
+function banState(b) {
+  if (b.lifted_at) return 'lifted';
+  if (b.deleted_at) return 'deleted';
+  if (b.kind === 'terminate') return 'terminated';
+  if (b.reactivated_at) return 'reactivated';
+  return b.ends_at && new Date(b.ends_at) <= Date.now() ? 'ended' : 'active';
+}
+const LIVE_BAN = new Set(['active', 'ended', 'terminated']);
+// what the banned person sees, in the panel and on the notice page
+const publicBan = b => ({
+  id: Number(b.id), kind: b.kind, state: banState(b), name: b.username, reason: b.reason, note: b.note || '',
+  hours: b.hours == null ? null : Number(b.hours), at: b.created_at, endsAt: b.ends_at, key: b.notice_key,
+});
+const adminBan = b => ({
+  ...publicBan(b), userId: b.user_id == null ? null : Number(b.user_id),
+  seenAt: b.seen_at, liftedAt: b.lifted_at, reactivatedAt: b.reactivated_at, deletedAt: b.deleted_at,
+});
+const banMsg = b => banState(b) === 'terminated' ? 'This account has been terminated.'
+  : banState(b) === 'ended' ? 'Your ban is over. Re-activate your account to keep going.' : 'This account is banned.';
+async function liveBan(id) {
+  if (!id) return null;
+  const b = (await pool.query('SELECT * FROM bans WHERE id=$1', [id])).rows[0];
+  return b && LIVE_BAN.has(banState(b)) ? b : null;
+}
+const markBanSeen = id => pool.query('UPDATE bans SET seen_at = now() WHERE id = $1 AND seen_at IS NULL', [id]);
+// terminated accounts are deleted once their two weeks are up; the notice and the moderation log stay
+async function purgeTerminated() {
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+    const due = await db.query(`UPDATE bans b SET deleted_at = now() FROM users u
+      WHERE u.ban_id = b.id AND b.kind = 'terminate' AND b.lifted_at IS NULL AND b.deleted_at IS NULL AND b.ends_at <= now()
+      RETURNING b.user_id`);
+    if (due.rowCount) await db.query('DELETE FROM users WHERE id = ANY($1::bigint[])', [due.rows.map(r => r.user_id)]);
+    await db.query('COMMIT');
+    if (due.rowCount) console.log(`Deleted ${due.rowCount} terminated account${due.rowCount === 1 ? '' : 's'}.`);
+  } catch (e) {
+    await db.query('ROLLBACK');
+    throw e;
+  } finally { db.release(); }
+}
 
 // Announcements: everyone with an account sees the newest one until they dismiss it.
 // Posting a new one replaces it; taking it down hides it without bringing back an older one.
@@ -410,7 +480,10 @@ async function touchSession(tok, lock) {
   const uid = r.rows[0].user_id;
   if (uid == null) return { user: null };
   const u = await pool.query('UPDATE users SET last_seen=now() WHERE id=$1 RETURNING *', [uid]);
-  return u.rowCount ? { user: toUser(u.rows[0]) } : null;
+  if (!u.rowCount) return null;
+  const user = toUser(u.rows[0]);
+  user.ban = await liveBan(user.banId); // a banned account stays signed in, so it keeps seeing why
+  return { user };
 }
 async function newSession(userId = null) {
   const token = crypto.randomBytes(32).toString('base64url');
@@ -423,6 +496,7 @@ async function auth(req, res, next) {
   req.cfg = await loadConfig();
   const s = await touchSession(tok, req.cfg.lock);
   if (!s) return res.status(401).json({ error: req.cfg.lock.on ? 'Locked' : 'Session expired', locked: req.cfg.lock.on });
+  if (s.user?.ban) return res.status(403).json({ error: banMsg(s.user.ban), banned: true });
   req.user = s.user;
   next();
 }
@@ -443,6 +517,7 @@ function admin(req, res, next) {
 setInterval(() => {
   pool.query('DELETE FROM sessions WHERE last_used < now() - make_interval(days => $1)', [SESSION_DAYS]).catch(() => {});
 }, 6 * 3600_000).unref();
+setInterval(() => purgeTerminated().catch(e => console.error('purge error:', e.message)), 10 * 60_000).unref();
 
 // ---------- app ----------
 const app = express();
@@ -504,6 +579,8 @@ app.get(['/', '/install'], (req, res) => {
 app.get('/widget', (req, res) => sendPage(res, 'widget.html', { frames: '*' }));
 app.get('/chat', (req, res) => sendPage(res, 'widget.html'));
 app.get('/admin', (req, res) => sendPage(res, 'admin.html'));
+// the ban notice; the panel opens it in a new tab with the notice's key after the #
+app.get('/banned', (req, res) => sendPage(res, 'banned.html', { headers: { 'Cache-Control': 'no-store' } }));
 
 app.get('/health', async (req, res) => {
   await pool.query('SELECT 1');
@@ -529,6 +606,10 @@ app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
   if (!s) return res.json(out);
   if (!u) return res.json({ ...out, who: 'owner', lockMinutes: cfg.lock.on ? cfg.lock.minutes : 0, prefs: cfg.prefs, limits: limitsFor(cfg, null), models: modelList() });
   out.who = 'user'; out.lockMinutes = userLockMinutes(u); out.lockChoices = LOCK_CHOICES; out.user = publicUser(u);
+  if (u.ban) {
+    await markBanSeen(u.ban.id);
+    return res.json({ ...out, ban: publicBan(u.ban) });
+  }
   if (u.status === 'trusted') {
     const a = await currentAnnouncement();
     Object.assign(out, {
@@ -579,6 +660,7 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
   const b = req.body || {};
   const old = bearer(req);
   if (b.username) {
+    await purgeTerminated(); // a termination whose two weeks are up ends here, not at the next sweep
     const r = await pool.query('SELECT id, password_hash, passcode_hash, status FROM users WHERE lower(username) = lower($1)', [String(b.username).trim()]);
     const u = r.rows[0];
     if (b.passcode != null) {
@@ -774,6 +856,31 @@ app.post('/api/account/passcode', limit(10, 'login'), auth, trusted, async (req,
 });
 
 // an account closed the announcement banner (older ones count as seen too)
+// The notice page: anyone with its key (only the banned person's panel gets it) can read it, and re-activate
+// the account once a timed ban is over.
+const noticeKey = v => typeof v === 'string' && /^[A-Za-z0-9_-]{20,64}$/.test(v) ? v : null;
+app.post('/api/ban-notice', limit(30, 'notice'), async (req, res) => {
+  const key = noticeKey(req.body?.key);
+  const b = key && (await pool.query('SELECT * FROM bans WHERE notice_key=$1', [key])).rows[0];
+  if (!b) return res.status(404).json({ error: 'We couldn’t find that notice.' });
+  if (LIVE_BAN.has(banState(b))) await markBanSeen(b.id);
+  res.json({ ban: publicBan(b), now: new Date() });
+});
+app.post('/api/ban-notice/reactivate', limit(10, 'notice-ok'), async (req, res) => {
+  const key = noticeKey(req.body?.key);
+  if (req.body?.agree !== true) return res.status(400).json({ error: 'Tick the box to agree to the rules first.' });
+  const b = key && (await pool.query('SELECT * FROM bans WHERE notice_key=$1', [key])).rows[0];
+  if (!b) return res.status(404).json({ error: 'We couldn’t find that notice.' });
+  const state = banState(b);
+  if (state !== 'ended') {
+    return res.status(409).json({ ban: publicBan(b), error: state === 'active' ? 'This ban isn’t over yet.'
+      : state === 'terminated' ? 'A terminated account can’t be re-activated.' : 'This account doesn’t need re-activating.' });
+  }
+  const r = await pool.query('UPDATE bans SET reactivated_at = now() WHERE id = $1 AND reactivated_at IS NULL RETURNING *', [b.id]);
+  await pool.query('UPDATE users SET ban_id = NULL WHERE id = $1 AND ban_id = $2', [b.user_id, b.id]);
+  res.json({ ok: true, ban: publicBan(r.rows[0] || b) });
+});
+
 app.post('/api/announcements/seen', limit(30, 'prefs'), auth, async (req, res) => {
   const id = clampInt(req.body?.id, 0, Number.MAX_SAFE_INTEGER);
   if (req.user && id) await pool.query('UPDATE users SET ann_seen = GREATEST(ann_seen, $2) WHERE id = $1', [req.user.id, id]);
@@ -1283,7 +1390,8 @@ app.get('/api/admin/users', limit(60, 'admin'), admin, async (req, res) => {
       FROM messages GROUP BY user_id
     )
     SELECT u.*, (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id)::int AS devices,
-      t.today_tokens, t.today_usd, t.today_q, t.week_tokens, t.week_usd, t.total_tokens, t.total_usd, t.total_q
+      t.today_tokens, t.today_usd, t.today_q, t.week_tokens, t.week_usd, t.total_tokens, t.total_usd, t.total_q,
+      (SELECT row_to_json(b) FROM bans b WHERE b.id = u.ban_id) AS ban
     FROM users u LEFT JOIN t ON t.user_id = u.id
     ORDER BY CASE u.status WHEN 'pending' THEN 0 WHEN 'trusted' THEN 1 ELSE 2 END, u.created_at DESC`, [TIMEZONE]);
   const own = (await pool.query(`
@@ -1291,7 +1399,9 @@ app.get('/api/admin/users', limit(60, 'admin'), admin, async (req, res) => {
       SUM(cost_usd) FILTER (WHERE created_at >= ${todayStartSQL.replaceAll('$2', '$1')}) AS today_usd,
       SUM(input_tokens + output_tokens) AS total_tokens, SUM(cost_usd) AS total_usd
     FROM messages WHERE user_id IS NULL`, [TIMEZONE])).rows[0];
+  const bans = await pool.query('SELECT * FROM bans ORDER BY id DESC LIMIT 100');
   res.json({
+    bans: bans.rows.map(adminBan), banHours: BAN_HOURS, terminateDays: TERMINATE_DAYS,
     signup: cfg.signup, defaults: cfg.accountDefaults, ranges: DAILY_RANGES, timezone: TIMEZONE,
     owner: { today: { tokens: +own.today_tokens || 0, usd: +own.today_usd || 0 }, total: { tokens: +own.total_tokens || 0, usd: +own.total_usd || 0 } },
     users: r.rows.map(adminUser),
@@ -1301,7 +1411,7 @@ function adminUser(x) {
   const u = toUser(x);
   delete u.prefs;
   return {
-    ...u, devices: x.devices ?? 0,
+    ...u, devices: x.devices ?? 0, ban: x.ban && LIVE_BAN.has(banState(x.ban)) ? adminBan(x.ban) : null,
     today: { tokens: +x.today_tokens || 0, usd: +x.today_usd || 0, questions: +x.today_q || 0 },
     week: { tokens: +x.week_tokens || 0, usd: +x.week_usd || 0 },
     total: { tokens: +x.total_tokens || 0, usd: +x.total_usd || 0, questions: +x.total_q || 0 },
@@ -1352,8 +1462,53 @@ app.post('/api/admin/users/:id', limit(60, 'admin'), admin, async (req, res) => 
 // deleting a waiting account is how a request gets turned down; usage history stays in the totals
 app.delete('/api/admin/users/:id', limit(60, 'admin'), admin, async (req, res) => {
   const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+  // a ban in force goes into the moderation log as deleted, like a termination that ran its course
+  await pool.query('UPDATE bans SET deleted_at = now() WHERE id = (SELECT ban_id FROM users WHERE id = $1) AND lifted_at IS NULL AND deleted_at IS NULL', [id]);
   const r = await pool.query('DELETE FROM users WHERE id=$1', [id]);
   if (!r.rowCount) return res.status(404).json({ error: 'No such user.' });
+  res.json({ ok: true });
+});
+
+// Ban an account for a while or for good, or terminate it (deleted after TERMINATE_DAYS). It stays signed in,
+// so its panel switches to the notice right away. A new ban replaces the one in force.
+app.post('/api/admin/users/:id/ban', limit(30, 'admin'), admin, async (req, res) => {
+  const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+  const cur = id && (await pool.query('SELECT id, username FROM users WHERE id=$1', [id])).rows[0];
+  if (!cur) return res.status(404).json({ error: 'No such user.' });
+  const b = req.body || {};
+  const kind = ['ban', 'terminate'].includes(b.kind) ? b.kind : null;
+  if (!kind) return res.status(400).json({ error: 'Pick a ban or a termination.' });
+  const reason = String(b.reason ?? '').trim().slice(0, MAX_BAN_REASON);
+  if (!reason) return res.status(400).json({ error: 'Give a reason. They see it on the notice.' });
+  const note = String(b.note ?? '').trim().slice(0, MAX_BAN_NOTE) || null;
+  const hours = kind === 'ban' ? Number(b.hours) : null;
+  if (kind === 'ban' && !BAN_HOURS.includes(hours)) return res.status(400).json({ error: 'Pick one of the listed ban lengths.' });
+  const ends = kind === 'terminate' ? TERMINATE_DAYS * 24 : hours || null;
+  const db = await pool.connect();
+  let row;
+  try {
+    await db.query('BEGIN');
+    await db.query(`UPDATE bans SET lifted_at = now() WHERE id = (SELECT ban_id FROM users WHERE id = $1 FOR UPDATE) AND lifted_at IS NULL`, [id]);
+    row = (await db.query(
+      `INSERT INTO bans(user_id, username, kind, hours, reason, note, notice_key, ends_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $8::int IS NULL THEN NULL ELSE now() + make_interval(hours => $8::int) END) RETURNING *`,
+      [id, cur.username, kind, hours || null, reason, note, crypto.randomBytes(24).toString('base64url'), ends])).rows[0];
+    await db.query('UPDATE users SET ban_id = $2 WHERE id = $1', [id, row.id]);
+    await db.query('COMMIT');
+  } catch (e) {
+    await db.query('ROLLBACK');
+    throw e;
+  } finally { db.release(); }
+  res.json({ ok: true, ban: adminBan(row) });
+});
+
+// unban, or reverse a termination before the account is deleted
+app.delete('/api/admin/users/:id/ban', limit(30, 'admin'), admin, async (req, res) => {
+  const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+  const r = await pool.query(
+    `UPDATE bans SET lifted_at = now() WHERE id = (SELECT ban_id FROM users WHERE id = $1) AND lifted_at IS NULL AND deleted_at IS NULL RETURNING id`, [id]);
+  await pool.query('UPDATE users SET ban_id = NULL WHERE id = $1', [id]);
+  if (!r.rowCount) return res.status(404).json({ error: 'They aren’t banned.' });
   res.json({ ok: true });
 });
 
@@ -1440,4 +1595,5 @@ app.use((err, req, res, next) => {
 });
 
 await initDb();
+await purgeTerminated();
 app.listen(PORT, () => console.log(`pagebot listening on :${PORT} (${Object.values(MODELS).map(m => m.id).join(', ')}, effort ${EFFORT})`));

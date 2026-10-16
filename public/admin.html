@@ -113,6 +113,30 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
 .chip{font-size:11px;font-weight:600;border-radius:99px;padding:1px 8px;white-space:nowrap;border:1px solid var(--line);color:var(--muted)}
 .chip.trusted{color:var(--ok);border-color:rgba(127,201,154,.35)}
 .chip.blocked{color:var(--err);border-color:rgba(255,138,122,.35)}
+.chip.banned{color:#fff;background:#b4432f;border-color:#b4432f}
+.chip.term{color:#141414;background:var(--text);border-color:var(--text)}
+.chip.over{color:#e0a030;border-color:rgba(224,160,48,.45)}
+/* moderation: bans and terminations */
+.banbox{background:rgba(180,67,47,.1);border:1px solid rgba(255,138,122,.35);border-radius:10px;padding:10px 12px}
+.banbox.term{background:rgba(235,232,225,.06);border-color:#5a5650}
+.banbox b{font-weight:650}
+.banbox .annmeta{overflow-wrap:anywhere}
+.banbox .btns{margin-top:10px;align-items:center}
+.banbox a{font-size:13px}
+.banform{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.banform .inl{margin-bottom:8px}
+.banform select{width:auto;margin:0}
+.banform textarea{min-height:56px}
+.banform .btns{margin-top:2px}
+button.bad{background:#b4432f}
+button.worst{background:var(--text);color:#141414}
+.hist{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.6;overflow-wrap:anywhere}
+.mrow{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.mrow:first-child{border-top:0}
+.mrow .uinfo{font-size:13px}
+.mrow .uinfo b{font-size:14px}
+.mrow .btns{flex:none}
+.mrow a{font-size:12.5px;white-space:nowrap}
 .meterw{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);white-space:nowrap;min-width:0}
 .meterw .mtext{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .mtrack{flex:none;width:70px;height:6px;border-radius:99px;background:rgba(217,119,87,.18);overflow:hidden}
@@ -202,6 +226,13 @@ details.defaults summary{cursor:pointer;color:var(--muted);font-size:13px}
         <div class="msg" id="dMsg"></div>
       </details>
     </div>
+
+    <div class="card" id="modCard" hidden>
+      <h2>Moderation</h2>
+      <p class="muted" style="margin-top:0" id="modHint"></p>
+      <div id="modList"></div>
+    </div>
+    <datalist id="banReasons"><option value="Spamming"><option value="Harassment or bullying"><option value="Inappropriate content"><option value="Abusing pagebot"><option value="Sharing your account"><option value="Breaking the rules"></datalist>
 
     <form class="card" id="annForm" autocomplete="off">
       <h2>Announcement</h2>
@@ -486,8 +517,115 @@ const ago = t => {
 const dateFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const limitText = (kind, v) => kind === 'usd' ? money(+v) : `${short(+v)} tokens`;
+// ---- bans and terminations ----
+const banDur = h => h == null || h === 0 ? 'permanently' : h < 24 ? `${h} hour${h === 1 ? '' : 's'}` : `${h / 24} day${h === 24 ? '' : 's'}`;
+const until = t => { const s = (new Date(t) - Date.now()) / 1000; return s <= 60 ? 'a minute' : s < 3600 ? `${Math.ceil(s / 60)}m` : s < 86400 ? `${Math.round(s / 3600)}h` : `${Math.round(s / 86400)}d`; };
+const banWhat = b => b.kind === 'terminate' ? 'Terminated' : `Banned ${b.hours == null ? 'permanently' : 'for ' + banDur(b.hours)}`;
+const BAN_STATES = {
+  active: b => b.endsAt ? `${until(b.endsAt)} left` : 'in force',
+  ended: () => 'over, not re-activated yet',
+  terminated: b => `account deleted in ${until(b.endsAt)}`,
+  reactivated: b => `re-activated ${ago(b.reactivatedAt)}`,
+  lifted: b => `lifted ${ago(b.liftedAt)}`,
+  deleted: b => `account deleted ${ago(b.deletedAt)}`,
+};
+const banStatus = b => BAN_STATES[b.state]?.(b) || b.state;
+function banChip(b) {
+  const [cls, text] = b.state === 'terminated' ? ['term', `Terminated · ${until(b.endsAt)}`] : b.state === 'ended' ? ['over', 'Ban over']
+    : ['banned', b.endsAt ? `Banned · ${until(b.endsAt)}` : 'Banned'];
+  const c = mk('span', 'chip ' + cls, text); c.title = `${banWhat(b)}: ${b.reason}`;
+  return c;
+}
+const noticeLink = b => { const a = mk('a', '', 'Their notice ↗'); a.href = '/banned#' + encodeURIComponent(b.key); a.target = '_blank'; a.rel = 'noopener'; return a; };
+// what a person's details show: the ban in force with an undo, or a form to ban or terminate them, then their history
+function moderation(u) {
+  const f = mk('div', 'field'); f.appendChild(mk('span', 'fl', 'Moderation'));
+  const b = u.ban;
+  if (b) {
+    const box = mk('div', 'banbox' + (b.kind === 'terminate' ? ' term' : ''));
+    box.append(mk('b', '', banWhat(b)), ' · ' + banStatus(b));
+    box.appendChild(mk('div', 'unote', `Reason: ${b.reason}`));
+    if (b.note) box.appendChild(mk('div', 'unote', `Note: ${b.note}`));
+    box.appendChild(mk('div', 'annmeta', `${ago(b.at)} · ` + (b.endsAt ? `${b.kind === 'terminate' ? 'deleted' : 'ends'} ${dateFmt.format(new Date(b.endsAt))} · ` : '') +
+      (b.seenAt ? `they saw the notice ${ago(b.seenAt)}` : 'they haven’t seen the notice yet')));
+    const btns = mk('div', 'btns'), undo = mk('button', 'ghost', b.kind === 'terminate' ? 'Reverse termination' : 'Unban');
+    undo.type = 'button';
+    undo.onclick = () => unban(u, b);
+    btns.append(undo, noticeLink(b)); box.appendChild(btns);
+    f.appendChild(box);
+  } else {
+    const form = mk('div', 'banform'), inl = mk('div', 'inl'), seg = mk('div', 'seg'), len = mk('select');
+    let kind = 'ban';
+    for (const h of users.banHours) len.add(new Option(h ? 'for ' + banDur(h) : 'permanently', h));
+    len.value = 24; len.setAttribute('aria-label', 'Ban length');
+    const reason = mk('input'), note = mk('textarea'), go = mk('button', 'bad', ''), hint = mk('p', 'hint');
+    reason.setAttribute('list', 'banReasons'); reason.maxLength = 120; reason.placeholder = 'Reason (they see it)'; reason.setAttribute('aria-label', 'Reason');
+    note.maxLength = 1000; note.rows = 2; note.placeholder = 'Moderator note (optional, they see it too)'; note.setAttribute('aria-label', 'Moderator note');
+    go.type = 'button';
+    const setK = k => {
+      kind = k;
+      seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.k === k));
+      len.hidden = k !== 'ban';
+      go.className = k === 'ban' ? 'bad' : 'worst';
+      go.textContent = k === 'ban' ? `Ban ${u.name}` : `Terminate ${u.name}`;
+      hint.textContent = k === 'ban' ? 'Their panel switches to a ban notice right away and opens the full notice in a new tab. They can re-activate once it ends.'
+        : `Every sign-in shows the termination notice, and the account is deleted in ${users.terminateDays} days. You can reverse it until then.`;
+    };
+    for (const [k, label] of [['ban', 'Ban'], ['terminate', 'Terminate']]) {
+      const x = mk('button', '', label); x.type = 'button'; x.dataset.k = k; x.onclick = () => setK(k); seg.appendChild(x);
+    }
+    inl.append(seg, len); setK('ban');
+    go.onclick = () => {
+      if (!reason.value.trim()) { reason.focus(); flash = { id: u.id, text: 'Give a reason. They see it on the notice.', err: true }; return showFlash(); }
+      if (kind === 'terminate' && !confirm(`Terminate ${u.name}? They’ll see the termination notice every time they sign in, and the account is deleted in ${users.terminateDays} days.`)) return;
+      const body = { kind, reason: reason.value, note: note.value, ...(kind === 'ban' && { hours: +len.value }) };
+      act(u, body, kind === 'ban' ? `${u.name} is banned ${len.value === '0' ? 'permanently' : 'for ' + banDur(+len.value)}.` : `${u.name}’s account is terminated.`, false,
+        { path: `/api/admin/users/${u.id}/ban` });
+    };
+    const btns = mk('div', 'btns'); btns.appendChild(go);
+    form.append(inl, reason, note, btns, hint);
+    f.appendChild(form);
+  }
+  const past = users.bans.filter(x => x.userId === u.id && x.id !== b?.id);
+  if (past.length) {
+    const h = mk('div', 'hist');
+    h.appendChild(mk('div', '', 'Past bans:'));
+    for (const x of past.slice(0, 10)) h.appendChild(mk('div', '', `${dateFmt.format(new Date(x.at))} · ${banWhat(x)} · ${x.reason} · ${banStatus(x)}`));
+    f.appendChild(h);
+  }
+  return f;
+}
+async function unban(u, b) {
+  const term = b.kind === 'terminate';
+  if (!confirm(term ? `Reverse ${u.name}’s termination? Their account won’t be deleted and they can use pagebot again.` : `Unban ${u.name}?`)) return;
+  await act(u, null, term ? `${u.name}’s termination is reversed.` : `${u.name} is unbanned.`, false, { path: `/api/admin/users/${u.id}/ban`, method: 'DELETE' });
+}
+function renderMod() {
+  const list = users.bans, live = list.filter(b => ['active', 'ended', 'terminated'].includes(b.state));
+  $('#modCard').hidden = !list.length;
+  $('#modHint').textContent = `${live.length ? `${live.length} in force. ` : ''}Bans and terminations, newest first. ` +
+    `A terminated account is deleted ${users.terminateDays} days after it’s terminated.`;
+  $('#modList').replaceChildren(...list.slice(0, 30).map(b => {
+    const row = mk('div', 'mrow'), info = mk('div', 'uinfo');
+    info.append(mk('b', '', b.name), ' ', mk('span', 'ago', `${banWhat(b)} · ${ago(b.at)}`));
+    info.appendChild(mk('div', 'unote', `${b.reason}${b.note ? ` — ${b.note}` : ''}`));
+    info.appendChild(mk('div', 'ago', banStatus(b) + (b.seenAt ? ` · seen ${ago(b.seenAt)}` : ' · not seen yet')));
+    row.appendChild(info);
+    const btns = mk('div', 'btns');
+    if (['active', 'ended', 'terminated'].includes(b.state) && b.userId != null) {
+      const x = mk('button', 'ghost', b.kind === 'terminate' ? 'Reverse' : 'Unban'); x.type = 'button';
+      x.onclick = () => unban({ id: b.userId, name: b.name }, b);
+      btns.appendChild(x);
+    }
+    btns.appendChild(noticeLink(b));
+    row.appendChild(btns);
+    return row;
+  }));
+}
+
 async function loadUsers() {
   const d = users = await api('/api/admin/users');
+  renderMod();
   $('#signup').checked = d.signup;
   $('#signupState').textContent = d.signup ? 'Sign-ups open' : 'Sign-ups closed';
   renderDefaults(d.defaults);
@@ -530,7 +668,7 @@ function ownerRow(o) {
 function userRow(u) {
   const row = mk('div', 'urow' + (openUser === u.id ? ' open' : ''));
   const head = mk('button', 'uhead'); head.type = 'button'; head.setAttribute('aria-expanded', String(openUser === u.id));
-  head.append(mk('span', 'uname', u.name), mk('span', 'chip ' + u.status, u.status === 'trusted' ? 'Trusted' : 'Blocked'));
+  head.append(mk('span', 'uname', u.name), u.ban ? banChip(u.ban) : mk('span', 'chip ' + u.status, u.status === 'trusted' ? 'Trusted' : 'Blocked'));
   const usedNow = u.limitKind === 'usd' ? u.today.usd : u.today.tokens;
   if (u.limitKind) {
     const m = meter(usedNow, u.limitValue);
@@ -587,6 +725,7 @@ function editor(u) {
     ` · ${u.devices} device${u.devices === 1 ? '' : 's'} signed in · ` +
     (!u.passcode ? 'no passcode' : u.lockMinutes ? `passcode on, locks after ${lockName(u.lockMinutes)}` : 'passcode on, no auto-lock'));
   if (u.note) { st.appendChild(document.createElement('br')); st.append(`They wrote: “${u.note}”`); }
+  const fm = moderation(u);
   // actions
   const btns = mk('div', 'btns'), msg = mk('div', 'msg');
   const save = mk('button', '', 'Save'), reset = mk('button', 'ghost', 'Reset password'), out = mk('button', 'ghost', 'Sign out'),
@@ -607,14 +746,14 @@ function editor(u) {
   blk.onclick = () => act(u, { status: u.status === 'blocked' ? 'trusted' : 'blocked' }, u.status === 'blocked' ? `${u.name} can use pagebot again.` : `${u.name} is blocked and signed out.`);
   rm.onclick = async () => { if (confirm(`Delete ${u.name}? They're signed out and the account is gone. Their past usage stays in the totals.`)) await del(u); };
   btns.append(save, reset, out, blk, rm);
-  ed.append(f1, f2, f3, st, btns, np, msg);
+  ed.append(f1, f2, f3, st, btns, np, fm, msg);
   ed.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); (i === npIn ? npGo : save).click(); } }));
   return ed;
 }
 let flash = null; // message to show after the list re-renders
-async function act(u, body, okText, isApproval) {
+async function act(u, body, okText, isApproval, { path = '/api/admin/users/' + u.id, method = 'POST' } = {}) {
   try {
-    await api('/api/admin/users/' + u.id, { method: 'POST', body: JSON.stringify(body) });
+    await api(path, { method, ...(body && { body: JSON.stringify(body) }) });
     if (isApproval) openUser = u.id;
     flash = { id: u.id, text: okText };
     await loadUsers(); load().catch(() => {});

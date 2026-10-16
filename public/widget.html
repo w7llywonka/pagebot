@@ -276,6 +276,28 @@ textarea:focus,input:focus{border-color:var(--focus)}
 #wait.in .hg svg,#wait.in .hg::after{animation:none}
 #wait.in .hg::after{opacity:0}
 
+/* banned or terminated: the notice, like a game's */
+#ban{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:22px 26px;text-align:center;overflow:auto}
+#ban h2{margin:6px 0 0;font-size:18px}
+#ban p{margin:0;color:var(--muted);font-size:13px;max-width:310px}
+#ban .bk{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--err)}
+.bi{width:64px;height:64px;border-radius:20px;background:color-mix(in srgb,var(--err) 16%,var(--panel));color:var(--err);display:grid;place-items:center;animation:bPop .5s cubic-bezier(.3,1.6,.5,1)}
+.bi svg{width:30px;height:30px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+#ban.term .bi{background:var(--text);color:var(--bg)}
+#ban.term .bk{color:var(--text)}
+#ban.over .bi{background:var(--chip-on);color:var(--accent)}
+#ban.over .bk{color:var(--accent)}
+.bfacts{width:100%;max-width:310px;margin:4px 0 0;text-align:left;border:1px solid var(--line);border-radius:12px;background:var(--panel);font-size:12.5px}
+.bfacts div{display:flex;gap:10px;padding:7px 11px;border-top:1px solid var(--line)}
+.bfacts div:first-child{border-top:0}
+.bfacts dt{flex:none;width:76px;color:var(--muted)}
+.bfacts dd{margin:0;min-width:0;overflow-wrap:anywhere;white-space:pre-wrap}
+#banLeft{font-variant-numeric:tabular-nums;color:var(--text)!important;font-weight:600}
+.bagree{display:flex;gap:8px;align-items:flex-start;max-width:310px;text-align:left;font-size:12.5px;cursor:pointer}
+.bagree input{margin:2px 0 0;accent-color:var(--accent);flex:none}
+#banReact:disabled{opacity:.45;cursor:default}
+#banErr{color:var(--err)!important;min-height:0}
+
 /* settings: today's usage and the account */
 .qbar{height:8px;border-radius:99px;background:color-mix(in srgb,var(--accent) 16%,var(--panel));overflow:hidden}
 .qbar i{display:block;height:100%;width:0;border-radius:99px;background:var(--accent);transition:width .4s ease}
@@ -528,6 +550,24 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
   <p id="waitText">Thanks for signing up, <b id="waitName"></b>. You’re waiting to be accepted into the program. This panel opens up by itself as soon as the owner approves you.</p>
   <p id="waitDone" hidden>The owner accepted you. Opening pagebot…</p>
   <div class="links" id="waitLinks"><button class="link" id="waitCheck" type="button">Check now</button> · <button class="link" id="waitOut" type="button">Sign out</button></div>
+</div>
+
+<div id="ban" hidden>
+  <div class="bi"><svg id="banIcon" viewBox="0 0 24 24"></svg></div>
+  <span class="bk" id="banKicker">Account banned</span>
+  <h2 id="banTitle"></h2>
+  <p id="banText"></p>
+  <dl class="bfacts">
+    <div><dt>Reason</dt><dd id="banReason"></dd></div>
+    <div id="banNoteRow"><dt>Note</dt><dd id="banNote"></dd></div>
+    <div><dt>Reviewed</dt><dd id="banAt"></dd></div>
+    <div id="banEndRow"><dt id="banEndL">Ends</dt><dd id="banEnd"></dd></div>
+  </dl>
+  <p id="banLeft" hidden></p>
+  <label class="bagree" id="banAgreeRow" hidden><input type="checkbox" id="banAgree"> I agree to follow pagebot’s rules from now on.</label>
+  <button class="send" id="banReact" type="button" disabled hidden>Re-activate my account</button>
+  <p id="banErr" role="alert"></p>
+  <div class="links"><a class="link" id="banOpen" href="/banned" target="_blank" rel="noopener">Open the full notice ↗</a> · <button class="link" id="banOut" type="button">Sign out</button></div>
 </div>
 
 <div id="log" hidden></div>
@@ -969,7 +1009,7 @@ function setHeader(chat) {
 }
 function hideViews() {
   $('#login').style.display = 'none'; $('#login').classList.remove('leave');
-  $('#wait').hidden = true; log.hidden = true; $('#composer').hidden = true; $('#ann').hidden = true; $('#upd').hidden = true;
+  $('#wait').hidden = true; $('#ban').hidden = true; log.hidden = true; $('#composer').hidden = true; $('#ann').hidden = true; $('#upd').hidden = true;
   stopWaitPoll(); closeWrap();
 }
 let chatWho = null; // whose chat is in the log
@@ -990,6 +1030,7 @@ function showChat(enter) {
 // once we know who's signed in: the chat, or the waiting screen for accounts not approved yet
 function route(enter) {
   if (!token) return showLogin();
+  if (cfg?.ban) return view === 'ban' ? renderBan() : showBan(enter);
   if (isUser() && cfg.user?.status !== 'trusted') return view === 'wait' ? null : showWait();
   if (view !== 'chat') showChat(enter);
 }
@@ -1190,6 +1231,87 @@ async function checkWait(manual) {
 $('#waitCheck').onclick = () => checkWait(true);
 $('#waitOut').onclick = () => logout();
 
+// banned or terminated: the panel shows the notice instead of the chat, and opens the full one on the pagebot site
+// in a new tab. It checks back every 30 seconds, so an unban (or the end of a ban) shows up by itself.
+const BAN_ICONS = {
+  ban: '<circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/>',
+  term: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  over: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+};
+const banWhen = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+const banDur = h => h == null ? 'permanently' : h < 24 ? `${h} hour${h === 1 ? '' : 's'}` : `${h / 24} day${h === 24 ? '' : 's'}`;
+const noticeUrl = b => `${location.origin}/banned#${encodeURIComponent(b.key)}`;
+let banTick = 0;
+// a new tab each time someone signs in to a banned account, and once (per site) when a ban or its state is new
+function openNotice(force) {
+  const b = cfg?.ban; if (!b) return;
+  const tag = `${b.id}:${b.state}`;
+  if (!force && store.get('pb_ban') === tag) return;
+  store.set('pb_ban', tag);
+  try { const w = window.open(noticeUrl(b), '_blank'); if (w) try { w.opener = null; } catch {} } catch {}
+}
+function showBan(force) {
+  hideViews(); view = 'ban'; closeSheet(); closeMenus(); chatGen++; ctrl?.abort();
+  setHeader(false);
+  $('#ban').hidden = false;
+  $('#banAgree').checked = false; $('#banErr').textContent = '';
+  renderBan();
+  openNotice(force);
+  waitTimer = setInterval(checkBan, 30000);
+}
+function renderBan() {
+  const b = cfg?.ban; if (!b) return;
+  const term = b.state === 'terminated', over = b.state === 'ended';
+  $('#ban').className = term ? 'term' : over ? 'over' : '';
+  $('#banIcon').innerHTML = BAN_ICONS[term ? 'term' : over ? 'over' : 'ban'];
+  $('#banKicker').textContent = term ? 'Account terminated' : over ? 'Your ban is over' : 'Account banned';
+  $('#banTitle').textContent = term ? 'Your account has been terminated' : `Banned ${b.hours == null ? 'permanently' : 'for ' + banDur(b.hours)}`;
+  $('#banText').textContent = term ? 'Our review found that your use of pagebot seriously broke its rules. Signing in shows this notice until the account is deleted.'
+    : over ? 'Agree to follow the rules to re-activate your account.'
+    : b.endsAt ? 'Our review found that your use of pagebot broke its rules. You can come back once the ban ends.'
+    : 'Our review found that your use of pagebot broke its rules. Your account is disabled for good.';
+  $('#banReason').textContent = b.reason;
+  $('#banNote').textContent = b.note; $('#banNoteRow').hidden = !b.note;
+  $('#banAt').textContent = banWhen.format(new Date(b.at));
+  $('#banEndRow').hidden = !b.endsAt;
+  if (b.endsAt) { $('#banEndL').textContent = term ? 'Deleted on' : 'Ends'; $('#banEnd').textContent = banWhen.format(new Date(b.endsAt)); }
+  $('#banAgreeRow').hidden = $('#banReact').hidden = !over;
+  $('#banReact').disabled = !$('#banAgree').checked;
+  $('#banOpen').href = noticeUrl(b);
+  clearInterval(banTick); banLeft();
+  if (b.endsAt && !over) banTick = setInterval(banLeft, 1000);
+}
+function banLeft() {
+  const b = cfg?.ban, ms = b?.endsAt ? new Date(b.endsAt) - Date.now() : 0;
+  $('#banLeft').hidden = !(view === 'ban' && b?.endsAt && b.state !== 'ended');
+  if ($('#banLeft').hidden) return void clearInterval(banTick);
+  const s = Math.max(0, Math.ceil(ms / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  $('#banLeft').textContent = (d ? `${d}d ${h}h ${m}m` : h ? `${h}h ${m}m ${s % 60}s` : `${m}m ${s % 60}s`) +
+    (b.state === 'terminated' ? ' until the account is deleted' : ' left');
+  if (ms <= 0) { clearInterval(banTick); setTimeout(checkBan, 1500); }
+}
+async function checkBan() {
+  try { await loadBoot(); } catch { return; }
+  if (view !== 'ban') return;
+  if (!token) return showLogin(cfg?.ban ? '' : 'This account isn’t available anymore.', 'signin');
+  if (cfg?.ban) { renderBan(); openNotice(false); } else { stopWaitPoll(); clearInterval(banTick); route(true); }
+}
+$('#banAgree').onchange = () => { $('#banReact').disabled = !$('#banAgree').checked; };
+$('#banReact').onclick = async () => {
+  const b = cfg?.ban; if (!b) return;
+  $('#banErr').textContent = ''; $('#banReact').disabled = true;
+  try {
+    const r = await fetch('/api/ban-notice/reactivate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: b.key, agree: true }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) $('#banErr').textContent = j.error || 'That didn’t work — try again.';
+  } catch { $('#banErr').textContent = 'Network error'; }
+  await checkBan();
+  if (view === 'ban') $('#banReact').disabled = !$('#banAgree').checked;
+};
+$('#banOut').onclick = () => logout();
+// any request that finds the account banned brings up the notice
+const onBanned = () => loadBoot().then(() => route()).catch(() => {});
+
 function lock(msg) {
   if (token) fetch('/api/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }).catch(() => {});
   token = null; store.set('pb_token', null); resetSiteMemory(); chatGen++; ctrl?.abort();
@@ -1213,19 +1335,21 @@ if (standalone) {
   body.classList.add('standalone');
   $('.name').innerHTML = '<a href="/">pagebot</a>';
   $('#q').placeholder = 'Ask anything, or paste a screenshot…';
-  $('#shotBtn .mt').textContent = 'Screenshot a tab or window';
+  $('#shotBtn .mt').firstChild.textContent = 'Screenshot a tab or window'; // only the label: the note after it stays
 }
 
 // ---- server ----
 async function api(path, data) {
   const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(data || {}) });
   const j = await r.json().catch(() => ({}));
+  if (r.status === 403 && j.banned) onBanned();
   if (!r.ok) throw Object.assign(new Error(j.error || 'HTTP ' + r.status), { status: r.status });
   return j;
 }
 async function apiGet(path) {
   const r = await fetch(path, { headers: { Authorization: 'Bearer ' + token } });
   const j = await r.json().catch(() => ({}));
+  if (r.status === 403 && j.banned) onBanned();
   if (!r.ok) throw Object.assign(new Error(j.error || 'HTTP ' + r.status), { status: r.status });
   return j;
 }
@@ -2110,7 +2234,7 @@ async function send() {
     const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session }, body: JSON.stringify(reqBody), signal: mine.signal });
     if (stale()) { await r.body?.cancel(); return; }
     if (r.status === 401) { unsend(); lock(lockedMsg()); return; } // put the message back so nothing typed is lost, then lock
-    if (r.status === 403) { // this account isn't approved (anymore)
+    if (r.status === 403) { // this account isn't approved (anymore), or it's been banned
       unsend(); await loadBoot().catch(() => {}); route(); return;
     }
     if (!r.ok || !r.body) {
