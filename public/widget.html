@@ -297,6 +297,7 @@ textarea:focus,input:focus{border-color:var(--focus)}
 .bagree input{margin:2px 0 0;accent-color:var(--accent);flex:none}
 #banReact:disabled{opacity:.45;cursor:default}
 #banErr{color:var(--err)!important;min-height:0}
+#banFine{font-size:11.5px}
 
 /* settings: today's usage and the account */
 .qbar{height:8px;border-radius:99px;background:color-mix(in srgb,var(--accent) 16%,var(--panel));overflow:hidden}
@@ -558,6 +559,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
   <h2 id="banTitle"></h2>
   <p id="banText"></p>
   <dl class="bfacts">
+    <div><dt>Account</dt><dd id="banName"></dd></div>
     <div><dt>Reason</dt><dd id="banReason"></dd></div>
     <div id="banNoteRow"><dt>Note</dt><dd id="banNote"></dd></div>
     <div><dt>Reviewed</dt><dd id="banAt"></dd></div>
@@ -567,7 +569,8 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
   <label class="bagree" id="banAgreeRow" hidden><input type="checkbox" id="banAgree"> I agree to follow pagebot’s rules from now on.</label>
   <button class="send" id="banReact" type="button" disabled hidden>Re-activate my account</button>
   <p id="banErr" role="alert"></p>
-  <div class="links"><a class="link" id="banOpen" href="/banned" target="_blank" rel="noopener">Open the full notice ↗</a> · <button class="link" id="banOut" type="button">Sign out</button></div>
+  <p class="fine" id="banFine"></p>
+  <div class="links"><button class="link" id="banOut" type="button">Sign out</button></div>
 </div>
 
 <div id="log" hidden></div>
@@ -1030,7 +1033,7 @@ function showChat(enter) {
 // once we know who's signed in: the chat, or the waiting screen for accounts not approved yet
 function route(enter) {
   if (!token) return showLogin();
-  if (cfg?.ban) return view === 'ban' ? renderBan() : showBan(enter);
+  if (cfg?.ban) return view === 'ban' ? renderBan() : showBan();
   if (isUser() && cfg.user?.status !== 'trusted') return view === 'wait' ? null : showWait();
   if (view !== 'chat') showChat(enter);
 }
@@ -1231,8 +1234,8 @@ async function checkWait(manual) {
 $('#waitCheck').onclick = () => checkWait(true);
 $('#waitOut').onclick = () => logout();
 
-// banned or terminated: the panel shows the notice instead of the chat, and opens the full one on the pagebot site
-// in a new tab. It checks back every 30 seconds, so an unban (or the end of a ban) shows up by itself.
+// banned or terminated: the panel shows the notice instead of the chat. It checks back every 30 seconds, so an unban
+// (or the end of a ban) shows up by itself.
 const BAN_ICONS = {
   ban: '<circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/>',
   term: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
@@ -1240,23 +1243,13 @@ const BAN_ICONS = {
 };
 const banWhen = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 const banDur = h => h == null ? 'permanently' : h < 24 ? `${h} hour${h === 1 ? '' : 's'}` : `${h / 24} day${h === 24 ? '' : 's'}`;
-const noticeUrl = b => `${location.origin}/banned#${encodeURIComponent(b.key)}`;
 let banTick = 0;
-// a new tab each time someone signs in to a banned account, and once (per site) when a ban or its state is new
-function openNotice(force) {
-  const b = cfg?.ban; if (!b) return;
-  const tag = `${b.id}:${b.state}`;
-  if (!force && store.get('pb_ban') === tag) return;
-  store.set('pb_ban', tag);
-  try { const w = window.open(noticeUrl(b), '_blank'); if (w) try { w.opener = null; } catch {} } catch {}
-}
-function showBan(force) {
+function showBan() {
   hideViews(); view = 'ban'; closeSheet(); closeMenus(); chatGen++; ctrl?.abort();
   setHeader(false);
   $('#ban').hidden = false;
   $('#banAgree').checked = false; $('#banErr').textContent = '';
   renderBan();
-  openNotice(force);
   waitTimer = setInterval(checkBan, 30000);
 }
 function renderBan() {
@@ -1270,6 +1263,7 @@ function renderBan() {
     : over ? 'Agree to follow the rules to re-activate your account.'
     : b.endsAt ? 'Our review found that your use of pagebot broke its rules. You can come back once the ban ends.'
     : 'Our review found that your use of pagebot broke its rules. Your account is disabled for good.';
+  $('#banName').textContent = b.name;
   $('#banReason').textContent = b.reason;
   $('#banNote').textContent = b.note; $('#banNoteRow').hidden = !b.note;
   $('#banAt').textContent = banWhen.format(new Date(b.at));
@@ -1277,7 +1271,7 @@ function renderBan() {
   if (b.endsAt) { $('#banEndL').textContent = term ? 'Deleted on' : 'Ends'; $('#banEnd').textContent = banWhen.format(new Date(b.endsAt)); }
   $('#banAgreeRow').hidden = $('#banReact').hidden = !over;
   $('#banReact').disabled = !$('#banAgree').checked;
-  $('#banOpen').href = noticeUrl(b);
+  $('#banFine').textContent = `Notice #${b.id} · If you think this is a mistake, contact the person who runs this pagebot.`;
   clearInterval(banTick); banLeft();
   if (b.endsAt && !over) banTick = setInterval(banLeft, 1000);
 }
@@ -1294,7 +1288,7 @@ async function checkBan() {
   try { await loadBoot(); } catch { return; }
   if (view !== 'ban') return;
   if (!token) return showLogin(cfg?.ban ? '' : 'This account isn’t available anymore.', 'signin');
-  if (cfg?.ban) { renderBan(); openNotice(false); } else { stopWaitPoll(); clearInterval(banTick); route(true); }
+  if (cfg?.ban) renderBan(); else { stopWaitPoll(); clearInterval(banTick); route(true); }
 }
 $('#banAgree').onchange = () => { $('#banReact').disabled = !$('#banAgree').checked; };
 $('#banReact').onclick = async () => {

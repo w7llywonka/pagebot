@@ -54,11 +54,11 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
   - Daily limits reset at midnight in your `TIMEZONE`. Dollar amounts are estimates from Anthropic's list prices.
 - **Bans and terminations** (under **Moderation** in each person's details):
   - **Ban** someone for 1 hour, 1, 3, 7, 14 or 30 days, or permanently, with a reason (pick one or write your own) and an optional moderator note. They see both.
-  - Their panel switches to a ban notice right away (the next time it talks to the server) and opens the full notice in a new tab on your pagebot site, at `/banned`. It shows the reason, the note, when it was reviewed, when it ends, and a countdown. Signing in again shows the same notice.
-  - When a timed ban ends, they tick **I agree to follow pagebot’s rules** and press **Re-activate my account**, on the notice or in the panel. A permanent ban never ends on its own.
+  - Their pagebot panel switches to a ban notice right away (the next time it talks to the server), in place of the chat. It shows their account, the reason, the note, when it was reviewed, when it ends, and a countdown. Signing in again shows the same notice.
+  - When a timed ban ends, they tick **I agree to follow pagebot’s rules** and press **Re-activate my account** in the panel. A permanent ban never ends on its own.
   - **Terminate** shows a termination notice on every sign-in, and the account is deleted 14 days later (their usage stays in the totals). **Reverse termination** undoes it before then.
   - **Unban** lifts a ban at any time; their panel goes back to the chat by itself within 30 seconds. Banning someone who's already banned replaces the old ban.
-  - The person's row shows a **Banned** or **Terminated** chip with the time left, and their details show whether they've seen the notice yet, a link to it, and their past bans.
+  - The person's row shows a **Banned** or **Terminated** chip with the time left, and their details show whether they've seen the notice yet and their past bans.
   - The **Moderation** card lists every ban and termination, newest first, with what happened to each one (still in force, re-activated, lifted, account deleted), and lets you unban from there.
 - **Announcement**: post a message (up to 500 characters) and everyone with an account sees it at the top of their panel the next time they open it, until they close it. Posting a new one replaces it, **Take it down** hides it, and the card shows how many people have closed it.
 - **Limits per question**: max tokens per answer (any number from 256 to 100,000), how much page text gets sent, and how many web searches one question can run. Accounts can pick a shorter answer length in their settings, but never more than this.
@@ -96,7 +96,7 @@ Enter your `ADMIN_TOKEN` to manage pagebot:
 - Answers show headings, lists, tables, quotes, bold and italics. Links show which site they go to, in grey after the link text.
 - With an account, Settings also shows how much of today's limit is used, and lets you change your password and set a passcode. Each answer shows what's left for the day.
 - **Announcements** from the owner show at the top of the panel until you press **Got it**.
-- **If your account is banned**, the panel shows why instead of the chat and opens the full notice in a new tab. A timed ban counts down; once it's over, agree to the rules to re-activate the account. A terminated account shows its notice every time you sign in, until it's deleted.
+- **If your account is banned**, the panel shows the ban notice instead of the chat: the reason, the owner's note, and when it ends. A timed ban counts down; once it's over, agree to the rules to re-activate the account. A terminated account shows its notice every time you sign in, until it's deleted.
 - **Highlighted text** goes with your next message. While something on the page is highlighted, a ✂️ pill shows the start of it; click its × to leave it out. Once it's been sent, it isn't sent again unless you highlight something new.
 - **Show me where**: when an answer uses the page, it gets small numbered markers. Click one and the page scrolls to the passage it came from and highlights it (click anywhere on the page to clear the highlight). Hover a marker to see the quote.
 - Old screenshots aren't resent on follow-ups, which saves tokens.

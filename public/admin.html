@@ -122,7 +122,6 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
 .banbox b{font-weight:650}
 .banbox .annmeta{overflow-wrap:anywhere}
 .banbox .btns{margin-top:10px;align-items:center}
-.banbox a{font-size:13px}
 .banform{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .banform .inl{margin-bottom:8px}
 .banform select{width:auto;margin:0}
@@ -136,7 +135,6 @@ button.worst{background:var(--text);color:#141414}
 .mrow .uinfo{font-size:13px}
 .mrow .uinfo b{font-size:14px}
 .mrow .btns{flex:none}
-.mrow a{font-size:12.5px;white-space:nowrap}
 .meterw{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);white-space:nowrap;min-width:0}
 .meterw .mtext{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .mtrack{flex:none;width:70px;height:6px;border-radius:99px;background:rgba(217,119,87,.18);overflow:hidden}
@@ -536,7 +534,6 @@ function banChip(b) {
   const c = mk('span', 'chip ' + cls, text); c.title = `${banWhat(b)}: ${b.reason}`;
   return c;
 }
-const noticeLink = b => { const a = mk('a', '', 'Their notice ↗'); a.href = '/banned#' + encodeURIComponent(b.key); a.target = '_blank'; a.rel = 'noopener'; return a; };
 // what a person's details show: the ban in force with an undo, or a form to ban or terminate them, then their history
 function moderation(u) {
   const f = mk('div', 'field'); f.appendChild(mk('span', 'fl', 'Moderation'));
@@ -551,7 +548,7 @@ function moderation(u) {
     const btns = mk('div', 'btns'), undo = mk('button', 'ghost', b.kind === 'terminate' ? 'Reverse termination' : 'Unban');
     undo.type = 'button';
     undo.onclick = () => unban(u, b);
-    btns.append(undo, noticeLink(b)); box.appendChild(btns);
+    btns.append(undo); box.appendChild(btns);
     f.appendChild(box);
   } else {
     const form = mk('div', 'banform'), inl = mk('div', 'inl'), seg = mk('div', 'seg'), len = mk('select');
@@ -568,7 +565,7 @@ function moderation(u) {
       len.hidden = k !== 'ban';
       go.className = k === 'ban' ? 'bad' : 'worst';
       go.textContent = k === 'ban' ? `Ban ${u.name}` : `Terminate ${u.name}`;
-      hint.textContent = k === 'ban' ? 'Their panel switches to a ban notice right away and opens the full notice in a new tab. They can re-activate once it ends.'
+      hint.textContent = k === 'ban' ? 'Their pagebot panel switches to a ban notice right away, with your reason and note. They can re-activate once it ends.'
         : `Every sign-in shows the termination notice, and the account is deleted in ${users.terminateDays} days. You can reverse it until then.`;
     };
     for (const [k, label] of [['ban', 'Ban'], ['terminate', 'Terminate']]) {
@@ -617,7 +614,6 @@ function renderMod() {
       x.onclick = () => unban({ id: b.userId, name: b.name }, b);
       btns.appendChild(x);
     }
-    btns.appendChild(noticeLink(b));
     row.appendChild(btns);
     return row;
   }));

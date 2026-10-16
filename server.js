@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS bans (
   hours INT, -- how long a ban lasts; NULL = permanent (and for terminations)
   reason TEXT NOT NULL,
   note TEXT,
-  notice_key TEXT NOT NULL UNIQUE, -- opens this notice at /banned without signing in
+  notice_key TEXT NOT NULL UNIQUE, -- lets the banned person's panel re-activate the account once a ban ends
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   ends_at TIMESTAMPTZ, -- when a ban ends, or when a terminated account is deleted
   seen_at TIMESTAMPTZ, -- first time they were shown it
@@ -579,8 +579,6 @@ app.get(['/', '/install'], (req, res) => {
 app.get('/widget', (req, res) => sendPage(res, 'widget.html', { frames: '*' }));
 app.get('/chat', (req, res) => sendPage(res, 'widget.html'));
 app.get('/admin', (req, res) => sendPage(res, 'admin.html'));
-// the ban notice; the panel opens it in a new tab with the notice's key after the #
-app.get('/banned', (req, res) => sendPage(res, 'banned.html', { headers: { 'Cache-Control': 'no-store' } }));
 
 app.get('/health', async (req, res) => {
   await pool.query('SELECT 1');
@@ -856,16 +854,8 @@ app.post('/api/account/passcode', limit(10, 'login'), auth, trusted, async (req,
 });
 
 // an account closed the announcement banner (older ones count as seen too)
-// The notice page: anyone with its key (only the banned person's panel gets it) can read it, and re-activate
-// the account once a timed ban is over.
+// Once a timed ban is over, the banned person's panel (which got the ban's key with its notice) re-activates the account.
 const noticeKey = v => typeof v === 'string' && /^[A-Za-z0-9_-]{20,64}$/.test(v) ? v : null;
-app.post('/api/ban-notice', limit(30, 'notice'), async (req, res) => {
-  const key = noticeKey(req.body?.key);
-  const b = key && (await pool.query('SELECT * FROM bans WHERE notice_key=$1', [key])).rows[0];
-  if (!b) return res.status(404).json({ error: 'We couldn’t find that notice.' });
-  if (LIVE_BAN.has(banState(b))) await markBanSeen(b.id);
-  res.json({ ban: publicBan(b), now: new Date() });
-});
 app.post('/api/ban-notice/reactivate', limit(10, 'notice-ok'), async (req, res) => {
   const key = noticeKey(req.body?.key);
   if (req.body?.agree !== true) return res.status(400).json({ error: 'Tick the box to agree to the rules first.' });
