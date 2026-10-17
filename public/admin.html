@@ -11,7 +11,7 @@
   --text:#f0efec;--text2:#c3c2b7;--muted:#898781;--accent:#d97757;--wash:rgba(217,119,87,.14);
   --ok:#7fc99a;--warn:#fab219;--err:#ff8a7a;
   /* data colors: categorical slots 1-3 (dark steps), a neutral for magnitude bars, and the blue sequential ramp for the heatmap */
-  --s-haiku:#3987e5;--s-sonnet:#d95926;--s-other:#199e70;--bar:#6b6a65;
+  --s-haiku:#3987e5;--s-sonnet:#d95926;--s-router:#a06ee0;--s-other:#199e70;--bar:#6b6a65;
   --h0:#242422;--h1:#104281;--h2:#1c5cab;--h3:#2a78d6;--h4:#5598e7;--h5:#86b6ef;
   font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color-scheme:dark}
 *{box-sizing:border-box}
@@ -126,6 +126,19 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
 .chip.warn{color:var(--warn);border-color:rgba(250,178,25,.35)}
 .chip.owner{color:var(--accent);border-color:rgba(217,119,87,.4)}
 .chip.mute{color:var(--muted)}
+.chip.banned{color:#fff;background:#b4432f;border-color:#b4432f}
+.chip.term{color:#141414;background:var(--text);border-color:var(--text)}
+.chip.over{color:var(--warn);border-color:rgba(250,178,25,.45)}
+.banbox{background:rgba(180,67,47,.1);border:1px solid rgba(255,138,122,.35);border-radius:10px;padding:10px 12px;font-size:13px}
+.banbox.term{background:rgba(235,232,225,.06);border-color:#5a5650}
+.banbox .sub{margin-top:4px}
+.banform{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.banform input,.banform textarea{width:100%}
+.btn.bad{background:#b4432f}
+.btn.worst{background:var(--text);color:#141414}
+.hist{font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.6;overflow-wrap:anywhere}
+textarea{display:block;resize:vertical;min-height:64px;width:100%}
+.annbox{background:var(--page);border:1px solid rgba(217,119,87,.45);border-radius:10px;padding:10px 12px;margin-bottom:10px;white-space:pre-wrap;overflow-wrap:anywhere}
 .swatch{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:8px;vertical-align:-1px;flex:none}
 .share{display:inline-flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums;color:var(--text2);font-size:12.5px}
 .share i{display:block;height:6px;border-radius:0 3px 3px 0;background:var(--bar)}
@@ -366,6 +379,25 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
       </div>
     </div>
     <div class="card flush"><div class="tablewrap"><table class="dt" id="peopleTbl"></table></div></div>
+    <div class="card flush" id="modCard" hidden>
+      <div class="cardhead"><h2>Bans and terminations</h2><span class="sub" id="modHint"></span></div>
+      <div class="tablewrap"><table class="dt" id="modTbl"></table></div>
+      <div class="msg pad" id="modMsg"></div>
+    </div>
+    <datalist id="banReasons"><option value="Spamming"><option value="Harassment or bullying"><option value="Inappropriate content"><option value="Abusing pagebot"><option value="Sharing your account"><option value="Breaking the rules"></datalist>
+    <div class="grid g2">
+    <form class="card form" id="annForm" autocomplete="off">
+      <div class="cardhead"><h2>Announcement</h2><span class="sub">Shows at the top of everyone’s panel until they close it</span></div>
+      <div id="annNow" hidden>
+        <div class="annbox" id="annText"></div>
+        <p class="sub" id="annMeta" style="margin:0 0 10px"></p>
+        <div class="btns" style="margin-bottom:12px"><button type="button" class="btn ghost sm" id="annDown">Take it down</button></div>
+      </div>
+      <p class="sub" id="annNone" style="margin:0">Nothing is showing. Post a message and everyone with an account sees it at the top of their panel until they close it.</p>
+      <textarea id="annBody" rows="3" maxlength="500" placeholder="Write a message for everyone…" aria-label="Announcement"></textarea>
+      <div class="btns"><button class="btn" type="submit" id="annPost">Post to everyone</button><span class="sub" id="annCount"></span></div>
+      <div class="msg" id="annMsg"></div>
+    </form>
     <div class="card" id="defaults">
       <div class="cardhead"><h2>New people start with</h2><span class="sub">Applied when you accept someone</span></div>
       <div class="field" style="margin-top:0"><span class="fl">Daily limit</span>
@@ -376,6 +408,7 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
       <div class="btns" style="margin-top:14px"><button class="btn" type="button" id="dSave">Save defaults</button></div>
       <div class="msg" id="dMsg"></div>
     </div>
+    </div>
   </section>
 
   <!-- ===== activity ===== -->
@@ -385,7 +418,7 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
         <button type="button" data-d="1">Today</button><button type="button" data-d="7">7 days</button><button type="button" data-d="30" class="on">30 days</button><button type="button" data-d="90">90 days</button><button type="button" data-d="3650">All</button>
       </div>
       <select id="actWho" aria-label="Person"></select>
-      <select id="aModel" aria-label="Model"><option value="">All models</option><option value="haiku">Haiku</option><option value="sonnet">Sonnet</option></select>
+      <select id="aModel" aria-label="Model"><option value="">All models</option><option value="haiku">Haiku</option><option value="sonnet">Sonnet</option><option value="router" hidden>OpenRouter</option></select>
       <select id="aFlag" aria-label="Show">
         <option value="">Everything</option><option value="page">With page text</option><option value="highlight">With highlighted text</option><option value="image">With a screenshot</option>
         <option value="web">Used web search</option><option value="refused">Declined</option><option value="stopped">Stopped early</option><option value="fallback">Fell back to another model</option>
@@ -424,8 +457,8 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
       <form class="card form" id="limForm" autocomplete="off">
         <div class="cardhead"><h2>Limits per question</h2></div>
         <label class="f" for="lMax">Max tokens per answer</label>
-        <input id="lMax" type="number" step="256">
-        <p class="hint">8,000 at most. Includes the model's thinking. Accounts can choose less, never more.</p>
+        <input id="lMax" type="number" step="1" inputmode="numeric">
+        <p class="hint">Any number from 256 to 100,000. Includes the model's thinking. The panel's ⚙ settings have presets up to 8k, and accounts can choose less, never more.</p>
         <div class="row2">
           <div><label class="f" for="lPage">Page text per question (tokens)</label><input id="lPage" type="number" step="500"></div>
           <div><label class="f" for="lSearch">Web searches per question</label><input id="lSearch" type="number" step="1"></div>
@@ -507,7 +540,7 @@ function ago(t) {
   return s < 60 ? 'just now' : s < 3600 ? `${Math.floor(s / 60)}m ago` : s < 86400 ? `${Math.floor(s / 3600)}h ago` : s < 86400 * 45 ? `${Math.floor(s / 86400)}d ago` : dayYFmt.format(new Date(t));
 }
 const limitText = (kind, v) => !kind ? 'No limit' : kind === 'usd' ? money(+v) : `${short(+v)} tokens`;
-const famColor = m => /haiku/i.test(m || '') ? 'var(--s-haiku)' : /sonnet/i.test(m || '') ? 'var(--s-sonnet)' : 'var(--s-other)';
+const famColor = m => !m ? 'var(--s-other)' : m.includes('/') ? 'var(--s-router)' : /haiku/i.test(m) ? 'var(--s-haiku)' : /sonnet/i.test(m) ? 'var(--s-sonnet)' : 'var(--s-other)';
 function device(ua) {
   if (!ua) return 'Unknown device';
   const b = /Edg\//.test(ua) ? 'Edge' : /OPR\/|Opera/.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'Browser';
@@ -597,7 +630,11 @@ async function loadStats() {
   const m = S.stats.models || [];
   if (m[0]) N.haiku = m[0].label;
   if (m[1]) N.sonnet = m[1].label;
+  N.router = m.find(x => x.openrouter)?.label || 'OpenRouter';
+  const o = $('#aModel option[value="router"]'); o.textContent = N.router; o.hidden = !routerOn() && !S.routerUsed;
 }
+// past use keeps the OpenRouter filter in Activity, even after its key is removed
+function routerSeen() { S.routerUsed = true; $('#aModel option[value="router"]').hidden = false; }
 async function loadUsers() {
   S.users = await api('/api/admin/users');
   const n = S.users.users.filter(u => u.status === 'pending').length;
@@ -626,7 +663,7 @@ function showTab(t) {
 }
 async function loadTab(t) {
   if (t === 'overview') await loadOverview();
-  else if (t === 'people') renderPeople();
+  else if (t === 'people') { renderPeople(); await loadAnn(); }
   else if (t === 'activity') await loadActivity(true);
   else if (t === 'devices') await loadDevices();
   else if (t === 'settings') renderSettings();
@@ -661,7 +698,20 @@ function stopTimers() { timers.forEach(clearInterval); timers = []; }
 
 // ================= overview =================
 const ov = { days: 30, who: 'all', unit: 'tokens', data: null, series: [], by: 'day' };
-const N = { haiku: 'Haiku 5.5', sonnet: 'Sonnet 5.5' };
+const N = { haiku: 'Haiku 5.5', sonnet: 'Sonnet 5.5', router: 'OpenRouter' };
+const SERIES = [['haiku', 'var(--s-haiku)'], ['sonnet', 'var(--s-sonnet)'], ['router', 'var(--s-router)']];
+// the OpenRouter model only gets a color once it's set up or has been used
+const routerOn = () => (S.stats?.models || []).some(m => m.openrouter);
+const shownSeries = series => SERIES.filter(([k]) => k !== 'router' || routerOn() || series.some(d => d.tokens.router || d.usd.router));
+const toSeries = days => days.map(d => {
+  const router = d.router || 0, routerUsd = d.routerUsd || 0;
+  return {
+    ...d,
+    tokens: { total: d.input + d.output, haiku: Math.max(0, d.input + d.output - d.sonnet - router), sonnet: d.sonnet, router },
+    usd: { total: d.usd, haiku: Math.max(0, d.usd - d.sonnetUsd - routerUsd), sonnet: d.sonnetUsd, router: routerUsd },
+  };
+});
+const legendOf = series => shownSeries(series).map(([k, c]) => { const s = mk('span'), i = mk('i'); i.style.background = c; s.append(i, N[k]); return s; });
 async function loadOverview() {
   const box = $('#t-overview');
   box.classList.add('loading');
@@ -669,11 +719,8 @@ async function loadOverview() {
     const q = `days=${ov.days}&user=${encodeURIComponent(ov.who)}`;
     const [o, u] = await Promise.all([api('/api/admin/overview?' + q), api('/api/admin/usage?' + q)]);
     ov.data = o; ov.by = u.by;
-    ov.series = u.days.map(d => ({
-      ...d,
-      tokens: { total: d.input + d.output, haiku: Math.max(0, d.input + d.output - d.sonnet), sonnet: d.sonnet },
-      usd: { total: d.usd, haiku: Math.max(0, d.usd - d.sonnetUsd), sonnet: d.sonnetUsd },
-    }));
+    ov.series = toSeries(u.days);
+    if (o.models?.some(m => m.family === 'router')) routerSeen();
     renderKpis(); drawUsage(); renderBudget(); renderModels(); renderTop(); renderSites(); renderFeatures(); drawHeat();
   } finally { box.classList.remove('loading'); }
 }
@@ -725,7 +772,7 @@ function drawBars(o) {
   svg.querySelectorAll(':scope > :not(title)').forEach(n => n.remove());
   const NS = 'http://www.w3.org/2000/svg';
   const el = (tag, attrs, parent = svg) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
-  const n = series.length, plotW = W - left - right, band = plotW / n;
+  const n = series.length, plotW = W - left - right, band = plotW / n, keys = shownSeries(series);
   const barW = Math.max(1, Math.min(24, band - 2)); // 2px surface gap between neighbours
   const peak = series.reduce((a, d) => val(d, 'total') > val(a, 'total') ? d : a, series[0]);
   const max = niceMax(peak ? val(peak, 'total') : 0, unit), tickDp = max < 0.1 ? 3 : max < 10 ? 2 : 0;
@@ -742,7 +789,7 @@ function drawBars(o) {
   const cols = el('g', {});
   series.forEach((d, i) => {
     const x = left + band * i + (band - barW) / 2, g = el('g', { class: 'col', 'data-i': i }, cols);
-    const segs = [[val(d, 'haiku'), 'var(--s-haiku)'], [val(d, 'sonnet'), 'var(--s-sonnet)']].filter(s => s[0] > 0);
+    const segs = keys.map(([k, color]) => [val(d, k), color]).filter(s => s[0] > 0);
     let base = top + plotH;
     segs.forEach(([v, color], k) => {
       let h = v / max * plotH;
@@ -767,7 +814,7 @@ function drawBars(o) {
     const line = (cls, text) => { const e = mk('div', cls, text); tip.appendChild(e); return e; };
     line('d', o.title(d));
     line('t', unit === 'usd' ? `${money(d.usd.total, 4)} estimated` : `${nf.format(d.tokens.total)} tokens`);
-    for (const [key, color] of [['haiku', 'var(--s-haiku)'], ['sonnet', 'var(--s-sonnet)']]) {
+    for (const [key, color] of keys) {
       const r = line('r', ''), k = mk('i'), b = mk('b', '', unit === 'usd' ? money(d.usd[key], 4) : short(d.tokens[key]));
       k.style.background = color; r.append(k, b, N[key]);
     }
@@ -810,12 +857,14 @@ function drawUsage() {
   if (!hourly) sum.append(' · ', mk('b', '', ov.unit === 'usd' ? money(tot.t / n) : short(Math.round(tot.t / n))), ' a day on average');
   sum.append(` · ${plural(tot.q, 'question')}`);
   if (ov.who !== 'all') sum.append(` · ${nameOf(ov.who)}`);
-  $('#legend').replaceChildren(...[['haiku', 'var(--s-haiku)'], ['sonnet', 'var(--s-sonnet)']].map(([k, c]) => { const s = mk('span'), i = mk('i'); i.style.background = c; s.append(i, N[k]); return s; }));
-  const tb = table($('#tbl'), [{ label: hourly ? 'Hour' : 'Day' }, { label: N.haiku, num: 1 }, { label: N.sonnet, num: 1 }, { label: 'Total tokens', num: 1 }, { label: 'Est. cost', num: 1 }, { label: 'Questions', num: 1 }, { label: 'Searches', num: 1 }]);
+  $('#legend').replaceChildren(...legendOf(ov.series));
+  const keys = shownSeries(ov.series).map(([k]) => k);
+  const tb = table($('#tbl'), [{ label: hourly ? 'Hour' : 'Day' }, ...keys.map(k => ({ label: N[k], num: 1 })), { label: 'Total tokens', num: 1 }, { label: 'Est. cost', num: 1 }, { label: 'Questions', num: 1 }, { label: 'Searches', num: 1 }]);
   for (const d of [...ov.series].reverse()) {
     const tr = tb.insertRow();
     td(tr, hourly ? `${hourName(d.hour)} – ${hourName(d.hour + 1)}` : utcDay.format(asDate(d.day)));
-    td(tr, nf.format(d.tokens.haiku), 'num'); td(tr, nf.format(d.tokens.sonnet), 'num'); td(tr, nf.format(d.tokens.total), 'num');
+    for (const k of keys) td(tr, nf.format(d.tokens[k]), 'num');
+    td(tr, nf.format(d.tokens.total), 'num');
     td(tr, money(d.usd.total, 3), 'num'); td(tr, nf.format(d.questions), 'num'); td(tr, nf.format(d.searches), 'num');
   }
 }
@@ -844,7 +893,7 @@ function renderModels() {
     name.append(swatch(famColor(r.model)), r.label + (fallback ? ' (fallback)' : ''));
     td(tr, name); td(tr, nf.format(r.questions), 'num'); td(tr, shareBar(frac(r.questions, total)));
     td(tr, short(r.input + r.output), 'num'); td(tr, money(r.usd), 'num'); td(tr, cost(frac(r.usd, r.questions)), 'num');
-    rowLink(tr, () => goActivity(fallback ? { flag: 'fallback' } : { model: /haiku/.test(r.model) ? 'haiku' : /sonnet/.test(r.model) ? 'sonnet' : '' }));
+    rowLink(tr, () => goActivity(fallback ? { flag: 'fallback' } : { model: ['haiku', 'sonnet', 'router'].includes(r.family) ? r.family : '' }));
   }
 }
 function renderTop() {
@@ -940,12 +989,140 @@ function goActivity(f) {
   showTab('activity');
 }
 
+// ---- bans and terminations ----
+const banDur = h => h == null || h === 0 ? 'permanently' : h < 24 ? `${h} hour${h === 1 ? '' : 's'}` : `${h / 24} day${h === 24 ? '' : 's'}`;
+const until = t => { const s = (new Date(t) - Date.now()) / 1000; return s <= 60 ? 'a minute' : s < 3600 ? `${Math.ceil(s / 60)}m` : s < 86400 ? `${Math.round(s / 3600)}h` : `${Math.round(s / 86400)}d`; };
+const banWhat = b => b.kind === 'terminate' ? 'Terminated' : `Banned ${b.hours == null ? 'permanently' : 'for ' + banDur(b.hours)}`;
+const BAN_STATES = {
+  active: b => b.endsAt ? `${until(b.endsAt)} left` : 'in force',
+  ended: () => 'over, not re-activated yet',
+  terminated: b => `account deleted in ${until(b.endsAt)}`,
+  reactivated: b => `re-activated ${ago(b.reactivatedAt)}`,
+  lifted: b => `lifted ${ago(b.liftedAt)}`,
+  deleted: b => `account deleted ${ago(b.deletedAt)}`,
+};
+const LIVE = ['active', 'ended', 'terminated'];
+const banStatus = b => BAN_STATES[b.state]?.(b) || b.state;
+function banChip(b) {
+  const [cls, text] = b.state === 'terminated' ? ['term', `Terminated · ${until(b.endsAt)}`] : b.state === 'ended' ? ['over', 'Ban over']
+    : ['banned', b.endsAt ? `Banned · ${until(b.endsAt)}` : 'Banned'];
+  const c = chip(text, cls); c.title = `${banWhat(b)}: ${b.reason}`;
+  return c;
+}
+const statusChip = u => u.ban ? banChip(u.ban) : u.status === 'blocked' ? chip('Blocked', 'err') : u.status === 'pending' ? chip('Waiting', 'warn') : chip('Active', 'ok');
+async function lift(u, b, msgEl) {
+  const term = b.kind === 'terminate';
+  if (!confirm(term ? `Reverse ${u.name}’s termination? Their account won’t be deleted and they can use pagebot again.` : `Unban ${u.name}?`)) return;
+  let ok = true, text = term ? `${u.name}’s termination is reversed.` : `${u.name} is unbanned.`;
+  try { await send(`/api/admin/users/${u.id}/ban`, undefined, 'DELETE'); }
+  catch (err) { ok = false; text = err.message; }
+  await loadUsers(); renderPeople(); if (dw.id != null) renderDrawer();
+  say(msgEl(), ok, text); // after the redraw, which replaces the panel's message line
+}
+// the log of bans and terminations, newest first
+function renderMod() {
+  const list = S.users.bans || [], live = list.filter(b => LIVE.includes(b.state));
+  $('#modCard').hidden = !list.length;
+  $('#modHint').textContent = `${live.length ? `${live.length} in force · ` : ''}terminated accounts are deleted after ${S.users.terminateDays} days`;
+  const tb = table($('#modTbl'), [{ label: 'Person' }, { label: 'What' }, { label: 'Reason' }, { label: 'When' }, { label: 'Status' }, { label: '' }]);
+  for (const b of list.slice(0, 30)) {
+    const tr = tb.insertRow();
+    td(tr, mk('b', '', b.name)); td(tr, banWhat(b)); td(tr, b.reason + (b.note ? ` — ${b.note}` : ''), 'wrapcell');
+    const w = td(tr, ago(b.at)); w.title = fullFmt.format(new Date(b.at));
+    td(tr, banStatus(b) + (b.seenAt ? ` · seen ${ago(b.seenAt)}` : ' · not seen yet'), 'muted');
+    if (LIVE.includes(b.state) && b.userId != null) {
+      const x = button(b.kind === 'terminate' ? 'Reverse' : 'Unban', 'btn ghost sm');
+      x.onclick = () => lift({ id: b.userId, name: b.name }, b, () => $('#modMsg'));
+      td(tr, x, 'right');
+    } else td(tr, '');
+    if (b.userId != null && S.users.users.some(u => u.id === b.userId)) rowLink(tr, () => openPerson(b.userId));
+  }
+}
+// in a person's panel: the ban in force with an undo, or a form to ban or terminate them, then their history
+function moderationBox(u) {
+  const box = mk('div'), msg = mk('div', 'msg'); msg.id = 'dwMod';
+  const b = u.ban;
+  if (b) {
+    const bb = mk('div', 'banbox' + (b.kind === 'terminate' ? ' term' : ''));
+    bb.append(mk('b', '', banWhat(b)), ` · ${banStatus(b)}`, mk('div', 'sub', `Reason: ${b.reason}`));
+    if (b.note) bb.appendChild(mk('div', 'sub', `Note: ${b.note}`));
+    bb.appendChild(mk('div', 'sub', `${ago(b.at)}` + (b.endsAt ? ` · ${b.kind === 'terminate' ? 'deleted' : 'ends'} ${dayFmt.format(new Date(b.endsAt))}` : '') +
+      ` · ${b.seenAt ? `they saw the notice ${ago(b.seenAt)}` : 'they haven’t seen the notice yet'}`));
+    const undo = button(b.kind === 'terminate' ? 'Reverse termination' : 'Unban', 'btn ghost sm'); undo.style.marginTop = '10px';
+    undo.onclick = () => lift(u, b, () => $('#dwMod'));
+    bb.appendChild(undo); box.appendChild(bb);
+  } else {
+    const form = mk('div', 'banform'), inl = mk('div', 'inl'), seg = mk('div', 'seg'), len = mk('select');
+    let kind = 'ban';
+    for (const h of S.users.banHours || []) len.add(new Option(h ? 'for ' + banDur(h) : 'permanently', h));
+    len.value = 24; len.setAttribute('aria-label', 'Ban length');
+    const reason = mk('input'), note = mk('textarea'), go = button('', 'btn bad'), hint = mk('p', 'sub');
+    reason.setAttribute('list', 'banReasons'); reason.maxLength = 120; reason.placeholder = 'Reason (they see it)'; reason.setAttribute('aria-label', 'Reason');
+    note.maxLength = 1000; note.rows = 2; note.placeholder = 'Moderator note (optional, they see it too)'; note.setAttribute('aria-label', 'Moderator note');
+    hint.style.margin = '0';
+    const setK = k => {
+      kind = k; setSeg(seg, 'k', k); len.hidden = k !== 'ban';
+      go.className = 'btn ' + (k === 'ban' ? 'bad' : 'worst');
+      go.textContent = k === 'ban' ? `Ban ${u.name}` : `Terminate ${u.name}`;
+      hint.textContent = k === 'ban' ? 'Their pagebot panel switches to a ban notice right away, with your reason and note. They can re-activate once it ends.'
+        : `Every sign-in shows the termination notice, and the account is deleted in ${S.users.terminateDays} days. You can reverse it until then.`;
+    };
+    for (const [k, label] of [['ban', 'Ban'], ['terminate', 'Terminate']]) { const x = button(label); x.dataset.k = k; x.onclick = () => setK(k); seg.appendChild(x); }
+    inl.append(seg, len); setK('ban');
+    go.onclick = async () => {
+      if (!reason.value.trim()) { reason.focus(); return say(msg, false, 'Give a reason. They see it on the notice.'); }
+      if (kind === 'terminate' && !confirm(`Terminate ${u.name}? They’ll see the termination notice every time they sign in, and the account is deleted in ${S.users.terminateDays} days.`)) return;
+      try {
+        await send(`/api/admin/users/${u.id}/ban`, { kind, reason: reason.value, note: note.value, ...(kind === 'ban' && { hours: +len.value }) });
+        await loadUsers(); renderPeople(); renderDrawer();
+        say($('#dwMod'), true, kind === 'ban' ? `${u.name} is banned ${len.value === '0' ? 'permanently' : 'for ' + banDur(+len.value)}.` : `${u.name}’s account is terminated.`);
+      } catch (err) { say(msg, false, err.message); }
+    };
+    const btns = mk('div', 'btns'); btns.appendChild(go);
+    form.append(inl, reason, note, btns, hint);
+    box.appendChild(form);
+  }
+  const past = (S.users.bans || []).filter(x => x.userId === u.id && x.id !== b?.id);
+  if (past.length) {
+    const h = mk('div', 'hist'); h.appendChild(mk('div', '', 'Past bans:'));
+    for (const x of past.slice(0, 10)) h.appendChild(mk('div', '', `${dayFmt.format(new Date(x.at))} · ${banWhat(x)} · ${x.reason} · ${banStatus(x)}`));
+    box.appendChild(h);
+  }
+  box.appendChild(msg);
+  return box;
+}
+
+// ---- the announcement everyone with an account sees until they close it ----
+let annMax = 500;
+async function loadAnn() {
+  const d = await api('/api/admin/announcement'), a = d.announcement;
+  annMax = d.max || annMax;
+  $('#annNow').hidden = !a; $('#annNone').hidden = !!a;
+  if (a) {
+    $('#annText').textContent = a.body;
+    $('#annMeta').textContent = `Posted ${ago(a.createdAt)} · ` + (d.people ? `${d.seen} of ${plural(d.people, 'person', 'people')} closed it` : 'no one has an account yet');
+  }
+  $('#annPost').textContent = a ? 'Post (replaces this one)' : 'Post to everyone';
+}
+const annCount = () => { const n = $('#annBody').value.length; $('#annCount').textContent = n ? `${n} / ${annMax}` : ''; };
+$('#annBody').addEventListener('input', annCount);
+$('#annForm').addEventListener('submit', async e => {
+  e.preventDefault(); const m = $('#annMsg'), body = $('#annBody').value.trim();
+  if (!body) return say(m, false, 'Write something first.');
+  try { await send('/api/admin/announcement', { body }); $('#annBody').value = ''; annCount(); await loadAnn(); say(m, true, 'Posted. People see it the next time they open pagebot.'); }
+  catch (err) { say(m, false, err.message); }
+});
+$('#annDown').onclick = async () => {
+  try { await send('/api/admin/announcement', undefined, 'DELETE'); await loadAnn(); say($('#annMsg'), true, 'Taken down. No one sees it anymore.'); }
+  catch (err) { say($('#annMsg'), false, err.message); }
+};
+
 // ================= people =================
 const ppl = { q: '', status: 'all', sort: { key: 'last', dir: -1 }, sel: new Set() };
 const usedToday = u => u.limitKind === 'usd' ? u.today.usd : u.today.tokens;
 const PCOLS = [
   { key: 'name', label: 'Person', v: u => u.name.toLowerCase() },
-  { key: 'status', label: 'Status', v: u => u.status },
+  { key: 'status', label: 'Status', v: u => u.ban ? 'b' + u.ban.state : u.status },
   { key: 'limit', label: 'Daily limit', v: u => !u.limitKind ? 3e12 : (u.limitKind === 'usd' ? 1e12 : 0) + +u.limitValue },
   { key: 'today', label: 'Today', v: u => u.limitKind ? frac(usedToday(u), u.limitValue) : -1 + u.today.tokens / 1e12 },
   { key: 'q7', label: 'Questions, 7 days', num: 1, v: u => u.week.questions },
@@ -969,6 +1146,7 @@ function renderPeople() {
   $('#signup').checked = d.signup; $('#signupState').textContent = d.signup ? 'Sign-ups open' : 'Sign-ups closed';
   renderPending(d.users.filter(u => u.status === 'pending'));
   renderDefaults(d.defaults);
+  renderMod();
   for (const id of [...ppl.sel]) if (!d.users.some(u => u.id === id && u.status !== 'pending')) ppl.sel.delete(id);
   const q = ppl.q.trim().toLowerCase();
   const list = d.users.filter(u => u.status !== 'pending' && (ppl.status === 'all' || u.status === ppl.status)
@@ -1003,7 +1181,7 @@ function personRow(tb, u) {
   box.onchange = () => { box.checked ? ppl.sel.add(u.id) : ppl.sel.delete(u.id); renderPeople(); };
   td(tr, box, 'selcol');
   td(tr, nameCell(u.name, u.adminNote));
-  td(tr, u.status === 'blocked' ? chip('Blocked', 'err') : chip('Active', 'ok'));
+  td(tr, statusChip(u));
   td(tr, limitText(u.limitKind, u.limitValue), u.limitKind ? '' : 'muted');
   td(tr, todayCell(u));
   td(tr, nf.format(u.week.questions), 'num'); td(tr, money(u.week.usd), 'num'); td(tr, money(u.total.usd), 'num');
@@ -1022,9 +1200,10 @@ $('#pExport').onclick = () => {
   const d = S.users; if (!d) return;
   download('pagebot-people', [
     ['Name', 'Status', 'Daily limit type', 'Daily limit', 'Today tokens', 'Today cost (USD)', 'Questions 7d', 'Tokens 7d', 'Cost 7d (USD)', 'Questions all time', 'Tokens all time', 'Cost all time (USD)',
-      'Sonnet', 'Web search', 'Devices', 'Last active', 'Last question', 'Joined', 'Accepted', 'Their note', 'Private note'],
+      'Sonnet', 'Web search', 'Passcode', 'Ban', 'Ban reason', 'Devices', 'Last active', 'Last question', 'Joined', 'Accepted', 'Their note', 'Private note'],
     ...d.users.map(u => [u.name, u.status, u.limitKind || 'none', u.limitValue ?? '', u.today.tokens, u.today.usd.toFixed(4), u.week.questions, u.week.tokens, u.week.usd.toFixed(4),
-      u.total.questions, u.total.tokens, u.total.usd.toFixed(4), u.allowSonnet ? 'yes' : 'no', u.allowWeb ? 'yes' : 'no', u.devices,
+      u.total.questions, u.total.tokens, u.total.usd.toFixed(4), u.allowSonnet ? 'yes' : 'no', u.allowWeb ? 'yes' : 'no', u.passcode ? 'yes' : 'no',
+      u.ban ? banWhat(u.ban) + ` (${banStatus(u.ban)})` : '', u.ban?.reason || '', u.devices,
       u.lastSeen || '', u.lastQuestion || '', u.createdAt, u.approvedAt || '', u.note, u.adminNote]),
   ]);
 };
@@ -1125,7 +1304,7 @@ function openPerson(id) {
   Promise.all([api(`/api/admin/usage?days=30&user=${q}`), api(`/api/admin/activity?days=3650&limit=8&user=${q}`), api('/api/admin/sessions')])
     .then(([u, a, s]) => {
       if (dw.id !== id) return;
-      dw.usage = u.days.map(d => ({ ...d, tokens: { total: d.input + d.output, haiku: Math.max(0, d.input + d.output - d.sonnet), sonnet: d.sonnet }, usd: { total: d.usd, haiku: Math.max(0, d.usd - d.sonnetUsd), sonnet: d.sonnetUsd } }));
+      dw.usage = toSeries(u.days);
       dw.recent = a.rows; S.sessions = s;
       renderDrawer();
     }).catch(err => { if (dw.id === id) { dw.error = err.message; renderDrawer(); } });
@@ -1147,7 +1326,7 @@ function renderDrawer() {
   $('#dwName').textContent = owner ? 'You (owner)' : u.name;
   const sub = $('#dwSub'); sub.replaceChildren();
   if (owner) sub.append(chip('Owner', 'owner'), mk('span', '', `Last active ${ago(o.lastSeen)}`));
-  else sub.append(u.status === 'blocked' ? chip('Blocked', 'err') : u.status === 'pending' ? chip('Waiting', 'warn') : chip('Active', 'ok'),
+  else sub.append(statusChip(u),
     mk('span', '', [`Joined ${dayYFmt.format(new Date(u.createdAt))}`, u.approvedAt && `accepted ${dayFmt.format(new Date(u.approvedAt))}`, `active ${ago(u.lastSeen)}`].filter(Boolean).join(' · ')));
   const body = $('#dwBody'); body.replaceChildren();
   // numbers
@@ -1168,7 +1347,7 @@ function renderDrawer() {
   const t = document.createElementNS(NS, 'title'); t.textContent = 'Their usage per day for the last 30 days, stacked by model'; svg.appendChild(t);
   fig.append(svg, tip);
   const lg = mk('div', 'legend'); lg.style.marginBottom = '6px';
-  lg.append(...[['haiku', 'var(--s-haiku)'], ['sonnet', 'var(--s-sonnet)']].map(([k, c]) => { const s = mk('span'), i = mk('i'); i.style.background = c; s.append(i, N[k]); return s; }));
+  lg.append(...legendOf(dw.usage || []));
   body.appendChild(section(`Last 30 days · ${ov.unit === 'usd' ? 'estimated dollars' : 'tokens'}`, lg, dw.usage ? fig : mk('p', 'sub', dw.error || 'Loading…')));
   if (dw.usage) requestAnimationFrame(() => drawBars({
     fig, svg, tip, series: dw.usage, unit: ov.unit, plotH: 110, empty: 'Nothing in the last 30 days',
@@ -1205,6 +1384,7 @@ function renderDrawer() {
     dl.appendChild(it);
   }
   body.appendChild(section('Devices', dl));
+  if (u && u.status !== 'pending') body.appendChild(section('Moderation', moderationBox(u)));
   if (u) body.appendChild(section('Account', accountBox(u)));
   else body.appendChild(section('Account', mk('p', 'sub', 'You have no limit. Your password and passcode are under Settings.')));
 }
@@ -1242,7 +1422,10 @@ function editor(u) {
 function accountBox(u) {
   const box = mk('div');
   if (u.note) { const n = mk('div', 'note'); n.append(mk('span', 'sub', 'They wrote: '), `“${u.note}”`); box.appendChild(n); }
-  const msg = mk('div', 'msg'), row = mk('div', 'btns'); row.style.marginTop = u.note ? '12px' : '0';
+  const pc = mk('p', 'sub', !u.passcode ? 'No passcode: they sign in with their password.'
+    : u.lockMinutes ? `Passcode on: their panel locks after ${lockName(u.lockMinutes)} without activity.` : 'Passcode on, with no auto-lock.');
+  pc.style.margin = u.note ? '10px 0 0' : '0'; box.appendChild(pc);
+  const msg = mk('div', 'msg'), row = mk('div', 'btns'); row.style.marginTop = '12px';
   const reset = button('Reset password', 'btn ghost sm'), out = button('Sign out everywhere', 'btn ghost sm'),
     blk = button(u.status === 'blocked' ? 'Unblock' : 'Block', 'btn ghost sm' + (u.status === 'blocked' ? '' : ' danger')), rm = button('Delete', 'btn ghost sm danger');
   row.append(reset, out, blk, rm);
@@ -1254,7 +1437,7 @@ function accountBox(u) {
     catch (err) { say(msg, false, err.message); }
   };
   reset.onclick = () => { np.hidden = !np.hidden; if (!np.hidden) npIn.focus(); };
-  npGo.onclick = () => act1({ password: npIn.value }, `Password changed and ${u.name} was signed out. Tell them the new one.`);
+  npGo.onclick = () => act1({ password: npIn.value }, `Password changed and ${u.name} was signed out.` + (u.passcode ? ' Their passcode was turned off too.' : '') + ' Tell them the new password.');
   npIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); npGo.click(); } });
   out.onclick = () => act1({ signout: true }, `${u.name} was signed out everywhere.`);
   blk.onclick = () => act1({ status: u.status === 'blocked' ? 'trusted' : 'blocked' }, u.status === 'blocked' ? `${u.name} can use pagebot again.` : `${u.name} is blocked and signed out.`);
@@ -1285,6 +1468,7 @@ async function loadActivity(reset) {
     const r = await api('/api/admin/activity?' + p);
     if (reset) { act.rows = []; act.open.clear(); }
     act.rows.push(...r.rows); act.more = r.more;
+    if (r.rows.some(x => x.family === 'router')) routerSeen();
     renderActivity();
   } finally { act.loading = false; $('#t-activity').classList.remove('loading'); }
 }

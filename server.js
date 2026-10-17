@@ -12,11 +12,20 @@ const PUB = path.join(__dirname, 'public');
 
 // ---------- config ----------
 const PORT = process.env.PORT || 3000;
+// pagebot's version. It's written into the bookmark people drag from the homepage, so raise it by one to release an
+// update: panels opened from an older bookmark then send people to the homepage to drag the new one.
+const VERSION = 8;
 // the two models the panel can switch between; web search tool versions differ per model
 const MODELS = {
   haiku: { id: process.env.HAIKU_MODEL || process.env.MODEL || 'claude-haiku-5-5', label: 'Haiku 5.5', search: 'web_search_20250305' },
   sonnet: { id: process.env.SONNET_MODEL || 'claude-sonnet-5-5', label: 'Sonnet 5.5', search: 'web_search_20260209', fallback: process.env.SONNET_FALLBACK !== 'off' },
 };
+// a third model that runs on your OpenRouter credits instead of Anthropic's; it only shows up once OPENROUTER_API_KEY is set
+const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY || '';
+if (OPENROUTER_KEY) {
+  const id = process.env.OPENROUTER_MODEL || 'meta/muse-spark-1.3-contributor';
+  MODELS.openrouter = { id, label: process.env.OPENROUTER_MODEL ? modelLabel(id) : 'Muse Spark 1.3', openrouter: true };
+}
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 // both models think by default and thinking counts toward max_tokens; low effort keeps chat replies quick
 const EFFORT = ['low', 'medium', 'high', 'xhigh', 'max'].includes(process.env.EFFORT) ? process.env.EFFORT : 'low';
@@ -26,7 +35,7 @@ const TIMEZONE = process.env.TIMEZONE || 'America/Denver';
 const SESSION_DAYS = Number(process.env.SESSION_DAYS) || 30;
 const SYSTEM = process.env.SYSTEM_PROMPT ||
   `You are a fast, concise helper running in a small chat panel on top of whatever web page the user is viewing.
-The user may attach the page's text (<page>), text they highlighted (<highlighted_text>), and/or a screenshot.
+The user may attach the page they're viewing (as a document), text they highlighted (<highlighted_text>), and/or a screenshot.
 Lead with the answer. Keep it short unless asked for detail. Use light markdown (bold, lists, code blocks) only when it helps.
 If the attached content doesn't contain what's needed, say so briefly.`;
 
@@ -35,25 +44,38 @@ const PRICES = {
   'claude-haiku-5-5': { in: 0.10, write: 0.125, read: 0.01, out: 0.50, long: { over: 100_000, in: 0.50, write: 0.625, read: 0.05, out: 2.50 } },
   'claude-sonnet-5-5': { in: 2, write: 2.50, read: 0.10, out: 10 },
   'claude-sonnet-5': { in: 2, write: 2.50, read: 0.20, out: 10 },
+  // OpenRouter's price (October 2026). OpenRouter reports what each answer actually cost; this is for estimates.
+  'meta/muse-spark-1.3-contributor': { in: 0.10, write: 0.10, read: 0.002, out: 0.20 },
 };
 const SEARCH_USD = 0.01; // $10 per 1,000 web searches
+const SEARCH_TOKENS = 3000; // rough prompt tokens one search's results add, for estimates
 
 // prefs are what the panel changes; limits cap each question. Both live in the settings table.
-const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', 'glass'];
+const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', 'glass', 'clear'];
 const DEFAULT_PREFS = { theme: 'ember', model: 'haiku', web: false };
-const LIMIT_RANGES = { maxTokens: [256, 8000], pageTokens: [500, 50000], maxSearches: [1, 10] }; // no answer may exceed 8,000 tokens
+const LIMIT_RANGES = { maxTokens: [256, 100000], pageTokens: [500, 50000], maxSearches: [1, 10] }; // no answer may exceed 100,000 tokens
 const DEFAULT_LIMITS = { maxTokens: clampInt(process.env.MAX_TOKENS || 2048, ...LIMIT_RANGES.maxTokens), pageTokens: 5000, maxSearches: 3 };
 const LOCK_CHOICES = [0, 1, 5, 15, 30, 60, 240, 1440]; // passcode auto-lock after N idle minutes (0 = never)
-const MAX_PASSCODE_FAILS = 10; // wrong passcodes within PASSCODE_WINDOW; then only the full password can unlock
+const MAX_PASSCODE_FAILS = 10; // wrong passcodes within PASSCODE_WINDOW; then only the full password can unlock (the owner's and each account's count separately)
 const PASSCODE_WINDOW = 24 * 3600_000; // a right passcode doesn't wipe earlier wrong ones; they expire after a day
 const LOGIN_FAILS_PER_IP = 30; // wrong logins one address gets per hour (on top of 10 tries a minute)
 const OWNER_FAILS_PER_HOUR = 200; // wrong owner passwords from everywhere before password logins pause
+const MAX_ANNOUNCEMENT = 500;
+const MAX_MEMORY_SITES = 100;
+const MAX_MEMORY_INSTRUCTIONS = 4000;
 
 // other people's accounts: they sign up, wait for approval, then use pagebot within a daily limit
 const DEFAULT_ACCOUNT = { limitKind: 'tokens', limitValue: 100_000, allowSonnet: true, allowWeb: true };
 const DAILY_RANGES = { tokens: [1_000, 100_000_000], usd: [0.01, 1000] };
 const RESERVED_NAMES = new Set(['owner', 'admin', 'root', 'pagebot', 'system', 'support']);
 const MAX_PENDING = 200;
+
+// Bans work like a game's: a ban keeps an account out for a while (or for good) and shows them a notice saying why.
+// Once a timed ban runs out they agree to the rules to re-activate the account. A termination shows its notice on
+// every sign-in until the account is deleted TERMINATE_DAYS later.
+const BAN_HOURS = [1, 24, 72, 168, 336, 720, 0]; // 0 = permanent
+const TERMINATE_DAYS = 14;
+const MAX_BAN_REASON = 120, MAX_BAN_NOTE = 1000;
 
 if (!process.env.DATABASE_URL) { console.error('DATABASE_URL is not set'); process.exit(1); }
 if (!process.env.ANTHROPIC_API_KEY) console.warn('ANTHROPIC_API_KEY is not set — chat will fail.');
@@ -87,6 +109,44 @@ CREATE TABLE IF NOT EXISTS users (
   last_seen TIMESTAMPTZ
 );
 CREATE UNIQUE INDEX IF NOT EXISTS users_name_idx ON users (lower(username));
+CREATE TABLE IF NOT EXISTS site_memories (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+  site TEXT NOT NULL,
+  instructions TEXT NOT NULL CHECK (char_length(instructions) BETWEEN 1 AND ${MAX_MEMORY_INSTRUCTIONS}),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- NULL identifies the owner, whose sites must be unique too; account ids start at 1.
+CREATE UNIQUE INDEX IF NOT EXISTS site_memories_user_site_idx ON site_memories (COALESCE(user_id, 0), site);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS passcode_hash TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS passcode_fails INT NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS passcode_fails_at TIMESTAMPTZ; -- when the current run of wrong passcodes started
+ALTER TABLE users ADD COLUMN IF NOT EXISTS lock_minutes INT NOT NULL DEFAULT 15;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ann_seen BIGINT NOT NULL DEFAULT 0;
+CREATE TABLE IF NOT EXISTS bans (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  username TEXT NOT NULL, -- kept after a terminated account is deleted
+  kind TEXT NOT NULL, -- 'ban' or 'terminate'
+  hours INT, -- how long a ban lasts; NULL = permanent (and for terminations)
+  reason TEXT NOT NULL,
+  note TEXT,
+  notice_key TEXT NOT NULL UNIQUE, -- lets the banned person's panel re-activate the account once a ban ends
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ends_at TIMESTAMPTZ, -- when a ban ends, or when a terminated account is deleted
+  seen_at TIMESTAMPTZ, -- first time they were shown it
+  reactivated_at TIMESTAMPTZ,
+  lifted_at TIMESTAMPTZ, -- unbanned (or replaced by a newer ban)
+  deleted_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS bans_user_idx ON bans (user_id, id);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_id BIGINT; -- the ban or termination in force
+CREATE TABLE IF NOT EXISTS announcements (
+  id BIGSERIAL PRIMARY KEY,
+  body TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  hidden_at TIMESTAMPTZ
+);
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash TEXT PRIMARY KEY,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -102,6 +162,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   page_title TEXT
 );
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS user_id BIGINT;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS memory_site TEXT;
 CREATE TABLE IF NOT EXISTS messages (
   id BIGSERIAL PRIMARY KEY,
   conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
@@ -118,6 +179,10 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS refused BOOLEAN NOT NULL DEFAULT f
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS user_id BIGINT;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS cost_usd NUMERIC(14,6);
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS incomplete BOOLEAN NOT NULL DEFAULT false;
+-- the page sent with a question, as JSON {url, title, text}, so follow-ups can resend it as a citable document
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS page_doc TEXT;
+-- the theme in use when a question was asked (for Wrapped)
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS theme TEXT;
 CREATE INDEX IF NOT EXISTS messages_conv_idx ON messages (conversation_id, id);
 CREATE INDEX IF NOT EXISTS messages_created_idx ON messages (created_at);
 CREATE INDEX IF NOT EXISTS messages_user_idx ON messages (user_id, created_at);
@@ -172,6 +237,26 @@ function clampInt(v, lo, hi) {
 }
 function parseJSON(s) {
   try { const v = JSON.parse(s); return v && typeof v === 'object' ? v : {}; } catch { return {}; }
+}
+// Memory belongs to an exact hostname, across protocols, paths and ports. URL handles IDNs and IPv6.
+function memorySite(value) {
+  if (typeof value !== 'string') return null;
+  const input = value.trim();
+  if (!input || input.length > 2000 || /[\s\\]/.test(input)) return null;
+  try {
+    const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(input) ? input : `https://${input}`);
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null;
+    const site = url.hostname.toLowerCase().replace(/\.$/, '');
+    if (!site || site.length > 253) return null;
+    if (!site.startsWith('[') && !site.split('.').every(label => /^[a-z\d](?:[a-z\d-]{0,61}[a-z\d])?$/.test(label))) return null;
+    return site;
+  } catch { return null; }
+}
+const publicMemory = row => ({ site: row.site, instructions: row.instructions, updatedAt: row.updated_at });
+async function getMemory(userId, site) {
+  if (!site) return null;
+  const r = await pool.query('SELECT site, instructions, updated_at FROM site_memories WHERE COALESCE(user_id, 0)=$1 AND site=$2', [userId ?? 0, site]);
+  return r.rows[0] ? publicMemory(r.rows[0]) : null;
 }
 function cleanPrefs(p = {}) {
   const o = {};
@@ -240,10 +325,14 @@ function toUser(r) {
     limitKind: r.limit_kind || null, limitValue: r.limit_value == null ? null : Number(r.limit_value),
     allowSonnet: r.allow_sonnet, allowWeb: r.allow_web, prefs: parseJSON(r.prefs),
     createdAt: r.created_at, approvedAt: r.approved_at, lastSeen: r.last_seen,
+    passcode: !!r.passcode_hash, lockMinutes: LOCK_CHOICES.includes(Number(r.lock_minutes)) ? Number(r.lock_minutes) : 15,
+    annSeen: Number(r.ann_seen) || 0, banId: r.ban_id == null ? null : Number(r.ban_id),
   };
 }
 // what the panel shows for an account (never the owner's private note)
-const publicUser = u => ({ name: u.name, status: u.status, allowSonnet: u.allowSonnet, allowWeb: u.allowWeb });
+const publicUser = u => ({ name: u.name, status: u.status, allowSonnet: u.allowSonnet, allowWeb: u.allowWeb, passcode: u.passcode, lockMinutes: u.lockMinutes });
+// an account with a passcode locks after its own idle time, like the owner's panel
+const userLockMinutes = u => u?.passcode ? u.lockMinutes : 0;
 // accounts get their own theme/model/web/answer length; their answer length can't go past the owner's limit
 function prefsFor(cfg, u) {
   if (!u) return cfg.prefs;
@@ -274,6 +363,58 @@ function quota(u, used) {
   return { kind: u.limitKind, limit: u.limitValue, used: spent, left: Math.max(0, u.limitValue - spent) };
 }
 const fmtLimit = (kind, v) => kind === 'usd' ? `$${Number(v).toFixed(2)}` : `${v >= 1000 ? Math.round(v / 100) / 10 + 'K' : v} tokens`;
+
+// ---------- bans ----------
+// active: banned until ends_at (or for good); ended: the time is up but they haven't re-activated yet;
+// terminated: shown on every sign-in until the account is deleted. The others no longer keep anyone out.
+function banState(b) {
+  if (b.lifted_at) return 'lifted';
+  if (b.deleted_at) return 'deleted';
+  if (b.kind === 'terminate') return 'terminated';
+  if (b.reactivated_at) return 'reactivated';
+  return b.ends_at && new Date(b.ends_at) <= Date.now() ? 'ended' : 'active';
+}
+const LIVE_BAN = new Set(['active', 'ended', 'terminated']);
+// what the banned person sees, in the panel and on the notice page
+const publicBan = b => ({
+  id: Number(b.id), kind: b.kind, state: banState(b), name: b.username, reason: b.reason, note: b.note || '',
+  hours: b.hours == null ? null : Number(b.hours), at: b.created_at, endsAt: b.ends_at, key: b.notice_key,
+});
+const adminBan = b => ({
+  ...publicBan(b), userId: b.user_id == null ? null : Number(b.user_id),
+  seenAt: b.seen_at, liftedAt: b.lifted_at, reactivatedAt: b.reactivated_at, deletedAt: b.deleted_at,
+});
+const banMsg = b => banState(b) === 'terminated' ? 'This account has been terminated.'
+  : banState(b) === 'ended' ? 'Your ban is over. Re-activate your account to keep going.' : 'This account is banned.';
+async function liveBan(id) {
+  if (!id) return null;
+  const b = (await pool.query('SELECT * FROM bans WHERE id=$1', [id])).rows[0];
+  return b && LIVE_BAN.has(banState(b)) ? b : null;
+}
+const markBanSeen = id => pool.query('UPDATE bans SET seen_at = now() WHERE id = $1 AND seen_at IS NULL', [id]);
+// terminated accounts are deleted once their two weeks are up; the notice and the moderation log stay
+async function purgeTerminated() {
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+    const due = await db.query(`UPDATE bans b SET deleted_at = now() FROM users u
+      WHERE u.ban_id = b.id AND b.kind = 'terminate' AND b.lifted_at IS NULL AND b.deleted_at IS NULL AND b.ends_at <= now()
+      RETURNING b.user_id`);
+    if (due.rowCount) await db.query('DELETE FROM users WHERE id = ANY($1::bigint[])', [due.rows.map(r => r.user_id)]);
+    await db.query('COMMIT');
+    if (due.rowCount) console.log(`Deleted ${due.rowCount} terminated account${due.rowCount === 1 ? '' : 's'}.`);
+  } catch (e) {
+    await db.query('ROLLBACK');
+    throw e;
+  } finally { db.release(); }
+}
+
+// Announcements: everyone with an account sees the newest one until they dismiss it.
+// Posting a new one replaces it; taking it down hides it without bringing back an older one.
+async function currentAnnouncement() {
+  const a = (await pool.query('SELECT id, body, created_at, hidden_at FROM announcements ORDER BY id DESC LIMIT 1')).rows[0];
+  return a && !a.hidden_at ? { id: Number(a.id), body: a.body, createdAt: a.created_at } : null;
+}
 
 // ---------- crypto helpers ----------
 const scrypt = promisify(crypto.scrypt);
@@ -326,20 +467,25 @@ const FAILS_MSG = 'Too many wrong tries from here. Try again later.';
 
 const bearer = req => (req.get('authorization') || '').replace(/^Bearer\s+/i, '').trim();
 
-// The owner's sessions lock after the passcode's idle time (when one is set); accounts stay signed in for SESSION_DAYS.
+// Sessions with a passcode behind them (the owner's, or an account's) lock after that passcode's idle time;
+// everything else stays signed in for SESSION_DAYS.
 // Returns { user } (null user = the owner), or null when the token is unknown or expired.
 async function touchSession(tok, lock, ip) {
   if (!tok) return null;
   const ownerMins = lock.on && lock.minutes ? lock.minutes : SESSION_DAYS * 1440;
   const r = await pool.query(
-    `UPDATE sessions SET last_used=now(), ip=COALESCE($4, ip) WHERE token_hash=$1
-       AND last_used > now() - make_interval(mins => CASE WHEN user_id IS NULL THEN $2::int ELSE $3::int END)
+    `UPDATE sessions s SET last_used=now(), ip=COALESCE($4, s.ip) WHERE s.token_hash=$1
+       AND s.last_used > now() - make_interval(mins => CASE WHEN s.user_id IS NULL THEN $2::int ELSE COALESCE(
+         (SELECT u.lock_minutes FROM users u WHERE u.id = s.user_id AND u.passcode_hash IS NOT NULL AND u.lock_minutes > 0), $3::int) END)
      RETURNING user_id`, [sha256(tok), ownerMins, SESSION_DAYS * 1440, ip || null]);
   if (!r.rowCount) return null;
   const uid = r.rows[0].user_id;
   if (uid == null) return { user: null };
   const u = await pool.query('UPDATE users SET last_seen=now() WHERE id=$1 RETURNING *', [uid]);
-  return u.rowCount ? { user: toUser(u.rows[0]) } : null;
+  if (!u.rowCount) return null;
+  const user = toUser(u.rows[0]);
+  user.ban = await liveBan(user.banId); // a banned account stays signed in, so it keeps seeing why
+  return { user };
 }
 // the browser and address are kept so /admin can list signed-in devices
 async function newSession(userId, req) {
@@ -354,6 +500,7 @@ async function auth(req, res, next) {
   req.cfg = await loadConfig();
   const s = await touchSession(tok, req.cfg.lock, req.ip);
   if (!s) return res.status(401).json({ error: req.cfg.lock.on ? 'Locked' : 'Session expired', locked: req.cfg.lock.on });
+  if (s.user?.ban) return res.status(403).json({ error: banMsg(s.user.ban), banned: true });
   req.user = s.user;
   next();
 }
@@ -378,6 +525,7 @@ function admin(req, res, next) {
 setInterval(() => {
   pool.query('DELETE FROM sessions WHERE last_used < now() - make_interval(days => $1)', [SESSION_DAYS]).catch(() => {});
 }, 6 * 3600_000).unref();
+setInterval(() => purgeTerminated().catch(e => console.error('purge error:', e.message)), 10 * 60_000).unref();
 
 // ---------- app ----------
 const app = express();
@@ -428,11 +576,11 @@ function sendPage(res, file, { frames = "'none'", html = s => s, headers = {} } 
 
 app.get(['/', '/install'], (req, res) => {
   const origin = publicOrigin(req);
-  const code = bookmarkletSrc.replaceAll('__ORIGIN__', origin).replace(/\n\s*/g, '');
+  const code = bookmarkletSrc.replaceAll('__ORIGIN__', origin).replaceAll('__VERSION__', VERSION).replace(/\n\s*/g, '');
   const href = 'javascript:' + encodeURIComponent(code);
   sendPage(res, 'install.html', {
     headers: { 'Cache-Control': 'no-store', Vary: 'Host, X-Forwarded-Host, X-Forwarded-Proto' },
-    html: s => s.replaceAll('{{HREF}}', () => escHtml(href)).replaceAll('{{ORIGIN}}', () => escHtml(origin)),
+    html: s => s.replaceAll('{{HREF}}', () => escHtml(href)).replaceAll('{{ORIGIN}}', () => escHtml(origin)).replaceAll('{{VERSION}}', VERSION),
   });
 });
 // the panel loads inside any site's page (that's what the bookmarklet does); everything else refuses to be framed
@@ -442,7 +590,7 @@ app.get('/admin', (req, res) => sendPage(res, 'admin.html'));
 
 app.get('/health', async (req, res) => {
   await pool.query('SELECT 1');
-  res.json({ ok: true, models: Object.fromEntries(Object.entries(MODELS).map(([k, m]) => [k, m.id])) });
+  res.json({ ok: true, version: VERSION, models: Object.fromEntries(Object.entries(MODELS).map(([k, m]) => [k, m.id])) });
 });
 
 // everything the panel needs to start: theme and how to unlock for anyone, the rest once signed in
@@ -453,6 +601,7 @@ app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
   const u = s?.user || null;
   const accountsExist = cfg.signup || (await pool.query(`SELECT 1 FROM users WHERE status <> 'pending' LIMIT 1`)).rowCount > 0;
   const out = {
+    version: VERSION, // panels opened from an older bookmark point to the homepage for the new one
     theme: prefsFor(cfg, u).theme,
     lock: cfg.lock.on ? 'passcode' : cfg.passwordSet ? 'password' : 'none',
     passwordSet: cfg.passwordSet,
@@ -462,9 +611,17 @@ app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
   res.set('Cache-Control', 'no-store');
   if (!s) return res.json(out);
   if (!u) return res.json({ ...out, who: 'owner', lockMinutes: cfg.lock.on ? cfg.lock.minutes : 0, prefs: cfg.prefs, limits: limitsFor(cfg, null), models: modelList() });
-  out.who = 'user'; out.lockMinutes = 0; out.user = publicUser(u);
+  out.who = 'user'; out.lockMinutes = userLockMinutes(u); out.lockChoices = LOCK_CHOICES; out.user = publicUser(u);
+  if (u.ban) {
+    await markBanSeen(u.ban.id);
+    return res.json({ ...out, ban: publicBan(u.ban) });
+  }
   if (u.status === 'trusted') {
-    Object.assign(out, { prefs: prefsFor(cfg, u), limits: limitsFor(cfg, u), models: modelsFor(u), quota: quota(u, await usageToday(u.id)) });
+    const a = await currentAnnouncement();
+    Object.assign(out, {
+      prefs: prefsFor(cfg, u), limits: limitsFor(cfg, u), models: modelsFor(u), quota: quota(u, await usageToday(u.id)),
+      announcement: a && a.id > u.annSeen ? a : null,
+    });
   }
   res.json(out);
 });
@@ -493,23 +650,52 @@ app.post('/api/signup', limit(5, 'signup'), limit(30, 'signup-hour', 3600_000), 
   res.json({ token: await newSession(Number(id), req) });
 });
 
-// log in with the owner's password or passcode, or with an account's username and password
+function wrongPasscode(res, n) {
+  const left = MAX_PASSCODE_FAILS - n;
+  return res.status(401).json({
+    error: left <= 0 ? 'Too many wrong passcodes. Unlock with your password.'
+      : left <= 3 ? `Wrong passcode — ${left} ${left === 1 ? 'try' : 'tries'} left.` : 'Wrong passcode',
+    left, usePassword: left <= 0,
+  });
+}
+const tooManyPasscodes = res => res.status(423).json({ error: 'Too many wrong passcodes. Unlock with your password.', usePassword: true });
+
+// log in with the owner's password or passcode, or with an account's username and its password or passcode
 app.post('/api/login', limit(10, 'login'), async (req, res) => {
   if (tooManyFails(req)) return res.status(429).json({ error: FAILS_MSG });
   const b = req.body || {};
   const old = bearer(req);
   if (b.username) {
-    const r = await pool.query('SELECT id, password_hash, status FROM users WHERE lower(username) = lower($1)', [String(b.username).trim()]);
+    await purgeTerminated(); // a termination whose two weeks are up ends here, not at the next sweep
+    const r = await pool.query('SELECT id, password_hash, passcode_hash, status FROM users WHERE lower(username) = lower($1)', [String(b.username).trim()]);
     const u = r.rows[0];
-    const ok = await verifyPw(String(b.password || ''), u?.password_hash || await dummyHash);
-    if (!u || !ok) { noteFail(req); return res.status(401).json({ error: 'Wrong username or password.' }); }
+    if (b.passcode != null) {
+      const code = String(b.passcode);
+      if (!/^\d{5}$/.test(code)) return res.status(400).json({ error: 'Enter all 5 digits.' });
+      if (!u?.passcode_hash) { noteFail(req); return res.status(401).json({ error: 'There’s no passcode on this account. Sign in with your password.', usePassword: true }); }
+      // Same rules as the owner's passcode: count the attempt before checking it, so parallel guesses can't slip past
+      // the cap, and wrong guesses stay on record for a day even if the right passcode is used in between.
+      const n = (await pool.query(
+        `UPDATE users SET
+           passcode_fails = CASE WHEN passcode_fails_at > now() - $2::float8 * interval '1 millisecond' OR passcode_fails >= $3 THEN passcode_fails + 1 ELSE 1 END,
+           passcode_fails_at = CASE WHEN passcode_fails_at > now() - $2::float8 * interval '1 millisecond' OR passcode_fails >= $3 THEN COALESCE(passcode_fails_at, now()) ELSE now() END
+         WHERE id = $1 RETURNING passcode_fails`, [u.id, PASSCODE_WINDOW, MAX_PASSCODE_FAILS])).rows[0].passcode_fails;
+      if (n > MAX_PASSCODE_FAILS) return tooManyPasscodes(res);
+      if (!(await verifyPw(code, u.passcode_hash))) { noteFail(req); return wrongPasscode(res, n); }
+      // the right passcode: take back this attempt's count, but keep the wrong ones
+      await pool.query('UPDATE users SET passcode_fails = GREATEST(passcode_fails - 1, 0) WHERE id = $1', [u.id]);
+    } else {
+      const ok = await verifyPw(String(b.password || ''), u?.password_hash || await dummyHash);
+      if (!u || !ok) { noteFail(req); return res.status(401).json({ error: 'Wrong username or password.' }); }
+    }
     if (u.status === 'blocked') return res.status(403).json({ error: 'This account has been turned off.' });
+    if (b.passcode == null) await pool.query('UPDATE users SET passcode_fails = 0, passcode_fails_at = NULL WHERE id = $1', [u.id]); // the password clears wrong passcodes
     if (old) await pool.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(old)]);
     return res.json({ token: await newSession(Number(u.id), req) });
   }
   const cfg = await loadConfig();
   if (b.passcode != null) {
-    if (!cfg.lock.on) return res.status(400).json({ error: 'No passcode is set — use your password.' });
+    if (!cfg.lock.on) return res.status(400).json({ error: 'No passcode is set — use your password.', usePassword: true });
     const code = String(b.passcode);
     if (!/^\d{5}$/.test(code)) return res.status(400).json({ error: 'Enter all 5 digits.' });
     // Count the attempt before checking it, so parallel guesses can't slip past the cap. Wrong guesses stay on
@@ -524,17 +710,8 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
          ELSE '1:' || $1 END
        RETURNING value`, [String(now), now - PASSCODE_WINDOW, MAX_PASSCODE_FAILS]);
     const n = parseInt(r.rows[0].value, 10);
-    if (n > MAX_PASSCODE_FAILS)
-      return res.status(423).json({ error: 'Too many wrong passcodes. Unlock with your password.', usePassword: true });
-    if (!(await verifyPw(code, cfg.lock.hash))) {
-      noteFail(req);
-      const left = MAX_PASSCODE_FAILS - n;
-      return res.status(401).json({
-        error: left <= 0 ? 'Too many wrong passcodes. Unlock with your password.'
-          : left <= 3 ? `Wrong passcode — ${left} ${left === 1 ? 'try' : 'tries'} left.` : 'Wrong passcode',
-        left, usePassword: left <= 0,
-      });
-    }
+    if (n > MAX_PASSCODE_FAILS) return tooManyPasscodes(res);
+    if (!(await verifyPw(code, cfg.lock.hash))) { noteFail(req); return wrongPasscode(res, n); }
     // the right passcode: take back this attempt's count, but keep the wrong ones
     await pool.query(
       `UPDATE settings SET value = (split_part(value, ':', 1)::int - 1)::text || ':' || split_part(value, ':', 2)
@@ -584,6 +761,58 @@ app.post('/api/prefs', limit(60, 'prefs'), auth, async (req, res) => {
   res.json({ prefs: prefsFor(cfg, u), limits: limitsFor(cfg, u) });
 });
 
+// These are the signed-in person's instructions, never shared with other accounts or learned from page text.
+app.get('/api/site-memory', limit(60, 'memory-read'), auth, trusted, async (req, res) => {
+  const uid = req.user?.id ?? null;
+  const bounds = { maxSites: MAX_MEMORY_SITES, maxInstructions: MAX_MEMORY_INSTRUCTIONS };
+  if (req.query.site != null) {
+    const site = memorySite(req.query.site);
+    if (!site) return res.status(400).json({ error: 'Enter a website hostname or an http(s) URL.' });
+    return res.json({ site, memory: await getMemory(uid, site), ...bounds });
+  }
+  const r = await pool.query('SELECT site, instructions, updated_at FROM site_memories WHERE COALESCE(user_id, 0)=$1 ORDER BY site', [uid ?? 0]);
+  res.json({ memories: r.rows.map(publicMemory), ...bounds });
+});
+
+app.put('/api/site-memory', limit(60, 'memory-write'), auth, trusted, async (req, res) => {
+  const site = memorySite(req.body?.site), raw = req.body?.instructions;
+  if (!site) return res.status(400).json({ error: 'Enter a website hostname or an http(s) URL.' });
+  if (typeof raw !== 'string') return res.status(400).json({ error: 'Instructions must be text.' });
+  if (raw.length > MAX_MEMORY_INSTRUCTIONS) return res.status(400).json({ error: `Use at most ${MAX_MEMORY_INSTRUCTIONS} characters for this website.` });
+  const instructions = raw.trim(), uid = req.user?.id ?? null;
+  if (!instructions) {
+    await pool.query('DELETE FROM site_memories WHERE COALESCE(user_id, 0)=$1 AND site=$2', [uid ?? 0, site]);
+    return res.json({ memory: null });
+  }
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+    // Serialize only this person's saves so concurrent new sites cannot exceed the cap.
+    await db.query('SELECT pg_advisory_xact_lock($1::bigint)', [uid ?? 0]);
+    const count = await db.query('SELECT COUNT(*)::int AS n FROM site_memories WHERE COALESCE(user_id, 0)=$1 AND site <> $2', [uid ?? 0, site]);
+    if (count.rows[0].n >= MAX_MEMORY_SITES) {
+      await db.query('ROLLBACK');
+      return res.status(400).json({ error: `You can save instructions for ${MAX_MEMORY_SITES} websites. Remove one before adding another.` });
+    }
+    const r = await db.query(
+      `INSERT INTO site_memories(user_id, site, instructions) VALUES ($1,$2,$3)
+       ON CONFLICT (COALESCE(user_id, 0), site) DO UPDATE SET instructions=EXCLUDED.instructions, updated_at=now()
+       RETURNING site, instructions, updated_at`, [uid, site, instructions]);
+    await db.query('COMMIT');
+    res.json({ memory: publicMemory(r.rows[0]) });
+  } catch (e) {
+    await db.query('ROLLBACK');
+    throw e;
+  } finally { db.release(); }
+});
+
+app.delete('/api/site-memory', limit(60, 'memory-write'), auth, trusted, async (req, res) => {
+  const site = memorySite(req.query.site);
+  if (!site) return res.status(400).json({ error: 'Enter a website hostname or an http(s) URL.' });
+  await pool.query('DELETE FROM site_memories WHERE COALESCE(user_id, 0)=$1 AND site=$2', [req.user?.id ?? 0, site]);
+  res.json({ ok: true });
+});
+
 // accounts can change their own password (other devices get signed out)
 app.post('/api/account/password', limit(10, 'login'), auth, async (req, res) => {
   if (tooManyFails(req)) return res.status(429).json({ error: FAILS_MSG });
@@ -594,22 +823,82 @@ app.post('/api/account/password', limit(10, 'login'), auth, async (req, res) => 
   if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'Use a password with at least 6 characters.' });
   const row = (await pool.query('SELECT password_hash FROM users WHERE id=$1', [u.id])).rows[0];
   if (!(await verifyPw(String(b.current || ''), row.password_hash))) { noteFail(req); return res.status(401).json({ error: 'Your current password is wrong.' }); }
-  await pool.query('UPDATE users SET password_hash=$2 WHERE id=$1', [u.id, await hashPw(pw)]);
+  // the passcode goes too: it would otherwise sign the devices this signs out straight back in
+  const r = await pool.query('UPDATE users SET password_hash=$2, passcode_hash=NULL, passcode_fails=0, passcode_fails_at=NULL WHERE id=$1 RETURNING *',
+    [u.id, await hashPw(pw)]);
   await pool.query('DELETE FROM sessions WHERE user_id=$1 AND token_hash <> $2', [u.id, sha256(bearer(req))]);
+  const nu = toUser(r.rows[0]);
+  res.json({ ok: true, user: publicUser(nu), lockMinutes: userLockMinutes(nu) });
+});
+
+// accounts can have their own passcode, like the owner's: 5 digits instead of the password, plus an idle lock.
+// Setting or changing it takes the account password; turning it off or changing the lock time doesn't.
+app.post('/api/account/passcode', limit(10, 'login'), auth, trusted, async (req, res) => {
+  if (tooManyFails(req)) return res.status(429).json({ error: FAILS_MSG });
+  const u = req.user;
+  if (!u) return res.status(400).json({ error: 'Set the owner passcode in /admin.' });
+  const b = req.body || {};
+  const set = {};
+  if (b.lockMinutes != null) {
+    const mins = Number(b.lockMinutes);
+    if (!LOCK_CHOICES.includes(mins)) return res.status(400).json({ error: 'Pick one of the listed auto-lock times.' });
+    set.lock_minutes = mins;
+  }
+  if (b.passcode === null) Object.assign(set, { passcode_hash: null, passcode_fails: 0, passcode_fails_at: null });
+  else if (b.passcode != null) {
+    const code = String(b.passcode);
+    if (!/^\d{5}$/.test(code)) return res.status(400).json({ error: 'The passcode must be exactly 5 digits.' });
+    const row = (await pool.query('SELECT password_hash FROM users WHERE id=$1', [u.id])).rows[0];
+    // 400, not 401: the panel treats 401 as "signed out"
+    if (!(await verifyPw(String(b.current || ''), row.password_hash))) { noteFail(req); return res.status(400).json({ error: 'Your password is wrong.' }); }
+    Object.assign(set, { passcode_hash: await hashPw(code), passcode_fails: 0, passcode_fails_at: null });
+  }
+  const keys = Object.keys(set);
+  if (!keys.length) return res.status(400).json({ error: 'Nothing to change.' });
+  const r = await pool.query(`UPDATE users SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1 RETURNING *`,
+    [u.id, ...keys.map(k => set[k])]);
+  const nu = toUser(r.rows[0]);
+  res.json({ ok: true, user: publicUser(nu), lockMinutes: userLockMinutes(nu) });
+});
+
+// an account closed the announcement banner (older ones count as seen too)
+// Once a timed ban is over, the banned person's panel (which got the ban's key with its notice) re-activates the account.
+const noticeKey = v => typeof v === 'string' && /^[A-Za-z0-9_-]{20,64}$/.test(v) ? v : null;
+app.post('/api/ban-notice/reactivate', limit(10, 'notice-ok'), async (req, res) => {
+  const key = noticeKey(req.body?.key);
+  if (req.body?.agree !== true) return res.status(400).json({ error: 'Tick the box to agree to the rules first.' });
+  const b = key && (await pool.query('SELECT * FROM bans WHERE notice_key=$1', [key])).rows[0];
+  if (!b) return res.status(404).json({ error: 'We couldn’t find that notice.' });
+  const state = banState(b);
+  if (state !== 'ended') {
+    return res.status(409).json({ ban: publicBan(b), error: state === 'active' ? 'This ban isn’t over yet.'
+      : state === 'terminated' ? 'A terminated account can’t be re-activated.' : 'This account doesn’t need re-activating.' });
+  }
+  const r = await pool.query('UPDATE bans SET reactivated_at = now() WHERE id = $1 AND reactivated_at IS NULL RETURNING *', [b.id]);
+  await pool.query('UPDATE users SET ban_id = NULL WHERE id = $1 AND ban_id = $2', [b.user_id, b.id]);
+  res.json({ ok: true, ban: publicBan(r.rows[0] || b) });
+});
+
+app.post('/api/announcements/seen', limit(30, 'prefs'), auth, async (req, res) => {
+  const id = clampInt(req.body?.id, 0, Number.MAX_SAFE_INTEGER);
+  if (req.user && id) await pool.query('UPDATE users SET ann_seen = GREATEST(ann_seen, $2) WHERE id = $1', [req.user.id, id]);
   res.json({ ok: true });
 });
 
-const today = () => new Intl.DateTimeFormat('en-US', { timeZone: TIMEZONE, dateStyle: 'full' }).format(new Date());
+const dateFormatter = new Intl.DateTimeFormat('en-US', { timeZone: TIMEZONE, dateStyle: 'full' });
+const today = () => dateFormatter.format(new Date());
 const searchNote = () => `
 
 You can search the web with the web_search tool. The current date is ${today()}. Your training data ends well before today's date. Records, office holders, prices, versions, rules and anything "latest" may have changed since then, so search for those before you answer, even when you feel sure. Facts that can't change need no search. When the answer depends on where the user is, put the user's country or region in the search query.`;
 
-// "claude-sonnet-5-5" -> "Sonnet 5.5"
-const modelLabel = id => {
+// "claude-sonnet-5-5" -> "Sonnet 5.5"; OpenRouter's "meta/muse-spark-1.3" -> "Muse Spark 1.3"
+function modelLabel(id) {
   for (const m of Object.values(MODELS)) if (m.id === id) return m.label;
-  const [name, ...v] = String(id || '').replace(/^claude-/, '').split('-');
+  const s = String(id || '');
+  if (s.includes('/')) return s.split('/').pop().split(/[-_]/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+  const [name, ...v] = s.replace(/^claude-/, '').split('-');
   return name ? name[0].toUpperCase() + name.slice(1) + (v.length ? ' ' + v.join('.') : '') : 'Claude';
-};
+}
 
 const priceFor = id => PRICES[id] || (/haiku/.test(id) ? PRICES['claude-haiku-5-5'] : /sonnet-5$/.test(id) ? PRICES['claude-sonnet-5'] : PRICES['claude-sonnet-5-5']);
 function tokenCost(model, x) {
@@ -632,8 +921,70 @@ function addUsage(tot, msg, requested) {
   tot.searches += searches;
   tot.usd += searches * SEARCH_USD;
 }
+// Usage for a response cut short, from the SDK's snapshot of it. The prompt's tokens came with message_start, but
+// output and searches are only totaled at the end, so they're estimated from what streamed in: about 3 characters
+// a token, plus the searches that finished, each adding SEARCH_TOKENS of results to the prompt.
+function cutUsage(msg) {
+  if (msg.stop_reason) return msg; // the closing message_delta arrived, so the totals are in
+  let chars = 0, searches = 0;
+  for (const b of msg.content) {
+    if (b.type === 'text') chars += (b.text || '').length;
+    else if (b.type === 'thinking') chars += (b.thinking || '').length;
+    else if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) searches++; // failed searches aren't billed
+  }
+  const u = msg.usage || {};
+  return {
+    usage: {
+      input_tokens: (u.input_tokens || 0) + searches * SEARCH_TOKENS,
+      cache_creation_input_tokens: u.cache_creation_input_tokens, cache_read_input_tokens: u.cache_read_input_tokens,
+      output_tokens: Math.max(u.output_tokens || 0, Math.ceil(chars / 3)),
+      server_tool_use: { web_search_requests: searches },
+    },
+  };
+}
 
-// chat (streams NDJSON: {t:'d',v:text} | {t:'s',q?} search started/query | {t:'done',...} | {t:'err',v})
+// OpenRouter reports its own charge (`cost`, in dollars, searches included) with the usage
+function addRouterUsage(tot, u, model) {
+  const i = u.prompt_tokens || 0, o = u.completion_tokens || 0, searches = u.server_tool_use?.web_search_requests || 0;
+  tot.in += i; tot.out += o; tot.searches += searches;
+  tot.usd += typeof u.cost === 'number' ? u.cost : tokenCost(model, { input_tokens: i, output_tokens: o }) + searches * SEARCH_USD;
+}
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const ROUTER_STOP = { stop: 'end_turn', length: 'max_tokens', content_filter: 'refusal' };
+const routerError = (status, body) => Object.assign(new Error(String(body?.error?.message || `OpenRouter error ${status}`)), { status, router: true });
+// One answer from OpenRouter: OpenAI-style chat completions, streamed as server-sent events. `s` fills in as it
+// streams (whether it got going, its usage, the web pages it cites), so an answer that breaks off still counts.
+async function askRouter(body, signal, s, onText) {
+  const r = await fetch(OPENROUTER_URL, {
+    method: 'POST', signal,
+    headers: { Authorization: `Bearer ${OPENROUTER_KEY}`, 'Content-Type': 'application/json', 'X-Title': 'pagebot' },
+    body: JSON.stringify({ ...body, stream: true }),
+  });
+  if (!r.ok) throw routerError(r.status, await r.json().catch(() => null));
+  s.started = true;
+  const dec = new TextDecoder();
+  let buf = '', finish = null;
+  for await (const chunk of r.body) {
+    buf += dec.decode(chunk, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith('data:')) continue; // blank lines and ": OPENROUTER PROCESSING" keep-alives
+      const data = line.slice(5).trim();
+      let ev;
+      try { ev = JSON.parse(data); } catch { continue; } // the closing [DONE] too
+      if (ev.error) throw routerError(ev.error.code, ev); // an error after the answer started comes as an event
+      if (ev.usage) s.usage = ev.usage; // with the last event
+      const c = ev.choices?.[0];
+      if (c?.finish_reason) finish = c.finish_reason;
+      for (const a of c?.delta?.annotations || []) if (a?.type === 'url_citation' && a.url_citation) s.sources.push(a.url_citation);
+      if (c?.delta?.content) onText(c.delta.content);
+    }
+  }
+  return { model: body.model, stop_reason: ROUTER_STOP[finish] || finish || 'end_turn' };
+}
+
+// chat (streams NDJSON: {t:'id',conversationId} first | {t:'d',v:text} | {t:'s',q?} search started/query | {t:'done',...} | {t:'err',v,conversationId?})
 // Accounts get one answer at a time, so a burst of parallel questions can't all slip under the daily limit.
 const answering = new Set();
 app.post('/api/chat', limit(60, 'chat'), auth, trusted, chatJson, async (req, res) => {
@@ -645,7 +996,7 @@ app.post('/api/chat', limit(60, 'chat'), auth, trusted, chatJson, async (req, re
   try { await chat(req, res); } finally { if (id != null) answering.delete(id); }
 });
 
-// page text can't open or close the tags that mark where it starts and ends
+// highlighted text can't open or close the tags that mark where it starts and ends
 const fence = s => s.replace(/<(\/?)(page|highlighted_text)\b/gi, '&lt;$1$2');
 
 async function chat(req, res) {
@@ -666,9 +1017,14 @@ async function chat(req, res) {
   const page = b.page && typeof b.page === 'object' ? {
     url: String(b.page.url || '').slice(0, 2000),
     title: String(b.page.title || '').slice(0, 300),
-    text: fence(String(b.page.text || '').slice(0, limits.pageTokens * 4)), // ~4 characters per token
+    text: String(b.page.text || '').slice(0, limits.pageTokens * 4), // ~4 characters per token; it goes in a document block
   } : null;
   const selection = fence(String(b.selection || '').slice(0, 8000));
+  const hasSite = Object.hasOwn(b, 'site');
+  const explicitSite = hasSite && b.site != null && b.site !== '';
+  // An explicit null clears context (for example when the bookmarklet cannot read the current site).
+  let site = explicitSite ? memorySite(b.site) : hasSite ? null : page ? memorySite(page.url) : null;
+  if (explicitSite && !site) return res.status(400).json({ error: 'Enter a website hostname or an http(s) URL.' });
 
   let image = null;
   if (b.image) {
@@ -684,38 +1040,58 @@ async function chat(req, res) {
   let convId = Number.isSafeInteger(b.conversationId) ? b.conversationId : null;
   let history = [];
   if (convId) {
-    const c = await pool.query('SELECT 1 FROM conversations WHERE id=$1 AND user_id IS NOT DISTINCT FROM $2', [convId, uid]);
+    const c = await pool.query('SELECT memory_site, page_url FROM conversations WHERE id=$1 AND user_id IS NOT DISTINCT FROM $2', [convId, uid]);
     if (c.rowCount) {
+      if (!hasSite && !page) site = c.rows[0].memory_site ?? memorySite(c.rows[0].page_url);
       history = (await pool.query(
-        'SELECT role, content, had_image FROM messages WHERE conversation_id=$1 AND NOT refused AND NOT incomplete ORDER BY id', [convId])).rows;
+        'SELECT role, content, had_image, page_doc FROM messages WHERE conversation_id=$1 AND NOT refused ORDER BY id', [convId])).rows;
     } else convId = null;
   }
 
-  // build this turn's text
+  // The page goes in as a document so answers can quote it. With `cite` (bookmarklets that can find text on the
+  // page), the API marks which passages back each part of the answer, and the panel can point at them.
+  const cite = b.cite === true;
+  const doc = page?.text.trim() ? page : null;
   const attr = s => s.replace(/"/g, '&quot;');
+  // OpenRouter models take the page as plain text in <page> tags instead (no citations there)
+  const docBlock = d => m.openrouter ? { type: 'text', text: `<page url="${attr(d.url || '')}" title="${attr(d.title || '')}">\n${fence(d.text)}\n</page>` } : {
+    type: 'document', source: { type: 'text', media_type: 'text/plain', data: d.text },
+    title: (d.title || d.url || 'Web page').slice(0, 300), ...(d.url && { context: `URL: ${d.url}` }),
+    citations: { enabled: cite },
+  };
+
+  // build this turn's text
   const parts = [];
-  if (page) parts.push(`<page url="${attr(page.url)}" title="${attr(page.title)}">\n${page.text}\n</page>`);
+  if (page && !doc) parts.push(`<page url="${attr(page.url)}" title="${attr(page.title)}"></page>`);
   if (selection) parts.push(`<highlighted_text>\n${selection}\n</highlighted_text>`);
   parts.push(message || (image ? 'Help me with what is in this screenshot.' : selection ? 'Explain the highlighted text.' : 'Summarize this page.'));
   const userText = parts.join('\n\n');
 
-  // old screenshots are not resent (saves tokens) — a note stands in for them
-  const messages = history.map(h => ({
-    role: h.role,
-    content: h.had_image ? `[A screenshot was attached to this message; it is no longer available.]\n\n${h.content}` : h.content,
-  }));
+  // old screenshots are not resent (saves tokens) — a note stands in for them. Pages are resent as documents.
+  const messages = history.map(h => {
+    const text = h.had_image ? `[A screenshot was attached to this message; it is no longer available.]\n\n${h.content}` : h.content;
+    const d = h.page_doc && parseJSON(h.page_doc);
+    return { role: h.role, content: d?.text ? [docBlock(d), { type: 'text', text }] : text };
+  });
   const cur = [];
-  if (image) cur.push({ type: 'image', source: { type: 'base64', media_type: image.media_type, data: image.data } });
-  cur.push({ type: 'text', text: userText, cache_control: { type: 'ephemeral' } });
+  if (image) cur.push(m.openrouter ? { type: 'image_url', image_url: { url: `data:${image.media_type};base64,${image.data}` } }
+    : { type: 'image', source: { type: 'base64', media_type: image.media_type, data: image.data } });
+  if (doc) cur.push(docBlock(doc));
+  cur.push({ type: 'text', text: userText, ...(!m.openrouter && { cache_control: { type: 'ephemeral' } }) });
   messages.push({ role: 'user', content: cur });
 
-  const system = SYSTEM + (web ? searchNote() : '');
+  const memory = await getMemory(uid, site);
+  const system = SYSTEM + (web ? searchNote() : '') + (memory
+    ? `\n\nThe user saved these website instructions in their settings for ${site}. Apply them to this conversation while this website is active:\n${memory.instructions}` : '');
   let maxTokens = limits.maxTokens;
+  // the prompt's size, estimated on the high side at 3 characters a token, plus the screenshot
+  const chars = system.length + userText.length + (doc ? doc.text.length : 0) +
+    history.reduce((n, h) => n + h.content.length + (h.page_doc ? h.page_doc.length : 0), 0);
+  const promptEst = Math.ceil(chars / 3) + (image ? 1600 : 0);
   if (q0) {
-    // Make sure the whole question fits in what's left today: the prompt (estimated on the high side at
-    // 3 characters a token), screenshots and search results, plus the answer, whose length gets capped to fit.
-    const chars = system.length + userText.length + history.reduce((n, h) => n + h.content.length, 0);
-    const estIn = Math.ceil(chars / 3) + (image ? 1600 : 0) + (web ? limits.maxSearches * 3000 : 0);
+    // Make sure the whole question fits in what's left today: the prompt and any search results, plus the answer,
+    // whose length gets capped to fit.
+    const estIn = promptEst + (web ? limits.maxSearches * SEARCH_TOKENS : 0);
     let room;
     if (q0.kind === 'tokens') room = q0.left - estIn;
     else {
@@ -730,9 +1106,11 @@ async function chat(req, res) {
   }
 
   if (!convId) {
-    const r = await pool.query('INSERT INTO conversations(page_url, page_title, user_id) VALUES($1,$2,$3) RETURNING id',
-      [page?.url || null, page?.title || null, uid]);
+    const r = await pool.query('INSERT INTO conversations(page_url, page_title, user_id, memory_site) VALUES($1,$2,$3,$4) RETURNING id',
+      [page?.url || null, page?.title || null, uid, site || (hasSite || page ? '' : null)]);
     convId = Number(r.rows[0].id);
+  } else if (hasSite || page) {
+    await pool.query('UPDATE conversations SET memory_site=$2 WHERE id=$1', [convId, site || '']);
   }
 
   const params = { model: m.id, max_tokens: maxTokens, system, messages, output_config: { effort: EFFORT } };
@@ -747,34 +1125,58 @@ async function chat(req, res) {
     'X-Accel-Buffering': 'no',
   });
   const out = o => { if (!res.writableEnded && !res.destroyed) res.write(JSON.stringify(o) + '\n'); };
+  // the panel learns which chat this is right away, so an answer you stop still belongs to it for follow-ups
+  out({ t: 'id', conversationId: convId });
 
-  // If the panel goes away mid-answer, stop to save tokens, except for accounts with a daily limit: their answer
-  // runs to the end so all of it is counted (otherwise hanging up early would make answers free).
-  const keepGoing = !!q0;
+  // the panel went away mid-answer (closed, reloaded, or stopped): stop spending tokens. What was used so far still counts.
   let stream = null, closed = false;
-  res.on('close', () => { if (!res.writableFinished) { closed = true; if (!keepGoing) stream?.abort(); } });
+  res.on('close', () => { if (!res.writableFinished) { closed = true; stream?.abort(); } });
+  if (res.destroyed) closed = true; // it went away while the chat was loading, before there was anything to listen to
 
   const tot = { in: 0, out: 0, usd: 0, searches: 0 };
   const sources = new Map();
-  let reply = '', final = null, failed = null, hop = null;
+  // quoted passages of the page, and where in the reply each group of them backs up what was just said
+  const quotes = [], quoteIdx = new Map(), cites = [];
+  let reply = '', final = null, failed = null, cut = null;
+  const rs = m.openrouter ? { started: false, usage: null, sources: [] } : null;
   try {
+    if (m.openrouter && !closed) {
+      stream = new AbortController(); // so stream.abort() above stops it too
+      final = await askRouter({
+        model: m.id, max_tokens: maxTokens, messages: [{ role: 'system', content: system }, ...messages],
+        reasoning: { effort: EFFORT, exclude: true }, // it always thinks first; the thinking isn't shown, but counts toward max_tokens
+        ...(web && { tools: [{ type: 'openrouter:web_search', parameters: { max_uses: limits.maxSearches } }], max_tool_calls: limits.maxSearches }),
+      }, stream.signal, rs, t => { reply += t; out({ t: 'd', v: t }); });
+      addRouterUsage(tot, rs.usage || { prompt_tokens: promptEst, completion_tokens: Math.ceil(reply.length / 3) }, m.id);
+      for (const c of rs.sources) {
+        if (/^https?:\/\//.test(c.url || '') && !sources.has(c.url)) sources.set(c.url, String(c.title || '').slice(0, 200));
+      }
+    }
     // a long server-side search loop can pause the turn; resend it as-is to let it continue
-    for (let i = 0; i < 4 && !closed; i++) {
-      hop = { usage: null, model: m.id, chars: 0 }; // what this request has reported, in case it gets cut short
+    for (let i = 0; i < 4 && !closed && !m.openrouter; i++) {
       stream = api.stream(params);
-      stream.on('text', t => { reply += t; hop.chars += t.length; out({ t: 'd', v: t }); });
+      stream.on('text', t => { reply += t; out({ t: 'd', v: t }); });
       stream.on('streamEvent', ev => {
-        if (ev.type === 'message_start') { hop.usage = ev.message?.usage || null; hop.model = ev.message?.model || m.id; }
         if (ev.type === 'content_block_start' && ev.content_block?.type === 'server_tool_use' && ev.content_block.name === 'web_search') out({ t: 's' });
       });
       stream.on('contentBlock', blk => {
         if (blk.type === 'server_tool_use' && blk.name === 'web_search') {
           const q = blk.input?.query;
           if (q) out({ t: 's', q: String(q).slice(0, 200) });
+        } else if (blk.type === 'text' && blk.citations?.length) {
+          // the block's text has all streamed by now, so reply.length is where its marker goes
+          const qs = [];
+          for (const c of blk.citations) {
+            const text = c.type === 'char_location' ? String(c.cited_text || '').trim() : '';
+            if (!text) continue;
+            if (!quoteIdx.has(text) && quotes.length < 30) { quoteIdx.set(text, quotes.length); quotes.push(text.slice(0, 2000)); }
+            const i = quoteIdx.get(text);
+            if (i != null && !qs.includes(i)) qs.push(i);
+          }
+          if (qs.length) cites.push({ at: reply.length, q: qs });
         }
       });
       final = await stream.finalMessage();
-      hop = null;
       addUsage(tot, final, m.id);
       for (const blk of final.content) {
         if (blk.type !== 'text') continue;
@@ -788,30 +1190,38 @@ async function chat(req, res) {
     }
   } catch (e) {
     failed = e;
-    if (e?.name !== 'APIUserAbortError') console.error('chat error:', e?.status, e?.message);
-    // a request cut short is still billed for what it used: its prompt, and the answer so far (estimated from its length)
-    if (hop?.usage) addUsage(tot, { usage: { ...hop.usage, output_tokens: Math.max(hop.usage.output_tokens || 0, Math.ceil(hop.chars / 3)) } }, hop.model);
+    if (!(e instanceof Anthropic.APIUserAbortError) && e?.name !== 'AbortError') console.error('chat error:', e?.status, e?.message);
+    // a request cut short is still billed for what it used; the SDK keeps the message as far as it got
+    cut = stream?.currentMessage;
+    if (cut) addUsage(tot, cutUsage(cut), cut.model || m.id);
+    // OpenRouter only totals usage at the end, so estimate it from the prompt and what streamed in
+    else if (rs?.started) addRouterUsage(tot, rs.usage || { prompt_tokens: promptEst, completion_tokens: Math.ceil(reply.length / 3) }, m.id);
   }
-  if (!final && !tot.in) { // nothing reached the model
+  // Stopped before the model said anything: the panel already shows the question, and the page and screenshot it
+  // sent won't be sent again, so keep the question in the chat with an empty, stopped answer.
+  if (closed && !failed && !final) failed = new Anthropic.APIUserAbortError();
+  if (!final && !tot.in && !closed) { // nothing reached the model
     if (failed) out({ t: 'err', v: friendly(failed, m.id) });
     return void res.end();
   }
 
-  const refused = !failed && final.stop_reason === 'refusal';
+  const refused = (failed ? cut : final)?.stop_reason === 'refusal';
   const replyText = reply.trim() ? reply : refused ? '[declined]' : failed ? '(stopped)' : '(no answer)';
-  // an answer that broke off is counted toward usage but left out of the conversation the model sees next time
+  // an answer that broke off still counts toward usage, and stays in the chat as far as it got, for follow-ups
   await pool.query(
-    `INSERT INTO messages(conversation_id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, user_id, cost_usd, incomplete)
-     VALUES ($1,'user',$2,$3,0,0,NULL,0,$4,$10,0,$12), ($1,'assistant',$5,false,$6,$7,$8,$9,$4,$10,$11,$12)`,
-    [convId, userText, !!image, refused, replyText, tot.in, tot.out, final?.model || m.id, tot.searches, uid, tot.usd, !!failed]);
+    `INSERT INTO messages(conversation_id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, user_id, cost_usd, incomplete, page_doc, theme)
+     VALUES ($1,'user',$2,$3,0,0,NULL,0,$4,$10,0,$12,$13,$14), ($1,'assistant',$5,false,$6,$7,$8,$9,$4,$10,$11,$12,NULL,NULL)`,
+    [convId, userText, !!image, refused, replyText, tot.in, tot.out, (cut || final)?.model || m.id, tot.searches, uid, tot.usd, !!failed,
+      doc ? JSON.stringify({ url: doc.url, title: doc.title, text: doc.text }) : null, prefs.theme]);
   if (failed) {
-    out({ t: 'err', v: friendly(failed, m.id) });
+    out({ t: 'err', v: friendly(failed, m.id), conversationId: convId });
     return void res.end();
   }
   out({
     t: 'done', conversationId: convId, usage: { in: tot.in, out: tot.out, usd: tot.usd }, stop: final.stop_reason,
     model: modelLabel(final.model || m.id), fallback: !!final.model && final.model !== m.id,
     searches: tot.searches, sources: [...sources].slice(0, 8).map(([url, title]) => ({ url, title })),
+    ...(cites.length && !refused && { quotes, cites }),
     ...(refused && { refusal: final.stop_details?.category || null }),
     ...(used && { quota: quota(u, { tokens: used.tokens + tot.in + tot.out, usd: used.usd + tot.usd }) }),
   });
@@ -820,12 +1230,80 @@ async function chat(req, res) {
 
 function friendly(e, model) {
   const s = e?.status;
+  if (e?.router && s === 401) return 'OpenRouter API key is invalid (check OPENROUTER_API_KEY).';
+  if (e?.router && s === 402) return 'Your OpenRouter account is out of credits.';
+  if (e?.router && s === 404) return `Model "${model}" not found on OpenRouter (check OPENROUTER_MODEL).`;
   if (s === 401) return 'Anthropic API key is invalid (check ANTHROPIC_API_KEY).';
   if (s === 404) return `Model "${model}" not found (check HAIKU_MODEL / SONNET_MODEL).`;
   if (s === 429) return 'Rate limited by the API — try again in a moment.';
   if (s === 529 || s === 503) return 'The API is overloaded — try again in a moment.';
   return (e?.error?.error?.message || e?.message || 'Something went wrong').slice(0, 300);
 }
+
+// ---------- wrapped: a year of your questions ----------
+// The panel sends its own timezone so hours and streaks follow the viewer's clock.
+const validTz = tz => {
+  if (!/^[A-Za-z_]+(?:\/[A-Za-z0-9_+-]+){0,2}$/.test(tz)) return null;
+  try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return tz; } catch { return null; }
+};
+// one calendar year (back = 0 is this year) of one person's questions: uid null = the owner
+async function wrappedFor(uid, tz, back) {
+  const span = (await pool.query(
+    `SELECT extract(year from now() AT TIME ZONE $1)::int - $2 AS year,
+       (date_trunc('year', now() AT TIME ZONE $1) - make_interval(years => $2)) AT TIME ZONE $1 AS start,
+       (date_trunc('year', now() AT TIME ZONE $1) - make_interval(years => $2 - 1)) AT TIME ZONE $1 AS stop`, [tz, back])).rows[0];
+  // "= $1" (or IS NULL for the owner) so Postgres can use messages_user_idx; $1 stays in the query either way
+  const mine = `${uid == null ? 'm.user_id IS NULL AND $1::bigint IS NULL' : 'm.user_id = $1'} AND m.created_at >= $2 AND m.created_at < $3`;
+  const p3 = [uid, span.start, span.stop], p4 = [...p3, tz];
+  const db = await pool.connect(); // the six queries share one connection, so a big year can't take the whole pool
+  let tot, sites, hours, models, theme, streak;
+  try {
+    [tot, sites, hours, models, theme, streak] = await Promise.all([
+      db.query(`SELECT COUNT(*)::int AS questions, COUNT(DISTINCT (m.created_at AT TIME ZONE $4)::date)::int AS days
+        FROM messages m WHERE ${mine} AND m.role = 'user'`, p4),
+      db.query(`SELECT site, COUNT(*)::int AS n FROM (
+          SELECT lower(regexp_replace(substring(c.page_url from '^[a-zA-Z][a-zA-Z0-9+.-]*://([^/:?#]+)'), '^www\\.', '')) AS site
+          FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE ${mine} AND m.role = 'user') x
+        WHERE site <> '' GROUP BY site ORDER BY n DESC, site LIMIT 5`, p3),
+      db.query(`SELECT extract(hour from m.created_at AT TIME ZONE $4)::int AS h, COUNT(*)::int AS n
+        FROM messages m WHERE ${mine} AND m.role = 'user' GROUP BY h`, p4),
+      db.query(`SELECT m.model, COUNT(*)::int AS n FROM messages m
+        WHERE ${mine} AND m.role = 'assistant' AND m.model IS NOT NULL GROUP BY m.model`, p3),
+      db.query(`SELECT m.theme, COUNT(*)::int AS n FROM messages m
+        WHERE ${mine} AND m.role = 'user' AND m.theme IS NOT NULL GROUP BY m.theme ORDER BY n DESC, m.theme LIMIT 1`, p3),
+      // longest run of days in a row with at least one question (days minus their rank stay equal within a run)
+      db.query(`WITH d AS (SELECT DISTINCT (m.created_at AT TIME ZONE $4)::date AS day FROM messages m WHERE ${mine} AND m.role = 'user'),
+          g AS (SELECT day, day - (ROW_NUMBER() OVER (ORDER BY day))::int AS grp FROM d)
+        SELECT COUNT(*)::int AS days, MIN(day)::text AS start, MAX(day)::text AS stop FROM g
+        GROUP BY grp ORDER BY days DESC, MAX(day) DESC LIMIT 1`, p4),
+    ]);
+  } finally { db.release(); }
+  const byHour = Array(24).fill(0);
+  for (const r of hours.rows) byHour[r.h] = r.n;
+  const byModel = new Map();
+  for (const r of models.rows) { const l = modelLabel(r.model); byModel.set(l, (byModel.get(l) || 0) + r.n); }
+  return {
+    year: span.year, questions: tot.rows[0].questions, days: tot.rows[0].days,
+    sites: sites.rows, hours: byHour,
+    models: [...byModel].map(([label, n]) => ({ label, n })).sort((a, b) => b.n - a.n),
+    theme: theme.rows[0]?.theme || null,
+    streak: streak.rows[0] || { days: 0, start: null, stop: null },
+  };
+}
+
+app.get('/api/wrapped', limit(20, 'wrapped'), auth, trusted, async (req, res) => {
+  const uid = req.user?.id ?? null;
+  let tz = validTz(String(req.query.tz || '')) || TIMEZONE, w;
+  try { w = await wrappedFor(uid, tz, 0); }
+  catch (e) { // Postgres may not know a newer timezone name; fall back to the server's
+    if (e?.code !== '22023' || tz === TIMEZONE) throw e;
+    tz = TIMEZONE; w = await wrappedFor(uid, tz, 0);
+  }
+  if (!w.questions) { const last = await wrappedFor(uid, tz, 1); if (last.questions) w = last; } // early in a new year, show the one before
+  res.set('Cache-Control', 'no-store');
+  // themes were only recorded from this version on; until then, show the current one
+  res.json({ ...w, theme: w.theme || prefsFor(req.cfg, req.user).theme, themeIsCurrent: !w.theme, timezone: tz });
+});
 
 // ---------- admin ----------
 app.post('/api/admin/check', limit(300, 'admin'), admin, async (req, res) => {
@@ -853,7 +1331,7 @@ app.get('/api/admin/stats', limit(300, 'admin'), admin, async (req, res) => {
   const n = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Number(v)]));
   res.json({
     ...n(m), sessions: Number(sessions), budget: BUDGET, effort: EFFORT,
-    models: Object.values(MODELS).map(x => ({ label: x.label, id: x.id })),
+    models: Object.values(MODELS).map(x => ({ label: x.label, id: x.id, openrouter: !!x.openrouter })),
     passwordSet: cfg.passwordSet, limits: cfg.limits, limitRanges: LIMIT_RANGES,
     lock: { on: cfg.lock.on, minutes: cfg.lock.minutes, fails: Math.min(cfg.lock.fails, MAX_PASSCODE_FAILS), maxFails: MAX_PASSCODE_FAILS, choices: LOCK_CHOICES },
   });
@@ -867,9 +1345,11 @@ const RANGE = `WITH b AS (SELECT
   (date_trunc('day', now() AT TIME ZONE $1) - make_interval(days => $2 - 1)) AT TIME ZONE $1 AS s,
   (date_trunc('day', now() AT TIME ZONE $1) - make_interval(days => 2 * $2 - 1)) AT TIME ZONE $1 AS ps)`;
 const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, '') || null; } catch { return null; } };
+const modelFamily = id => !id ? 'other' : id.includes('/') ? 'router' : /haiku/.test(id) ? 'haiku' : /sonnet/.test(id) ? 'sonnet' : 'other';
 const userRef = (id, name) => id == null ? null : { id: Number(id), name: name || '(deleted account)' };
 
 // token and dollar usage for the chart: per day, or per hour of today when days=1
+// (OpenRouter's model ids are the ones with a slash)
 app.get('/api/admin/usage', limit(300, 'admin'), admin, async (req, res) => {
   const days = clampInt(req.query.days || 30, 1, 365), who = whoOf(req.query.user);
   const hourly = days === 1;
@@ -885,9 +1365,11 @@ app.get('/api/admin/usage', limit(300, 'admin'), admin, async (req, res) => {
       COALESCE(SUM(m.output_tokens), 0)::bigint AS output,
       COUNT(m.role) FILTER (WHERE m.role = 'user')::bigint AS questions,
       COALESCE(SUM(m.web_searches), 0)::bigint AS searches,
-      COALESCE(SUM(m.input_tokens + m.output_tokens) FILTER (WHERE m.model LIKE '%sonnet%'), 0)::bigint AS sonnet,
+      COALESCE(SUM(m.input_tokens + m.output_tokens) FILTER (WHERE m.model LIKE '%sonnet%' AND m.model NOT LIKE '%/%'), 0)::bigint AS sonnet,
+      COALESCE(SUM(m.input_tokens + m.output_tokens) FILTER (WHERE m.model LIKE '%/%'), 0)::bigint AS router,
       COALESCE(SUM(m.usd), 0)::float8 AS usd,
-      COALESCE(SUM(m.usd) FILTER (WHERE m.model LIKE '%sonnet%'), 0)::float8 AS sonnet_usd
+      COALESCE(SUM(m.usd) FILTER (WHERE m.model LIKE '%sonnet%' AND m.model NOT LIKE '%/%'), 0)::float8 AS sonnet_usd,
+      COALESCE(SUM(m.usd) FILTER (WHERE m.model LIKE '%/%'), 0)::float8 AS router_usd
     FROM ${hourly ? `generate_series(0, 23) AS g(k)` : `generate_series((SELECT s AT TIME ZONE $1 FROM b), date_trunc('day', now() AT TIME ZONE $1), interval '1 day') AS g(k)`}
     LEFT JOIN m ON m.k = ${hourly ? 'g.k' : 'g.k::date'}
     GROUP BY g.k ORDER BY g.k`, [TIMEZONE, days, who]);
@@ -897,7 +1379,7 @@ app.get('/api/admin/usage', limit(300, 'admin'), admin, async (req, res) => {
     days: r.rows.map(x => ({
       ...(hourly ? { day: today, hour: Number(x.k) } : { day: x.k }),
       input: +x.input, output: +x.output, questions: +x.questions, searches: +x.searches,
-      sonnet: +x.sonnet, usd: +x.usd, sonnetUsd: +x.sonnet_usd,
+      sonnet: +x.sonnet, router: +x.router, usd: +x.usd, sonnetUsd: +x.sonnet_usd, routerUsd: +x.router_usd,
     })),
   });
 });
@@ -917,7 +1399,7 @@ app.get('/api/admin/overview', limit(300, 'admin'), admin, async (req, res) => {
         COALESCE(SUM(m.web_searches) FILTER (WHERE m.created_at >= b.s), 0)::int AS searches,
         COUNT(DISTINCT COALESCE(m.user_id, 0)) FILTER (WHERE m.role = 'user' AND m.created_at >= b.s)::int AS people,
         COUNT(DISTINCT m.conversation_id) FILTER (WHERE m.created_at >= b.s)::int AS chats,
-        COUNT(*) FILTER (WHERE m.role = 'user' AND m.created_at >= b.s AND m.content LIKE '<page %')::int AS pages,
+        COUNT(*) FILTER (WHERE m.role = 'user' AND m.created_at >= b.s AND (m.page_doc IS NOT NULL OR m.content LIKE '<page %'))::int AS pages,
         COUNT(*) FILTER (WHERE m.role = 'user' AND m.created_at >= b.s AND strpos(m.content, '<highlighted_text>') > 0)::int AS highlights,
         COUNT(*) FILTER (WHERE m.role = 'user' AND m.created_at >= b.s AND m.had_image)::int AS images,
         COUNT(*) FILTER (WHERE m.role = 'assistant' AND m.created_at >= b.s AND m.web_searches > 0)::int AS web,
@@ -963,7 +1445,7 @@ app.get('/api/admin/overview', limit(300, 'admin'), admin, async (req, res) => {
       refused: x.refused, stopped: x.stopped, fallbacks: x.fallbacks,
     },
     before: { questions: x.p_questions, tokens: +x.p_tokens, usd: x.p_usd, people: x.p_people },
-    models: models.rows.map(r => ({ model: r.model, label: r.model ? modelLabel(r.model) : 'Unknown', family: /haiku/.test(r.model) ? 'haiku' : r.model === MODELS.sonnet.id ? 'sonnet' : 'other',
+    models: models.rows.map(r => ({ model: r.model, label: r.model ? modelLabel(r.model) : 'Unknown', family: modelFamily(r.model),
       questions: r.questions, input: +r.input, output: +r.output, usd: r.usd, searches: r.searches })),
     people: people.rows.map(r => ({ user: userRef(r.user_id, r.username), questions: r.questions, tokens: +r.tokens, usd: r.usd, last: r.last })),
     sites: sites.rows.map(r => ({ host: r.host, questions: r.questions, people: r.people, tokens: +r.tokens, usd: r.usd })),
@@ -978,7 +1460,7 @@ const FLAGS = ['image', 'web', 'refused', 'stopped', 'fallback', 'page', 'highli
 app.get('/api/admin/activity', limit(300, 'admin'), admin, async (req, res) => {
   const days = clampInt(req.query.days || 30, 1, 3650), who = whoOf(req.query.user), n = clampInt(req.query.limit || 50, 1, 200);
   const before = /^\d{1,18}$/.test(String(req.query.before || '')) ? String(req.query.before) : null;
-  const model = ['haiku', 'sonnet'].includes(req.query.model) ? req.query.model : '';
+  const model = ['haiku', 'sonnet', 'router'].includes(req.query.model) ? req.query.model : '';
   const flag = FLAGS.includes(req.query.flag) ? req.query.flag : '';
   const q = String(req.query.q || '').trim().slice(0, 200);
   const like = q ? '%' + q.replace(/[\\%_]/g, c => '\\' + c) + '%' : '';
@@ -986,7 +1468,7 @@ app.get('/api/admin/activity', limit(300, 'admin'), admin, async (req, res) => {
   const r = await pool.query(`${RANGE}
     SELECT m.id, m.created_at, m.user_id, u.username, m.had_image, m.conversation_id,
       left(regexp_replace(m.content, $4, ''), 300) AS question,
-      m.content LIKE '<page %' AS has_page, strpos(m.content, '<highlighted_text>') > 0 AS has_sel,
+      (m.page_doc IS NOT NULL OR m.content LIKE '<page %') AS has_page, strpos(m.content, '<highlighted_text>') > 0 AS has_sel,
       c.page_url, c.page_title,
       a.model, a.input_tokens, a.output_tokens, a.cost_usd, a.web_searches, a.refused, a.incomplete
     FROM messages m CROSS JOIN b
@@ -996,9 +1478,9 @@ app.get('/api/admin/activity', limit(300, 'admin'), admin, async (req, res) => {
       FROM messages x WHERE x.conversation_id = m.conversation_id AND x.id > m.id AND x.role = 'assistant' ORDER BY x.id LIMIT 1) a ON true
     WHERE m.role = 'user' AND m.created_at >= b.s AND ${WHO('m')}
       AND ($5::bigint IS NULL OR m.id < $5::bigint)
-      AND ($6 = '' OR a.model ILIKE '%' || $6 || '%')
+      AND ($6 = '' OR ($6 = 'router' AND a.model LIKE '%/%') OR ($6 <> 'router' AND a.model NOT LIKE '%/%' AND a.model ILIKE '%' || $6 || '%'))
       AND ($7 = '' OR ($7 = 'image' AND m.had_image) OR ($7 = 'web' AND a.web_searches > 0) OR ($7 = 'refused' AND a.refused)
-        OR ($7 = 'stopped' AND a.incomplete) OR ($7 = 'fallback' AND a.model <> ALL($9)) OR ($7 = 'page' AND m.content LIKE '<page %')
+        OR ($7 = 'stopped' AND a.incomplete) OR ($7 = 'fallback' AND a.model <> ALL($9)) OR ($7 = 'page' AND (m.page_doc IS NOT NULL OR m.content LIKE '<page %'))
         OR ($7 = 'highlight' AND strpos(m.content, '<highlighted_text>') > 0))
       AND ($8 = '' OR m.content ILIKE $8)
     ORDER BY m.id DESC LIMIT $10`, [TIMEZONE, days, who, QUESTION_RE, before, model, flag, like, ids, n + 1]);
@@ -1007,7 +1489,7 @@ app.get('/api/admin/activity', limit(300, 'admin'), admin, async (req, res) => {
     rows: r.rows.slice(0, n).map(x => ({
       id: Number(x.id), at: x.created_at, user: userRef(x.user_id, x.username), question: x.question,
       page: x.has_page, highlight: x.has_sel, image: x.had_image, url: x.page_url, title: x.page_title, host: hostOf(x.page_url),
-      conversationId: Number(x.conversation_id), model: x.model, modelLabel: x.model ? modelLabel(x.model) : null,
+      conversationId: Number(x.conversation_id), model: x.model, modelLabel: x.model ? modelLabel(x.model) : null, family: modelFamily(x.model),
       in: x.input_tokens || 0, out: x.output_tokens || 0, usd: Number(x.cost_usd) || 0, searches: x.web_searches || 0,
       refused: !!x.refused, stopped: !!x.incomplete, fallback: !!x.model && !ids.includes(x.model), answered: x.model != null,
     })),
@@ -1025,15 +1507,17 @@ app.get('/api/admin/activity/:id', limit(300, 'admin'), admin, async (req, res) 
   ]);
   const c = m.content, x = a.rows[0], ids = Object.values(MODELS).map(v => v.id);
   const unq = s => s.replace(/&quot;/g, '"');
-  const pm = /^<page url="([^"]*)" title="([^"]*)">\n/.exec(c);
-  const pageEnd = pm ? c.indexOf('\n</page>\n\n') : -1;
+  const doc = m.page_doc ? parseJSON(m.page_doc) : null; // the page as a document; older rows have it inline
+  const pm = /^<page url="([^"]*)" title="([^"]*)">/.exec(c);
+  const pageEnd = pm ? c.indexOf('</page>') : -1;
   const hm = /<highlighted_text>\n([\s\S]*?)\n<\/highlighted_text>/.exec(c);
   res.json({
     id: Number(m.id), at: m.created_at, user: userRef(m.user_id, m.username), conversationId: Number(m.conversation_id), turn: t.rows[0],
     question: c.replace(/^(<page [\s\S]*<\/page>\n\n)?(<highlighted_text>\n[\s\S]*<\/highlighted_text>\n\n)?/, '').slice(0, 8000),
-    page: pm ? { url: unq(pm[1]), title: unq(pm[2]), chars: pageEnd > 0 ? pageEnd - pm[0].length : null } : null,
+    page: doc?.url != null || doc?.text ? { url: doc.url || '', title: doc.title || '', chars: (doc.text || '').length }
+      : pm ? { url: unq(pm[1]), title: unq(pm[2]), chars: pageEnd > 0 ? Math.max(0, pageEnd - pm[0].length - 2) : null } : null,
     highlight: hm ? hm[1].slice(0, 2000) : null, image: m.had_image,
-    answer: x ? x.content.slice(0, 20000) : null, model: x?.model || null, modelLabel: x?.model ? modelLabel(x.model) : null,
+    answer: x ? x.content.slice(0, 20000) : null, model: x?.model || null, modelLabel: x?.model ? modelLabel(x.model) : null, family: modelFamily(x?.model),
     in: x?.input_tokens || 0, out: x?.output_tokens || 0, usd: Number(x?.cost_usd) || 0, searches: x?.web_searches || 0,
     refused: !!x?.refused, stopped: !!x?.incomplete, fallback: !!x?.model && !ids.includes(x.model),
   });
@@ -1105,7 +1589,8 @@ app.get('/api/admin/users', limit(300, 'admin'), admin, async (req, res) => {
       FROM messages GROUP BY user_id
     )
     SELECT u.*, (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id)::int AS devices,
-      t.today_tokens, t.today_usd, t.today_q, t.week_tokens, t.week_usd, t.week_q, t.total_tokens, t.total_usd, t.total_q, t.last_q
+      t.today_tokens, t.today_usd, t.today_q, t.week_tokens, t.week_usd, t.week_q, t.total_tokens, t.total_usd, t.total_q, t.last_q,
+      (SELECT row_to_json(b) FROM bans b WHERE b.id = u.ban_id) AS ban
     FROM users u LEFT JOIN t ON t.user_id = u.id
     ORDER BY CASE u.status WHEN 'pending' THEN 0 WHEN 'trusted' THEN 1 ELSE 2 END, u.created_at DESC`, [TIMEZONE]);
   const own = (await pool.query(`
@@ -1120,7 +1605,9 @@ app.get('/api/admin/users', limit(300, 'admin'), admin, async (req, res) => {
       (SELECT COUNT(*) FROM sessions WHERE user_id IS NULL)::int AS devices,
       (SELECT MAX(last_used) FROM sessions WHERE user_id IS NULL) AS last_seen
     FROM messages WHERE user_id IS NULL`, [TIMEZONE])).rows[0];
+  const bans = await pool.query('SELECT * FROM bans ORDER BY id DESC LIMIT 100');
   res.json({
+    bans: bans.rows.map(adminBan), banHours: BAN_HOURS, terminateDays: TERMINATE_DAYS,
     signup: cfg.signup, defaults: cfg.accountDefaults, ranges: DAILY_RANGES, timezone: TIMEZONE,
     owner: {
       today: { tokens: +own.today_tokens || 0, usd: +own.today_usd || 0, questions: +own.today_q || 0 },
@@ -1135,7 +1622,7 @@ function adminUser(x) {
   const u = toUser(x);
   delete u.prefs;
   return {
-    ...u, devices: x.devices ?? 0,
+    ...u, devices: x.devices ?? 0, ban: x.ban && LIVE_BAN.has(banState(x.ban)) ? adminBan(x.ban) : null,
     today: { tokens: +x.today_tokens || 0, usd: +x.today_usd || 0, questions: +x.today_q || 0 },
     week: { tokens: +x.week_tokens || 0, usd: +x.week_usd || 0, questions: +x.week_q || 0 },
     total: { tokens: +x.total_tokens || 0, usd: +x.total_usd || 0, questions: +x.total_q || 0 },
@@ -1172,7 +1659,8 @@ app.post('/api/admin/users/:id', limit(300, 'admin'), admin, async (req, res) =>
   if (b.password != null) {
     const pw = String(b.password);
     if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'The new password needs at least 6 characters.' });
-    set.password_hash = await hashPw(pw);
+    // a reset also removes their passcode, which would otherwise still sign them in
+    Object.assign(set, { password_hash: await hashPw(pw), passcode_hash: null, passcode_fails: 0, passcode_fails_at: null });
     signOut = true;
   }
   const keys = Object.keys(set);
@@ -1186,8 +1674,53 @@ app.post('/api/admin/users/:id', limit(300, 'admin'), admin, async (req, res) =>
 // deleting a waiting account is how a request gets turned down; usage history stays in the totals
 app.delete('/api/admin/users/:id', limit(300, 'admin'), admin, async (req, res) => {
   const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+  // a ban in force goes into the moderation log as deleted, like a termination that ran its course
+  await pool.query('UPDATE bans SET deleted_at = now() WHERE id = (SELECT ban_id FROM users WHERE id = $1) AND lifted_at IS NULL AND deleted_at IS NULL', [id]);
   const r = await pool.query('DELETE FROM users WHERE id=$1', [id]);
   if (!r.rowCount) return res.status(404).json({ error: 'No such user.' });
+  res.json({ ok: true });
+});
+
+// Ban an account for a while or for good, or terminate it (deleted after TERMINATE_DAYS). It stays signed in,
+// so its panel switches to the notice right away. A new ban replaces the one in force.
+app.post('/api/admin/users/:id/ban', limit(300, 'admin'), admin, async (req, res) => {
+  const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+  const cur = id && (await pool.query('SELECT id, username FROM users WHERE id=$1', [id])).rows[0];
+  if (!cur) return res.status(404).json({ error: 'No such user.' });
+  const b = req.body || {};
+  const kind = ['ban', 'terminate'].includes(b.kind) ? b.kind : null;
+  if (!kind) return res.status(400).json({ error: 'Pick a ban or a termination.' });
+  const reason = String(b.reason ?? '').trim().slice(0, MAX_BAN_REASON);
+  if (!reason) return res.status(400).json({ error: 'Give a reason. They see it on the notice.' });
+  const note = String(b.note ?? '').trim().slice(0, MAX_BAN_NOTE) || null;
+  const hours = kind === 'ban' ? Number(b.hours) : null;
+  if (kind === 'ban' && !BAN_HOURS.includes(hours)) return res.status(400).json({ error: 'Pick one of the listed ban lengths.' });
+  const ends = kind === 'terminate' ? TERMINATE_DAYS * 24 : hours || null;
+  const db = await pool.connect();
+  let row;
+  try {
+    await db.query('BEGIN');
+    await db.query(`UPDATE bans SET lifted_at = now() WHERE id = (SELECT ban_id FROM users WHERE id = $1 FOR UPDATE) AND lifted_at IS NULL`, [id]);
+    row = (await db.query(
+      `INSERT INTO bans(user_id, username, kind, hours, reason, note, notice_key, ends_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $8::int IS NULL THEN NULL ELSE now() + make_interval(hours => $8::int) END) RETURNING *`,
+      [id, cur.username, kind, hours || null, reason, note, crypto.randomBytes(24).toString('base64url'), ends])).rows[0];
+    await db.query('UPDATE users SET ban_id = $2 WHERE id = $1', [id, row.id]);
+    await db.query('COMMIT');
+  } catch (e) {
+    await db.query('ROLLBACK');
+    throw e;
+  } finally { db.release(); }
+  res.json({ ok: true, ban: adminBan(row) });
+});
+
+// unban, or reverse a termination before the account is deleted
+app.delete('/api/admin/users/:id/ban', limit(300, 'admin'), admin, async (req, res) => {
+  const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
+  const r = await pool.query(
+    `UPDATE bans SET lifted_at = now() WHERE id = (SELECT ban_id FROM users WHERE id = $1) AND lifted_at IS NULL AND deleted_at IS NULL RETURNING id`, [id]);
+  await pool.query('UPDATE users SET ban_id = NULL WHERE id = $1', [id]);
+  if (!r.rowCount) return res.status(404).json({ error: 'They aren’t banned.' });
   res.json({ ok: true });
 });
 
@@ -1202,6 +1735,28 @@ app.post('/api/admin/accounts', limit(300, 'admin'), admin, async (req, res) => 
   }
   const cfg = await loadConfig();
   res.json({ ok: true, signup: cfg.signup, defaults: cfg.accountDefaults });
+});
+
+// the announcement everyone with an account sees, and how many accepted people have closed it
+app.get('/api/admin/announcement', limit(300, 'admin'), admin, async (req, res) => {
+  const a = await currentAnnouncement();
+  const c = (await pool.query(`SELECT COUNT(*)::int AS people, COUNT(*) FILTER (WHERE ann_seen >= $1)::int AS seen
+    FROM users WHERE status = 'trusted'`, [a?.id ?? 0])).rows[0];
+  res.json({ announcement: a, people: c.people, seen: a ? c.seen : 0, max: MAX_ANNOUNCEMENT });
+});
+
+// posting replaces whatever was showing
+app.post('/api/admin/announcement', limit(300, 'admin'), admin, async (req, res) => {
+  const body = String(req.body?.body ?? '').trim();
+  if (!body) return res.status(400).json({ error: 'Write something first.' });
+  if (body.length > MAX_ANNOUNCEMENT) return res.status(400).json({ error: `Keep it under ${MAX_ANNOUNCEMENT} characters.` });
+  await pool.query('INSERT INTO announcements(body) VALUES($1)', [body]);
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/announcement', limit(300, 'admin'), admin, async (req, res) => {
+  await pool.query('UPDATE announcements SET hidden_at = now() WHERE hidden_at IS NULL');
+  res.json({ ok: true });
 });
 
 app.post('/api/admin/password', limit(300, 'admin'), admin, async (req, res) => {
@@ -1252,4 +1807,5 @@ app.use((err, req, res, next) => {
 });
 
 await initDb();
+await purgeTerminated();
 app.listen(PORT, () => console.log(`pagebot listening on :${PORT} (${Object.values(MODELS).map(m => m.id).join(', ')}, effort ${EFFORT})`));
