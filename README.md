@@ -40,19 +40,46 @@ Optional variables:
 
 ## Admin (`/admin`)
 
-Enter your `ADMIN_TOKEN` to manage pagebot:
+Enter your `ADMIN_TOKEN`. The admin page has five tabs:
 
-- **Usage**: tokens used today, over the last 7 days, and all time, plus roughly how long your budget will last at your current pace and an estimated cost at list prices.
-- **Daily usage chart**: the last 7, 30, or 90 days, split by model, in tokens or dollars. Show everyone, just you, or one person. Hover a day for input/output tokens, cost, questions, and web searches, or open the table view.
-- **Users**:
-  - People who sign up wait under **Waiting to be accepted**, with the note they left. **Accept** lets them in; **Deny** deletes the request.
-  - Click someone to set their **daily limit** in tokens or dollars (or no limit), choose whether they can use **Sonnet 5.5** and **web search**, and keep a private note. You also see what they've used today, over the last 7 days, and in total.
-  - **Reset password**, **Sign out** (signs them out on every device), **Block** (signs them out and keeps them out until you unblock them), and **Delete** are there too.
-  - The switch at the top opens or closes sign-ups. **What newly accepted users start with** sets the limit and access each new person gets when you accept them.
+- **Overview**: pick a range (today, 7, 30 or 90 days) and a person, or everyone. Everything on the tab follows that choice:
+  - Tiles for questions, tokens, estimated cost, people asking, web searches and average answer length. Each is compared with the period just before.
+  - A usage chart split by model, in tokens or dollars: per hour for today, per day otherwise. Hover for details, or open the table view.
+  - Your token budget, and how long it lasts at the current pace.
+  - Tables by model, by what came with the questions (page text, highlights, screenshots, web search, declined, stopped, fallbacks), by top people, and by top sites.
+  - A heatmap of the busiest days and hours.
+  - Click a row to jump to those questions in Activity, or to that person.
+- **People**:
+  - The waiting list, with the note each person left. Accept or deny people one at a time or all at once.
+  - A sortable, searchable table with these columns: status, daily limit, today's use against it, questions and cost this week, cost all time, Sonnet and web search access, devices, last active, and joined.
+  - Select several people to change them together: set a daily limit, turn Sonnet or web search on or off, sign them out, block or unblock them.
+  - Click someone to open their panel:
+    - usage today, this week and all time, plus a 30-day chart
+    - their daily limit (tokens, dollars or none), Sonnet and web search access, and a private note
+    - their recent questions and the devices they're signed in on
+    - reset password, sign out everywhere, block, and delete
+  - The sign-ups switch, what newly accepted people start with, and a CSV export.
   - Daily limits reset at midnight in your `TIMEZONE`. Dollar amounts are estimates from Anthropic's list prices.
-- **Limits per question**: max tokens per answer (8,000 at most), how much page text gets sent, and how many web searches one question can run. Accounts can pick a shorter answer length in their settings, but never more than this.
-- **Passcode lock**: set a 5-digit passcode and choose how long the panel can sit idle before it locks (1 minute to 1 day, or never). With a passcode set, the panel shows a number pad instead of the password box. Wrong passcodes count for 24 hours, even if the right one is entered in between. After 10, only the password can unlock it.
-- **Access password**: at least 8 characters. Changing it signs out every device you're logged in on. Accounts stay signed in.
+- **Activity**: every question, newest first, with who asked, the model, the site, tokens and cost.
+  - Filter by range, person, model, or kind (page text, highlight, screenshot, web search, declined, stopped, fallback), and search the questions and page addresses.
+  - Click a question to see it in full: the highlighted text, the page it came from, and the answer.
+  - Export the matching questions as CSV, up to 5,000.
+- **Devices**:
+  - Every signed-in device: whose it is, the browser, the address it was last used from, when it signed in, and when it was last used. Sign out one device or everyone.
+  - **Login security** shows:
+    - wrong logins in the last hour, by address
+    - whether owner password logins are paused
+    - the passcode's wrong tries
+    - wrong admin tokens
+  - **Clear lockouts** resets all of them.
+- **Settings**:
+  - **Limits per question**: max tokens per answer (8,000 at most), how much page text gets sent, and how many web searches one question can run. Accounts can pick a shorter answer length in their own settings, but never more than this.
+  - **Passcode lock**: set a 5-digit passcode and choose how long the panel can sit idle before it locks (1 minute to 1 day, or never).
+    - With a passcode set, the panel shows a number pad instead of the password box.
+    - Wrong passcodes count for 24 hours, even if the right one is entered in between. After 10, only the password can unlock it.
+  - **Access password**: at least 8 characters. Changing it signs out every device you're logged in on. Accounts stay signed in.
+
+What people ask (and the answers) is stored and shows up under Activity, along with the browser and address each device signs in from. The sign-up screen tells people the owner can see their questions and usage.
 
 ## Using it
 
@@ -85,7 +112,7 @@ Updating from an older version? Drag the button from the homepage to your bookma
   - An answer that's stopped partway still counts in full.
   - A question that wouldn't fit in what's left of the day is turned down, and the answer length is capped to fit.
 - **Logins**:
-  - Each address gets 10 tries a minute and 30 wrong logins an hour.
+  - Each address gets 10 tries a minute and 30 wrong logins an hour, and 20 wrong admin tokens every 10 minutes.
   - After 200 wrong owner passwords in an hour from anywhere, owner password logins pause until it dies down. Devices already signed in and the passcode keep working.
   - Passwords are stored as scrypt hashes, and sessions as hashes of random tokens.
 - **Pages**:

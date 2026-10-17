@@ -615,7 +615,7 @@ function renderLock(msg) {
   $('#lockTitle').textContent = owner ? 'Locked' : signup ? 'Request access' : 'Sign in';
   $('#lockSub').textContent = owner
     ? (lock === 'none' ? 'No password is set yet — set one in /admin.' : usePin ? 'Enter your 5-digit passcode.' : 'Enter your pagebot password.')
-    : signup ? 'Pick a username and password. You can start once the owner accepts you.' : 'Sign in to your pagebot account.';
+    : signup ? 'Pick a username and password. You can start once the owner accepts you. The owner can see your questions and usage.' : 'Sign in to your pagebot account.';
   $('#pin').hidden = $('#pad').hidden = !usePin;
   $('#pwRow').hidden = !owner || usePin || lock === 'none';
   $('#acct').hidden = owner;
