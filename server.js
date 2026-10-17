@@ -153,6 +153,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   last_used  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_id BIGINT REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip TEXT;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ua TEXT;
 CREATE TABLE IF NOT EXISTS conversations (
   id BIGSERIAL PRIMARY KEY,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -468,14 +470,14 @@ const bearer = req => (req.get('authorization') || '').replace(/^Bearer\s+/i, ''
 // Sessions with a passcode behind them (the owner's, or an account's) lock after that passcode's idle time;
 // everything else stays signed in for SESSION_DAYS.
 // Returns { user } (null user = the owner), or null when the token is unknown or expired.
-async function touchSession(tok, lock) {
+async function touchSession(tok, lock, ip) {
   if (!tok) return null;
   const ownerMins = lock.on && lock.minutes ? lock.minutes : SESSION_DAYS * 1440;
   const r = await pool.query(
-    `UPDATE sessions s SET last_used=now() WHERE s.token_hash=$1
+    `UPDATE sessions s SET last_used=now(), ip=COALESCE($4, s.ip) WHERE s.token_hash=$1
        AND s.last_used > now() - make_interval(mins => CASE WHEN s.user_id IS NULL THEN $2::int ELSE COALESCE(
          (SELECT u.lock_minutes FROM users u WHERE u.id = s.user_id AND u.passcode_hash IS NOT NULL AND u.lock_minutes > 0), $3::int) END)
-     RETURNING user_id`, [sha256(tok), ownerMins, SESSION_DAYS * 1440]);
+     RETURNING user_id`, [sha256(tok), ownerMins, SESSION_DAYS * 1440, ip || null]);
   if (!r.rowCount) return null;
   const uid = r.rows[0].user_id;
   if (uid == null) return { user: null };
@@ -485,16 +487,18 @@ async function touchSession(tok, lock) {
   user.ban = await liveBan(user.banId); // a banned account stays signed in, so it keeps seeing why
   return { user };
 }
-async function newSession(userId = null) {
+// the browser and address are kept so /admin can list signed-in devices
+async function newSession(userId, req) {
   const token = crypto.randomBytes(32).toString('base64url');
-  await pool.query('INSERT INTO sessions(token_hash, user_id) VALUES($1, $2)', [sha256(token), userId]);
+  await pool.query('INSERT INTO sessions(token_hash, user_id, ip, ua) VALUES($1, $2, $3, $4)',
+    [sha256(token), userId, req.ip || null, String(req.get('user-agent') || '').slice(0, 300) || null]);
   return token;
 }
 async function auth(req, res, next) {
   const tok = bearer(req);
   if (!tok) return res.status(401).json({ error: 'Not logged in' });
   req.cfg = await loadConfig();
-  const s = await touchSession(tok, req.cfg.lock);
+  const s = await touchSession(tok, req.cfg.lock, req.ip);
   if (!s) return res.status(401).json({ error: req.cfg.lock.on ? 'Locked' : 'Session expired', locked: req.cfg.lock.on });
   if (s.user?.ban) return res.status(403).json({ error: banMsg(s.user.ban), banned: true });
   req.user = s.user;
@@ -509,8 +513,12 @@ function trusted(req, res, next) {
     status: u.status,
   });
 }
+// The admin page makes plenty of requests, so the per-minute cap is generous; wrong tokens are what's limited:
+// 20 per address every 10 minutes.
 function admin(req, res, next) {
+  if (recent('adminfail:' + req.ip) >= 20) return res.status(429).json({ error: 'Too many wrong admin tokens from here. Try again in a few minutes.' });
   if (adminOk(req)) return next();
+  if (ADMIN_TOKEN.length >= 16) take('adminfail:' + req.ip, Infinity, 600_000);
   res.status(401).json({ error: ADMIN_TOKEN.length < 16 ? 'ADMIN_TOKEN env var is not set on the server (min 16 chars).' : 'Wrong admin token' });
 }
 
@@ -589,7 +597,7 @@ app.get('/health', async (req, res) => {
 app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
   const cfg = await loadConfig();
   const tok = bearer(req);
-  const s = tok ? await touchSession(tok, cfg.lock) : null;
+  const s = tok ? await touchSession(tok, cfg.lock, req.ip) : null;
   const u = s?.user || null;
   const accountsExist = cfg.signup || (await pool.query(`SELECT 1 FROM users WHERE status <> 'pending' LIMIT 1`)).rowCount > 0;
   const out = {
@@ -639,7 +647,7 @@ app.post('/api/signup', limit(5, 'signup'), limit(30, 'signup-hour', 3600_000), 
     if (e.code === '23505') return res.status(409).json({ error: 'That username is taken.' });
     throw e;
   }
-  res.json({ token: await newSession(Number(id)) });
+  res.json({ token: await newSession(Number(id), req) });
 });
 
 function wrongPasscode(res, n) {
@@ -683,7 +691,7 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
     if (u.status === 'blocked') return res.status(403).json({ error: 'This account has been turned off.' });
     if (b.passcode == null) await pool.query('UPDATE users SET passcode_fails = 0, passcode_fails_at = NULL WHERE id = $1', [u.id]); // the password clears wrong passcodes
     if (old) await pool.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(old)]);
-    return res.json({ token: await newSession(Number(u.id)) });
+    return res.json({ token: await newSession(Number(u.id), req) });
   }
   const cfg = await loadConfig();
   if (b.passcode != null) {
@@ -718,7 +726,7 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
     await setSetting('passcode_fails', '0'); // the password clears wrong passcodes
   }
   if (old) await pool.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(old)]);
-  res.json({ token: await newSession() });
+  res.json({ token: await newSession(null, req) });
 });
 
 // also used by the panel to lock itself, so an already-expired token is fine here
@@ -1298,11 +1306,11 @@ app.get('/api/wrapped', limit(20, 'wrapped'), auth, trusted, async (req, res) =>
 });
 
 // ---------- admin ----------
-app.post('/api/admin/check', limit(20, 'admin'), admin, async (req, res) => {
+app.post('/api/admin/check', limit(300, 'admin'), admin, async (req, res) => {
   res.json({ ok: true, passwordSet: !!(await getSetting('password_hash')) });
 });
 
-app.get('/api/admin/stats', limit(30, 'admin'), admin, async (req, res) => {
+app.get('/api/admin/stats', limit(300, 'admin'), admin, async (req, res) => {
   const todayStart = `date_trunc('day', now() AT TIME ZONE $1) AT TIME ZONE $1`;
   const m = (await pool.query(`
     SELECT
@@ -1329,20 +1337,30 @@ app.get('/api/admin/stats', limit(30, 'admin'), admin, async (req, res) => {
   });
 });
 
-// daily token usage for the chart, in TIMEZONE days (OpenRouter's model ids are the ones with a slash); `user` narrows it to 'owner' or one account id
-app.get('/api/admin/usage', limit(30, 'admin'), admin, async (req, res) => {
-  const days = clampInt(req.query.days || 30, 1, 365);
-  const who = req.query.user === 'owner' ? 'owner' : /^\d+$/.test(String(req.query.user || '')) ? String(req.query.user) : 'all';
+// which messages a report covers: 'all', 'owner' (null user_id), or one account id ($3 in the queries below)
+const whoOf = q => q === 'owner' ? 'owner' : /^\d+$/.test(String(q || '')) ? String(q) : 'all';
+const WHO = a => `($3 = 'all' OR ($3 = 'owner' AND ${a}.user_id IS NULL) OR ${a}.user_id::text = $3)`;
+// the last $2 days in TIMEZONE, today included (s), and the same length just before it (ps)
+const RANGE = `WITH b AS (SELECT
+  (date_trunc('day', now() AT TIME ZONE $1) - make_interval(days => $2 - 1)) AT TIME ZONE $1 AS s,
+  (date_trunc('day', now() AT TIME ZONE $1) - make_interval(days => 2 * $2 - 1)) AT TIME ZONE $1 AS ps)`;
+const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, '') || null; } catch { return null; } };
+const modelFamily = id => !id ? 'other' : id.includes('/') ? 'router' : /haiku/.test(id) ? 'haiku' : /sonnet/.test(id) ? 'sonnet' : 'other';
+const userRef = (id, name) => id == null ? null : { id: Number(id), name: name || '(deleted account)' };
+
+// token and dollar usage for the chart: per day, or per hour of today when days=1
+// (OpenRouter's model ids are the ones with a slash)
+app.get('/api/admin/usage', limit(300, 'admin'), admin, async (req, res) => {
+  const days = clampInt(req.query.days || 30, 1, 365), who = whoOf(req.query.user);
+  const hourly = days === 1;
   const r = await pool.query(`
-    WITH bounds AS (SELECT (date_trunc('day', now() AT TIME ZONE $1) - make_interval(days => $2 - 1)) AS start),
+    ${RANGE},
     m AS (
-      SELECT (created_at AT TIME ZONE $1)::date AS day, role, input_tokens, output_tokens, web_searches,
-        COALESCE(model, '') AS model, COALESCE(cost_usd, 0) AS usd
-      FROM messages
-      WHERE created_at >= (SELECT start FROM bounds) AT TIME ZONE $1
-        AND ($3 = 'all' OR ($3 = 'owner' AND user_id IS NULL) OR user_id::text = $3)
+      SELECT ${hourly ? `extract(hour FROM created_at AT TIME ZONE $1)::int` : `(created_at AT TIME ZONE $1)::date`} AS k,
+        role, input_tokens, output_tokens, web_searches, COALESCE(model, '') AS model, COALESCE(cost_usd, 0) AS usd
+      FROM messages m, b WHERE m.created_at >= b.s AND ${WHO('m')}
     )
-    SELECT d.day::date::text AS day,
+    SELECT ${hourly ? `g.k::text AS k` : `g.k::date::text AS k`},
       COALESCE(SUM(m.input_tokens), 0)::bigint AS input,
       COALESCE(SUM(m.output_tokens), 0)::bigint AS output,
       COUNT(m.role) FILTER (WHERE m.role = 'user')::bigint AS questions,
@@ -1352,20 +1370,210 @@ app.get('/api/admin/usage', limit(30, 'admin'), admin, async (req, res) => {
       COALESCE(SUM(m.usd), 0)::float8 AS usd,
       COALESCE(SUM(m.usd) FILTER (WHERE m.model LIKE '%sonnet%' AND m.model NOT LIKE '%/%'), 0)::float8 AS sonnet_usd,
       COALESCE(SUM(m.usd) FILTER (WHERE m.model LIKE '%/%'), 0)::float8 AS router_usd
-    FROM generate_series((SELECT start FROM bounds), date_trunc('day', now() AT TIME ZONE $1), interval '1 day') AS d(day)
-    LEFT JOIN m ON m.day = d.day::date
-    GROUP BY d.day ORDER BY d.day`, [TIMEZONE, days, who]);
+    FROM ${hourly ? `generate_series(0, 23) AS g(k)` : `generate_series((SELECT s AT TIME ZONE $1 FROM b), date_trunc('day', now() AT TIME ZONE $1), interval '1 day') AS g(k)`}
+    LEFT JOIN m ON m.k = ${hourly ? 'g.k' : 'g.k::date'}
+    GROUP BY g.k ORDER BY g.k`, [TIMEZONE, days, who]);
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(new Date());
   res.json({
-    timezone: TIMEZONE,
+    timezone: TIMEZONE, by: hourly ? 'hour' : 'day',
     days: r.rows.map(x => ({
-      day: x.day, input: +x.input, output: +x.output, questions: +x.questions, searches: +x.searches,
+      ...(hourly ? { day: today, hour: Number(x.k) } : { day: x.k }),
+      input: +x.input, output: +x.output, questions: +x.questions, searches: +x.searches,
       sonnet: +x.sonnet, router: +x.router, usd: +x.usd, sonnetUsd: +x.sonnet_usd, routerUsd: +x.router_usd,
     })),
   });
 });
 
+// everything the Overview tab shows for one range and person: totals against the period before,
+// and breakdowns by model, person, site, what people send, and hour of the week
+app.get('/api/admin/overview', limit(300, 'admin'), admin, async (req, res) => {
+  const days = clampInt(req.query.days || 30, 1, 365), who = whoOf(req.query.user);
+  const P = [TIMEZONE, days, who], ids = Object.values(MODELS).map(m => m.id);
+  const [k, models, people, sites, heat] = await Promise.all([
+    pool.query(`${RANGE}
+      SELECT
+        COUNT(*) FILTER (WHERE m.role = 'user' AND m.created_at >= b.s)::int AS questions,
+        COALESCE(SUM(m.input_tokens) FILTER (WHERE m.created_at >= b.s), 0)::bigint AS input,
+        COALESCE(SUM(m.output_tokens) FILTER (WHERE m.created_at >= b.s), 0)::bigint AS output,
+        COALESCE(SUM(m.cost_usd) FILTER (WHERE m.created_at >= b.s), 0)::float8 AS usd,
+        COALESCE(SUM(m.web_searches) FILTER (WHERE m.created_at >= b.s), 0)::int AS searches,
+        COUNT(DISTINCT COALESCE(m.user_id, 0)) FILTER (WHERE m.role = 'user' AND m.created_at >= b.s)::int AS people,
+        COUNT(DISTINCT m.conversation_id) FILTER (WHERE m.created_at >= b.s)::int AS chats,
+        COUNT(*) FILTER (WHERE m.role = 'user' AND m.created_at >= b.s AND (m.page_doc IS NOT NULL OR m.content LIKE '<page %'))::int AS pages,
+        COUNT(*) FILTER (WHERE m.role = 'user' AND m.created_at >= b.s AND strpos(m.content, '<highlighted_text>') > 0)::int AS highlights,
+        COUNT(*) FILTER (WHERE m.role = 'user' AND m.created_at >= b.s AND m.had_image)::int AS images,
+        COUNT(*) FILTER (WHERE m.role = 'assistant' AND m.created_at >= b.s AND m.web_searches > 0)::int AS web,
+        COUNT(*) FILTER (WHERE m.role = 'assistant' AND m.created_at >= b.s AND m.refused)::int AS refused,
+        COUNT(*) FILTER (WHERE m.role = 'assistant' AND m.created_at >= b.s AND m.incomplete)::int AS stopped,
+        COUNT(*) FILTER (WHERE m.role = 'assistant' AND m.created_at >= b.s AND m.model IS NOT NULL AND m.model <> ALL($4))::int AS fallbacks,
+        COUNT(*) FILTER (WHERE m.role = 'user' AND m.created_at < b.s)::int AS p_questions,
+        COALESCE(SUM(m.input_tokens + m.output_tokens) FILTER (WHERE m.created_at < b.s), 0)::bigint AS p_tokens,
+        COALESCE(SUM(m.cost_usd) FILTER (WHERE m.created_at < b.s), 0)::float8 AS p_usd,
+        COUNT(DISTINCT COALESCE(m.user_id, 0)) FILTER (WHERE m.role = 'user' AND m.created_at < b.s)::int AS p_people
+      FROM messages m CROSS JOIN b WHERE m.created_at >= b.ps AND ${WHO('m')}`, [...P, ids]),
+    pool.query(`${RANGE}
+      SELECT COALESCE(m.model, '') AS model, COUNT(*)::int AS questions,
+        COALESCE(SUM(m.input_tokens), 0)::bigint AS input, COALESCE(SUM(m.output_tokens), 0)::bigint AS output,
+        COALESCE(SUM(m.cost_usd), 0)::float8 AS usd, COALESCE(SUM(m.web_searches), 0)::int AS searches
+      FROM messages m CROSS JOIN b WHERE m.role = 'assistant' AND m.created_at >= b.s AND ${WHO('m')}
+      GROUP BY 1 ORDER BY 2 DESC`, P),
+    pool.query(`${RANGE}
+      SELECT m.user_id, u.username, COUNT(*) FILTER (WHERE m.role = 'user')::int AS questions,
+        COALESCE(SUM(m.input_tokens + m.output_tokens), 0)::bigint AS tokens, COALESCE(SUM(m.cost_usd), 0)::float8 AS usd,
+        MAX(m.created_at) AS last
+      FROM messages m LEFT JOIN users u ON u.id = m.user_id CROSS JOIN b
+      WHERE m.created_at >= b.s AND ${WHO('m')}
+      GROUP BY 1, 2 ORDER BY usd DESC, tokens DESC LIMIT 10`, P),
+    pool.query(`${RANGE}
+      SELECT NULLIF(lower(regexp_replace(COALESCE(substring(c.page_url FROM '^[a-zA-Z][a-zA-Z0-9+.-]*://([^/?#:@]+)'), ''), '^www\\.', '')), '') AS host,
+        COUNT(*) FILTER (WHERE m.role = 'user')::int AS questions, COUNT(DISTINCT COALESCE(m.user_id, 0))::int AS people,
+        COALESCE(SUM(m.input_tokens + m.output_tokens), 0)::bigint AS tokens, COALESCE(SUM(m.cost_usd), 0)::float8 AS usd
+      FROM messages m JOIN conversations c ON c.id = m.conversation_id CROSS JOIN b
+      WHERE m.created_at >= b.s AND ${WHO('m')}
+      GROUP BY 1 ORDER BY questions DESC, tokens DESC LIMIT 12`, P),
+    pool.query(`${RANGE}
+      SELECT extract(isodow FROM m.created_at AT TIME ZONE $1)::int AS dow, extract(hour FROM m.created_at AT TIME ZONE $1)::int AS hour, COUNT(*)::int AS n
+      FROM messages m CROSS JOIN b WHERE m.role = 'user' AND m.created_at >= b.s AND ${WHO('m')}
+      GROUP BY 1, 2`, P),
+  ]);
+  const x = k.rows[0];
+  res.json({
+    days, timezone: TIMEZONE,
+    totals: {
+      questions: x.questions, input: +x.input, output: +x.output, tokens: +x.input + +x.output, usd: x.usd, searches: x.searches,
+      people: x.people, chats: x.chats, pages: x.pages, highlights: x.highlights, images: x.images, web: x.web,
+      refused: x.refused, stopped: x.stopped, fallbacks: x.fallbacks,
+    },
+    before: { questions: x.p_questions, tokens: +x.p_tokens, usd: x.p_usd, people: x.p_people },
+    models: models.rows.map(r => ({ model: r.model, label: r.model ? modelLabel(r.model) : 'Unknown', family: modelFamily(r.model),
+      questions: r.questions, input: +r.input, output: +r.output, usd: r.usd, searches: r.searches })),
+    people: people.rows.map(r => ({ user: userRef(r.user_id, r.username), questions: r.questions, tokens: +r.tokens, usd: r.usd, last: r.last })),
+    sites: sites.rows.map(r => ({ host: r.host, questions: r.questions, people: r.people, tokens: +r.tokens, usd: r.usd })),
+    heat: heat.rows.map(r => [r.dow, r.hour, r.n]),
+  });
+});
+
+// The Activity tab: one row per question with its answer's numbers, newest first, 50 at a time.
+// The question shown is what the person typed, without the page text or highlight that went with it.
+const QUESTION_RE = '^(<page .*</page>\n\n)?(<highlighted_text>\n.*</highlighted_text>\n\n)?';
+const FLAGS = ['image', 'web', 'refused', 'stopped', 'fallback', 'page', 'highlight'];
+app.get('/api/admin/activity', limit(300, 'admin'), admin, async (req, res) => {
+  const days = clampInt(req.query.days || 30, 1, 3650), who = whoOf(req.query.user), n = clampInt(req.query.limit || 50, 1, 200);
+  const before = /^\d{1,18}$/.test(String(req.query.before || '')) ? String(req.query.before) : null;
+  const model = ['haiku', 'sonnet', 'router'].includes(req.query.model) ? req.query.model : '';
+  const flag = FLAGS.includes(req.query.flag) ? req.query.flag : '';
+  const q = String(req.query.q || '').trim().slice(0, 200);
+  const like = q ? '%' + q.replace(/[\\%_]/g, c => '\\' + c) + '%' : '';
+  const ids = Object.values(MODELS).map(m => m.id);
+  const r = await pool.query(`${RANGE}
+    SELECT m.id, m.created_at, m.user_id, u.username, m.had_image, m.conversation_id,
+      left(regexp_replace(m.content, $4, ''), 300) AS question,
+      (m.page_doc IS NOT NULL OR m.content LIKE '<page %') AS has_page, strpos(m.content, '<highlighted_text>') > 0 AS has_sel,
+      c.page_url, c.page_title,
+      a.model, a.input_tokens, a.output_tokens, a.cost_usd, a.web_searches, a.refused, a.incomplete
+    FROM messages m CROSS JOIN b
+    JOIN conversations c ON c.id = m.conversation_id
+    LEFT JOIN users u ON u.id = m.user_id
+    LEFT JOIN LATERAL (SELECT x.model, x.input_tokens, x.output_tokens, x.cost_usd, x.web_searches, x.refused, x.incomplete
+      FROM messages x WHERE x.conversation_id = m.conversation_id AND x.id > m.id AND x.role = 'assistant' ORDER BY x.id LIMIT 1) a ON true
+    WHERE m.role = 'user' AND m.created_at >= b.s AND ${WHO('m')}
+      AND ($5::bigint IS NULL OR m.id < $5::bigint)
+      AND ($6 = '' OR ($6 = 'router' AND a.model LIKE '%/%') OR ($6 <> 'router' AND a.model NOT LIKE '%/%' AND a.model ILIKE '%' || $6 || '%'))
+      AND ($7 = '' OR ($7 = 'image' AND m.had_image) OR ($7 = 'web' AND a.web_searches > 0) OR ($7 = 'refused' AND a.refused)
+        OR ($7 = 'stopped' AND a.incomplete) OR ($7 = 'fallback' AND a.model <> ALL($9)) OR ($7 = 'page' AND (m.page_doc IS NOT NULL OR m.content LIKE '<page %'))
+        OR ($7 = 'highlight' AND strpos(m.content, '<highlighted_text>') > 0))
+      AND ($8 = '' OR m.content ILIKE $8)
+    ORDER BY m.id DESC LIMIT $10`, [TIMEZONE, days, who, QUESTION_RE, before, model, flag, like, ids, n + 1]);
+  res.json({
+    more: r.rows.length > n,
+    rows: r.rows.slice(0, n).map(x => ({
+      id: Number(x.id), at: x.created_at, user: userRef(x.user_id, x.username), question: x.question,
+      page: x.has_page, highlight: x.has_sel, image: x.had_image, url: x.page_url, title: x.page_title, host: hostOf(x.page_url),
+      conversationId: Number(x.conversation_id), model: x.model, modelLabel: x.model ? modelLabel(x.model) : null, family: modelFamily(x.model),
+      in: x.input_tokens || 0, out: x.output_tokens || 0, usd: Number(x.cost_usd) || 0, searches: x.web_searches || 0,
+      refused: !!x.refused, stopped: !!x.incomplete, fallback: !!x.model && !ids.includes(x.model), answered: x.model != null,
+    })),
+  });
+});
+
+// one question in full: what was typed, the page and highlight that went with it, and the answer
+app.get('/api/admin/activity/:id', limit(300, 'admin'), admin, async (req, res) => {
+  if (!/^\d{1,18}$/.test(req.params.id)) return res.status(400).json({ error: 'Bad id.' });
+  const m = (await pool.query(`SELECT m.*, u.username FROM messages m LEFT JOIN users u ON u.id = m.user_id WHERE m.id = $1 AND m.role = 'user'`, [req.params.id])).rows[0];
+  if (!m) return res.status(404).json({ error: 'Not found.' });
+  const [a, t] = await Promise.all([
+    pool.query(`SELECT * FROM messages WHERE conversation_id = $1 AND id > $2 AND role = 'assistant' ORDER BY id LIMIT 1`, [m.conversation_id, m.id]),
+    pool.query(`SELECT COUNT(*) FILTER (WHERE id <= $2)::int AS n, COUNT(*)::int AS total FROM messages WHERE conversation_id = $1 AND role = 'user'`, [m.conversation_id, m.id]),
+  ]);
+  const c = m.content, x = a.rows[0], ids = Object.values(MODELS).map(v => v.id);
+  const unq = s => s.replace(/&quot;/g, '"');
+  const doc = m.page_doc ? parseJSON(m.page_doc) : null; // the page as a document; older rows have it inline
+  const pm = /^<page url="([^"]*)" title="([^"]*)">/.exec(c);
+  const pageEnd = pm ? c.indexOf('</page>') : -1;
+  const hm = /<highlighted_text>\n([\s\S]*?)\n<\/highlighted_text>/.exec(c);
+  res.json({
+    id: Number(m.id), at: m.created_at, user: userRef(m.user_id, m.username), conversationId: Number(m.conversation_id), turn: t.rows[0],
+    question: c.replace(/^(<page [\s\S]*<\/page>\n\n)?(<highlighted_text>\n[\s\S]*<\/highlighted_text>\n\n)?/, '').slice(0, 8000),
+    page: doc?.url != null || doc?.text ? { url: doc.url || '', title: doc.title || '', chars: (doc.text || '').length }
+      : pm ? { url: unq(pm[1]), title: unq(pm[2]), chars: pageEnd > 0 ? Math.max(0, pageEnd - pm[0].length - 2) : null } : null,
+    highlight: hm ? hm[1].slice(0, 2000) : null, image: m.had_image,
+    answer: x ? x.content.slice(0, 20000) : null, model: x?.model || null, modelLabel: x?.model ? modelLabel(x.model) : null, family: modelFamily(x?.model),
+    in: x?.input_tokens || 0, out: x?.output_tokens || 0, usd: Number(x?.cost_usd) || 0, searches: x?.web_searches || 0,
+    refused: !!x?.refused, stopped: !!x?.incomplete, fallback: !!x?.model && !ids.includes(x.model),
+  });
+});
+
+// signed-in devices: who, which browser, the address it was last used from, and when
+app.get('/api/admin/sessions', limit(300, 'admin'), admin, async (req, res) => {
+  const cfg = await loadConfig();
+  const ownerIdle = cfg.lock.on && cfg.lock.minutes ? cfg.lock.minutes : SESSION_DAYS * 1440;
+  const r = await pool.query(`SELECT s.token_hash, s.created_at, s.last_used, s.ip, s.ua, s.user_id, u.username, u.status
+    FROM sessions s LEFT JOIN users u ON u.id = s.user_id ORDER BY s.last_used DESC LIMIT 500`);
+  res.json({
+    sessionDays: SESSION_DAYS, ownerIdleMinutes: cfg.lock.on ? cfg.lock.minutes : 0,
+    sessions: r.rows.map(x => {
+      const idle = x.user_id == null ? ownerIdle : SESSION_DAYS * 1440;
+      const ends = new Date(new Date(x.last_used).getTime() + idle * 60_000);
+      return {
+        id: x.token_hash, user: x.user_id == null ? null : { id: Number(x.user_id), name: x.username, status: x.status },
+        createdAt: x.created_at, lastUsed: x.last_used, ip: x.ip, ua: x.ua, endsAt: ends, active: ends > new Date(),
+      };
+    }),
+  });
+});
+app.delete('/api/admin/sessions/:id', limit(300, 'admin'), admin, async (req, res) => {
+  if (!/^[0-9a-f]{64}$/.test(req.params.id)) return res.status(400).json({ error: 'Bad device id.' });
+  const r = await pool.query('DELETE FROM sessions WHERE token_hash = $1', [req.params.id]);
+  if (!r.rowCount) return res.status(404).json({ error: 'That device is already signed out.' });
+  res.json({ ok: true });
+});
+
+// wrong logins in the last hour (kept in memory), and whether anything is locked or paused because of them
+app.get('/api/admin/security', limit(300, 'admin'), admin, async (req, res) => {
+  const now = Date.now(), byIp = [];
+  for (const [k, e] of hits) {
+    if (!k.startsWith('fail:') || k === 'fail:owner') continue;
+    const t = e.t.filter(x => now - x < e.win);
+    if (t.length) byIp.push({ ip: k.slice(5), fails: t.length, blocked: t.length >= LOGIN_FAILS_PER_IP, last: new Date(Math.max(...t)) });
+  }
+  byIp.sort((a, b) => b.fails - a.fails || b.last - a.last);
+  const cfg = await loadConfig(), owner = recent('fail:owner');
+  res.json({
+    failsLastHour: byIp.reduce((n, x) => n + x.fails, 0), addressCount: byIp.length, addresses: byIp.slice(0, 25),
+    perAddress: LOGIN_FAILS_PER_IP, ownerFails: owner, ownerPauseAt: OWNER_FAILS_PER_HOUR, ownerPaused: owner >= OWNER_FAILS_PER_HOUR,
+    passcode: { on: cfg.lock.on, fails: Math.min(cfg.lock.fails, MAX_PASSCODE_FAILS), max: MAX_PASSCODE_FAILS, locked: cfg.lock.fails >= MAX_PASSCODE_FAILS },
+    adminFails: [...hits.keys()].filter(k => k.startsWith('adminfail:')).reduce((n, k) => n + recent(k), 0),
+  });
+});
+// lets the owner undo a lockout (for example after someone hammered the login to lock them out)
+app.post('/api/admin/security/clear', limit(300, 'admin'), admin, async (req, res) => {
+  for (const k of [...hits.keys()]) if (k.startsWith('fail:') || k.startsWith('adminfail:')) hits.delete(k);
+  await setSetting('passcode_fails', '0');
+  res.json({ ok: true });
+});
+
 // every account with its usage; the owner's own usage comes along for comparison
-app.get('/api/admin/users', limit(60, 'admin'), admin, async (req, res) => {
+app.get('/api/admin/users', limit(300, 'admin'), admin, async (req, res) => {
   const cfg = await loadConfig();
   const r = await pool.query(`
     WITH t AS (
@@ -1375,25 +1583,38 @@ app.get('/api/admin/users', limit(60, 'admin'), admin, async (req, res) => {
         COUNT(*) FILTER (WHERE role = 'user' AND created_at >= ${todayStartSQL.replaceAll('$2', '$1')}) AS today_q,
         SUM(input_tokens + output_tokens) FILTER (WHERE created_at >= now() - interval '7 days') AS week_tokens,
         SUM(cost_usd) FILTER (WHERE created_at >= now() - interval '7 days') AS week_usd,
+        COUNT(*) FILTER (WHERE role = 'user' AND created_at >= now() - interval '7 days') AS week_q,
         SUM(input_tokens + output_tokens) AS total_tokens, SUM(cost_usd) AS total_usd,
-        COUNT(*) FILTER (WHERE role = 'user') AS total_q
+        COUNT(*) FILTER (WHERE role = 'user') AS total_q, MAX(created_at) FILTER (WHERE role = 'user') AS last_q
       FROM messages GROUP BY user_id
     )
     SELECT u.*, (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id)::int AS devices,
-      t.today_tokens, t.today_usd, t.today_q, t.week_tokens, t.week_usd, t.total_tokens, t.total_usd, t.total_q,
+      t.today_tokens, t.today_usd, t.today_q, t.week_tokens, t.week_usd, t.week_q, t.total_tokens, t.total_usd, t.total_q, t.last_q,
       (SELECT row_to_json(b) FROM bans b WHERE b.id = u.ban_id) AS ban
     FROM users u LEFT JOIN t ON t.user_id = u.id
     ORDER BY CASE u.status WHEN 'pending' THEN 0 WHEN 'trusted' THEN 1 ELSE 2 END, u.created_at DESC`, [TIMEZONE]);
   const own = (await pool.query(`
     SELECT SUM(input_tokens + output_tokens) FILTER (WHERE created_at >= ${todayStartSQL.replaceAll('$2', '$1')}) AS today_tokens,
       SUM(cost_usd) FILTER (WHERE created_at >= ${todayStartSQL.replaceAll('$2', '$1')}) AS today_usd,
-      SUM(input_tokens + output_tokens) AS total_tokens, SUM(cost_usd) AS total_usd
+      COUNT(*) FILTER (WHERE role = 'user' AND created_at >= ${todayStartSQL.replaceAll('$2', '$1')}) AS today_q,
+      SUM(input_tokens + output_tokens) FILTER (WHERE created_at >= now() - interval '7 days') AS week_tokens,
+      SUM(cost_usd) FILTER (WHERE created_at >= now() - interval '7 days') AS week_usd,
+      COUNT(*) FILTER (WHERE role = 'user' AND created_at >= now() - interval '7 days') AS week_q,
+      SUM(input_tokens + output_tokens) AS total_tokens, SUM(cost_usd) AS total_usd, COUNT(*) FILTER (WHERE role = 'user') AS total_q,
+      MAX(created_at) FILTER (WHERE role = 'user') AS last_q,
+      (SELECT COUNT(*) FROM sessions WHERE user_id IS NULL)::int AS devices,
+      (SELECT MAX(last_used) FROM sessions WHERE user_id IS NULL) AS last_seen
     FROM messages WHERE user_id IS NULL`, [TIMEZONE])).rows[0];
   const bans = await pool.query('SELECT * FROM bans ORDER BY id DESC LIMIT 100');
   res.json({
     bans: bans.rows.map(adminBan), banHours: BAN_HOURS, terminateDays: TERMINATE_DAYS,
     signup: cfg.signup, defaults: cfg.accountDefaults, ranges: DAILY_RANGES, timezone: TIMEZONE,
-    owner: { today: { tokens: +own.today_tokens || 0, usd: +own.today_usd || 0 }, total: { tokens: +own.total_tokens || 0, usd: +own.total_usd || 0 } },
+    owner: {
+      today: { tokens: +own.today_tokens || 0, usd: +own.today_usd || 0, questions: +own.today_q || 0 },
+      week: { tokens: +own.week_tokens || 0, usd: +own.week_usd || 0, questions: +own.week_q || 0 },
+      total: { tokens: +own.total_tokens || 0, usd: +own.total_usd || 0, questions: +own.total_q || 0 },
+      devices: own.devices || 0, lastSeen: own.last_seen, lastQuestion: own.last_q,
+    },
     users: r.rows.map(adminUser),
   });
 });
@@ -1403,13 +1624,14 @@ function adminUser(x) {
   return {
     ...u, devices: x.devices ?? 0, ban: x.ban && LIVE_BAN.has(banState(x.ban)) ? adminBan(x.ban) : null,
     today: { tokens: +x.today_tokens || 0, usd: +x.today_usd || 0, questions: +x.today_q || 0 },
-    week: { tokens: +x.week_tokens || 0, usd: +x.week_usd || 0 },
+    week: { tokens: +x.week_tokens || 0, usd: +x.week_usd || 0, questions: +x.week_q || 0 },
     total: { tokens: +x.total_tokens || 0, usd: +x.total_usd || 0, questions: +x.total_q || 0 },
+    lastQuestion: x.last_q || null,
   };
 }
 
 // approve, block, set limits and access, leave a note, reset the password, or sign an account out
-app.post('/api/admin/users/:id', limit(60, 'admin'), admin, async (req, res) => {
+app.post('/api/admin/users/:id', limit(300, 'admin'), admin, async (req, res) => {
   const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
   const cur = id && (await pool.query('SELECT * FROM users WHERE id=$1', [id])).rows[0];
   if (!cur) return res.status(404).json({ error: 'No such user.' });
@@ -1450,7 +1672,7 @@ app.post('/api/admin/users/:id', limit(60, 'admin'), admin, async (req, res) => 
 });
 
 // deleting a waiting account is how a request gets turned down; usage history stays in the totals
-app.delete('/api/admin/users/:id', limit(60, 'admin'), admin, async (req, res) => {
+app.delete('/api/admin/users/:id', limit(300, 'admin'), admin, async (req, res) => {
   const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
   // a ban in force goes into the moderation log as deleted, like a termination that ran its course
   await pool.query('UPDATE bans SET deleted_at = now() WHERE id = (SELECT ban_id FROM users WHERE id = $1) AND lifted_at IS NULL AND deleted_at IS NULL', [id]);
@@ -1461,7 +1683,7 @@ app.delete('/api/admin/users/:id', limit(60, 'admin'), admin, async (req, res) =
 
 // Ban an account for a while or for good, or terminate it (deleted after TERMINATE_DAYS). It stays signed in,
 // so its panel switches to the notice right away. A new ban replaces the one in force.
-app.post('/api/admin/users/:id/ban', limit(30, 'admin'), admin, async (req, res) => {
+app.post('/api/admin/users/:id/ban', limit(300, 'admin'), admin, async (req, res) => {
   const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
   const cur = id && (await pool.query('SELECT id, username FROM users WHERE id=$1', [id])).rows[0];
   if (!cur) return res.status(404).json({ error: 'No such user.' });
@@ -1493,7 +1715,7 @@ app.post('/api/admin/users/:id/ban', limit(30, 'admin'), admin, async (req, res)
 });
 
 // unban, or reverse a termination before the account is deleted
-app.delete('/api/admin/users/:id/ban', limit(30, 'admin'), admin, async (req, res) => {
+app.delete('/api/admin/users/:id/ban', limit(300, 'admin'), admin, async (req, res) => {
   const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
   const r = await pool.query(
     `UPDATE bans SET lifted_at = now() WHERE id = (SELECT ban_id FROM users WHERE id = $1) AND lifted_at IS NULL AND deleted_at IS NULL RETURNING id`, [id]);
@@ -1503,7 +1725,7 @@ app.delete('/api/admin/users/:id/ban', limit(30, 'admin'), admin, async (req, re
 });
 
 // open or close sign-ups, and set what newly approved accounts start with
-app.post('/api/admin/accounts', limit(20, 'admin'), admin, async (req, res) => {
+app.post('/api/admin/accounts', limit(300, 'admin'), admin, async (req, res) => {
   const b = req.body || {};
   if (typeof b.signup === 'boolean') await setSetting('signup', b.signup ? '1' : '0');
   if (b.defaults && typeof b.defaults === 'object') {
@@ -1516,7 +1738,7 @@ app.post('/api/admin/accounts', limit(20, 'admin'), admin, async (req, res) => {
 });
 
 // the announcement everyone with an account sees, and how many accepted people have closed it
-app.get('/api/admin/announcement', limit(30, 'admin'), admin, async (req, res) => {
+app.get('/api/admin/announcement', limit(300, 'admin'), admin, async (req, res) => {
   const a = await currentAnnouncement();
   const c = (await pool.query(`SELECT COUNT(*)::int AS people, COUNT(*) FILTER (WHERE ann_seen >= $1)::int AS seen
     FROM users WHERE status = 'trusted'`, [a?.id ?? 0])).rows[0];
@@ -1524,7 +1746,7 @@ app.get('/api/admin/announcement', limit(30, 'admin'), admin, async (req, res) =
 });
 
 // posting replaces whatever was showing
-app.post('/api/admin/announcement', limit(20, 'admin'), admin, async (req, res) => {
+app.post('/api/admin/announcement', limit(300, 'admin'), admin, async (req, res) => {
   const body = String(req.body?.body ?? '').trim();
   if (!body) return res.status(400).json({ error: 'Write something first.' });
   if (body.length > MAX_ANNOUNCEMENT) return res.status(400).json({ error: `Keep it under ${MAX_ANNOUNCEMENT} characters.` });
@@ -1532,12 +1754,12 @@ app.post('/api/admin/announcement', limit(20, 'admin'), admin, async (req, res) 
   res.json({ ok: true });
 });
 
-app.delete('/api/admin/announcement', limit(20, 'admin'), admin, async (req, res) => {
+app.delete('/api/admin/announcement', limit(300, 'admin'), admin, async (req, res) => {
   await pool.query('UPDATE announcements SET hidden_at = now() WHERE hidden_at IS NULL');
   res.json({ ok: true });
 });
 
-app.post('/api/admin/password', limit(20, 'admin'), admin, async (req, res) => {
+app.post('/api/admin/password', limit(300, 'admin'), admin, async (req, res) => {
   const pw = String(req.body?.password || '');
   // this password unlocks unlimited use from anywhere, so it gets a longer minimum than account passwords
   if (pw.length < 8 || pw.length > 200) return res.status(400).json({ error: 'Use at least 8 characters for the owner password.' });
@@ -1547,7 +1769,7 @@ app.post('/api/admin/password', limit(20, 'admin'), admin, async (req, res) => {
 });
 
 // set or remove the 5-digit passcode, and/or change how long until the panel locks itself
-app.post('/api/admin/passcode', limit(20, 'admin'), admin, async (req, res) => {
+app.post('/api/admin/passcode', limit(300, 'admin'), admin, async (req, res) => {
   const b = req.body || {};
   if (b.lockMinutes != null) {
     const mins = Number(b.lockMinutes);
@@ -1566,14 +1788,14 @@ app.post('/api/admin/passcode', limit(20, 'admin'), admin, async (req, res) => {
   res.json({ ok: true, on: lock.on, minutes: lock.minutes });
 });
 
-app.post('/api/admin/limits', limit(20, 'admin'), admin, async (req, res) => {
+app.post('/api/admin/limits', limit(300, 'admin'), admin, async (req, res) => {
   const l = cleanLimits(req.body || {});
   if (!Object.keys(l).length) return res.status(400).json({ error: 'Nothing to change.' });
   const limits = { ...DEFAULT_LIMITS, ...cleanLimits(await mergeJSON('limits', l)) };
   res.json({ ok: true, limits });
 });
 
-app.post('/api/admin/signout-all', limit(20, 'admin'), admin, async (req, res) => {
+app.post('/api/admin/signout-all', limit(300, 'admin'), admin, async (req, res) => {
   const r = await pool.query('DELETE FROM sessions');
   res.json({ ok: true, signedOut: r.rowCount });
 });
