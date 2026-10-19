@@ -383,6 +383,8 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
       <button class="btn ghost sm" type="button" data-b="sonnet-off">No Sonnet</button>
       <button class="btn ghost sm" type="button" data-b="web-on">Allow web</button>
       <button class="btn ghost sm" type="button" data-b="web-off">No web</button>
+      <button class="btn ghost sm" type="button" data-b="actions-on">Allow page actions</button>
+      <button class="btn ghost sm" type="button" data-b="actions-off">No page actions</button>
       <button class="btn ghost sm" type="button" data-b="signout">Sign out</button>
       <button class="btn ghost sm danger" type="button" data-b="block">Block</button>
       <button class="btn ghost sm" type="button" data-b="unblock">Unblock</button>
@@ -422,7 +424,7 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
         <div class="inl"><div class="seg" id="dKind"><button type="button" data-k="tokens">Tokens</button><button type="button" data-k="usd">Dollars</button><button type="button" data-k="none">No limit</button></div>
         <input id="dValue" type="number" min="0" step="any" aria-label="Daily limit for new people"><span class="unit" id="dUnit"></span></div>
       </div>
-      <div class="field"><span class="fl">Can use</span><label class="ck"><input type="checkbox" id="dSonnet"> Sonnet 5.5</label><label class="ck"><input type="checkbox" id="dWeb"> Web search</label></div>
+      <div class="field"><span class="fl">Can use</span><label class="ck"><input type="checkbox" id="dSonnet"> Sonnet 5.5</label><label class="ck"><input type="checkbox" id="dWeb"> Web search</label><label class="ck"><input type="checkbox" id="dActions"> Page actions</label></div>
       <div class="btns" style="margin-top:14px"><button class="btn" type="button" id="dSave">Save defaults</button></div>
       <div class="msg" id="dMsg"></div>
     </div>
@@ -1015,7 +1017,7 @@ const until = t => { const s = (new Date(t) - Date.now()) / 1000; return s <= 60
 const banWhat = b => b.kind === 'terminate' ? 'Terminated' : b.kind === 'restrict' ? `Restricted for ${banDur(b.hours)}`
   : `Banned ${b.hours == null ? 'permanently' : 'for ' + banDur(b.hours)}`;
 // what a restriction takes away, in a few words
-const lostText = l => [l?.noSonnet && 'no Sonnet', l?.noWeb && 'no web search', l?.limitKind && `daily limit ${limitText(l.limitKind, l.limitValue)}`].filter(Boolean).join(', ');
+const lostText = l => [l?.noSonnet && 'no Sonnet', l?.noWeb && 'no web search', l?.noActions && 'no page actions', l?.limitKind && `daily limit ${limitText(l.limitKind, l.limitValue)}`].filter(Boolean).join(', ');
 const BAN_STATES = {
   active: b => b.endsAt ? `${until(b.endsAt)} left` : 'in force',
   ended: () => 'over, not re-activated yet',
@@ -1040,9 +1042,10 @@ const statusChip = u => u.ban ? banChip(u.ban) : u.status === 'blocked' ? chip('
   : u.restriction ? banChip(u.restriction) : chip('Active', 'ok');
 // what an account works with right now: its own settings with the restriction in force on top, as the server applies it
 function eff(u) {
-  const l = u.restriction?.limits || {}, e = { limitKind: u.limitKind, limitValue: u.limitValue, allowSonnet: u.allowSonnet, allowWeb: u.allowWeb };
+  const l = u.restriction?.limits || {}, e = { limitKind: u.limitKind, limitValue: u.limitValue, allowSonnet: u.allowSonnet, allowWeb: u.allowWeb, allowActions: u.allowActions };
   if (l.noSonnet) e.allowSonnet = false;
   if (l.noWeb) e.allowWeb = false;
+  if (l.noActions) e.allowActions = false;
   if (l.limitKind) { e.limitKind = l.limitKind; e.limitValue = l.limitValue; }
   return e;
 }
@@ -1142,8 +1145,8 @@ function moderationBox(u) {
     len.setAttribute('aria-label', 'Length');
     // what a restriction takes away
     const rbox = mk('div', 'rform'), cks = mk('div'), cb = label => { const l = mk('label', 'ck'), c = mk('input'); c.type = 'checkbox'; l.append(c, label); return [l, c]; };
-    const [ls, cs] = cb('Take away Sonnet'), [lw, cw] = cb('Take away web search');
-    cks.append(ls, lw);
+    const [ls, cs] = cb('Take away Sonnet'), [lw, cw] = cb('Take away web search'), [la, ca] = cb('Take away page actions');
+    cks.append(ls, lw, la);
     const lim = mk('div', 'inl'), lseg = mk('div', 'seg'), lval = mk('input'), lunit = mk('span', 'unit');
     let lkind = 'none';
     lval.type = 'number'; lval.min = '0'; lval.step = 'any'; lval.setAttribute('aria-label', 'Daily limit while restricted');
@@ -1170,12 +1173,12 @@ function moderationBox(u) {
     for (const [k, label] of [['ban', 'Ban'], ['restrict', 'Restrict'], ['terminate', 'Terminate']]) { const x = button(label); x.dataset.k = k; x.onclick = () => setK(k); seg.appendChild(x); }
     inl.append(seg, len); setK('ban');
     go.onclick = async () => {
-      if (kind === 'restrict' && !cs.checked && !cw.checked && lkind === 'none') return say(msg, false, 'Pick at least one thing to take away.');
+      if (kind === 'restrict' && !cs.checked && !cw.checked && !ca.checked && lkind === 'none') return say(msg, false, 'Pick at least one thing to take away.');
       if (kind === 'restrict' && lkind !== 'none' && !(+lval.value > 0)) { lval.focus(); return say(msg, false, 'Enter a number above zero for the daily limit.'); }
       if (!reason.value.trim()) { reason.focus(); return say(msg, false, 'Give a reason. They see it.'); }
       if (kind === 'terminate' && !confirm(`Terminate ${u.name}? They’ll see the termination notice every time they sign in, and the account is deleted in ${S.users.terminateDays} days.`)) return;
       const body = { kind, reason: reason.value, note: note.value, ...(kind !== 'terminate' && { hours: +len.value }),
-        ...(kind === 'restrict' && { noSonnet: cs.checked, noWeb: cw.checked, limitKind: lkind, limitValue: +lval.value }) };
+        ...(kind === 'restrict' && { noSonnet: cs.checked, noWeb: cw.checked, noActions: ca.checked, limitKind: lkind, limitValue: +lval.value }) };
       try {
         await send(`/api/admin/users/${u.id}/ban`, body);
         await loadUsers(); renderPeople(); renderDrawer();
@@ -1234,12 +1237,12 @@ const PCOLS = [
   { key: 'q7', label: 'Questions, 7 days', num: 1, v: u => u.week.questions },
   { key: 'c7', label: 'Cost, 7 days', num: 1, v: u => u.week.usd },
   { key: 'ct', label: 'Cost, all time', num: 1, v: u => u.total.usd },
-  { key: 'access', label: 'Can use', v: u => { const e = eff(u); return (e.allowSonnet ? 2 : 0) + (e.allowWeb ? 1 : 0); } },
+  { key: 'access', label: 'Can use', v: u => { const e = eff(u); return (e.allowSonnet ? 4 : 0) + (e.allowWeb ? 2 : 0) + (e.allowActions ? 1 : 0); } },
   { key: 'dev', label: 'Devices', num: 1, v: u => u.devices },
   { key: 'last', label: 'Last active', v: u => u.lastSeen ? +new Date(u.lastSeen) : 0 },
   { key: 'joined', label: 'Joined', v: u => +new Date(u.createdAt) },
 ];
-const accessText = u => (u.allowSonnet ? 'Sonnet' : 'Haiku only') + (u.allowWeb ? ', web' : '');
+const accessText = u => (u.allowSonnet ? 'Sonnet' : 'Haiku only') + (u.allowWeb ? ', web' : '') + (u.allowActions ? ', actions' : '');
 // marks a value a restriction is overriding; their own setting comes back when it ends
 function rTag(u, own) { const t = mk('span', 'tag warn', 'restricted'); t.title = `Restricted until ${fullFmt.format(new Date(u.restriction.endsAt))}. Their own setting: ${own}`; return t; }
 function todayCell(u) {
@@ -1295,7 +1298,7 @@ function personRow(tb, u) {
   if (rl.limitKind) lc.appendChild(rTag(u, limitText(u.limitKind, u.limitValue)));
   td(tr, todayCell(u));
   td(tr, nf.format(u.week.questions), 'num'); td(tr, money(u.week.usd), 'num'); td(tr, money(u.total.usd), 'num');
-  const ac = td(tr, accessText(e)); if (rl.noSonnet || rl.noWeb) ac.appendChild(rTag(u, accessText(u)));
+  const ac = td(tr, accessText(e)); if (rl.noSonnet || rl.noWeb || rl.noActions) ac.appendChild(rTag(u, accessText(u)));
   td(tr, nf.format(u.devices), 'num');
   const la = td(tr, ago(u.lastSeen)); if (u.lastSeen) la.title = fullFmt.format(new Date(u.lastSeen));
   td(tr, dayYFmt.format(new Date(u.createdAt)));
@@ -1311,9 +1314,9 @@ $('#pExport').onclick = () => {
   const d = S.users; if (!d) return;
   download('pagebot-people', [
     ['Name', 'Status', 'Daily limit type', 'Daily limit', 'Today tokens', 'Today cost (USD)', 'Questions 7d', 'Tokens 7d', 'Cost 7d (USD)', 'Questions all time', 'Tokens all time', 'Cost all time (USD)',
-      'Sonnet', 'Web search', 'Passcode', 'Ban', 'Ban reason', 'Restriction', 'Restriction ends', 'Restriction reason', 'Shared a browser with', 'Devices', 'Last active', 'Last question', 'Joined', 'Accepted', 'Their note', 'Private note'],
+      'Sonnet', 'Web search', 'Page actions', 'Passcode', 'Ban', 'Ban reason', 'Restriction', 'Restriction ends', 'Restriction reason', 'Shared a browser with', 'Devices', 'Last active', 'Last question', 'Joined', 'Accepted', 'Their note', 'Private note'],
     ...d.users.map(u => [u.name, u.status, u.limitKind || 'none', u.limitValue ?? '', u.today.tokens, u.today.usd.toFixed(4), u.week.questions, u.week.tokens, u.week.usd.toFixed(4),
-      u.total.questions, u.total.tokens, u.total.usd.toFixed(4), u.allowSonnet ? 'yes' : 'no', u.allowWeb ? 'yes' : 'no', u.passcode ? 'yes' : 'no',
+      u.total.questions, u.total.tokens, u.total.usd.toFixed(4), u.allowSonnet ? 'yes' : 'no', u.allowWeb ? 'yes' : 'no', u.allowActions ? 'yes' : 'no', u.passcode ? 'yes' : 'no',
       u.ban ? banWhat(u.ban) + ` (${banStatus(u.ban)})` : '', u.ban?.reason || '',
       u.restriction ? lostText(u.restriction.limits) : '', u.restriction?.endsAt || '', u.restriction?.reason || '', (u.linked || []).join(' '), u.devices,
       u.lastSeen || '', u.lastQuestion || '', u.createdAt, u.approvedAt || '', u.note, u.adminNote]),
@@ -1364,7 +1367,7 @@ async function bulk(body, label) {
   const ids = [...ppl.sel], m = $('#bulkMsg');
   // a restriction in force keeps overriding what it covers, so say when a change waits for one to end
   const held = ids.map(id => S.users.users.find(u => u.id === id)).filter(u => { const l = u?.restriction?.limits || {};
-    return ('limitKind' in body && l.limitKind) || (body.allowSonnet && l.noSonnet) || (body.allowWeb && l.noWeb); });
+    return ('limitKind' in body && l.limitKind) || (body.allowSonnet && l.noSonnet) || (body.allowWeb && l.noWeb) || (body.allowActions && l.noActions); });
   let done = 0, failed = 0;
   for (const id of ids) {
     try { await send('/api/admin/users/' + id, body); done++; } catch { failed++; }
@@ -1379,7 +1382,7 @@ $('#bulk').addEventListener('click', async e => {
   const a = b.dataset.b;
   if (a === 'clear') { ppl.sel.clear(); $('#bulkMsg').textContent = ''; renderPeople(); return; }
   if (a === 'limit') { $('#bulkLimit').hidden = !$('#bulkLimit').hidden; if (!$('#bulkLimit').hidden) $('#bValue').focus(); return; }
-  const bodies = { 'sonnet-on': { allowSonnet: true }, 'sonnet-off': { allowSonnet: false }, 'web-on': { allowWeb: true }, 'web-off': { allowWeb: false }, signout: { signout: true }, block: { status: 'blocked' }, unblock: { status: 'trusted' } };
+  const bodies = { 'sonnet-on': { allowSonnet: true }, 'sonnet-off': { allowSonnet: false }, 'web-on': { allowWeb: true }, 'web-off': { allowWeb: false }, 'actions-on': { allowActions: true }, 'actions-off': { allowActions: false }, signout: { signout: true }, block: { status: 'blocked' }, unblock: { status: 'trusted' } };
   if (a === 'block' && !confirm(`Block ${plural(ppl.sel.size, 'person', 'people')}? They're signed out right away.`)) return;
   await bulk(bodies[a], b.textContent);
 });
@@ -1394,7 +1397,7 @@ let dKind = 'tokens';
 function renderDefaults(d) {
   if ($('#defaults').contains(document.activeElement)) return;
   setDKind(d.limitKind || 'none', d.limitValue);
-  $('#dSonnet').checked = d.allowSonnet; $('#dWeb').checked = d.allowWeb;
+  $('#dSonnet').checked = d.allowSonnet; $('#dWeb').checked = d.allowWeb; $('#dActions').checked = d.allowActions;
 }
 function setDKind(k, v) {
   dKind = k; setSeg($('#dKind'), 'k', k);
@@ -1405,7 +1408,7 @@ function setDKind(k, v) {
 $('#dKind').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setDKind(b.dataset.k); });
 $('#dSave').onclick = async () => {
   try {
-    await send('/api/admin/accounts', { defaults: { limitKind: dKind, limitValue: +$('#dValue').value, allowSonnet: $('#dSonnet').checked, allowWeb: $('#dWeb').checked } });
+    await send('/api/admin/accounts', { defaults: { limitKind: dKind, limitValue: +$('#dValue').value, allowSonnet: $('#dSonnet').checked, allowWeb: $('#dWeb').checked, allowActions: $('#dActions').checked } });
     say($('#dMsg'), true, 'Saved. People you accept from now on start with these.');
   } catch (err) { say($('#dMsg'), false, err.message); }
 };
@@ -1520,8 +1523,8 @@ function editor(u) {
   inl.append(seg, input, unitL); setKind(kind);
   const f2 = mk('div', 'field'); f2.appendChild(mk('span', 'fl', 'Can use'));
   const cb = (label, on) => { const l = mk('label', 'ck'), c = mk('input'); c.type = 'checkbox'; c.checked = on; l.append(c, label); return [l, c]; };
-  const [ls, cs] = cb('Sonnet 5.5', u.allowSonnet), [lw, cw] = cb('Web search', u.allowWeb);
-  f2.append(ls, lw);
+  const [ls, cs] = cb('Sonnet 5.5', u.allowSonnet), [lw, cw] = cb('Web search', u.allowWeb), [la, ca] = cb('Page actions', u.allowActions);
+  f2.append(ls, lw, la);
   const f3 = mk('div', 'field'), nl = mk('label', '', 'Private note (only you see it)'), note = mk('input');
   note.maxLength = 300; note.value = u.adminNote; note.placeholder = 'e.g. Sam from class'; note.style.width = '100%';
   f3.append(nl, note);
@@ -1529,7 +1532,7 @@ function editor(u) {
   save.onclick = async () => {
     const v = +input.value;
     if (kind !== 'none' && !(v > 0)) return say(msg, false, 'Enter a number above zero.');
-    try { await send('/api/admin/users/' + u.id, { limitKind: kind, limitValue: v, allowSonnet: cs.checked, allowWeb: cw.checked, adminNote: note.value }); await loadUsers(); renderPeople(); renderDrawer(); say($('#dwFlash') || msg, true, 'Saved.'); }
+    try { await send('/api/admin/users/' + u.id, { limitKind: kind, limitValue: v, allowSonnet: cs.checked, allowWeb: cw.checked, allowActions: ca.checked, adminNote: note.value }); await loadUsers(); renderPeople(); renderDrawer(); say($('#dwFlash') || msg, true, 'Saved.'); }
     catch (err) { say(msg, false, err.message); }
   };
   [input, note].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save.click(); } }));

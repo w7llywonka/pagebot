@@ -53,11 +53,11 @@ Enter your `ADMIN_TOKEN`. The admin page has five tabs:
   - Click a row to jump to those questions in Activity, or to that person.
 - **People**:
   - The waiting list, with the note each person left. Accept or deny people one at a time or all at once.
-  - A sortable, searchable table with these columns: status, daily limit, today's use against it, questions and cost this week, cost all time, Sonnet and web search access, devices, last active, and joined.
-  - Select several people to change them together: set a daily limit, turn Sonnet or web search on or off, sign them out, block or unblock them.
+  - A sortable, searchable table with these columns: status, daily limit, today's use against it, questions and cost this week, cost all time, Sonnet, web search and page actions access, devices, last active, and joined.
+  - Select several people to change them together: set a daily limit, turn Sonnet, web search or page actions on or off, sign them out, block or unblock them.
   - Click someone to open their panel:
     - usage today, this week and all time, plus a 30-day chart
-    - their daily limit (tokens, dollars or none), Sonnet and web search access, and a private note
+    - their daily limit (tokens, dollars or none), Sonnet, web search and page actions access, and a private note
     - their recent questions and the devices they're signed in on
     - whether they have a passcode, and how soon their panel locks
     - moderation: ban, restrict or terminate them, answer their appeal, and their past bans and restrictions
@@ -70,7 +70,7 @@ Enter your `ADMIN_TOKEN`. The admin page has five tabs:
     - **Terminate** shows a termination notice on every sign-in, and the account is deleted 14 days later (their usage stays in the totals). **Reverse termination** undoes it before then.
     - **Unban** lifts a ban at any time; their panel goes back to the chat by itself within 30 seconds. Banning someone who's already banned replaces the old ban.
     - **Appeals**: a banned or terminated person can send one appeal per ban from their panel. It shows up under **Appeals waiting** at the top of the **Moderation** card (with a count, which the People tab's badge includes) and in their panel. **Accept & unban** lifts the ban; **Deny** keeps it. Either way you can add a reply, and their panel shows your answer.
-    - **Restrict** is the lighter option: for 1 hour to 30 days, take away Sonnet, web search, and/or set a different daily limit. They keep using pagebot, with a note above their chat saying what's restricted, why, and until when. It ends by itself, or press **Lift restriction**. Their own settings aren't changed: while it runs, the table's daily limit, today and "can use" columns show what they have now with a **restricted** tag (hover it for their own setting), and changing their settings, one at a time or in bulk, takes effect once it ends.
+    - **Restrict** is the lighter option: for 1 hour to 30 days, take away Sonnet, web search, page actions, and/or set a different daily limit. They keep using pagebot, with a note above their chat saying what's restricted, why, and until when. It ends by itself, or press **Lift restriction**. Their own settings aren't changed: while it runs, the table's daily limit, today and "can use" columns show what they have now with a **restricted** tag (hover it for their own setting), and changing their settings, one at a time or in bulk, takes effect once it ends.
     - **Terminated people can't sign straight back up**: a terminated account's username stays taken, even after the account is deleted, and a browser that was used by a terminated account can't create new accounts. Anyone else who has used the same browser gets a **⚠ shared browser** tag in the table and the waiting list, and a warning in their panel. This goes by a random id the panel keeps in the browser's storage, so clearing site data or switching browsers gets around it. Reversing the termination lifts both.
     - The person's row shows a **Banned**, **Terminated** or **Restricted** chip with the time left, and their details show whether they've seen the notice yet and their past bans and restrictions.
     - The **Moderation** card on the People tab lists every ban, termination and restriction, newest first, with what happened to each one (still in force, re-activated, lifted, ended, account deleted, and any appeal), and lets you unban, reverse or lift from there.
@@ -113,6 +113,7 @@ What people ask (and the answers) is stored and shows up under Activity, along w
   - Chrome asks to share the tab the first time. Sharing then stays on, even when you close the panel, until you choose **Stop sharing this tab** in the + menu or Chrome's own Stop sharing button.
   - **Page text** sends the page along. It's on for the first message of each chat (shown as a 📄 Page pill) and off after that, since the page stays in the chat history anyway.
   - **Web search** lets the model search the web (shown as a 🌐 Web pill). Answers that used it list their sources.
+  - **Page actions** lets the model work on the page for you, not just read it (shown as a 🖱 Actions pill). Ask it to “fill in the contact form with my details”, “pick the 2-person table” or “click Next” and it looks at the page's buttons and fields, then does it step by step. See **Page actions** below.
   - Click a pill's × to turn that thing off.
 - The model name next to the send button picks the model: ⚡ Haiku 5.5 is fast and cheap; ✦ Sonnet 5.5 is smarter. With `OPENROUTER_API_KEY` set there's also ◆ Muse Spark 1.3, Meta's model through OpenRouter (the cheapest of the three). Its answers don't point at passages on the page.
 - When a new version of pagebot is out, a panel opened from an older bookmark shows a small strip that links to the homepage, where dragging the button again updates it. The version is in small print at the bottom of ⚙ Settings and in the homepage footer.
@@ -149,7 +150,22 @@ What people ask (and the answers) is stored and shows up under Activity, along w
 - Some sites block overlays. On those, pagebot opens in a small window instead. If your browser blocks that pop-up, click the bookmark again.
 - You log in once per site, and it's remembered there. With a passcode set (yours, or an account's own), the panel locks itself after the idle time you chose, or right away with the 🔒 button.
 
-Updating from an older version? Drag the button from the homepage to your bookmarks bar again to get smoother dragging and resizing, faster quote lookup, and lighter page requests when Page text is off. Old bookmarks still work, but only newer ones get resizing, docking, the ✂️ highlight pill, and "show me where" quotes (older bookmarks include highlighted text without a pill). Older ones also miss the see-through Glass on every site and the shadow-free Clear (with older ones they turn solid grey on dark-mode sites like Google's), the bigger panel, and (for the oldest ones) moving, minimizing, and full-page region shots.
+Updating from an older version? Drag the button from the homepage to your bookmarks bar again to get smoother dragging and resizing, faster quote lookup, and lighter page requests when Page text is off. Old bookmarks still work, but only newer ones get resizing, docking, the ✂️ highlight pill, "show me where" quotes, and page actions (older bookmarks include highlighted text without a pill). Older ones also miss the see-through Glass on every site and the shadow-free Clear (with older ones they turn solid grey on dark-mode sites like Google's), the bigger panel, and (for the oldest ones) moving, minimizing, and full-page region shots.
+
+## Page actions
+
+Turn on **Page actions** in the + menu (next to Web search) and the model can use the page for you. It only works from the bookmark on a real page: it's greyed out, with the reason, on `/chat` (there's no page there), with a bookmark older than version 9 (drag the new one from the homepage), with the OpenRouter model, and for an account the owner hasn't allowed it for. It's off until you turn it on, and it's remembered like web search.
+
+- **What it can do**: *read the page* again (after something changed), *find elements* (a numbered list of the visible fields, dropdowns, checkboxes, buttons and links, each with its label and what's in it), *highlight* one or more passages, *scroll to* a passage or element, and *fill* a text box, *choose* an option, *tick* a checkbox or radio button, and *click* a button or link. Anything that changes the page works on the numbers from the list, so it can't wander off to something it hasn't looked at.
+- **You stay in control**: reading, highlighting and scrolling show up as small step lines in the answer. Before every fill, choice, tick or click, a card in the answer says in plain words what it's about to do (“Type “Sam” into the “Name” box”) with **Allow** and **Skip**. Skip tells the model you said no, and it won't try again. **Allow all for this answer** stops the questions for the rest of that one answer. Press stop or close the panel and the answer ends right there, and the page isn't touched again.
+- **Skip all permissions**: if the asking gets in the way, ⚙ Settings has a **Page actions** section with **Ask before each click or edit** (the default) and **Skip all permissions**, which works like the bypass mode in coding tools: clicks, typing and choices go ahead without a card, on every site, and your choice is saved to your account. Turning it on shows a warning first, because a web page can hide text meant to steer the model, and you confirm it. While it's on, the Actions pill shows **auto** in a warning colour.
+- **Limits that never switch off**, even when you skip permissions, and enforced by the bookmarklet in the page itself, whatever the model asks for:
+  - It never types into, and never reads the value of, password fields, payment card fields (card number, CVV, expiry, by field type, autocomplete hint, name or label) or file pickers. The model sees that such a field exists and is told to ask you to do it yourself.
+  - At most **15 steps** for one question.
+  - A click that would take you to another page (a link to another address, a form that submits) still asks you first, with a note that the panel closes with the page. Links to a spot on the same page (#anchors), links that open a new tab and ordinary buttons don't count.
+- **Page text is untrusted**: the model is told never to follow instructions it finds on the page, only yours.
+- **Billing**: each step goes back to the model, so a question with page actions costs more than one without. Every round counts toward your daily limit, also when you stop partway, and pagebot checks what's left before each round and finishes the answer if there isn't room for another.
+- **For the owner**: page actions is a permission like web search. Turn it off per person, in bulk, in the defaults for new people, or take it away for a while with **Restrict**. A waiting step times out after about 20 seconds when the page doesn't answer, or 5 minutes when the person hasn't decided. The steps an answer took are saved with it (`steps` on the answer's row) and a short summary of them goes along on follow-ups.
 
 ## Security
 
@@ -167,15 +183,17 @@ Updating from an older version? Drag the button from the homepage to your bookma
   - Only `/widget` can be embedded in other sites.
   - Answers are shown as text with simple formatting, never as raw HTML.
   - Slash commands only run from what you type in the message box (or a list row or chip you click). Page text, highlights and answers can't run them, and no command changes a permission setting.
+- **Page actions**: password, payment card and file fields are off limits to the model whatever the settings, a question has at most 15 steps, and clicks that leave the page always ask. A step's result can only be sent back by the session that asked for it, with a random id that is only good once. See **Page actions** above.
 - These counters live in memory, so restarting the server resets them, and they assume a single server instance (Railway's default).
 - **Be careful on pages you don't trust**:
   - The bookmarklet runs inside the page you're on, so a malicious page could draw a fake panel to catch what you type.
   - Answers are generated from that page's text, so a page can try to steer them.
+  - A page can hide text meant to steer the model. With page actions on, that is how it could try to make a click or an edit; that's why each one asks first, and why **Skip all permissions** is only for pages you trust.
   - If a site looks off, use `/chat` instead.
 
 ## Versions
 
-pagebot's version is `VERSION` at the top of `server.js` (now 8). It's written into the bookmark people drag from the homepage. To release an update, raise it by one and deploy. Panels opened from an older bookmark then point people to the homepage to drag the new one.
+pagebot's version is `VERSION` at the top of `server.js` (now 9). It's written into the bookmark people drag from the homepage. To release an update, raise it by one and deploy. Panels opened from an older bookmark then point people to the homepage to drag the new one.
 
 Changes to the panel and the server reach everyone as soon as you deploy, whatever their bookmark. Raise the version whenever `bookmarklet.js` changes, or whenever you want everyone to get a fresh bookmark.
 
