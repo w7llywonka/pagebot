@@ -2798,8 +2798,8 @@ $('#histList').addEventListener('scroll', () => {
 });
 
 // ---- settings: theme, model, web search, answer limit ----
-const TOK = [[512, '512'], [1024, '1k'], [2048, '2k'], [4096, '4k'], [8000, '8k']]; // presets; /admin can set anything up to 100,000
-const TOK_NAME = { 512: 'Brief', 1024: 'Short', 2048: 'Standard', 4096: 'Long', 8000: 'Very long' }; // what accounts see instead
+const TOK = [[512, '512'], [1024, '1k'], [2048, '2k'], [4096, '4k'], [8000, '8k'], [16000, '16k'], [100000, '100k']]; // presets; /admin can set anything up to 100,000
+const TOK_NAME = { 512: 'Brief', 1024: 'Short', 2048: 'Standard', 4096: 'Long', 8000: 'Very long', 16000: 'Extra long', 100000: 'Maximum' }; // what accounts see instead
 for (const [n, label] of TOK) {
   const b = el('button', '', label); b.type = 'button'; b.dataset.n = n;
   b.onclick = () => savePrefs({ maxTokens: n });
