@@ -22,7 +22,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // hold (a promise to wait for before answering), status (an HTTP error instead), cut (hang up after the text)
 async function sse(res, body, spec = {}) {
   if (spec.hold) await spec.hold;
-  if (spec.status) { res.writeHead(spec.status, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'mock says no' } })); }
+  if (spec.status) { res.writeHead(spec.status, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: spec.message || 'mock says no' } })); }
   const usage = { input_tokens: 20, output_tokens: 5, ...spec.usage };
   const ev = [{ type: 'message_start', message: { id: 'msg_' + randomBytes(4).toString('hex'), type: 'message', role: 'assistant', content: [], model: body.model,
     stop_reason: null, stop_sequence: null, usage: { ...usage, output_tokens: 0 } } }];
@@ -216,6 +216,18 @@ test('accounts see their daily limit as a percentage only', { skip: !database &&
     assert.ok(err, JSON.stringify(r.events));
     assert.deepEqual(err.quota, { pct: 7 }, '730 of 10,000');
     onlyPct('err quota', err.quota);
+  });
+
+  await t.test('the API’s own error text never carries token amounts to an account, but the owner still sees it', async () => {
+    const a = await account(10_000);
+    script = () => ({ status: 400, message: 'prompt is too long: 250000 tokens > 200000 maximum' });
+    const r = await chat({ message: 'Hello' }, { token: a.token });
+    const err = r.events.find(e => e.t === 'err');
+    assert.ok(err, JSON.stringify(r.events));
+    assert.doesNotMatch(err.v, /\d/, 'no numbers in what an account is told');
+    assert.match(err.v, /too long/i);
+    const o = await chat({ message: 'Hello' });
+    assert.match(o.events.find(e => e.t === 'err').v, /250000 tokens/, 'the owner keeps the API’s wording');
   });
 
   await t.test('a used-up limit says so without a number, and is a 100% bar', async () => {

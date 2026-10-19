@@ -1638,7 +1638,7 @@ async function chat(req, res) {
   // sent won't be sent again, so keep the question in the chat with an empty, stopped answer.
   if (closed && !failed && (!final || acts?.cut)) failed = new Anthropic.APIUserAbortError(); // (or while page actions waited)
   if (!final && !tot.in && !closed) { // nothing reached the model
-    if (failed) out({ t: 'err', v: friendly(failed, m.id) });
+    if (failed) out({ t: 'err', v: friendly(failed, m.id, u) });
     return void res.end();
   }
 
@@ -1659,7 +1659,7 @@ async function chat(req, res) {
   const left = used && quota(u, { tokens: used.tokens + tot.in + tot.out, usd: used.usd + tot.usd }); // the bar, after this answer
   const spentNow = q0?.kind === 'usd' ? tot.usd : tot.in + tot.out; // what this answer used, in the limit's own kind
   if (failed) {
-    out({ t: 'err', v: friendly(failed, m.id), conversationId: convId, ...(left && { quota: quotaOut(u, left) }) }); // (a broken-off answer was billed too)
+    out({ t: 'err', v: friendly(failed, m.id, u), conversationId: convId, ...(left && { quota: quotaOut(u, left) }) }); // (a broken-off answer was billed too)
     return void res.end();
   }
   out({
@@ -1673,7 +1673,7 @@ async function chat(req, res) {
   res.end();
 }
 
-function friendly(e, model) {
+function friendly(e, model, u) { // u: the account asking (null = the owner, who sees the API's own wording)
   const s = e?.status;
   if (e?.router && s === 401) return 'OpenRouter API key is invalid (check OPENROUTER_API_KEY).';
   if (e?.router && s === 402) return 'Your OpenRouter account is out of credits.';
@@ -1682,7 +1682,10 @@ function friendly(e, model) {
   if (s === 404) return `Model "${model}" not found (check HAIKU_MODEL / SONNET_MODEL).`;
   if (s === 429) return 'Rate limited by the API — try again in a moment.';
   if (s === 529 || s === 503) return 'The API is overloaded — try again in a moment.';
-  return (e?.error?.error?.message || e?.message || 'Something went wrong').slice(0, 300);
+  const msg = (e?.error?.error?.message || e?.message || 'Something went wrong').slice(0, 300);
+  // accounts never see amounts, and the API's own errors carry token counts ("prompt is too long: 250000 tokens > 200000 maximum")
+  if (u && /\d[\d,.]*\s*[kKmM]?\s*tokens?\b|\$\s*\d/.test(msg)) return /too long|too large|exceed/i.test(msg) ? 'That’s too long for the model. Try a shorter question, or start a new chat.' : 'Something went wrong. Try again in a moment.';
+  return msg;
 }
 
 // ---------- chat history: your past chats, to reopen, keep going, or remove from your history ----------
