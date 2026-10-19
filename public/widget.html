@@ -494,6 +494,27 @@ body.docked:not(.min) header{cursor:default}
 .wload{margin:auto;display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);font-size:13px;text-align:center;padding:20px;cursor:default}
 .wload p{margin:0}
 
+/* pdf uploads: the pill while it uploads and once it's attached, the drop overlay, the chip in your message, and the
+   box a PDF quote's marker opens (it shows the page instead of finding the passage on the page) */
+.pill.pdf{flex:0 1 auto;min-width:0;max-width:230px}
+.pill.pdf .pl,.pills.tight .pill.pdf .pl{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.pill .spn{flex:none;width:11px;height:11px;border-radius:50%;border:2px solid color-mix(in srgb,var(--text) 22%,transparent);border-top-color:var(--accent);animation:pbSpin .8s linear infinite}
+@keyframes pbSpin{to{transform:rotate(360deg)}}
+.fchip{display:flex;align-items:center;gap:5px;max-width:100%;width:max-content;margin-top:6px;padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 60%,transparent);font-size:12px;font-weight:400;color:var(--text)}
+.fchip .fn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fchip .fpg{flex:none;color:var(--muted)}
+.fchip.gone{opacity:.7}
+#drop{position:fixed;inset:6px;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:16px;border:2px dashed var(--accent);border-radius:14px;background:var(--pop,color-mix(in srgb,var(--bg) 92%,transparent));color:var(--text);text-align:center;pointer-events:none;text-shadow:none;animation:fadeIn .12s ease both}
+#drop b{font-size:15px}
+#drop span{font-size:12.5px;color:var(--muted)}
+:root[data-theme=glass] #drop{background:rgba(26,28,38,.94)} /* no blur here: a second backdrop filter over the panel's own tears in Chrome */
+:root[data-theme=glass][data-page=light] #drop{background:rgba(250,251,255,.95)}
+.cite.pg{border-radius:5px}
+.cpop{position:fixed;z-index:30;max-width:min(320px,calc(100vw - 16px));max-height:45vh;overflow-y:auto;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--pop,var(--panel));color:var(--text);font-size:12.5px;line-height:1.45;box-shadow:0 10px 28px rgba(0,0,0,.3);animation:menuIn .12s ease both;overflow-wrap:anywhere}
+.cpop .cw{margin-top:6px;font-size:11.5px;color:var(--muted);font-weight:600}
+:root[data-theme=glass] .cpop{-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+:root[data-theme=clear] .cpop{text-shadow:none}
+
 /* full-page chat at /chat */
 body.standalone{--hd:54px;max-width:780px;margin:0 auto;border-left:1px solid var(--line);border-right:1px solid var(--line)}
 body.standalone header{padding:0 12px 0 18px}
@@ -662,6 +683,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
     <div class="bar">
       <button class="tb" id="addBtn" type="button" title="Screenshot, page text, web search" aria-label="Add" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
       <div class="pills">
+        <button class="pill pdf" id="pdfPill" type="button" hidden><span class="pi">📄</span><span class="pl"></span><i>×</i></button>
         <button class="pill" id="pagePill" type="button" title="This page's text goes with your next message. Click to leave it out." hidden>📄<span class="pl">Page</span><i>×</i></button>
         <button class="pill sel" id="selPill" type="button" hidden><span></span><i>×</i></button>
         <button class="pill" id="areaPill" type="button" title="Every message sends a new screenshot of the area you picked. Click to turn it off." hidden><span class="pi">⛶</span><span class="pl">Region</span><i>×</i></button>
@@ -674,13 +696,17 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
   <div class="menu" id="addMenu" role="menu" hidden>
     <button type="button" role="menuitem" id="shotBtn"><span class="mi">📷</span><span class="mt">Screenshot this tab<span class="md" id="shotNote" hidden>On for every message</span></span></button>
     <button type="button" role="menuitem" id="areaBtn"><span class="mi">⛶</span><span class="mt">Screenshot a region<span class="md" id="areaNote" hidden>On for every message · pick again to change it</span></span></button>
+    <button type="button" role="menuitem" id="pdfBtn"><span class="mi">📎</span><span class="mt">Upload a PDF<span class="md" id="pdfNote">Up to 10 MB and 100 pages</span></span></button>
     <button type="button" role="menuitemcheckbox" id="pageBtn" aria-checked="false"><span class="mi">📄</span><span class="mt">Page text</span><span class="ck">✓</span></button>
     <button type="button" role="menuitemcheckbox" id="webBtn" aria-checked="false"><span class="mi">🌐</span><span class="mt">Web search<span class="md" id="webNote" hidden>Not turned on for your account</span></span><span class="ck">✓</span></button>
     <button type="button" role="menuitem" id="stopBtn" hidden><span class="mi">⏹</span><span class="mt">Stop sharing this tab</span></button>
-    <div class="tip">You can also paste an image.</div>
+    <div class="tip">You can also paste an image, or drop a PDF on the panel.</div>
   </div>
+  <input type="file" id="pdfFile" accept="application/pdf,.pdf" hidden>
   <div class="menu right" id="modelMenu" role="menu" hidden></div>
 </div>
+
+<div id="drop" hidden aria-hidden="true"><b>📄 Drop a PDF to add it</b><span>Up to 10 MB and 100 pages</span></div>
 
 <script>
 (() => {
@@ -995,6 +1021,8 @@ function markQuotes(out, text, ev) {
   out.querySelectorAll('.cite').forEach(b => {
     const quote = ev.quotes[+b.dataset.q - 1] || '';
     const short = quote.length > 280 ? quote.slice(0, 280) + '…' : quote;
+    const pg = ev.pdfPages?.[+b.dataset.q - 1];
+    if (pg) return pdfCite(b, quote, short, pg); // pdf uploads: shows the quote and its page instead
     b.title = `“${short}”\nShow it on the page`;
     b.setAttribute('aria-label', `Show quote ${b.dataset.q} on the page`);
     b.onclick = async () => {
@@ -1014,8 +1042,8 @@ const STARTERS = [
 function empty() {
   stick = true; jump.hidden = true;
   if (standalone)
-    return void (log.innerHTML = '<div class="empty"><b>Ask anything.</b>Use + to screenshot a tab or turn on web search, or paste an image.</div>');
-  log.innerHTML = '<div class="empty"><b>Ask about this page.</b>The page text goes with your first message, and anything you highlight is included. Use + for a screenshot or web search.' +
+    return void (log.innerHTML = '<div class="empty"><b>Ask anything.</b>Use + to add a PDF, screenshot a tab or turn on web search. You can also drop in a PDF or paste an image.</div>');
+  log.innerHTML = '<div class="empty"><b>Ask about this page.</b>The page text goes with your first message, and anything you highlight is included. Use + for a PDF, a screenshot or web search.' +
     '</div>';
   const box = el('div', 'starters');
   for (const [label, text] of STARTERS) {
@@ -1044,7 +1072,7 @@ const whoKey = () => cfg?.who === 'user' ? 'u:' + (cfg.user?.name || '').toLower
 function showChat(enter) {
   hideViews(); view = 'chat';
   const k = whoKey();
-  if (chatWho && k !== chatWho) { leaveChat(); resetSiteMemory(); log.replaceChildren(); clearImg(); setPage(true); stopStream(); setArea(null); annGone = 0; }
+  if (chatWho && k !== chatWho) { leaveChat(); resetSiteMemory(); log.replaceChildren(); clearImg(); clearPdf(); setPage(true); stopStream(); setArea(null); annGone = 0; }
   chatWho = k;
   log.hidden = false; $('#composer').hidden = false;
   setHeader(true); renderAccount(); renderAnn(); renderRst(); renderUpd();
@@ -1368,11 +1396,11 @@ function lock(msg) {
   token = null; store.set('pb_token', null); resetSiteMemory(); chatGen++; ctrl?.abort();
   showLogin(msg);
 }
-function logout(msg) { leaveChat(); chatWho = null; annGone = 0; log.innerHTML = ''; clearImg(); setPage(true); stopStream(); setArea(null); lock(msg); }
+function logout(msg) { leaveChat(); chatWho = null; annGone = 0; log.innerHTML = ''; clearImg(); clearPdf(); setPage(true); stopStream(); setArea(null); lock(msg); }
 $('#outBtn').onclick = () => logout();
 $('#lockBtn').onclick = $('#lockNow').onclick = () => lock();
 // stops an answer that's still coming in, so it can't land in (or take over) the next chat
-function leaveChat() { chatGen++; ctrl?.abort(); convId = null; }
+function leaveChat() { chatGen++; ctrl?.abort(); convId = null; setChatPdf(false); }
 $('#newBtn').onclick = () => { leaveChat(); setPage(true); clearImg(); closeSheet(); closeWrap(); empty(); $('#q').focus(); };
 // Screen sharing stays on when the panel closes, so the next screenshot doesn't ask again. It ends when you stop it
 // (+ menu or Chrome's own bar), log out, or leave the page.
@@ -1566,6 +1594,7 @@ function renderRst() {
   const l = r.limits || {}, lost = [];
   if (l.noSonnet) lost.push('no Sonnet');
   if (l.noWeb) lost.push('no web search');
+  if (l.noPdf) lost.push('no PDF uploads');
   if (l.limitKind) lost.push(`a daily limit of ${l.limitKind === 'usd' ? '$' + Number(l.limitValue).toFixed(2) : Number(l.limitValue).toLocaleString() + ' tokens'}`);
   $('#rstText').textContent = `Your account is restricted until ${RST_WHEN.format(new Date(r.endsAt))}: ${lost.join(', ')}.`;
   $('#rstMeta').textContent = `Reason: ${r.reason}` + (r.note ? `\n${r.note}` : '');
@@ -1809,8 +1838,9 @@ function renderPrefs() {
     const b = el('button', '', `<span class="mi">${icon}</span><span class="mt"></span><span class="ck">✓</span>`);
     b.type = 'button'; b.setAttribute('role', 'menuitemradio'); b.setAttribute('aria-checked', String(x.key === m.key));
     b.querySelector('.mt').textContent = x.label;
-    b.querySelector('.mt').appendChild(el('span', 'md')).textContent = x.locked ? 'Not turned on for your account' : desc;
-    b.disabled = !!x.locked;
+    const noPdf = x.key === 'openrouter' && pdfInChat(); // pdf uploads: it can't read PDFs
+    b.querySelector('.mt').appendChild(el('span', 'md')).textContent = x.locked ? 'Not turned on for your account' : noPdf ? 'Can’t read PDFs. Use Haiku or Sonnet in this chat' : desc;
+    b.disabled = !!x.locked || noPdf;
     b.onclick = () => { closeMenus(); if (x.key !== prefs.model) savePrefs({ model: x.key }); q.focus(); };
     menu.appendChild(b);
   }
@@ -1821,7 +1851,7 @@ function renderPrefs() {
   document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t === prefs.theme));
   $('#glassNote').hidden = !(embedded && (prefs.theme === 'glass' && !hostV5 || prefs.theme === 'clear' && !hostV6));
   $('#glassName').textContent = prefs.theme === 'clear' ? 'Clear' : 'Glass';
-  fitPills();
+  renderPdf(); // pdf uploads (it fits the pills too)
 }
 async function savePrefs(patch) {
   if ('maxTokens' in patch) limits.maxTokens = patch.maxTokens; else Object.assign(prefs, patch);
@@ -2148,11 +2178,152 @@ function pickRegion(canvas) {
 
 $('#q').addEventListener('paste', async e => {
   const it = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
-  if (!it) return;
+  if (!it || [...(e.clipboardData?.files || [])].some(isPdfFile)) return; // pdf uploads take a pasted PDF
   e.preventDefault();
   try { const bmp = await createImageBitmap(it.getAsFile()); setImg(toJpeg(bmp, bmp.width, bmp.height), 'paste'); }
   catch { note('Couldn’t read that image.'); }
 });
+
+// ---- pdf uploads ----
+// A PDF (only a PDF) uploads on its own as soon as you pick, drop or paste it, then goes with your next message as a
+// 📄 pill. Once sent it's part of the chat: the server sends it again with every follow-up, so the pill clears.
+const PDF_MAX = 10 * 1024 * 1024, PDF_LIMITS = 'Up to 10 MB and 100 pages';
+let pdfAtt = null; // the uploaded PDF going with the next message: { id, name, size, pages, tokens }
+let pdfUp = null; // the upload in progress: { name, pct, xhr, done }, where done resolves to whether it worked
+let chatPdf = false; // this chat has a PDF, so models that can't read one are out
+const pdfOk = () => !isUser() || cfg?.user?.allowPdf !== false;
+const isPdfFile = f => !!f && (f.type === 'application/pdf' || /\.pdf$/i.test(f.name || ''));
+const fmtMB = n => `${(n / 1048576).toFixed(n < 1048576 ? 2 : 1)} MB`;
+const pdfInChat = () => chatPdf || !!pdfAtt || !!pdfUp;
+const pdfWhere = pg => pg.to > pg.from ? `pp. ${pg.from}–${pg.to}` : `p. ${pg.from}`;
+function renderPdf() {
+  const ok = pdfOk(), p = $('#pdfPill');
+  $('#pdfBtn').disabled = !ok; $('#pdfNote').textContent = ok ? PDF_LIMITS : 'Not turned on for your account';
+  p.hidden = !pdfAtt && !pdfUp;
+  const pi = p.firstElementChild, pl = p.querySelector('.pl'); // the icon turns into a spinner while it uploads
+  if (pdfUp) {
+    pi.className = 'spn'; pi.textContent = '';
+    pl.textContent = `${pdfUp.name} · ${pdfUp.pct}%`;
+    p.title = `Uploading “${pdfUp.name}”… Click to cancel.`;
+  } else if (pdfAtt) {
+    pi.className = 'pi'; pi.textContent = '📄';
+    pl.textContent = pdfAtt.name + (pdfAtt.pages ? ` · ${pdfAtt.pages} p.` : '');
+    p.title = `“${pdfAtt.name}” (${pdfAtt.pages ? `${pdfAtt.pages} page${pdfAtt.pages === 1 ? '' : 's'}, ` : ''}${fmtMB(pdfAtt.size)}) goes with your next message, and stays in the chat after that. Click to remove it.`;
+  }
+  fitPills();
+}
+function setPdf(a) { pdfAtt = a; renderPrefs(); }
+function clearPdf() { if (pdfUp) { const x = pdfUp.xhr; pdfUp = null; x.abort(); } setPdf(null); }
+function setChatPdf(on) { if (chatPdf !== !!on) { chatPdf = !!on; renderPrefs(); } } // also for reopening a chat from history
+$('#pdfPill').onclick = () => { clearPdf(); $('#q').focus(); };
+// the + menu's "Upload a PDF", and /pdf in the slash-command registry
+function pickPdf() {
+  if (view !== 'chat') return;
+  if (!pdfOk()) return void note('PDF uploads aren’t turned on for your account.');
+  closeMenus(); $('#pdfFile').click();
+}
+$('#pdfBtn').onclick = pickPdf;
+$('#pdfFile').onchange = () => { const f = $('#pdfFile').files[0]; $('#pdfFile').value = ''; if (f) addPdf(f); };
+async function addPdf(file) {
+  if (view !== 'chat' || !file) return;
+  const name = file.name || 'document.pdf';
+  if (!pdfOk()) return void note('PDF uploads aren’t turned on for your account.');
+  if (!isPdfFile(file)) return void note(`Only PDFs can be added here, and “${name}” isn’t one.`);
+  if (file.size > PDF_MAX) return void note(`“${name}” is ${fmtMB(file.size)}. PDFs can be up to 10 MB.`);
+  let head = '';
+  try { head = await file.slice(0, 5).text(); } catch {}
+  if (head !== '%PDF-') return void note(`“${name}” isn’t really a PDF (or it’s damaged), so it can’t be added.`);
+  if (view !== 'chat') return;
+  if (prefs.model === 'openrouter') { // ◆ can't read PDFs
+    const h = models.find(x => x.key === 'haiku');
+    savePrefs({ model: 'haiku' });
+    note(`${models.find(x => x.key === 'openrouter')?.label || 'That model'} can’t read PDFs, so this chat uses ${h?.label || 'Haiku'}.`);
+  }
+  clearPdf(); // one PDF per message: a new one replaces the last
+  const session = token, x = new XMLHttpRequest(), up = pdfUp = { name, pct: 0, xhr: x };
+  up.done = new Promise(resolve => {
+    const fail = msg => { if (pdfUp === up) { pdfUp = null; renderPrefs(); if (msg) note(msg); } resolve(false); };
+    x.open('POST', '/api/pdf?name=' + encodeURIComponent(name));
+    x.setRequestHeader('Authorization', 'Bearer ' + session);
+    x.setRequestHeader('Content-Type', 'application/pdf');
+    x.upload.onprogress = e => { if (pdfUp === up && e.lengthComputable) { up.pct = Math.min(99, Math.round(e.loaded / e.total * 100)); renderPdf(); } };
+    x.onload = () => {
+      let j = {}; try { j = JSON.parse(x.responseText); } catch {}
+      if (pdfUp !== up || session !== token) return resolve(false); // cancelled, replaced, or someone else signed in
+      if (x.status === 200 && j.id) { pdfUp = null; setPdf({ id: j.id, name: j.name || name, size: j.size ?? file.size, pages: j.pages ?? null, tokens: j.tokens ?? null }); return resolve(true); }
+      if (x.status === 401) { fail(); lock(lockedMsg()); return; }
+      if (x.status === 403 && j.banned) { fail(); onBanned(); return; }
+      fail(`Couldn’t add “${name}”: ${j.error || 'HTTP ' + x.status}`);
+    };
+    x.onerror = () => fail(`Couldn’t upload “${name}”. Check your connection and try again.`);
+    x.onabort = () => fail();
+    x.send(file);
+  });
+  renderPrefs();
+}
+// drag a PDF onto the panel (anything else gets a note). Files dropped here never open in place of the panel.
+let dropT = 0;
+const dragsFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
+const hideDrop = () => { clearTimeout(dropT); $('#drop').hidden = true; };
+for (const type of ['dragenter', 'dragover']) addEventListener(type, e => {
+  if (!dragsFiles(e)) return;
+  e.preventDefault();
+  const ok = view === 'chat' && !minimized;
+  e.dataTransfer.dropEffect = ok ? 'copy' : 'none';
+  if (!ok) return;
+  $('#drop').hidden = false;
+  clearTimeout(dropT); dropT = setTimeout(hideDrop, 1000); // in case the drag ends somewhere we don't hear about
+});
+addEventListener('dragleave', e => { if (!e.relatedTarget) hideDrop(); }); // left the panel
+addEventListener('drop', e => {
+  if (!dragsFiles(e)) return;
+  e.preventDefault(); hideDrop();
+  if (view !== 'chat' || minimized) return;
+  const files = [...e.dataTransfer.files], pdfs = files.filter(isPdfFile);
+  if (pdfs.length > 1) note(`One PDF per message: adding “${pdfs[0].name}”.`);
+  addPdf(pdfs[0] || files[0]);
+});
+// a PDF file pasted into the message box (images are handled with screenshots; other files get a note)
+$('#q').addEventListener('paste', e => {
+  const files = [...(e.clipboardData?.items || [])].filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
+  const f = files.find(isPdfFile) || (files.length && !files.some(x => x.type.startsWith('image/')) ? files[0] : null);
+  if (f) { e.preventDefault(); addPdf(f); }
+});
+// 📄 name in your message (chat history can use it too: { name, pages, gone })
+function pdfChip(p) {
+  const c = el('div', 'fchip' + (p.gone ? ' gone' : '')), n = el('span', 'fn');
+  n.textContent = p.name;
+  c.append('📄', n);
+  if (p.pages || p.gone) { const g = el('span', 'fpg'); g.textContent = p.gone ? '· no longer available' : `· ${p.pages} p.`; c.appendChild(g); }
+  c.title = p.gone ? `“${p.name}” is no longer stored.` : `“${p.name}” went with this message. Follow-ups in this chat send it again.`;
+  return c;
+}
+// a numbered marker for a quote from a PDF: hover shows the quote, click opens it with its page
+let cpop = null;
+function pdfCite(b, quote, short, pg) {
+  const where = `${pdfWhere(pg)} · ${pg.name}`;
+  b.classList.add('pg');
+  b.title = `“${short}”\n${where}`;
+  b.setAttribute('aria-label', `Quote ${b.dataset.q} from ${pg.name}, ${pdfWhere(pg)}`);
+  b.onclick = () => { if (cpop?.btn === b) return closeCpop(); openCpop(b, quote, where); };
+}
+function openCpop(b, quote, where) {
+  closeCpop();
+  const box = el('div', 'cpop'), q1 = el('div', 'cq'), w = el('div', 'cw');
+  box.setAttribute('role', 'note');
+  q1.textContent = `“${quote}”`; w.textContent = where;
+  box.append(q1, w); body.appendChild(box);
+  const r = b.getBoundingClientRect(), bw = box.offsetWidth, bh = box.offsetHeight;
+  box.style.left = Math.max(8, Math.min(innerWidth - bw - 8, r.left + r.width / 2 - bw / 2)) + 'px';
+  box.style.top = (r.bottom + 6 + bh <= innerHeight - 8 ? r.bottom + 6 : Math.max(8, r.top - 6 - bh)) + 'px';
+  log.querySelectorAll('.cite.on').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); cpop = { box, btn: b };
+}
+function closeCpop() { if (!cpop) return; cpop.box.remove(); cpop.btn.classList.remove('on'); cpop = null; }
+addEventListener('pointerdown', e => { if (cpop && !e.target.closest?.('.cpop') && e.target !== cpop.btn) closeCpop(); }, true);
+addEventListener('keydown', e => { if (cpop && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeCpop(); } }, true);
+log.addEventListener('scroll', () => closeCpop(), { passive: true });
+addEventListener('resize', () => closeCpop());
 
 // ---- keyboard ----
 addEventListener('keydown', e => {
@@ -2224,7 +2395,7 @@ function finish(bot, out, ev, text) {
   if ('refusal' in ev) {
     bot.classList.add('err');
     out.innerHTML = '<p>⚠ The model declined to answer this' + (ev.refusal ? ` (${esc(String(ev.refusal))})` : '') + '. Try rephrasing it.</p>';
-  } else if (pageV7 && ev.cites?.length && ev.quotes?.length) markQuotes(out, text, ev);
+  } else if ((pageV7 || ev.pdfPages) && ev.cites?.length && ev.quotes?.length) markQuotes(out, text, ev); // PDF quotes work everywhere
   const srcs = (ev.sources || []).filter(s => /^https?:\/\//.test(s.url));
   if (srcs.length) {
     const box = el('div', 'src'); box.appendChild(el('span', '', 'Sources'));
@@ -2252,6 +2423,7 @@ async function send() {
   const gen = chatGen, session = token, pageRequest = ++contextRequest;
   const stale = () => gen !== chatGen || session !== token || view !== 'chat';
   const cancelPreparing = () => { busy = false; $('#sendBtn').disabled = false; setStatus(); };
+  if (pdfUp && !(await pdfUp.done) || stale()) return cancelPreparing(); // pdf uploads: wait for a PDF still uploading
   const info = await ask('page', { max: pageOn ? limits.pageTokens * 4 : 1 });
   if (stale()) return cancelPreparing();
   if (pageRequest === contextRequest) updateSiteContext(info);
@@ -2261,7 +2433,7 @@ async function send() {
     if (selection !== hostSel) { hostSel = selection; selOff = false; } // highlighted a moment ago
     if (selOff) selection = '';
   }
-  if (!q.value.trim() && !img && !area && !page && !selection) { busy = false; return; }
+  if (!q.value.trim() && !img && !area && !page && !selection && !pdfAtt) { busy = false; return; }
 
   $('#sendBtn').disabled = true; setStatus();
   if (area && !img) { // screenshots are on: a new shot of the same area (or the whole tab) goes with this message
@@ -2278,17 +2450,22 @@ async function send() {
   const tags = [page && '📄 page', selection && '✂️ highlighted', img && (imgKind === 'region' ? '📷 region' : imgKind === 'paste' ? '🖼 image' : '📷 screenshot'), prefs.web && '🌐 web'].filter(Boolean).join(' · ');
   const u = addMsg('user', text ? esc(text).replace(/\n/g, '<br>') : '<i>(no text)</i>', tags);
   if (img) { const im = el('img', 'thumb'); im.src = img; u.appendChild(im); }
+  const sentPdf = pdfAtt, hadPdf = chatPdf; // pdf uploads: put back if the server didn't keep the message
+  if (sentPdf) u.appendChild(pdfChip(sentPdf));
+  const pdfBack = () => { if (sentPdf && !pdfAtt && !pdfUp) { setPdf(sentPdf); setChatPdf(hadPdf); } };
 
   const sent = { text, img, imgKind, pageOn, sel: !!selection };
   // cite: this page can find quoted passages, so ask for numbered quotes
-  const reqBody = { conversationId: convId, message: text, page, site: normalizeMemorySite(info?.page?.url) || null, selection, image: img, model: prefs.model, web: !!prefs.web, cite: pageV7 };
+  const reqBody = { conversationId: convId, message: text, page, site: normalizeMemorySite(info?.page?.url) || null, selection, image: img, model: prefs.model, web: !!prefs.web, cite: pageV7, pdf: sentPdf?.id };
   q.value = ''; autosize(); clearImg(); setPage(false);
+  if (sentPdf) { setPdf(null); setChatPdf(true); }
   if (selection) selOff = true; // it's in the chat now; a new highlight brings the pill back
   renderSel();
   const unsend = () => {
     u.remove(); bot.remove(); if (!log.querySelector('.msg')) empty();
     q.value = sent.text; autosize(); if (sent.img) setImg(sent.img, sent.imgKind); setPage(sent.pageOn);
     if (sent.sel) { selOff = false; renderSel(); }
+    pdfBack();
   };
 
   const bot = addMsg('bot', '<span class="typing"><i></i><i></i><i></i></span>');
@@ -2307,6 +2484,7 @@ async function send() {
     if (!r.ok || !r.body) {
       const j = await r.json().catch(() => ({}));
       if (j.quota && cfg) { cfg.quota = j.quota; renderQuota(); }
+      pdfBack();
       throw new Error(j.error || 'HTTP ' + r.status);
     }
     const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '';
@@ -2325,7 +2503,7 @@ async function send() {
         if (ev.t === 'd') { acc += ev.v; renderer.queue(acc); }
         else if (ev.t === 's') searchStep(bot, ev.q);
         else if (ev.t === 'done') { renderer.flush(); refused = 'refusal' in ev; if (ctrl === mine) { ctrl = null; stopMode(false); } finish(bot, out, ev, acc); }
-        else if (ev.t === 'err') throw new Error(ev.v); // a broken-off answer stays in the chat
+        else if (ev.t === 'err') { if (!ev.conversationId) pdfBack(); throw new Error(ev.v); } // a broken-off answer stays in the chat
       }
     }
     renderer.flush();

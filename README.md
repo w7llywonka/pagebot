@@ -1,6 +1,6 @@
 # pagebot
 
-A bookmarklet that opens a small chat panel on any page. It can read the page text, your highlighted text, and screenshots (the whole tab or just a region), and it answers using Claude Haiku 5.5 or Claude Sonnet 5.5, optionally with web search. It runs on Railway with Postgres.
+A bookmarklet that opens a small chat panel on any page. It can read the page text, your highlighted text, screenshots (the whole tab or just a region), and PDFs you upload, and it answers using Claude Haiku 5.5 or Claude Sonnet 5.5, optionally with web search. It runs on Railway with Postgres.
 
 You own it and log in with your password or passcode. Other people can create their own accounts (and give them their own passcode), but they can't ask anything until you accept them in `/admin`, and each of them gets a daily limit you set.
 
@@ -48,16 +48,16 @@ Enter your `ADMIN_TOKEN`. The admin page has five tabs:
   - Tiles for questions, tokens, estimated cost, people asking, web searches and average answer length. Each is compared with the period just before.
   - A usage chart split by model, in tokens or dollars: per hour for today, per day otherwise. Hover for details, or open the table view.
   - Your token budget, and how long it lasts at the current pace.
-  - Tables by model, by what came with the questions (page text, highlights, screenshots, web search, declined, stopped, fallbacks), by top people, and by top sites.
+  - Tables by model, by what came with the questions (page text, highlights, screenshots, PDFs, web search, declined, stopped, fallbacks), by top people, and by top sites.
   - A heatmap of the busiest days and hours.
   - Click a row to jump to those questions in Activity, or to that person.
 - **People**:
   - The waiting list, with the note each person left. Accept or deny people one at a time or all at once.
-  - A sortable, searchable table with these columns: status, daily limit, today's use against it, questions and cost this week, cost all time, Sonnet and web search access, devices, last active, and joined.
+  - A sortable, searchable table with these columns: status, daily limit, today's use against it, questions and cost this week, cost all time, Sonnet, web search and PDF access, devices, last active, and joined.
   - Select several people to change them together: set a daily limit, turn Sonnet or web search on or off, sign them out, block or unblock them.
   - Click someone to open their panel:
     - usage today, this week and all time, plus a 30-day chart
-    - their daily limit (tokens, dollars or none), Sonnet and web search access, and a private note
+    - their daily limit (tokens, dollars or none), Sonnet, web search and PDF upload access, and a private note
     - their recent questions and the devices they're signed in on
     - whether they have a passcode, and how soon their panel locks
     - moderation: ban, restrict or terminate them, answer their appeal, and their past bans and restrictions
@@ -110,9 +110,18 @@ What people ask (and the answers) is stored and shows up under Activity, along w
   - **Screenshot this tab**, or **Screenshot a region** to drag a box over just the part you mean. The panel hides itself while the shot is taken. You can also paste any image with Ctrl/Cmd+V.
   - Screenshots stay on after the first one (shown as a 📷 Screen or ⛶ Region pill): every message you send takes a new shot of the whole tab, or of the same area. Take a different kind of screenshot to switch, or click the pill to turn it off.
   - Chrome asks to share the tab the first time. Sharing then stays on, even when you close the panel, until you choose **Stop sharing this tab** in the + menu or Chrome's own Stop sharing button.
+  - **Upload a PDF** (a 📄 pill with its name and page count): pick a file, or drop one anywhere on the panel (a dashed outline shows where), or paste one with Ctrl/Cmd+V. See **PDFs** just below.
   - **Page text** sends the page along. It's on for the first message of each chat (shown as a 📄 Page pill) and off after that, since the page stays in the chat history anyway.
   - **Web search** lets the model search the web (shown as a 🌐 Web pill). Answers that used it list their sources.
   - Click a pill's × to turn that thing off.
+- **PDFs** (PDFs only: anything else you drop gets a friendly “only PDFs” note, and the server checks the file's first bytes itself, not just its name):
+  - Up to 10 MB and 100 pages. It uploads as soon as you pick it, with a progress count in its pill, and goes with your next message (alone, or with text, a screenshot and the page). A 📄 chip with its name and page count sits in your message.
+  - Claude reads the whole PDF, text and pictures, and answers can quote it. Each quote gets a numbered marker like the page quotes do, but on a PDF, hovering or clicking a marker shows the quote and its page (“p. 3”) instead of scrolling the page you're on. That works on `/chat` too.
+  - The PDF stays part of that chat: every follow-up sends it again (it's cached, so that's cheap). The pill clears after you send, since you don't need to attach it twice. A chat can hold three PDFs, 20 MB in all. Start a new chat for a different one.
+  - It counts toward your daily limit on every question it goes with. Its size is counted when you upload it (by Claude's own token counter, or about 2,500 tokens a page if that isn't available), so a question the PDF makes too big is turned down up front with a note about the PDF, before anything is asked.
+  - ◆ Muse Spark can't read PDFs. Picking a PDF with it selected switches to Haiku, and the ◆ choice shows as unavailable while a chat has a PDF.
+  - Files are kept for 30 days after you upload them (or a day, if you never send them with a question). After that the chat remembers the name (“no longer available”), and follow-ups carry a note instead of the file. Removing a chat from your history doesn't delete its PDF; it goes with the 30 days like the rest. The owner can see in `/admin` which questions came with a PDF (a 📄 tag in Activity, with its name and page count), but doesn't see file contents there.
+  - The owner can always upload PDFs. For accounts, turn **PDF uploads** on or off per person, in the defaults for new people, in bulk, or as part of a timed restriction (**Take away PDF uploads**). It's in the CSV export too.
 - The model name next to the send button picks the model: ⚡ Haiku 5.5 is fast and cheap; ✦ Sonnet 5.5 is smarter. With `OPENROUTER_API_KEY` set there's also ◆ Muse Spark 1.3, Meta's model through OpenRouter (the cheapest of the three). Its answers don't point at passages on the page.
 - When a new version of pagebot is out, a panel opened from an older bookmark shows a small strip that links to the homepage, where dragging the button again updates it. The version is in small print at the bottom of ⚙ Settings and in the homepage footer.
 - While an answer is coming in, the send button turns into a **stop** button. What arrived so far stays in the chat, and follow-ups can build on it.
@@ -131,7 +140,7 @@ What people ask (and the answers) is stored and shows up under Activity, along w
 - **If your account is banned**, the panel shows the ban notice instead of the chat: the reason, the owner's note, and when it ends. **Think this is wrong? Appeal it** sends the owner one appeal per ban, and their answer shows up on the same screen. A restricted account sees a note above the chat instead. A timed ban counts down; once it's over, agree to the rules to re-activate the account. A terminated account shows its notice every time you sign in, until it's deleted.
 - **Highlighted text** goes with your next message. While something on the page is highlighted, a ✂️ pill shows the start of it; click its × to leave it out. Once it's been sent, it isn't sent again unless you highlight something new.
 - **Show me where**: when an answer uses the page, it gets small numbered markers. Click one and the page scrolls to the passage it came from and highlights it (click anywhere on the page to clear the highlight). Hover a marker to see the quote.
-- Old screenshots aren't resent on follow-ups, which saves tokens.
+- Old screenshots aren't resent on follow-ups, which saves tokens. (PDFs are resent: they're part of the chat.)
 - Some sites block overlays. On those, pagebot opens in a small window instead. If your browser blocks that pop-up, click the bookmark again.
 - You log in once per site, and it's remembered there. With a passcode set (yours, or an account's own), the panel locks itself after the idle time you chose, or right away with the 🔒 button.
 
@@ -147,7 +156,9 @@ Updating from an older version? Drag the button from the homepage to your bookma
   - Each address gets 10 tries a minute and 30 wrong logins an hour, and 20 wrong admin tokens every 10 minutes.
   - After 200 wrong owner passwords in an hour from anywhere, owner password logins pause until it dies down. Devices already signed in and the passcode keep working.
   - Passwords are stored as scrypt hashes, and sessions as hashes of random tokens.
-- **Pages**:
+- **PDF uploads**:
+  - The upload route needs a signed-in, accepted account and is rate limited (20 a minute and 120 an hour per address). It reads the file only after that check, and only a body that starts with `%PDF-` is kept, whatever its content type says.
+  - Everyone only ever sees their own uploads, and a PDF can only be used in the chat it first went with.
   - Every page runs only its own scripts and talks only to this server.
   - Only `/widget` can be embedded in other sites.
   - Answers are shown as text with simple formatting, never as raw HTML.
