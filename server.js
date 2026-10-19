@@ -15,7 +15,7 @@ const PUB = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
 // pagebot's version. It's written into the bookmark people drag from the homepage, so raise it by one to release an
 // update: panels opened from an older bookmark then send people to the homepage to drag the new one.
-const VERSION = 10; // 10: the bookmarklet's page-action checks got stricter (see README, “Page actions”)
+const VERSION = 11; // 11: the panel opens half-screen sized, worked out from the window (see README, “Size”); 10: the bookmarklet's page-action checks got stricter (see README, “Page actions”)
 // the two models the panel can switch between; web search tool versions differ per model
 const MODELS = {
   haiku: { id: process.env.HAIKU_MODEL || process.env.MODEL || 'claude-haiku-5-5', label: 'Haiku 5.5', search: 'web_search_20250305' },
@@ -52,7 +52,7 @@ const SEARCH_USD = 0.01; // $10 per 1,000 web searches
 const SEARCH_TOKENS = 3000; // rough prompt tokens one search's results add, for estimates
 
 // prefs are what the panel changes; limits cap each question. Both live in the settings table.
-const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', 'glass', 'clear'];
+const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', 'pond', 'orbit', 'void', 'arcade', 'glass', 'clear'];
 const DEFAULT_PREFS = { theme: 'ember', model: 'haiku', web: false, actions: false, actionsAuto: false }; // actionsAuto: page actions skip permissions
 const LIMIT_RANGES = { maxTokens: [256, 100000], pageTokens: [500, 50000], maxSearches: [1, 10] }; // no answer may exceed 100,000 tokens
 const DEFAULT_LIMITS = { maxTokens: clampInt(process.env.MAX_TOKENS || 2048, ...LIMIT_RANGES.maxTokens), pageTokens: 5000, maxSearches: 3 };
