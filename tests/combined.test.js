@@ -172,7 +172,7 @@ test('features together', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL to
     const r = await api('/api/chats/' + conv);
     assert.equal(r.status, 200);
     const [q, a] = r.data.messages;
-    assert.deepEqual(q.pdf, { name: 'Annual report.pdf', pages: 3, gone: false });
+    assert.deepEqual({ ...q.pdf, id: 0 }, { id: 0, name: 'Annual report.pdf', pages: 3, gone: false });
     assert.deepEqual(a.steps.map(s => [s.tool, s.outcome]), [['read_page', 'done']]);
     assert.equal(a.steps[0].text, 'Read the page again');
     assert.deepEqual(a.quotes, ['Revenue grew 12% in the third quarter.']);
@@ -195,7 +195,7 @@ test('features together', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL to
   await t.test('once the PDF’s file is cleared, the chat still names it, greyed out', async () => {
     await db.query('UPDATE attachments SET bytes = NULL WHERE id = $1', [pdfId]);
     const r = await api('/api/chats/' + conv);
-    assert.deepEqual(r.data.messages[0].pdf, { name: 'Annual report.pdf', pages: 3, gone: true });
+    assert.deepEqual({ ...r.data.messages[0].pdf, id: 0 }, { id: 0, name: 'Annual report.pdf', pages: 3, gone: true });
     const base = calls.length;
     await chat({ conversationId: conv, message: 'Again?' });
     assert.equal(pdfDocs(calls[base].body).length, 0);
