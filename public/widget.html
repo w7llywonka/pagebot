@@ -11,6 +11,7 @@
   try { t = localStorage.getItem('pb_theme') || t; } catch (e) {}
   if (t === 'auto') t = matchMedia('(prefers-color-scheme: light)').matches ? 'paper' : 'ember';
   document.documentElement.setAttribute('data-theme', t);
+  try { var m = localStorage.getItem('pb_motion'); if (m === 'less') document.documentElement.classList.add('calm'); else if (m === 'full') document.documentElement.classList.add('motion-full'); } catch (e) {}
   if (window.parent === window) document.documentElement.classList.add('nohost');
 })();
 </script>
@@ -63,10 +64,9 @@ body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition:background-color .3
 :root[data-theme=clear] .go,:root[data-theme=clear] .send{text-shadow:none}
 :root[data-theme=clear] .go svg{filter:none}
 :root[data-theme=clear] #att button{background:var(--accent);color:var(--on-accent);border-color:transparent;text-shadow:none}
-/* pop-ups sit over the chat, so they get a plain backing (no blur) to stay legible; the settings sheet hides the chat behind it instead */
+/* pop-ups sit over the chat, so they get a plain backing (no blur) to stay legible; the settings sheet, history and PDFs hide the chat behind them instead (see the settings block) */
 :root[data-theme=clear] .menu,:root[data-theme=clear] .rbar,:root[data-theme=clear] #jump,:root[data-theme=clear] .cc{background:var(--pop);text-shadow:none}
 :root[data-theme=clear] .menu svg,:root[data-theme=clear] .rbar svg,:root[data-theme=clear] #jump svg{filter:none}
-:root[data-theme=clear] body.sheet>#log,:root[data-theme=clear] body.sheet>#composer,:root[data-theme=clear] body.sheet>#ann,:root[data-theme=clear] body.sheet>#rst,:root[data-theme=clear] body.sheet>#upd{visibility:hidden}
 :root[data-theme=clear] #wrap{background:var(--pop);text-shadow:none}
 /* on /chat and in the pop-up window there's no page behind, so glass and clear sit on a colorful backdrop */
 :root.nohost[data-theme=glass],:root.nohost[data-theme=clear]{background:radial-gradient(60% 50% at 15% 20%,#5b7cff 0,transparent 70%),radial-gradient(50% 45% at 85% 25%,#c35bff 0,transparent 70%),radial-gradient(55% 50% at 70% 85%,#ff7a9c 0,transparent 70%),radial-gradient(50% 50% at 20% 85%,#2ec5b6 0,transparent 70%),#1a1d2e;background-attachment:fixed}
@@ -200,22 +200,26 @@ textarea:focus,input:focus{border-color:var(--focus)}
 .send:disabled{opacity:.45;cursor:default}
 
 /* settings sheet */
-#sheet{position:absolute;left:0;right:0;top:var(--hd);bottom:0;z-index:2;background:var(--bg);overflow-y:auto;padding:14px 14px 20px;display:flex;flex-direction:column;gap:20px;animation:sheetIn .2s cubic-bezier(.2,.8,.2,1)}
+#sheet{position:absolute;left:0;right:0;top:var(--hd);bottom:0;z-index:2;background:var(--bg);display:flex;flex-direction:column;animation:sheetIn .18s cubic-bezier(.2,.8,.2,1)}
 @keyframes sheetIn{from{opacity:0;transform:translateY(-8px)}}
 #sheet h3{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:650}
-.themes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.sw{background:none;border:1px solid var(--line);border-radius:10px;padding:5px 5px 4px;cursor:pointer;color:var(--muted);display:flex;flex-direction:column;gap:4px;font-size:11.5px;min-width:0}
-.sw:hover{color:var(--text)}
+/* the theme gallery: a mini chat in each theme's own colours (the settings block below sizes and lays them out) */
+.themes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.sw{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 6px 8px;cursor:pointer;color:var(--muted);display:flex;flex-direction:column;gap:5px;font-size:11.5px;min-width:0;text-align:left}
+.sw:hover{color:var(--text);border-color:var(--focus)}
 .sw.on{border-color:var(--accent);color:var(--text);box-shadow:0 0 0 1px var(--accent)}
-.pv{position:relative;height:34px;border-radius:6px;background:var(--sw-bg);overflow:hidden;box-shadow:inset 0 0 0 1px rgba(128,128,128,.22)}
-.pv i{position:absolute;left:6px;top:6px;width:7px;height:7px;border-radius:50%;background:var(--sw-acc)}
-.pv u{position:absolute;left:6px;bottom:7px;width:22px;height:4px;border-radius:2px;background:var(--sw-text);opacity:.45}
-.pv b{position:absolute;right:6px;top:13px;width:20px;height:9px;border-radius:5px;background:var(--sw-user)}
+.sw .nm{font-weight:600;color:var(--text);padding:0 3px;font-size:calc(12.5px + var(--grow)*.4)}
+.sw.on .nm::after{content:" ✓";color:var(--accent)}
+.sw .ds{padding:0 3px;font-size:11px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv{position:relative;height:64px;border-radius:8px;background:var(--sw-bg);overflow:hidden;box-shadow:inset 0 0 0 1px rgba(128,128,128,.22)}
+.pv i{position:absolute;left:9px;top:9px;width:9px;height:9px;border-radius:50%;background:var(--sw-acc)}
+.pv u{position:absolute;left:9px;bottom:20px;width:42px;height:4px;border-radius:2px;background:var(--sw-text);opacity:.45;box-shadow:0 8px 0 var(--sw-text)}
+.pv b{position:absolute;right:9px;top:21px;width:38px;height:16px;border-radius:9px;background:var(--sw-user)}
 .sw[data-t=auto] .pv{background:linear-gradient(135deg,#141414 50%,#faf9f5 50%)}
 .sw[data-t=glass] .pv{background:linear-gradient(135deg,#5b7cff,#c35bff 55%,#ff7a9c)}
-.sw[data-t=glass] .pv::before{content:"";position:absolute;inset:5px;border-radius:5px;background:rgba(255,255,255,.26);box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),inset 0 1px 0 rgba(255,255,255,.8)}
+.sw[data-t=glass] .pv::before{content:"";position:absolute;inset:6px;border-radius:5px;background:rgba(255,255,255,.26);box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),inset 0 1px 0 rgba(255,255,255,.8)}
 .sw[data-t=clear] .pv{background:repeating-conic-gradient(#9aa0ad 0 25%,#c9ccd4 0 50%) 0 0/10px 10px}
-.sw[data-t=clear] .pv u{opacity:1;box-shadow:0 0 2px #000}
+.sw[data-t=clear] .pv u{opacity:1;box-shadow:0 8px 0 var(--sw-text),0 0 2px #000,0 8px 2px #000}
 .sw[data-t=clear] .pv b{box-shadow:inset 0 0 0 1.5px #fff}
 .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
 .seg button{flex:1;background:none;border:0;border-left:1px solid var(--line);color:var(--muted);padding:6px 0;cursor:pointer;font-size:12.5px}
@@ -261,6 +265,166 @@ body.standalone #composer .menu.slash{right:14px}
 .memory-form label.cmdst{font-weight:400;max-width:none;align-items:center}
 .memory-form .cmdst input{width:auto;min-width:0;padding:0;margin:0;border:0}
 #cmdStarterNote{margin:0}
+
+/* ---- settings (redesign): a sticky header, the category list, and the chosen category in cards of rows ----
+   From 560px wide (the big tier's breakpoint, and an iframe's viewport IS the panel) it is two panes: the list on the left, the category on the
+   right in a column of at most 600px. Below that the list is the whole screen, a category replaces it (#sheet.deep) and Back returns to the list. */
+#sheet{--sg:14px;--fs:calc(13.5px + var(--grow)*.5);--fh:calc(12px + var(--grow)*.4);font-size:var(--fs)}
+.sh{flex:none;border-bottom:1px solid var(--line)}
+.shin{display:flex;align-items:center;gap:6px;height:48px;max-width:900px;margin:0 auto;padding:0 var(--sg)}
+.sh .ib{margin-left:-8px}
+.sh h2{flex:1;min-width:0;margin:0;font-size:calc(15px + var(--grow)*.6);font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbody{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;overscroll-behavior:contain}
+.sin{display:flex;align-items:flex-start;gap:28px;max-width:900px;margin:0 auto;padding:0 var(--sg)}
+#snav{flex:none;width:200px;position:sticky;top:0;align-self:flex-start;padding:16px 0;max-height:calc(100vh - var(--hd) - 48px);overflow-y:auto;scrollbar-width:thin}
+#stabs{display:flex;flex-direction:column;gap:2px}
+.stab{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;border-radius:10px;padding:9px 10px;cursor:pointer;color:var(--muted);font-size:var(--fs)}
+.stab:hover{background:var(--chip-on);color:var(--text)}
+.stab[aria-selected=true]{background:var(--chip-on);color:var(--text);font-weight:600;box-shadow:inset 3px 0 0 var(--accent)}
+.stab .ni{flex:none;width:18px;height:18px;display:grid;place-items:center}
+.stab svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.stab[aria-selected=true] .ni{color:var(--accent)}
+.stab .nt{flex:1;min-width:0;display:flex;flex-direction:column}
+.stab .nt b{font-weight:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stab small,.stab .nc{display:none}
+#spane{flex:1;min-width:0;max-width:600px;padding:20px 0 48px}
+.cat{outline:none}
+.cat:not([hidden]){animation:catIn .14s ease both}
+@keyframes catIn{from{opacity:0;transform:translateY(4px)}}
+.chead{margin:0 0 20px}
+.chead h2{margin:0 0 4px;font-size:calc(19px + var(--grow)*1.4);font-weight:650;letter-spacing:-.01em}
+.chead p{margin:0;color:var(--muted);font-size:var(--fh);line-height:1.5}
+.sec{margin:0 0 24px}
+.sec>h3{margin:0 0 8px 2px;font-size:calc(11px + var(--grow)*.3)}
+.sec>.fine{margin:8px 2px 0}
+.sec>.fine.lead{margin:-2px 2px 10px}
+#sheet .fine{font-size:var(--fh);line-height:1.45}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.card.pd{padding:14px}
+.row{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;padding:12px 14px;min-height:52px}
+.row+.row{border-top:1px solid var(--line)}
+.rt{flex:1 1 0;min-width:130px;display:flex;flex-direction:column;gap:2px}
+.rl{font-size:var(--fs);font-weight:600}
+.rh{font-size:var(--fh);color:var(--muted);line-height:1.45;overflow-wrap:anywhere}
+.rc{flex:none;margin-left:auto;max-width:100%;display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px}
+#sheet .card.pd>.rh{margin:0 0 10px}
+.fsu{margin:8px 0 12px}
+/* controls: one switch, one segmented control, one select and text input, and three buttons (secondary, primary, danger) */
+.tg{position:relative;flex:none;width:44px;height:26px;border-radius:99px;border:1px solid var(--line);background:color-mix(in srgb,var(--text) 14%,var(--panel));cursor:pointer;padding:0;transition:background-color .15s,border-color .15s}
+.tg::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--text);opacity:.8;transition:transform .16s cubic-bezier(.3,1.4,.5,1)}
+.tg[aria-checked=true]{background:var(--accent);border-color:var(--accent)}
+.tg[aria-checked=true]::after{transform:translateX(18px);background:var(--on-accent);opacity:1}
+.tg:disabled{opacity:.45;cursor:default}
+#sheet .seg{display:inline-flex;max-width:100%;padding:2px;gap:2px;border:1px solid var(--line);border-radius:11px;background:color-mix(in srgb,var(--text) 5%,transparent);overflow:hidden}
+#sheet .seg button{flex:1 1 auto;min-height:30px;padding:5px 13px;border:0;border-radius:9px;background:none;color:var(--muted);cursor:pointer;font-size:var(--fh);white-space:nowrap}
+#sheet .seg button:hover:not(:disabled){color:var(--text)}
+#sheet .seg button.on{background:var(--chip-on);color:var(--text);font-weight:600;box-shadow:inset 0 0 0 1.5px var(--accent)} /* the accent as an outline, so the label keeps full contrast in every theme */
+#sheet .seg button:disabled{opacity:.45;cursor:default}
+#sheet .ghost{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 14px;border-radius:10px;font-size:var(--fs);font-weight:550;text-decoration:none;color:var(--text);background:none}
+#sheet .ghost:hover:not(:disabled){border-color:var(--focus);background:var(--chip-on)}
+#sheet .ghost:disabled{opacity:.5;cursor:default}
+#sheet .ghost.pri{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+#sheet .ghost.pri:hover:not(:disabled){background:var(--accent);filter:brightness(1.08)}
+#sheet .ghost.bad:hover:not(:disabled){background:color-mix(in srgb,var(--err) 12%,transparent);border-color:var(--err)}
+#sheet .alink{min-height:34px}
+#sheet :is(input[type=text],input[type=password],textarea,select){width:100%;min-width:0;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font:inherit;font-size:var(--fs);outline:none}
+#sheet :is(input[type=text],input[type=password],textarea,select):focus{border-color:var(--accent)}
+#sheet select{appearance:none;-webkit-appearance:none;padding-right:32px;cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 17px) 55%,calc(100% - 12px) 55%;background-size:5px 5px;background-repeat:no-repeat}
+#sheet input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;margin:0}
+#sheet .pcl select{width:auto;padding:6px 30px 6px 10px}
+#sheet :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#sheet .stab:focus-visible{outline-offset:-2px}
+#sheet .cat:focus-visible{outline:none}
+.memory-form{margin-top:0}
+.memory-form label{font-size:var(--fh)}
+#sheet .pwform{margin-bottom:0}
+#sheet .pwform+.acct{margin-top:12px}
+#pwBtns .rh{margin-left:2px}
+#sheet .pcs{margin:0 0 12px}
+#quotaSec{margin:0 0 24px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+#quotaSec h3{margin:0 0 10px;font-size:var(--fs);text-transform:none;letter-spacing:0;color:var(--text);font-weight:650}
+#sheet .wcta{border-radius:14px;padding:14px 16px}
+.av{flex:none;width:40px;height:40px;border-radius:50%;background:var(--chip-on);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:16px;text-transform:uppercase}
+.callout{margin:0 0 20px;padding:11px 14px;border-radius:12px;border:1px solid color-mix(in srgb,var(--warn) 60%,var(--line));background:color-mix(in srgb,var(--warn) 12%,var(--panel));font-size:var(--fh);line-height:1.45}
+.callout a{color:inherit;font-weight:600}
+#sheet .aopts{gap:8px}
+#sheet .aopt{position:relative;padding:11px 14px 11px 44px;border-radius:12px;background:var(--panel);font-size:var(--fh);line-height:1.45}
+#sheet .aopt b{font-size:var(--fs)}
+.aopt::before{content:"";position:absolute;left:15px;top:14px;width:16px;height:16px;border-radius:50%;border:2px solid var(--line);box-sizing:border-box}
+.aopt.on::before{border-color:var(--accent);background:var(--accent);box-shadow:inset 0 0 0 3px var(--panel)}
+.aopt:disabled{opacity:.5;cursor:default}
+.aopt:disabled:hover{border-color:var(--line)}
+.chip{flex:none;font-size:11px;font-weight:650;padding:2px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.on{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 50%,var(--line));background:var(--chip-on)}
+.kh{padding:12px 14px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:650}
+.kh+.krow{border-top:0}
+.krow{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 14px;padding:7px 14px}
+.krow:last-child{padding-bottom:12px}
+.kk{flex:none;width:120px;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+.kt{flex:1 1 140px;min-width:0;font-size:var(--fh);color:var(--muted);line-height:1.45}
+kbd{font:600 11.5px/1.2 var(--mono);padding:3px 7px;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;background:var(--bg);color:var(--text)}
+.sask{display:flex;align-items:center;flex-wrap:wrap;gap:8px;width:100%}
+.sask p{flex:1 1 180px;margin:0;font-size:var(--fh)}
+.sask p span{display:block;margin-top:1px;color:var(--muted)}
+.sdone{margin-left:auto}
+@media (min-width:560px){
+  #sheet{--sg:24px}
+  .shin{height:54px}
+  .sh h2{margin-left:2px}
+  .themes{grid-template-columns:repeat(auto-fill,minmax(122px,1fr));gap:12px}
+  .pv{height:72px}
+  .stab{padding:10px 12px}
+  .row{padding:14px 16px}
+  .card.pd{padding:16px}
+  .sec{margin-bottom:28px}
+  .kk{width:150px}
+}
+@media (min-width:560px) and (max-width:759.98px){
+  .sin{gap:12px}
+  #snav{width:206px}
+}
+@media (min-width:900px){
+  #snav{width:216px}
+  .chead{margin-bottom:24px}
+}
+@media (max-width:559.98px){
+  .sin{display:block;padding:0}
+  #snav{position:static;width:auto;max-height:none;padding:12px var(--sg) 24px}
+  #stabs{gap:0;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .stab{padding:11px 12px;border-radius:0;color:var(--text)}
+  .stab+.stab{border-top:1px solid var(--line)}
+  .stab:hover{background:var(--chip-on)}
+  .stab[aria-selected=true]{background:none;font-weight:inherit;box-shadow:none}
+  .stab[aria-selected=true] .ni{color:inherit}
+  .stab .ni{color:var(--accent)}
+  .stab small{display:block;font-size:11.5px;color:var(--muted);font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .stab .nc{display:block;flex:none;color:var(--muted);font-size:18px;line-height:1}
+  #sheet:not(.deep) #spane{display:none}
+  #sheet.deep #snav{display:none}
+  #spane{max-width:none;padding:14px var(--sg) 36px}
+  .chead h2{display:none}
+  .chead{margin-bottom:16px}
+  .row.s .rc{flex:1 1 100%;margin-left:0;justify-content:stretch}
+  .row.s .rc>*{flex:1}
+  .kk{width:auto;flex:1 1 100%}
+}
+@media (pointer:coarse){.tg{width:50px;height:30px}.tg::after{width:24px;height:24px}.tg[aria-checked=true]::after{transform:translateX(20px)}#sheet .seg button{min-height:38px}#sheet .ghost{min-height:40px}.stab{padding-block:12px}}
+/* glass and clear: the page shows through them, so the sheet gets a real backing (history's idea), and the cards a faint tint of their own */
+:root:is([data-theme=glass],[data-theme=clear]) #sheet :is(.card,#quotaSec,#stabs,.sw,.aopt){background:color-mix(in srgb,var(--text) 7%,transparent)}
+:root:is([data-theme=glass],[data-theme=clear]) #sheet :is(input[type=text],input[type=password],textarea,select,kbd){background:color-mix(in srgb,var(--text) 8%,transparent)}
+:root[data-theme=clear] #sheet svg{filter:none}
+:root[data-theme=clear] #sheet .awarn{background:var(--pop)}
+/* the other themes' touches */
+:root[data-theme=orbit] #sheet :is(.rh,.chead p,.stab small,.sec>h3,.fine,kbd,.kt,.chip,.sw .ds){font-family:var(--mono)}
+:root[data-theme=orbit] #sheet :is(.chead h2,.sh h2,.stab[aria-selected=true]){text-shadow:-1px 0 0 var(--fr),1px 0 0 var(--fb)}
+:root[data-theme=orbit] #sheet :is(.card,#quotaSec,.sw,.aopt,#stabs){border-radius:8px}
+:root[data-theme=orbit] #sheet .stab[aria-selected=true]{box-shadow:inset 2px 0 0 var(--accent)}
+:root[data-theme=arcade] #sheet :is(.card,#quotaSec,.sw,.aopt,#stabs,.stab,.seg,.seg button,input,textarea,select,.ghost,.callout,.wcta){border-radius:3px}
+:root[data-theme=arcade] #sheet .tg{border-radius:3px}
+:root[data-theme=arcade] #sheet .tg::after{border-radius:2px}
+:root[data-theme=arcade] #sheet :is(.chead h2,.sh h2){font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;text-shadow:0 0 10px color-mix(in srgb,var(--accent) 60%,transparent)}
+:root[data-theme=pond] #sheet :is(.card,#quotaSec){box-shadow:inset 0 1px 0 rgba(241,230,210,.07)}
+:root[data-theme=terminal] #sheet{--fs:13px}
 
 /* lock screen */
 #login{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px 24px;text-align:center;overflow-y:auto;outline:none}
@@ -413,7 +577,8 @@ body.enter #composer{animation:rise .4s cubic-bezier(.2,.8,.2,1) .06s both}
 @keyframes fadeIn{from{opacity:0}}
 @keyframes fadeOut{to{opacity:0}}
 @keyframes rise{from{opacity:0;transform:translateY(12px)}}
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+@media (prefers-reduced-motion:reduce){:root:not(.motion-full) *,:root:not(.motion-full) *::before,:root:not(.motion-full) *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+:root.calm *,:root.calm *::before,:root.calm *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important} /* Settings > Appearance > Animations: Less */
 
 /* the highlight pill, and numbered quotes from the page that find the passage on the page when clicked */
 .pill.sel{flex:0 1 auto;min-width:0;max-width:210px}
@@ -460,7 +625,6 @@ body.docked:not(.min) header{cursor:default}
 #updGo{flex:none;background:var(--accent);color:var(--on-accent);border-radius:7px;padding:4px 9px;font-weight:600;text-decoration:none}
 #updX{flex:none;background:none;border:0;color:var(--muted);font-size:17px;line-height:1;cursor:pointer;padding:2px 6px}
 #updX:hover{color:var(--text)}
-#verLine{margin-top:auto;text-align:center;opacity:.75}
 #verLine a{color:inherit}
 
 /* settings: Wrapped, the account passcode */
@@ -529,8 +693,9 @@ body.docked:not(.min) header{cursor:default}
 #hist,#pdfs{position:absolute;left:0;right:0;top:var(--hd);bottom:0;z-index:2;background:var(--bg);display:flex;flex-direction:column;animation:sheetIn .2s cubic-bezier(.2,.8,.2,1)}
 :root[data-theme=glass] #hist,:root[data-theme=glass] #pdfs{background:var(--pop);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
 :root[data-theme=clear] #hist,:root[data-theme=clear] #pdfs{background:var(--pop);text-shadow:none} /* a list to read, so it gets a backing like Wrapped's: page text showed through the rows */
-:root:is([data-theme=glass],[data-theme=clear]) :is(body.hist,body.pdfs)>:is(#log,#composer,#ann,#rst,#upd){visibility:hidden} /* the chat ghosted through the sheet between the rows */
+:root:is([data-theme=glass],[data-theme=clear]) :is(body.sheet,body.hist,body.pdfs)>:is(#log,#composer,#ann,#rst,#upd){visibility:hidden} /* the chat ghosted through the sheet between the rows */
 body.hist #jump,body.pdfs #jump{display:none}
+:root[data-theme=clear] #sheet{background:var(--pop) linear-gradient(var(--pop),var(--pop));text-shadow:none} /* a page of settings to read, so it gets a backing like history's: page text showed through the cards */
 .title .name{min-width:0;overflow:hidden;text-overflow:ellipsis} /* gives way to the header buttons in a narrow panel */
 .hsearch{flex:none;padding:10px 10px 4px}
 #histQ{width:100%;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 11px;outline:none}
@@ -816,7 +981,7 @@ body.standalone{max-width:none;border:0}
 body.standalone header{padding-left:max(18px,calc((100vw - var(--col))/2 + 8px));padding-right:max(12px,calc((100vw - var(--col))/2 + 2px))}
 body.standalone #composer{padding-inline:14px}
 body.standalone #log{padding-inline:var(--gut)}
-body.standalone #sheet,body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid var(--line)}
+body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid var(--line)}
 
 /* ---- the loader (see loaderSprite): the splash, the waiting screen, and an answer that hasn't started yet ---- */
 .pbl{display:block;image-rendering:crisp-edges;image-rendering:pixelated}
@@ -929,89 +1094,216 @@ body.standalone #sheet,body.standalone #wrap{max-width:780px;margin-inline:auto;
 
 <div id="log" hidden></div>
 
-<div id="sheet" hidden>
+<!-- ---- settings: a sticky header, a list of categories, and the chosen category (two panes on a wide panel, list and drill-in on a narrow one) ---- -->
+<div id="sheet" role="region" aria-label="Settings" hidden>
+  <div class="sh"><div class="shin">
+    <button class="ib" id="shBack" type="button" title="All settings" aria-label="Back to all settings" hidden><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+    <h2 id="shTitle">Settings</h2>
+    <button class="ghost" id="shDone" type="button">Done</button>
+  </div></div>
+  <div class="sbody" id="sbody">
+    <div class="sin">
+      <nav id="snav" aria-label="Settings categories"><div id="stabs" role="tablist" aria-orientation="vertical" aria-label="Settings"></div></nav>
+      <div id="spane">
+
+        <div class="cat" id="cat-general" role="tabpanel" aria-labelledby="tab-general" tabindex="-1" hidden>
+          <div class="chead"><h2>General</h2><p>What pagebot starts from on every question. You can still change the model or web search for one question from the message box.</p></div>
+          <section class="sec">
+            <h3>Model and search</h3>
+            <div class="card">
+              <div class="row s"><div class="rt"><b class="rl" id="modelLbl">Model</b><span class="rh">Haiku is quick and cheap. Sonnet takes a little longer and thinks harder.</span></div><div class="rc"><div class="seg" id="modelSeg" role="radiogroup" aria-labelledby="modelLbl"></div></div></div>
+              <div class="row"><div class="rt"><b class="rl" id="webLbl">Web search</b><span class="rh" id="webTogNote">Let pagebot look things up online while it answers.</span></div><div class="rc"><button class="tg" id="webTog" type="button" role="switch" aria-checked="false" aria-labelledby="webLbl"></button></div></div>
+            </div>
+          </section>
+          <section class="sec" id="tokSec">
+            <h3>Answer length</h3>
+            <div class="card"><div class="row s"><div class="rt"><b class="rl" id="tokLbl">Longest reply</b><span class="rh">Maximum tokens per reply. Higher limits allow longer answers and use more of your allowance.</span></div><div class="rc"><div class="seg" id="tokSeg" role="group" aria-labelledby="tokLbl"></div></div></div></div>
+            <p class="fine" id="tokNote" hidden></p>
+          </section>
+        </div>
+
+        <div class="cat" id="cat-appearance" role="tabpanel" aria-labelledby="tab-appearance" tabindex="-1" hidden>
+          <div class="chead"><h2>Appearance</h2><p>How pagebot looks, and how the panel sits on your screen.</p></div>
+          <section class="sec"><h3>Theme</h3>
+            <div class="themes" id="themes" role="radiogroup" aria-label="Theme"></div>
+            <p class="fine" id="glassNote" hidden>To make <span id="glassName">Glass</span> see-through on every site, including dark-mode ones, drag the button from the pagebot homepage to your bookmarks bar again.</p></section>
+          <section class="sec"><h3>Motion</h3>
+            <div class="card"><div class="row s"><div class="rt"><b class="rl" id="motLbl">Animations</b><span class="rh">Less turns off the fades, slides and the loader’s movement. System follows your device’s setting.</span></div><div class="rc"><div class="seg" id="motionSeg" role="radiogroup" aria-labelledby="motLbl"></div></div></div></div></section>
+          <section class="sec" id="panelSec" hidden><h3>Panel</h3>
+            <div class="card">
+              <div class="row" id="dockRow"><div class="rt"><b class="rl" id="dockLbl">Dock to the side</b><span class="rh">Pins pagebot to the right edge of the window, full height. It opens that way next time too.</span></div><div class="rc"><button class="tg" id="dockTog" type="button" role="switch" aria-checked="false" aria-labelledby="dockLbl"></button></div></div>
+              <div class="row"><div class="rt"><b class="rl">Size and position</b><span class="rh" id="panelMsg" role="status" aria-live="polite">Drag the header to move the panel and its left or top edge to resize it. This puts it back where it started.</span></div><div class="rc"><button class="ghost" id="panelReset" type="button">Reset</button></div></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="cat" id="cat-memory" role="tabpanel" aria-labelledby="tab-memory" tabindex="-1" hidden>
+          <div class="chead"><h2>Memory &amp; commands</h2><p>Instructions pagebot remembers for you, and shortcuts for the prompts you send most.</p></div>
+          <section id="memorySec" class="sec" aria-labelledby="memoryTitle">
+            <h3 id="memoryTitle">Website memory</h3>
+            <p class="fine lead" id="memoryHint">Save instructions for a website. Pagebot uses them on every visit, even when Page text is off. Each subdomain has its own instructions.</p>
+            <form class="memory-form card pd" id="memoryForm">
+              <label for="memorySites">Saved websites</label>
+              <select id="memorySites"><option value="">Choose a saved website…</option></select>
+              <label for="memorySite">Website</label>
+              <input id="memorySite" type="text" placeholder="example.com or https://example.com" autocapitalize="off" autocomplete="off" spellcheck="false" aria-describedby="memoryScope">
+              <div class="acct"><button class="ghost" id="memoryLoad" type="button">Load website</button><button class="ghost" id="memoryCurrent" type="button" hidden>Use current website</button></div>
+              <p class="fine" id="memoryScope">Instructions are private to your account and apply across this website’s pages.</p>
+              <label for="memoryInstructions">Instructions</label>
+              <textarea id="memoryInstructions" rows="4" maxlength="4000" placeholder="For example: Explain unfamiliar terms and keep summaries brief." aria-describedby="memoryCount" disabled></textarea>
+              <p class="fine" id="memoryCount">0 / 4,000 characters</p>
+              <div class="acct"><button class="ghost pri" id="memorySave" type="submit" disabled>Save instructions</button><button class="ghost bad" id="memoryDelete" type="button" disabled>Delete saved instructions</button></div>
+              <p class="fine" id="memoryStatus" role="status" aria-live="polite"></p>
+            </form>
+          </section>
+          <section id="cmdSec" class="sec" aria-labelledby="cmdTitle">
+            <h3 id="cmdTitle">Slash commands</h3>
+            <p class="fine lead">Type / in the message box for a list of commands. Save your own for prompts you send a lot. Put {input} where the words you type after the command should go; without it, they go at the end.</p>
+            <form class="memory-form card pd" id="cmdForm" autocomplete="off">
+              <label for="cmdList">Your commands</label>
+              <select id="cmdList"><option value="">New command…</option></select>
+              <label for="cmdName">Name</label>
+              <input id="cmdName" type="text" maxlength="25" placeholder="tldr" autocapitalize="off" autocomplete="off" spellcheck="false" aria-describedby="cmdNameHint">
+              <p class="fine" id="cmdNameHint">Letters, numbers, - and _, starting with a letter (up to 24).</p>
+              <label for="cmdPrompt">Prompt</label>
+              <textarea id="cmdPrompt" rows="4" maxlength="2000" placeholder="For example: Translate the highlighted text into {input}." aria-describedby="cmdCount"></textarea>
+              <p class="fine" id="cmdCount">0 / 2,000 characters</p>
+              <label class="bagree cmdst"><input type="checkbox" id="cmdStarter"> Show on new chats <span class="fine" id="cmdStarterNote"></span></label>
+              <div class="acct"><button class="ghost pri" id="cmdSave" type="submit" disabled>Save command</button><button class="ghost bad" id="cmdDelete" type="button" disabled>Delete command</button></div>
+              <p class="fine" id="cmdStatus" role="status" aria-live="polite"></p>
+            </form>
+          </section>
+        </div>
+
+        <div class="cat" id="cat-actions" role="tabpanel" aria-labelledby="tab-actions" tabindex="-1" hidden>
+          <div class="chead"><h2>Page actions</h2><p>Let pagebot click, type and choose on the page for you. Turn them on for a question from the + menu; this is where you decide how much it asks first.</p></div>
+          <div class="callout" id="actAvail" role="status" hidden></div>
+          <section id="actSec" class="sec">
+            <h3>Permissions</h3>
+            <div class="aopts" role="radiogroup" aria-label="Page actions permissions">
+              <button class="aopt" id="actAsk" type="button" role="radio"><b>Ask before each click or edit</b>pagebot shows what it’s about to do and waits for you. Reading and highlighting the page don’t ask.</button>
+              <button class="aopt" id="actSkip" type="button" role="radio"><b>Skip all permissions</b>Clicks, typing and choices run without asking, on every site.</button>
+            </div>
+            <div class="awarn" id="actWarn" role="alertdialog" aria-labelledby="actWarnText" hidden>
+              <p id="actWarnText"><b>⚠ Only if you trust the pages you use it on.</b> A web page can hide instructions meant to steer pagebot. With permissions skipped, pagebot clicks, types and picks options on any page without checking with you first.</p>
+              <div class="acct"><button class="ghost warnb" id="actYes" type="button">Skip permissions</button><button class="ghost" id="actNo" type="button">Cancel</button></div>
+            </div>
+          </section>
+          <section class="sec"><h3>Always, even when skipping</h3>
+            <div class="card">
+              <div class="row"><div class="rt"><b class="rl">Protected fields</b><span class="rh">pagebot never reads or types into password, payment card or file fields.</span></div></div>
+              <div class="row"><div class="rt"><b class="rl">A step limit</b><span class="rh">A question takes at most 15 steps.</span></div></div>
+              <div class="row"><div class="rt"><b class="rl">Leaving the page</b><span class="rh">It asks before a click that leaves the page or opens another site.</span></div></div>
+            </div>
+            <p class="fine" id="actHow">Turn page actions on from the + menu, next to Web search.</p>
+          </section>
+        </div>
+
+        <div class="cat" id="cat-files" role="tabpanel" aria-labelledby="tab-files" tabindex="-1" hidden>
+          <div class="chead"><h2>Files &amp; chats</h2><p>What pagebot keeps for you, and how to clear it out.</p></div>
+          <section class="sec"><h3>What’s saved</h3>
+            <div class="card">
+              <div class="row"><div class="rt"><b class="rl">Chats</b><span class="rh" id="dsChats"></span></div></div>
+              <div class="row"><div class="rt"><b class="rl">Website memory</b><span class="rh" id="dsMem"></span></div><div class="rc"><button class="ghost" type="button" data-go="memory">Open</button></div></div>
+              <div class="row"><div class="rt"><b class="rl">Slash commands</b><span class="rh" id="dsCmd"></span></div><div class="rc"><button class="ghost" type="button" data-go="memory">Open</button></div></div>
+              <div class="row" id="dsPdfRow"><div class="rt"><b class="rl">PDFs</b><span class="rh" id="dsPdf"></span></div></div>
+            </div>
+          </section>
+          <section class="sec" id="pdfSec"><h3>PDF storage</h3>
+            <div class="card pd">
+              <div class="qbar" id="fsBar" role="progressbar" aria-label="PDF storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="fsFill"></i></div>
+              <p class="rh fsu" id="fsUsed">Loading…</p>
+              <div class="acct"><button class="ghost" id="fsManage" type="button">Manage PDFs</button></div>
+            </div>
+            <p class="fine">PDFs are deleted on their own 30 days after you upload them.</p>
+          </section>
+          <section class="sec"><h3>Chat history</h3>
+            <div class="card">
+              <div class="row"><div class="rt"><b class="rl">Your chats</b><span class="rh">Search them, reopen one to keep going, or remove it.</span></div><div class="rc"><button class="ghost" id="fsHist" type="button">Open history</button></div></div>
+              <div class="row" id="fsClearRow"><div class="rt"><b class="rl">Remove all from history</b><span class="rh" id="fsClearHelp"></span></div><div class="rc"><button class="ghost bad" id="fsClear" type="button">Remove all</button></div></div>
+            </div>
+            <p class="fine" id="fsMsg" role="status" aria-live="polite"></p>
+          </section>
+        </div>
+
+        <div class="cat" id="cat-privacy" role="tabpanel" aria-labelledby="tab-privacy" tabindex="-1" hidden>
+          <div class="chead"><h2>Privacy</h2><p>pagebot only sees the page it was opened on, and only the things below. Each one is yours to turn on or off.</p></div>
+          <section class="sec"><h3>What pagebot can see on this page</h3>
+            <div class="card" id="seeList"></div>
+            <p class="fine">It never sees your other tabs, or what you type in the page, unless you share or paste it yourself.</p>
+          </section>
+          <section class="sec"><h3>Where it goes</h3>
+            <div class="card">
+              <div class="row"><div class="rt"><b class="rl">Your questions and pages</b><span class="rh" id="privSend">They’re sent to the model that answers, and saved with your chat so you can reopen it.</span></div></div>
+              <div class="row"><div class="rt"><b class="rl">The owner</b><span class="rh" id="privOwner"></span></div></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="cat" id="cat-account" role="tabpanel" aria-labelledby="tab-account" tabindex="-1" hidden>
+          <div class="chead"><h2>Account</h2><p id="acctSub">Who you’re signed in as, and how this device stays signed in.</p></div>
+          <section class="sec"><h3>Signed in</h3>
+            <div class="card">
+              <div class="row"><span class="av" id="acctAv" aria-hidden="true">?</span><div class="rt"><b class="rl"><span id="acctName" hidden></span><span id="acctOwner" hidden>Signed in as the owner</span></b><span class="rh" id="acctInfo"></span></div></div>
+              <div class="row"><div class="rt"><b class="rl">This device</b><span class="rh" id="acctDevice"></span></div><div class="rc"><button class="ghost" id="lockNow" type="button" hidden>Lock now</button><button class="ghost bad" id="outBtn" type="button">Log out</button></div></div>
+            </div>
+            <p class="fine" id="acctElse">Other devices stay signed in until you log out there. Changing your password signs them all out.</p>
+          </section>
+          <section class="sec" id="pwSec"><h3>Password</h3>
+            <div class="card pd">
+              <form class="pwform" id="pwForm" hidden>
+                <input id="pwCur" type="password" placeholder="Current password" autocomplete="current-password" aria-label="Current password">
+                <input id="pwNew" type="password" placeholder="New password (6+ characters)" autocomplete="new-password" aria-label="New password">
+                <div class="acct"><button class="ghost pri" type="submit">Save password</button><button class="ghost" id="pwCancel" type="button">Cancel</button><span class="fine" id="pwMsg"></span></div>
+              </form>
+              <div class="acct" id="pwBtns"><button class="ghost" id="pwChange" type="button" hidden>Change password</button><span class="rh">Signs out your other devices.</span></div>
+            </div>
+          </section>
+          <section id="pcSec" class="sec" hidden>
+            <h3>Quick unlock</h3>
+            <div class="card pd">
+              <p class="rh pcs" id="pcState"></p>
+              <form class="pwform" id="pcForm" autocomplete="off" hidden>
+                <input id="pcA" type="password" inputmode="numeric" maxlength="5" placeholder="New 5-digit passcode" autocomplete="new-password" aria-label="New passcode">
+                <input id="pcB" type="password" inputmode="numeric" maxlength="5" placeholder="Type it again" autocomplete="new-password" aria-label="Confirm the passcode">
+                <input id="pcPw" type="password" placeholder="Your password" autocomplete="current-password" aria-label="Your password">
+                <div class="acct"><button class="ghost pri" type="submit">Save passcode</button><button class="ghost" id="pcCancel" type="button">Cancel</button><span class="fine" id="pcMsg"></span></div>
+              </form>
+              <div class="acct" id="pcBtns"><button class="ghost" id="pcSet" type="button">Set a passcode</button><button class="ghost" id="pcOff" type="button" hidden>Turn off</button><label class="rh pcl" id="pcLockRow" hidden>Lock after <select id="pcLock"></select></label></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="cat" id="cat-usage" role="tabpanel" aria-labelledby="tab-usage" tabindex="-1" hidden>
+          <div class="chead"><h2>Usage</h2><p id="usageSub">How much of today’s limit you’ve used, and your year with pagebot.</p></div>
   <section id="quotaSec" hidden>
     <h3>Usage today</h3>
     <div class="qbar"><i id="quotaFill"></i></div>
     <p class="qtext"><b id="quotaText"></b> <span id="quotaSub"></span></p>
   </section>
-  <section id="memorySec" aria-labelledby="memoryTitle">
-    <h3 id="memoryTitle">Website memory</h3>
-    <p class="fine" id="memoryHint">Save instructions for a website. Pagebot uses them on every visit, even when Page text is off. Each subdomain has its own instructions.</p>
-    <form class="memory-form" id="memoryForm">
-      <label for="memorySites">Saved websites</label>
-      <select id="memorySites"><option value="">Choose a saved website…</option></select>
-      <label for="memorySite">Website</label>
-      <input id="memorySite" type="text" placeholder="example.com or https://example.com" autocapitalize="off" autocomplete="off" spellcheck="false" aria-describedby="memoryScope">
-      <div class="acct"><button class="ghost" id="memoryLoad" type="button">Load website</button><button class="ghost" id="memoryCurrent" type="button" hidden>Use current website</button></div>
-      <p class="fine" id="memoryScope">Instructions are private to your account and apply across this website’s pages.</p>
-      <label for="memoryInstructions">Instructions</label>
-      <textarea id="memoryInstructions" rows="4" maxlength="4000" placeholder="For example: Explain unfamiliar terms and keep summaries brief." aria-describedby="memoryCount" disabled></textarea>
-      <p class="fine" id="memoryCount">0 / 4,000 characters</p>
-      <div class="acct"><button class="ghost" id="memorySave" type="submit" disabled>Save instructions</button><button class="ghost" id="memoryDelete" type="button" disabled>Delete saved instructions</button></div>
-      <p class="fine" id="memoryStatus" role="status" aria-live="polite"></p>
-    </form>
-  </section>
-  <section id="cmdSec" aria-labelledby="cmdTitle">
-    <h3 id="cmdTitle">Slash commands</h3>
-    <p class="fine">Type / in the message box for a list of commands. Save your own for prompts you send a lot. Put {input} where the words you type after the command should go; without it, they go at the end.</p>
-    <form class="memory-form" id="cmdForm" autocomplete="off">
-      <label for="cmdList">Your commands</label>
-      <select id="cmdList"><option value="">New command…</option></select>
-      <label for="cmdName">Name</label>
-      <input id="cmdName" type="text" maxlength="25" placeholder="tldr" autocapitalize="off" autocomplete="off" spellcheck="false" aria-describedby="cmdNameHint">
-      <p class="fine" id="cmdNameHint">Letters, numbers, - and _, starting with a letter (up to 24).</p>
-      <label for="cmdPrompt">Prompt</label>
-      <textarea id="cmdPrompt" rows="4" maxlength="2000" placeholder="For example: Translate the highlighted text into {input}." aria-describedby="cmdCount"></textarea>
-      <p class="fine" id="cmdCount">0 / 2,000 characters</p>
-      <label class="bagree cmdst"><input type="checkbox" id="cmdStarter"> Show on new chats <span class="fine" id="cmdStarterNote"></span></label>
-      <div class="acct"><button class="ghost" id="cmdSave" type="submit" disabled>Save command</button><button class="ghost" id="cmdDelete" type="button" disabled>Delete command</button></div>
-      <p class="fine" id="cmdStatus" role="status" aria-live="polite"></p>
-    </form>
-  </section>
-  <section id="wrapSec"><button class="wcta" id="wrapBtn" type="button"><b>✨ Your pagebot Wrapped</b><span>Your year in questions, sites, hours and streaks</span></button></section>
-  <section><h3>Appearance</h3><div class="themes" id="themes"></div>
-    <p class="fine" id="glassNote" hidden>To make <span id="glassName">Glass</span> see-through on every site, including dark-mode ones, drag the button from the pagebot homepage to your bookmarks bar again.</p></section>
-  <section id="tokSec">
-    <h3>Answer length</h3>
-    <div class="seg" id="tokSeg"></div>
-    <p class="fine">Maximum tokens per reply. Higher limits allow longer answers and use more of your allowance.</p>
-    <p class="fine" id="tokNote" hidden></p>
-  </section>
-  <section id="actSec">
-    <h3>Page actions</h3>
-    <div class="aopts" role="radiogroup" aria-label="Page actions permissions">
-      <button class="aopt" id="actAsk" type="button" role="radio"><b>Ask before each click or edit</b>pagebot shows what it’s about to do and waits for you. Reading and highlighting the page don’t ask.</button>
-      <button class="aopt" id="actSkip" type="button" role="radio"><b>Skip all permissions</b>Clicks, typing and choices run without asking, on every site.</button>
+          <section id="wrapSec" class="sec"><button class="wcta" id="wrapBtn" type="button"><b>✨ Your pagebot Wrapped</b><span>Your year in questions, sites, hours and streaks</span></button></section>
+          <section class="sec" id="adminSec" hidden><h3>Everyone’s usage</h3>
+            <div class="card"><div class="row"><div class="rt"><b class="rl">Usage &amp; admin</b><span class="rh">People, limits, activity and costs.</span></div><div class="rc"><a class="ghost alink" id="adminLink" href="/admin" target="_blank" rel="noopener">Open ↗</a></div></div></div>
+          </section>
+        </div>
+
+        <div class="cat" id="cat-about" role="tabpanel" aria-labelledby="tab-about" tabindex="-1" hidden>
+          <div class="chead"><h2>About</h2><p>Which version you’re on, and the keys that get you around.</p></div>
+          <section class="sec"><h3>pagebot</h3>
+            <div class="card">
+              <div class="row"><div class="rt"><b class="rl">Version</b><span class="rh" id="verLine"></span></div></div>
+              <div class="row" id="aboutUpd" hidden><div class="rt"><b class="rl">✨ A new version is out</b><span class="rh">Drag the button from the homepage to your bookmarks bar again to update.</span></div><div class="rc"><a class="ghost pri alink" href="/?update" target="_blank" rel="noopener">Get it ↗</a></div></div>
+              <div class="row"><div class="rt"><b class="rl">Homepage</b><span class="rh">Where to get the bookmark, again, on another browser or computer.</span></div><div class="rc"><a class="ghost alink" href="/" target="_blank" rel="noopener">Open ↗</a></div></div>
+            </div>
+          </section>
+          <section class="sec"><h3>Keyboard shortcuts</h3>
+            <div class="card" id="keysList"></div>
+          </section>
+        </div>
+
+      </div>
     </div>
-    <div class="awarn" id="actWarn" role="alertdialog" aria-labelledby="actWarnText" hidden>
-      <p id="actWarnText"><b>⚠ Only if you trust the pages you use it on.</b> A web page can hide instructions meant to steer pagebot. With permissions skipped, pagebot clicks, types and picks options on any page without checking with you first.</p>
-      <div class="acct"><button class="ghost warnb" id="actYes" type="button">Skip permissions</button><button class="ghost" id="actNo" type="button">Cancel</button></div>
-    </div>
-    <p class="fine">Turn page actions on in the + menu. Always, even when skipping: pagebot never reads or types into password, payment card or file fields, takes at most 15 steps per question, and asks before a click that leaves the page.</p>
-  </section>
-  <section>
-    <h3>Account</h3>
-    <p class="fine" id="acctName" hidden></p>
-    <form class="pwform" id="pwForm" hidden>
-      <input id="pwCur" type="password" placeholder="Current password" autocomplete="current-password" aria-label="Current password">
-      <input id="pwNew" type="password" placeholder="New password (6+ characters)" autocomplete="new-password" aria-label="New password">
-      <div class="acct"><button class="ghost" type="submit">Save password</button><button class="ghost" id="pwCancel" type="button">Cancel</button><span class="fine" id="pwMsg"></span></div>
-    </form>
-    <div class="acct" id="acctBtns"><button class="ghost" id="pwChange" type="button" hidden>Change password</button><button class="ghost" id="lockNow" type="button" hidden>Lock now</button><button class="ghost" id="outBtn" type="button">Log out</button><a id="adminLink" href="/admin" target="_blank" rel="noopener">Usage &amp; admin ↗</a></div>
-  </section>
-  <section id="pcSec" hidden>
-    <h3>Quick unlock</h3>
-    <p class="fine" id="pcState" style="margin:0 0 10px"></p>
-    <form class="pwform" id="pcForm" autocomplete="off" hidden>
-      <input id="pcA" type="password" inputmode="numeric" maxlength="5" placeholder="New 5-digit passcode" autocomplete="new-password" aria-label="New passcode">
-      <input id="pcB" type="password" inputmode="numeric" maxlength="5" placeholder="Type it again" autocomplete="new-password" aria-label="Confirm the passcode">
-      <input id="pcPw" type="password" placeholder="Your password" autocomplete="current-password" aria-label="Your password">
-      <div class="acct"><button class="ghost" type="submit">Save passcode</button><button class="ghost" id="pcCancel" type="button">Cancel</button><span class="fine" id="pcMsg"></span></div>
-    </form>
-    <div class="acct" id="pcBtns"><button class="ghost" id="pcSet" type="button">Set a passcode</button><button class="ghost" id="pcOff" type="button" hidden>Turn off</button><label class="fine pcl" id="pcLockRow" hidden>Lock after <select id="pcLock"></select></label></div>
-  </section>
-  <p class="fine" id="verLine"></p>
+  </div>
 </div>
 
 <div id="wrap" hidden></div>
@@ -1083,7 +1375,8 @@ const hostV7 = hostV >= 7; // ...and can resize the panel and dock it to the sid
 const pageV7 = hostV7 || (popup && ver >= 7);
 const pageV9 = hostV >= 9 || (popup && ver >= 9); // ...and can run page actions (find, fill, click and the rest)
 const standalone = !embedded && !popup;
-const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const sysCalm = matchMedia('(prefers-reduced-motion: reduce)');
+let calm = sysCalm.matches; // Settings > Appearance > Animations can override it (see applyMotion)
 const body = document.body;
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
@@ -1091,6 +1384,15 @@ const store = {
   get(k){ try { return localStorage.getItem(k); } catch { return null; } },
   set(k,v){ try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
 };
+
+// Animations: 'less' or 'full' (set in Settings > Appearance) beats the system setting; nothing saved follows the system
+function motionPref() { const m = store.get('pb_motion'); return m === 'less' || m === 'full' ? m : 'system'; }
+function applyMotion() {
+  const m = motionPref(), root = document.documentElement;
+  calm = m === 'less' || (m === 'system' && sysCalm.matches);
+  root.classList.toggle('calm', m === 'less'); root.classList.toggle('motion-full', m === 'full');
+}
+applyMotion(); sysCalm.addEventListener?.('change', applyMotion);
 
 let token = store.get('pb_token');
 // a random id for this browser, so the owner can keep a terminated account's browser from signing up again
@@ -1197,10 +1499,14 @@ const THEMES = [
 ];
 const light = matchMedia('(prefers-color-scheme: light)');
 const resolveTheme = t => t === 'auto' ? (light.matches ? 'paper' : 'ember') : t;
+// the gallery is a radio group: the chosen swatch is the one tab stop, and arrow keys move between the others
+function syncThemes(t) {
+  document.querySelectorAll('.sw').forEach(b => { const on = b.dataset.t === t; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
+}
 function applyTheme(t, fade) {
   const r = resolveTheme(t);
   store.set('pb_theme', t);
-  document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  syncThemes(t);
   if (document.documentElement.dataset.theme === r) return;
   if (fade) { body.classList.add('tt'); clearTimeout(applyTheme.t); applyTheme.t = setTimeout(() => body.classList.remove('tt'), 400); }
   document.documentElement.dataset.theme = r;
@@ -1226,10 +1532,12 @@ function syncGlass(recheck) {
   });
 }
 light.addEventListener('change', () => { if (prefs.theme === 'auto') applyTheme('auto', true); });
+const THEME_NOTE = { auto: 'Follows your device', ember: 'Warm dark', paper: 'Warm light', midnight: 'Deep blue', forest: 'Dark green', dusk: 'Soft purple', sakura: 'Pale pink', terminal: 'Green on black', pond: 'Dithered cave pond', orbit: 'Dotted space', void: 'Grey and amber', arcade: 'Neon purple', glass: 'See-through, blurred', clear: 'No panel at all' };
 for (const [key, name, bg, acc, user, text] of THEMES) {
-  const b = el('button', 'sw', '<span class="pv"><i></i><u></u><b></b></span><span class="nm"></span>');
+  const b = el('button', 'sw', '<span class="pv"><i></i><u></u><b></b></span><span class="nm"></span><span class="ds"></span>');
   b.type = 'button'; b.dataset.t = key; b.title = key === 'auto' ? 'Follows your system light/dark setting' : name;
-  b.querySelector('.nm').textContent = name;
+  b.setAttribute('role', 'radio');
+  b.querySelector('.nm').textContent = name; b.querySelector('.ds').textContent = THEME_NOTE[key] || '';
   if (bg) b.style.cssText = `--sw-bg:${bg};--sw-acc:${acc};--sw-user:${user};--sw-text:${text}`;
   else b.style.cssText = '--sw-acc:#d97757;--sw-user:#2b2622;--sw-text:#8e8a82';
   b.onclick = () => { applyTheme(key, true); savePrefs({ theme: key }); };
@@ -2052,6 +2360,7 @@ function renderAccount() {
   const cap = limits.maxTokensCap || 100000;
   $('#tokSeg').querySelectorAll('button').forEach(b => { b.hidden = +b.dataset.n > cap; });
   renderQuota(); renderPasscode();
+  renderSheetAccount(); // the settings redesign's account, privacy and about rows
 }
 function renderQuota() {
   const q = isUser() ? cfg.quota : null;
@@ -2511,11 +2820,12 @@ function renderPrefs() {
   const preset = TOK.some(([n]) => n === limits.maxTokens);
   $('#tokNote').hidden = preset;
   if (!preset) $('#tokNote').textContent = `Right now it’s ${limits.maxTokens.toLocaleString()} tokens${isUser() ? '' : ' (set in /admin)'}. Pick a size above to change it.`;
-  document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t === prefs.theme));
+  syncThemes(prefs.theme);
   $('#glassNote').hidden = !(embedded && (prefs.theme === 'glass' && !hostV5 || prefs.theme === 'clear' && !hostV6));
   $('#glassName').textContent = prefs.theme === 'clear' ? 'Clear' : 'Glass';
   renderActs();
   renderPdf(); // pdf uploads (it fits the pills too)
+  renderSheetPrefs(); // the settings redesign's rows (model, web, motion, panel) and the category list
 }
 async function savePrefs(patch) {
   if ('maxTokens' in patch) limits.maxTokens = patch.maxTokens; else Object.assign(prefs, patch);
@@ -2552,6 +2862,14 @@ function renderActs() {
   p.hidden = !actsOn(); p.classList.toggle('auto', auto); $('#actTag').hidden = !auto;
   p.title = `Page actions are on: pagebot can click and type on this page${auto ? ' without asking (Skip all permissions)' : ', asking you first'}. Click to turn them off.`;
   $('#actSec').hidden = isUser() && cfg.user?.allowActions === false;
+  // Settings: the same reason the + menu gives, and no permission choices to make where they can't apply (an old bookmark, or /chat)
+  const gone = standalone || !pageV9, av = $('#actAvail');
+  av.hidden = !why; $('#actHow').hidden = !!why;
+  $('#actAsk').disabled = $('#actSkip').disabled = gone;
+  if (why) {
+    av.replaceChildren(el('b', '', gone ? 'Not available here.' : 'Off for now.'), document.createTextNode(` ${why}.`));
+    if (!pageV9 && !standalone) { const a = el('a', '', 'Get the new bookmark ↗'); a.href = '/?update'; a.target = '_blank'; a.rel = 'noopener'; av.append(' ', a); }
+  }
   for (const [id, on] of [['#actAsk', !auto], ['#actSkip', auto]]) { $(id).classList.toggle('on', on); $(id).setAttribute('aria-checked', String(on)); }
   if (auto) $('#actWarn').hidden = true;
 }
@@ -2720,16 +3038,289 @@ function toggleMenu(menu, btn) {
 $('#addBtn').onclick = () => toggleMenu('#addMenu', '#addBtn');
 $('#modelBtn').onclick = () => toggleMenu('#modelMenu', '#modelBtn');
 document.addEventListener('pointerdown', e => { if (openMenu && !e.target.closest('.menu,#addBtn,#modelBtn')) closeMenus(); });
+// ---- settings sheet (redesign): categories, two panes on a wide panel and a list that drills in on a narrow one ----
+// Everything is built once at load, so opening Settings is just un-hiding it; what you last looked at is remembered until the panel reloads.
 let sheetOpen = false;
+const SVG = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const CATS = [ // key, title, icon
+  ['general', 'General', '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>'],
+  ['appearance', 'Appearance', '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'],
+  ['memory', 'Memory & commands', '<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>'],
+  ['actions', 'Page actions', '<path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51z"/>'],
+  ['files', 'Files & chats', '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>'],
+  ['privacy', 'Privacy', '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'],
+  ['account', 'Account', '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'],
+  ['usage', 'Usage', '<path d="M18 20V10M12 20V4M6 20v-6"/>'],
+  ['about', 'About', '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>'],
+];
+let setCat = 'general', setDeep = false; // the category you were last in, and (on a narrow panel) whether it is open rather than the list
+const wideQ = matchMedia('(min-width:560px)');
+for (const [key, title, icon] of CATS) {
+  const b = el('button', 'stab', `<span class="ni">${SVG(icon)}</span><span class="nt"><b></b><small></small></span><span class="nc" aria-hidden="true">›</span>`);
+  b.type = 'button'; b.id = 'tab-' + key; b.dataset.cat = key; b.setAttribute('role', 'tab'); b.setAttribute('aria-controls', 'cat-' + key);
+  b.querySelector('b').textContent = title;
+  b.onclick = () => selectCat(key, true, true);
+  $('#stabs').appendChild(b);
+}
+const catTitle = key => CATS.find(c => c[0] === key)?.[1] || 'Settings';
+function catSummary(key) { // the grey line under a category's name in the narrow list
+  const m = models.find(x => x.key === prefs.model) || models[0];
+  switch (key) {
+    case 'general': return `${m.label} · web search ${prefs.web ? 'on' : 'off'}`;
+    case 'appearance': return THEMES.find(t => t[0] === prefs.theme)?.[1] || 'Ember';
+    case 'memory': return memoryLoaded ? `${plural(memoryRecords.length, 'website')} · ${plural(commands.length, 'command')}` : 'Site instructions and slash commands';
+    case 'actions': return actWhy() ? 'Not available here' : prefs.actionsAuto ? 'Skipping permissions' : 'Asks before each click';
+    case 'files': return 'PDFs and chat history';
+    case 'privacy': return 'What pagebot can see';
+    case 'account': return isUser() ? `Signed in as ${cfg.user.name}` : 'Owner';
+    case 'usage': return 'Today’s limit and Wrapped';
+    case 'about': return cfg?.version ? `Version ${cfg.version} and shortcuts` : 'Version and shortcuts';
+  }
+  return '';
+}
+function renderSheetView() {
+  const wide = wideQ.matches, deep = !wide && setDeep;
+  $('#sheet').classList.toggle('deep', deep);
+  for (const [key] of CATS) {
+    const on = key === setCat, t = $('#tab-' + key);
+    $('#cat-' + key).hidden = !on;
+    t.setAttribute('aria-selected', String(on && (wide || deep))); t.tabIndex = on ? 0 : -1;
+  }
+  $('#shBack').hidden = !deep;
+  $('#shTitle').textContent = deep ? catTitle(setCat) : 'Settings';
+}
+// deep: open it (a narrow panel swaps the list for it); focus: move the keyboard there
+function selectCat(key, deep, focus) {
+  if (!CATS.some(c => c[0] === key)) key = 'general';
+  const same = key === setCat;
+  setCat = key; if (deep != null) setDeep = deep;
+  renderSheetView();
+  if (!same || deep) $('#sbody').scrollTop = 0;
+  if (sheetOpen) catEnter(key);
+  if (focus) (wideQ.matches ? $('#tab-' + key) : $('#cat-' + key)).focus({ preventScroll: true });
+}
+function catEnter(key) { // what a category does when it comes up (the rest is filled in already)
+  if (key === 'files') loadFiles();
+  else if (key === 'privacy') renderSees();
+}
+wideQ.addEventListener('change', renderSheetView);
+$('#shBack').onclick = () => { setDeep = false; renderSheetView(); $('#tab-' + setCat).focus({ preventScroll: true }); };
+$('#shDone').onclick = () => { closeSheet(); focusView(); };
+document.querySelectorAll('[data-go]').forEach(b => { b.onclick = () => selectCat(b.dataset.go, true, true); });
+// the list is a vertical tab list: arrows move through it (a wide panel shows each category as you land on it, a narrow one waits for Enter)
+$('#stabs').addEventListener('keydown', e => {
+  const i = CATS.findIndex(c => c[0] === e.target.dataset?.cat), n = CATS.length;
+  const to = e.key === 'ArrowDown' ? (i + 1) % n : e.key === 'ArrowUp' ? (i - 1 + n) % n : e.key === 'Home' ? 0 : e.key === 'End' ? n - 1 : -1;
+  if (i < 0 || to < 0) return;
+  e.preventDefault();
+  const key = CATS[to][0];
+  if (wideQ.matches) selectCat(key, null, true); else { setCat = key; renderSheetView(); $('#tab-' + key).focus(); }
+});
+// the theme gallery: one tab stop (the chosen swatch), arrows move between the rest, Enter or Space picks
+$('#themes').addEventListener('keydown', e => {
+  const all = [...document.querySelectorAll('.sw')], i = all.indexOf(e.target), n = all.length;
+  const to = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? (i + 1) % n : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? (i - 1 + n) % n : e.key === 'Home' ? 0 : e.key === 'End' ? n - 1 : -1;
+  if (i < 0 || to < 0) return;
+  e.preventDefault(); all.forEach(b => { b.tabIndex = -1; }); all[to].tabIndex = 0; all[to].focus();
+});
+$('#themes').addEventListener('focusout', e => { if (!e.relatedTarget?.closest?.('#themes')) syncThemes(prefs.theme); });
+
 function openSheet(focusTokens) {
   if (view !== 'chat') return;
   closeHistory();
   sheetOpen = true; $('#sheet').hidden = false; $('#setBtn').classList.add('on'); body.classList.add('sheet');
-  refreshSiteContext(); loadSiteMemories();
-  if (focusTokens) { $('#tokSec').scrollIntoView({ block: 'center' }); ($('#tokSeg button.on:not([hidden])') || $('#tokSeg button:not([hidden])'))?.focus(); }
+  refreshSiteContext(); loadSiteMemories().then(() => { if (sheetOpen) { renderData(); renderSheetNav(); } });
+  renderSheetPrefs(); renderSheetAccount(); renderSheetView(); catEnter(setCat);
+  if (focusTokens) {
+    selectCat('general', true);
+    $('#tokSec').scrollIntoView({ block: 'center' }); ($('#tokSeg button.on:not([hidden])') || $('#tokSeg button:not([hidden])'))?.focus();
+  } else if (document.hasFocus()) (wideQ.matches || !setDeep ? $('#tab-' + setCat) : $('#cat-' + setCat)).focus({ preventScroll: true });
 }
 function closeSheet() { sheetOpen = false; $('#sheet').hidden = true; $('#setBtn').classList.remove('on'); body.classList.remove('sheet'); }
 $('#setBtn').onclick = () => wrap ? closeWrap() : sheetOpen ? closeSheet() : openSheet();
+// Esc inside Settings closes a confirmation (or the skip-permissions warning) first; the global handler then closes the sheet
+$('#sheet').addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || e.isComposing) return;
+  const ask = $('#sheet .sask');
+  if (ask) { e.preventDefault(); e.stopPropagation(); ask.querySelector('.sno').click(); }
+  else if (!$('#actWarn').hidden) { e.preventDefault(); e.stopPropagation(); $('#actNo').click(); }
+});
+
+// an inline "are you sure" in place of a row's contents (dialogs in cross-origin frames aren't reliable)
+function sheetConfirm(holder, text, fine, yesLabel, run, done) {
+  const keep = [...holder.childNodes], box = el('div', 'sask'), p = el('p'), msg = document.createTextNode(text);
+  const yes = el('button', 'ghost bad'), no = el('button', 'ghost sno');
+  yes.type = no.type = 'button'; yes.textContent = yesLabel; no.textContent = 'Cancel';
+  p.append(msg, el('span')); p.lastChild.textContent = fine;
+  box.append(p, yes, no); holder.replaceChildren(box);
+  if (document.hasFocus()) yes.focus();
+  const back = () => { holder.replaceChildren(...keep); if (document.hasFocus()) holder.querySelector('button')?.focus(); };
+  no.onclick = back;
+  yes.onclick = async () => {
+    const session = token;
+    yes.disabled = no.disabled = true; msg.textContent = 'Removing…';
+    let r;
+    try { r = await run(); }
+    catch (e) {
+      if (session !== token) return;
+      if (e.status === 401) return lock(lockedMsg());
+      msg.textContent = `Couldn’t remove them: ${e.message}`; yes.disabled = no.disabled = false; return;
+    }
+    if (session !== token) return;
+    back(); done(r);
+  };
+}
+
+// ---- the parts that follow the app's state; cheap, so they all run whenever a pref or the account changes ----
+function renderModelSeg() {
+  const seg = $('#modelSeg'), sig = models.map(x => x.key).join();
+  if (seg.dataset.sig !== sig) { // built once per set of models, so a click doesn't rebuild the button you are on
+    seg.dataset.sig = sig; seg.replaceChildren();
+    for (const x of models) {
+      const b = el('button'); b.type = 'button'; b.dataset.key = x.key; b.setAttribute('role', 'radio');
+      b.onclick = () => { if (x.key !== prefs.model) savePrefs({ model: x.key }); };
+      seg.appendChild(b);
+    }
+  }
+  for (const b of seg.children) {
+    const x = models.find(m => m.key === b.dataset.key), noPdf = x.key === 'openrouter' && pdfInChat(), on = x.key === (models.find(m => m.key === prefs.model) || models[0]).key;
+    b.textContent = x.label; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on));
+    b.disabled = !!x.locked || noPdf;
+    b.title = x.locked ? 'Not turned on for your account' : noPdf ? 'Can’t read PDFs. Use Haiku or Sonnet in this chat' : (MODEL_INFO[x.key] || [])[1] || '';
+  }
+}
+const MOTIONS = [['system', 'System'], ['less', 'Less'], ['full', 'Full']];
+for (const [key, label] of MOTIONS) {
+  const b = el('button', '', label); b.type = 'button'; b.dataset.m = key; b.setAttribute('role', 'radio');
+  b.onclick = () => { store.set('pb_motion', key === 'system' ? null : key); applyMotion(); renderSheetPrefs(); };
+  $('#motionSeg').appendChild(b);
+}
+function renderSheetPrefs() {
+  renderModelSeg();
+  const webOk = !isUser() || !!cfg.user?.allowWeb;
+  $('#webTog').disabled = !webOk; $('#webTog').setAttribute('aria-checked', String(!!prefs.web && webOk));
+  $('#webTogNote').textContent = webOk ? 'Let pagebot look things up online while it answers. You can also turn it on for one question from the + menu.' : 'Not turned on for your account.';
+  for (const b of $('#motionSeg').children) { const on = b.dataset.m === motionPref(); b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); }
+  $('#panelSec').hidden = !(embedded && hostV2); $('#dockRow').hidden = !hostV7;
+  renderSheetNav();
+  if (sheetOpen && setCat === 'privacy') renderSees();
+}
+function renderSheetNav() {
+  for (const [key] of CATS) $('#tab-' + key + ' small').textContent = catSummary(key);
+}
+$('#webTog').onclick = () => savePrefs({ web: !prefs.web });
+$('#dockTog').onclick = () => $('#dockBtn').click(); // the same thing the header's dock button does
+$('#panelReset').onclick = () => {
+  for (const k of ['pb_pos', 'pb_size', 'pb_dock', 'pb_dockw']) store.set(k, null);
+  savedPos = savedSize = null; docked = false; dockW = 0; syncDock();
+  // 'ready' is how the bookmark takes a position, size and dock state; a v11 one would keep its own size, so send the screen-based default too
+  const d = screenSize();
+  tell('ready', { pos: { r: 16, b: 16 }, dock: false, size: d ? { w: d.w, h: d.h } : { w: 400, h: 600 }, ...(d && { dw: d.dw }) });
+  $('#panelMsg').textContent = 'Done. The panel is back in the corner at its starting size.';
+};
+
+function renderSheetAccount() {
+  const user = isUser(), name = user ? cfg.user.name : '', pin = cfg?.who === 'owner' ? cfg?.lock === 'passcode' : !!cfg?.user?.passcode, mins = cfg?.lockMinutes || 0;
+  $('#acctOwner').hidden = user;
+  $('#acctAv').textContent = user ? name.charAt(0) || '?' : 'O';
+  $('#acctInfo').textContent = user ? 'Your own settings, chats and instructions.' : 'You run this pagebot. Your password and passcode are set in /admin.';
+  $('#acctDevice').textContent = pin ? (mins ? `Locks after ${lockName(mins)} without activity. You unlock it with your passcode.` : 'Locks when you press the lock button. You unlock it with your passcode.')
+    : 'Stays signed in until you log out.';
+  $('#acctElse').hidden = !user;
+  $('#pwSec').hidden = !user; $('#adminSec').hidden = user;
+  $('#usageSub').textContent = user ? 'How much of today’s limit you’ve used, and your year with pagebot.' : 'Your year with pagebot. Everyone’s usage is in /admin.';
+  $('#privOwner').textContent = user ? 'The owner of this pagebot can see your chats, including ones you remove from your history, and how much you use.' : 'That’s you. Chats removed from history still show in Activity in /admin.';
+  $('#dsChats').textContent = user ? 'Saved so you can reopen them from history. Removing one hides it from you only.' : 'Saved so you can reopen them from history. Removing one hides it from your history only.';
+  $('#fsClearHelp').textContent = user ? 'Hides every chat from you. The owner can still see them, and what they used still counts toward your daily limit.' : 'Hides every chat from your history. They still show in Activity in /admin.';
+  $('#aboutUpd').hidden = !outdated();
+  renderData(); renderSheetNav();
+}
+
+// ---- Files & chats ----
+function renderData() {
+  $('#dsMem').textContent = memoryLoaded ? (memoryRecords.length ? `Instructions saved for ${plural(memoryRecords.length, 'website')}` : 'No websites saved yet') : 'Loading…';
+  $('#dsCmd').textContent = commands.length ? `${plural(commands.length, 'saved command')}` : 'None saved yet';
+}
+let filesReq = 0;
+async function loadFiles() {
+  renderData();
+  if (!token || view !== 'chat') return;
+  const session = token, req = ++filesReq;
+  try {
+    const d = await histApi('/api/pdf');
+    if (req !== filesReq || session !== token || !sheetOpen) return;
+    const f = Math.min(1, d.used / d.cap), fill = $('#fsFill');
+    fill.style.width = (f * 100) + '%'; fill.className = f >= 1 ? 'full' : f >= .8 ? 'warn' : '';
+    $('#fsBar').setAttribute('aria-valuenow', Math.round(f * 100));
+    $('#fsUsed').textContent = `${fmtMB(d.used)} of ${fmtMB(d.cap)} used`;
+    $('#dsPdf').textContent = d.pdfs.length ? `${plural(d.pdfs.length, 'PDF')} stored (${fmtMB(d.used)})` : 'None stored';
+  } catch (e) {
+    if (req !== filesReq || session !== token || !sheetOpen) return;
+    if (e.status === 401) return lock(lockedMsg());
+    $('#fsUsed').textContent = `Couldn’t load your PDFs: ${e.message}`; $('#dsPdf').textContent = 'Couldn’t load';
+  }
+}
+$('#fsManage').onclick = () => openPdfs();
+$('#fsHist').onclick = () => openHistory();
+$('#fsClear').onclick = () => {
+  $('#fsMsg').textContent = '';
+  sheetConfirm($('#fsClearRow'), 'Remove every chat from your history?', isUser() ? 'They’re hidden from you only. The owner of this pagebot can still see them.' : 'They still show in Activity in /admin.',
+    'Remove all', () => histApi('/api/chats?all=1', 'DELETE'), r => {
+      if (convId) newChat();
+      $('#fsMsg').textContent = r?.removed ? `Removed ${plural(r.removed, 'chat')} from your history.` : 'There was nothing to remove.';
+    });
+};
+
+// ---- Privacy: what pagebot can see on the page it is open on ----
+function showInMenu(id) { closeSheet(); closeMenus(); toggleMenu('#addMenu', '#addBtn'); if (document.hasFocus()) $(id).focus(); }
+function renderSees() {
+  const web = !isUser() || !!cfg.user?.allowWeb, pdfAllowed = pdfOk(), acts = actWhy();
+  const rows = [
+    ['Page text', 'The words on the page you’re on go with your message (not other tabs). Leave it out for one chat with the Page pill.',
+      standalone ? ['No page on /chat', ''] : pageOn ? ['On', 'on'] : ['Off', ''], standalone ? '' : '#pageBtn'],
+    ['Highlighted text', 'What you’ve selected on the page goes along as a quote, shown in a chip above the box. Click its × to leave it out.',
+      standalone ? ['No page on /chat', ''] : !pageV7 ? ['Needs the new bookmark', ''] : hostSel && !selOff ? ['Going along', 'on'] : ['Nothing selected', ''], ''],
+    ['Screenshots', 'Only when you take one from the + menu. Your browser asks first, and once it’s on, every message sends a fresh shot until you turn it off.',
+      area ? ['On', 'on'] : ['Off', ''], '#shotBtn'],
+    ['PDFs', 'Only PDFs you add yourself. They’re stored for 30 days, or until you delete them.',
+      !pdfAllowed ? ['Not on for you', ''] : pdfInChat() ? ['In this chat', 'on'] : ['None attached', ''], pdfAllowed ? '#pdfBtn' : ''],
+    ['Web search', 'pagebot can search the web for facts, writing the search itself. The page isn’t sent to a search engine.',
+      !web ? ['Not on for you', ''] : prefs.web ? ['On', 'on'] : ['Off', ''], web ? '#webBtn' : ''],
+    ['Page actions', 'It can click, type and choose on the page. It asks first unless you skip permissions, and never touches password, card or file fields.',
+      acts ? ['Not available', ''] : actsOn() ? ['On', 'on'] : ['Off', ''], standalone ? '' : '#actBtn'],
+  ];
+  const list = $('#seeList'); list.replaceChildren();
+  for (const [name, help, [status, cls], menu] of rows) {
+    const row = el('div', 'row'), t = el('div', 'rt'), c = el('div', 'rc');
+    t.append(el('b', 'rl'), el('span', 'rh')); t.firstChild.textContent = name; t.lastChild.textContent = help;
+    const chip = el('span', 'chip' + (cls ? ' ' + cls : '')); chip.textContent = status; c.appendChild(chip);
+    if (menu && !$(menu).disabled) { const b = el('button', 'ghost', 'In + menu'); b.type = 'button'; b.setAttribute('aria-label', `${name}: show in the + menu`); b.onclick = () => showInMenu(menu); c.appendChild(b); }
+    row.append(t, c); list.appendChild(row);
+  }
+}
+
+// ---- About: the keys ----
+const MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
+const MOD = MAC ? '⌘' : 'Ctrl';
+const KEYS = [
+  ['Message box', [
+    [['Enter'], 'Send your message.'], [['Shift', 'Enter'], 'Start a new line.'],
+    [['/'], 'At the start of a message, list the slash commands. ↑ ↓ pick one, Tab or Enter choose it.'],
+    [[MOD, 'V'], 'Paste an image or a PDF from your clipboard. You can also drop a PDF on the panel.']]],
+  ['Closing', [[['Esc'], 'Closes the top-most thing: a menu or confirmation first, then history, the PDF list or Settings, then the panel.']]],
+  ['Settings', [[['↑', '↓'], 'Move through the categories. Enter opens one on a narrow panel.'], [['Tab'], 'Moves into the category. Esc closes a confirmation, then Settings.']]],
+  ['Chat history', [[['↓'], 'From the search box, into your chats. ↑ ↓ move, Enter opens one.']]],
+  ['Wrapped', [[['←', '→'], 'Go back and forward a card.']]],
+];
+for (const [head, rows] of KEYS) {
+  const list = $('#keysList');
+  list.appendChild(el('div', 'kh')).textContent = head;
+  for (const [keys, what] of rows) {
+    const r = el('div', 'krow'), k = el('span', 'kk'), t = el('span', 'kt');
+    for (const x of keys) k.appendChild(el('kbd')).textContent = x;
+    t.textContent = what; r.append(k, t); list.appendChild(r);
+  }
+}
 
 // ---- move & minimize (needs the new bookmarklet) ----
 const hd = $('header');
@@ -2776,6 +3367,7 @@ function syncDock() {
   body.classList.toggle('docked', docked);
   $('#dockBtn').classList.toggle('on', docked);
   $('#dockBtn').title = docked ? 'Float the panel' : 'Dock to the side';
+  $('#dockTog').setAttribute('aria-checked', String(docked)); // Settings > Appearance > Panel
 }
 syncDock();
 $('#dockBtn').onclick = () => {
@@ -3288,7 +3880,7 @@ addEventListener('keydown', e => {
     if (e.key === 'Backspace') { e.preventDefault(); return pinKey('del'); }
   }
   // a held-down Esc, or one that just cancels typing in an input method, doesn't close the panel
-  if (e.key === 'Escape' && !e.isComposing) { if (openMenu) closeMenus(); else if (pdfsOpen) closePdfs(true); else if (histOpen) closeHistory(true); else if (sheetOpen) closeSheet(); else if (!e.repeat) closePanel(); }
+  if (e.key === 'Escape' && !e.isComposing) { if (openMenu) closeMenus(); else if (pdfsOpen) closePdfs(true); else if (histOpen) closeHistory(true); else if (sheetOpen) { closeSheet(); focusView(); } else if (!e.repeat) closePanel(); }
 });
 
 // ---- auto-lock after the passcode timeout, and keep the session alive while you're active ----
@@ -3765,7 +4357,7 @@ function selectCmd(slot) {
 // "Edit your commands" in the list: Settings, scrolled to this section
 function cmdFocus() {
   if (!sheetOpen) return;
-  $('#sheet').scrollTop = $('#cmdSec').offsetTop - 10;
+  selectCat('memory', true); $('#cmdSec').scrollIntoView({ block: 'start' });
   (cmdSlot || $('#cmdName').value ? $('#cmdList') : $('#cmdName')).focus({ preventScroll: true });
 }
 async function writeCommand(remove) {

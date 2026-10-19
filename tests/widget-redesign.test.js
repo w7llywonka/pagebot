@@ -127,6 +127,7 @@ browserTest('each new theme is in the picker, applies to the panel, is saved as 
   const f = await fixture(t);
   await f.ready();
   await f.frame.locator('#setBtn').click();
+  await f.frame.locator('#tab-appearance').click(); // the picker is in Settings > Appearance
   assert.equal(await f.frame.locator('.themes .sw').count(), 14);
   for (const name of NEW_THEMES) {
     await f.frame.locator(`.sw[data-t=${name}]`).click();
@@ -149,8 +150,11 @@ browserTest('Settings keeps its sections and its picker; only the swatches are n
   const f = await fixture(t);
   await f.ready();
   await f.frame.locator('#setBtn').click();
-  const headings = await f.frame.locator('#sheet section h3').allInnerTexts();
-  assert.deepEqual(headings.map(h => h.toLowerCase()), ['usage today', 'website memory', 'slash commands', 'appearance', 'answer length', 'page actions', 'account', 'quick unlock']);
+  // the sections moved into categories (see tests/widget-settings.test.js); every one of the old ones is still there
+  const headings = await f.frame.locator('#sheet h3').evaluateAll(els => els.map(e => e.textContent.toLowerCase()));
+  for (const old of ['usage today', 'website memory', 'slash commands', 'answer length', 'quick unlock']) assert.ok(headings.includes(old), old);
+  assert.deepEqual(await f.frame.locator('#stabs [role=tab] b').allInnerTexts(), ['General', 'Appearance', 'Memory & commands', 'Page actions', 'Files & chats', 'Privacy', 'Account', 'Usage', 'About']);
+  await f.frame.locator('#tab-appearance').click();
   const names = await f.frame.locator('.themes .sw .nm').allInnerTexts();
   assert.deepEqual(names, ['Auto', 'Ember', 'Paper', 'Midnight', 'Forest', 'Dusk', 'Sakura', 'Terminal', 'Pond', 'Orbit', 'Void', 'Arcade', 'Glass', 'Clear']);
   // a swatch carries its theme's colours, like the older ones
@@ -369,7 +373,7 @@ browserTest('history cards use two columns when there is room and one when narro
   assert.deepEqual(stacked, [true, 'block']);
 });
 
-browserTest('/chat uses the whole window with the reading column in the middle, and Settings keeps its old width', async t => {
+browserTest('/chat uses the whole window with the reading column in the middle, and Settings keeps a centred column of its own', async t => {
   const f = await fixture(t, { standalone: true, viewport: { width: 1440, height: 900 } });
   await f.ready();
   await f.frame.locator('#q').fill('Summarize.');
@@ -379,8 +383,9 @@ browserTest('/chat uses the whole window with the reading column in the middle, 
   assert.equal(m.body, 1440);
   assert.ok(m.width <= 760 && m.left === 340, JSON.stringify(m)); // (1440 - 760) / 2
   await f.frame.locator('#setBtn').click();
-  const sheet = await f.frame.evaluate(() => { const r = document.querySelector('#sheet').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.left)]; });
-  assert.deepEqual(sheet, [780, 330], 'Settings stays 780px wide and centred, as before');
+  // the sheet fills the window like history does; its two panes sit in a centred column of at most 900px
+  const sheet = await f.frame.evaluate(() => { const r = document.querySelector('#sheet').getBoundingClientRect(), c = document.querySelector('.sin').getBoundingClientRect(); return [Math.round(r.width), Math.round(c.width), Math.round(c.left)]; });
+  assert.deepEqual(sheet, [1440, 900, 270], 'Settings fills the window with its panes centred in 900px');
 });
 
 // ---- the panel's size: the real bookmarklet in a host page; the panel is the iframe it makes ----

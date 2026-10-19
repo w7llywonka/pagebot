@@ -23,6 +23,7 @@ const TRANSLATE = cmd('translate', 'Translate the highlighted text into {input}.
 const finalEvent = { t: 'done', conversationId: 42, model: 'haiku', usage: { in: 50, out: 20 }, stop: 'end_turn' };
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 
+const goCat = async (frame, name) => { if (await frame.locator('#shBack').isVisible()) await frame.locator('#shBack').click(); await frame.locator('#tab-' + name).click(); }; // Settings remembers the category you were in
 async function fixture(t, { standalone = false, commands = [], allowWeb = true, width = 440, height = 840, theme = 'ember' } = {}) {
   const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1000, height: 900 } });
   context.setDefaultTimeout(5000);
@@ -103,7 +104,7 @@ async function fixture(t, { standalone = false, commands = [], allowWeb = true, 
   const selected = () => frame.locator('#slashMenu [role=option][aria-selected=true] b').textContent();
   const answered = async n => { await frame.waitForFunction(n => document.querySelectorAll('.msg.bot .meta').length >= n, n); };
   const settle = () => frame.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
-  const openSettings = async () => { await frame.locator('#setBtn').click(); await frame.locator('#cmdForm').waitFor({ state: 'visible' }); };
+  const openSettings = async () => { await frame.locator('#setBtn').click(); await goCat(frame, 'memory'); await frame.locator('#cmdForm').waitFor({ state: 'visible' }); };
   return { page, frame, state, q, menu, chats, options, selected, answered, settle, openSettings };
 }
 
@@ -420,6 +421,7 @@ browserTest('signing in as someone else swaps in their commands', async t => {
   await f.q.fill('');
   await f.openSettings();
   await f.frame.locator('#cmdName').fill('draft');
+  await goCat(f.frame, 'account');
   await f.frame.locator('#outBtn').click();
   await f.frame.locator('#uName').fill('bob');
   await f.frame.locator('#uPass').fill('bob-password');
