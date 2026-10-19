@@ -94,12 +94,30 @@ P.lt=function(l){var c=l.cloneNode(true);[].forEach.call(c.querySelectorAll("sel
 P.lab=function(e){var a=e.getAttribute("aria-label"),b=e.getAttribute("aria-labelledby"),l=e.labels&&e.labels[0],m=e.querySelector&&e.querySelector("img[alt]"),f=/^(INPUT|SELECT|TEXTAREA)$/.test(e.tagName);
 if(!a&&b){b=D.getElementById(b.split(/\s+/)[0]);a=b&&b.textContent;}
 return P.tx(a||l&&P.lt(l)||(f?/^(submit|button|reset)$/.test(e.type)&&e.value||e.placeholder||e.title||e.name:e.innerText||e.title||m&&m.alt)||!f&&e.getAttribute("href"));};
-P.bad=function(e){var y=(e.type||"").toLowerCase(),l=e.labels&&e.labels[0],s=[e.name,e.id,e.getAttribute("autocomplete"),e.getAttribute("aria-label"),e.placeholder,l&&l.innerText].join(" ");
-return y==="file"?"file":!/^(textbox|select)$/.test(P.role(e))?"":y==="password"||/passw|passcode|\bpwd\b|one-time-code/i.test(s)?"password":/\bcc-|credit|debit|card.?(n(o|um)|code|ver|sec|exp|cvc|cvv|holder)|cvv|cvc|\bcsc\b|security.?code|expir|exp(iry)?.?(date|month|year)|mm\W{0,3}yy/i.test(s)?"payment":"";};
-/* a link to another page or a form submit; #links, new tabs and plain buttons stay */
-P.nav=function(e){var a=e.closest&&e.closest("a[href]"),f=e.form,t=e.tagName,y=(e.type||"").toLowerCase(),w=function(x){return x&&!/^_(self|top|parent)$/i.test(x);};
-return a?/^\s*(#|javascript:)/i.test(a.getAttribute("href"))||a.hasAttribute("download")||w(a.target)||a.href.indexOf("#")>0&&a.href.split("#")[0]===location.href.split("#")[0]?"":a.href
-:f&&(t==="BUTTON"&&!/^(button|reset)$/.test(y)||t==="INPUT"&&/^(submit|image)$/.test(y))&&!/^dialog$/i.test(f.getAttribute("method"))&&!w(f.target)?f.action||location.href:"";};
+/* protected fields, matched on everything that can name one: type, name, id, autocomplete, every label (aria-labelledby too), title, placeholder, and text drawn as dots */
+P.bad=function(e){var y=(e.type||"").toLowerCase(),b=e.getAttribute("aria-labelledby"),c,s;
+if(y==="file"){return "file";}
+if(!/^(textbox|select)$/.test(P.role(e))){return "";}
+b=b?b.split(/\s+/).map(function(i){var n=D.getElementById(i);return n?n.textContent:"";}).join(" "):"";
+s=[e.name,e.id,e.getAttribute("autocomplete"),e.getAttribute("aria-label"),b,e.placeholder,e.title,[].map.call(e.labels||[],function(l){return l.innerText;}).join(" ")].join(" ");
+try{c=getComputedStyle(e).webkitTextSecurity;}catch(x){}
+return y==="password"||c&&c!=="none"||/passw|passcode|\bpwd\b|one-time-code|\botp\b|\bpin\b|secret/i.test(s)?"password":/\bcc-|(?:^|[^a-z])cc[_ ]?(?:num|no\b|name|exp|cv|sec|csc|type|month|year|code|holder)|credit|debit|card.?(n(o|um)|code|ver|sec|exp|cvc|cvv|holder)|cvv|cvc|\bcsc\b|security.?code|expir|exp(iry)?.?(date|month|year)|mm\W{0,3}yy|(?:[\dx\u2022*#]{4}[ -]){3}[\dx\u2022*#]{4}/i.test(s)?"payment":"";};
+/* where a click would go. nav: this page is left for it (a link to another address, a form submit). tab: another site opens in a new tab or window.
+   #links, same-site new tabs and plain buttons stay. A submit button's own formaction/formtarget/formmethod come first, and attributes are
+   read with getAttribute, since a field named "target" or "action" shadows the form's properties (and e.formAction is the page's own address when there's no formaction). */
+P.go=function(e){var a=e.closest&&e.closest("a[href]"),f=e.form,t=e.tagName,y=(e.type||"").toLowerCase(),u,g,h,r={nav:"",tab:""},
+w=function(x){return x&&!/^_(self|top|parent)$/i.test(x);},
+far=function(x){try{return new URL(x,location.href).origin!==new URL(location.href).origin;}catch(z){return true;}};
+if(a){h=a.getAttribute("href")||"";u=typeof a.href==="string"?a.href:h;g=a.getAttribute("target");
+if(/^\s*#/.test(h)||u.indexOf("#")>0&&u.split("#")[0]===location.href.split("#")[0]){return r;}
+if(/^\s*javascript:/i.test(h)){if(!/^\s*javascript:\s*(void\s*\(?\s*0?\s*\)?\s*;?)?\s*$/i.test(h)){r.nav="javascript:";}return r;}
+if(a.hasAttribute("download")&&!far(u)){return r;}
+if(w(g)){if(far(u)){r.tab=u;}}else{r.nav=u;}
+return r;}
+if(f&&(t==="BUTTON"&&!/^(button|reset)$/.test(y)||t==="INPUT"&&/^(submit|image)$/.test(y))&&!/^dialog$/i.test(e.getAttribute("formmethod")||f.getAttribute("method")||"")){
+u=e.getAttribute("formaction")||f.getAttribute("action")||"";try{u=new URL(u,D.baseURI||location.href).href;}catch(z){u=location.href;}g=e.hasAttribute("formtarget")?e.getAttribute("formtarget"):f.getAttribute("target");
+if(w(g)){if(far(u)){r.tab=u;}}else{r.nav=u;}}
+return r;};
 P.on=function(e){return e.tagName==="INPUT"?e.checked:e.getAttribute("aria-checked")==="true";};
 P.els=function(q){var c=[],o=[],s=D.querySelectorAll('input:not([type=hidden]),textarea,select,button,a[href],[role=button],[role=link],[role=checkbox],[role=radio],[role=switch],[contenteditable=""],[contenteditable=true]'),i,e,x,r,b;
 q=P.tx(q,100).toLowerCase();
@@ -113,16 +131,20 @@ else if(x.role==="select"){r=e.options[e.selectedIndex];x.value=P.tx(r&&r.text);
 if(/^(checkbox|radio|switch)$/.test(x.role)){x.checked=P.on(e);}
 if(e.disabled||e.getAttribute("aria-disabled")==="true"){x.off=1;}
 if(e.tagName==="INPUT"&&x.role==="textbox"&&e.type!=="text"){x.type=e.type;}
-if(P.nav(e)){x.nav=1;}
+b=P.go(e);if(b.nav){x.nav=1;}else if(b.tab){x.tab=1;}
 o.push(x);}
 return {els:o,more:c.length-o.length};};
 /* one tool call; a refusal is {no:reason}. dry: check and describe it only */
-P.act=function(d){var n=d.name,i=d.input||{},e=P.refs[(i.ref|0)-1],r,b,h,o,v,t=String(i.text==null?"":i.text).slice(0,5000);
+P.act=function(d){var n=d.name,i=d.input||{},e=P.refs[(i.ref|0)-1],r,b,g,h,o,v,t=String(i.text==null?"":i.text).slice(0,5000);
 if(n==="els"){return P.els(i.query);}
 if(n==="hl"){r=[];b=0;[].concat(i.quotes||[]).slice(0,10).forEach(function(q){var f=0;try{f=P.find(String(q).slice(0,4000),b);}catch(x){}b+=f;r.push(f);});return {found:r};}
 if(n==="scroll"&&!i.ref){return {found:P.find(String(i.quote||"").slice(0,4000))};}
 if(!e||!e.isConnected||!P.vis(e)){return {no:"gone"};}
-r=P.role(e);b=P.bad(e);h={role:r,label:P.lab(e),nav:P.nav(e).slice(0,300)};
+r=P.role(e);b=P.bad(e);g=P.go(e);h={role:r,label:P.lab(e),nav:g.nav.slice(0,300)};
+if(g.tab){h.tab=g.tab.slice(0,300);}
+/* what the control itself says, when that isn't the label the model was shown (an aria-label can say "Cancel" on a "Pay now" button) */
+v=/^(button|link|switch|checkbox|radio)$/.test(r)&&P.tx(e.tagName==="INPUT"?/^(submit|button|reset)$/.test(e.type)&&e.value:e.innerText,60);
+if(v&&v.toLowerCase()!==h.label.toLowerCase()){h.text=v;}
 if(n==="scroll"){P.unmark();e.scrollIntoView({block:"center",behavior:"smooth"});P.ol=e;P.oo=e.style.outline;e.style.outline="3px solid rgba(255,190,0,.9)";return h;}
 if(b==="file"||b&&n!=="click"){return {no:b};}
 if(e.disabled||e.getAttribute("aria-disabled")==="true"||n==="fill"&&e.readOnly){return {no:"off"};}
@@ -131,7 +153,8 @@ if(n==="check"&&r==="radio"&&i.checked===false){return {no:"radio"};}
 if(n==="select"){v=P.tx(i.option,300).toLowerCase();o=[].filter.call(e.options,function(x){return x.value===i.option||P.tx(x.text,300).toLowerCase()===v;})[0]||v&&[].filter.call(e.options,function(x){return P.tx(x.text,300).toLowerCase().indexOf(v)>=0;})[0];
 if(!o||o.disabled){return {no:"option",opts:[].slice.call(e.options,0,20).map(function(x){return P.tx(x.text,40);})};}h.option=P.tx(o.text);}
 if(d.dry){return h;}
-if(n==="click"&&h.nav&&!d.sure){return {no:"nav",nav:h.nav};}
+/* sure is 1 or the address that was approved: a link that changed where it goes since then asks again */
+if(n==="click"&&(h.nav||h.tab)&&!(d.sure===1||d.sure===(h.nav||h.tab))){return h.nav?{no:"nav",nav:h.nav}:{no:"tab",tab:h.tab};}
 if(e.scrollIntoView){e.scrollIntoView({block:"center"});}if(e.focus){e.focus();}
 if(n==="click"){e.click();return h;}
 if(n==="check"){if(P.on(e)!==(i.checked!==false)){e.click();}h.checked=P.on(e);return h;}

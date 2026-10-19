@@ -13,7 +13,7 @@ const origin = 'https://pagebot.test';
 class Control { get value() { return this._value ?? ''; } set value(v) { this._value = String(v); this.nativeSets = (this.nativeSets || 0) + 1; } }
 function node(tag, o = {}) {
   const e = Object.create(Control.prototype);
-  const attrs = { ...(o.attrs || {}) };
+  const attrs = { ...(o.attrs || {}), ...(o.target && { target: o.target }) };
   Object.assign(e, {
     tagName: tag.toUpperCase(), nodeName: tag.toUpperCase(), type: o.type ?? (tag === 'button' ? 'submit' : tag === 'input' ? 'text' : undefined),
     name: o.name || '', id: o.id || '', placeholder: o.placeholder || '', title: o.title || '', innerText: o.text || '', textContent: o.text || '',
@@ -62,7 +62,7 @@ function page(elements, { texts = [], url = 'https://shop.example/cart' } = {}) 
   };
   const window = { innerWidth: 1200, innerHeight: 900, getSelection: () => '', addEventListener(type, handler) { listeners.set(type, handler); } };
   const context = vm.createContext({
-    window, document, location: { href: url },
+    window, document, location: { href: url }, URL,
     getComputedStyle: e => ({ visibility: e.hiddenStyle ? 'hidden' : 'visible', backgroundColor: 'rgb(255,255,255)' }),
     Event: class { constructor(type, o) { this.type = type; this.bubbles = !!o?.bubbles; } },
     requestAnimationFrame: () => 1, setTimeout() {}, clearTimeout() {},
@@ -78,7 +78,7 @@ function page(elements, { texts = [], url = 'https://shop.example/cart' } = {}) 
 }
 
 function shop() {
-  const form = { action: 'https://shop.example/checkout', target: '', getAttribute: k => k === 'method' ? 'post' : null };
+  const form = { action: 'https://shop.example/checkout', target: '', getAttribute: k => k === 'method' ? 'post' : k === 'action' ? 'https://shop.example/checkout' : null };
   const els = {
     search: node('input', { placeholder: 'Search the shop', value: 'socks' }),
     pass: node('input', { type: 'password', name: 'pw', label: 'Password', value: 'hunter2' }),
@@ -207,7 +207,7 @@ test('password, payment card and file fields are refused whatever is asked, even
   assert.equal(q.replies.length, 1 + l2.length);
 });
 
-test('a click that leaves the page needs sure, while in-page links, new tabs and plain buttons do not', () => {
+test('a click that leaves the page needs sure, while in-page links, same-site new tabs and plain buttons do not', () => {
   const els = shop(), p = page(Object.values(els)), list = p.act('els', {}).els;
   let r = p.act('click', { ref: refOf(list, 'Help') }, { dry: 1 });
   assert.equal(r.nav, 'https://shop.example/help');
@@ -217,7 +217,7 @@ test('a click that leaves the page needs sure, while in-page links, new tabs and
   assert.equal(els.other.clicks, 1);
   assert.equal(p.act('click', { ref: refOf(list, 'Place order') }, { dry: 1 }).nav, 'https://shop.example/checkout', 'a submit button in a form');
   assert.deepEqual(p.act('click', { ref: refOf(list, 'Place order') }).no, 'nav');
-  for (const label of ['Back to top', 'Partner', 'Menu', 'Reviews', 'Add to cart', 'Start over']) {
+  for (const label of ['Back to top', 'Menu', 'Reviews', 'Add to cart', 'Start over']) {
     assert.equal(p.act('click', { ref: refOf(list, label) }).nav, '', label);
   }
   assert.equal(p.act('click', { ref: refOf(list, 'Refresh') }, { dry: 1 }).nav, 'https://shop.example/cart', 'reloading counts');
@@ -226,7 +226,7 @@ test('a click that leaves the page needs sure, while in-page links, new tabs and
   q.bot.refs.push(els.icon);
   assert.equal(q.act('click', { ref: q.bot.refs.length }, { dry: 1 }).nav, 'https://shop.example/help');
   // a dialog form doesn't navigate
-  const dialog = node('button', { text: 'Close', form: { action: 'x', target: '', getAttribute: k => k === 'method' ? 'dialog' : null } });
+  const dialog = node('button', { text: 'Close', form: { action: 'x', target: '', getAttribute: k => k === 'method' ? 'dialog' : k === 'action' ? 'x' : null } });
   const d = page([dialog]);
   assert.equal(d.act('click', { ref: d.act('els', {}).els[0].ref }).nav, '');
   assert.equal(dialog.clicks, 1);
