@@ -214,8 +214,8 @@ browserTest('General: model, web search and answer length are saved as preferenc
   await f.frame.waitForFunction(() => document.querySelector('#webTog').getAttribute('aria-checked') === 'true');
   assert.deepEqual(f.reqs('/api/prefs').at(-1).body, { web: true });
   assert.equal(await f.vis('#webPill'), true, 'and so does the Web pill');
-  await f.frame.locator('#tokSeg button', { hasText: '4k' }).click();
-  await f.frame.waitForFunction(() => document.querySelector('#tokSeg .on')?.textContent === '4k');
+  await f.frame.locator('#tokSeg button[data-n="4096"]').click(); // (an account sees the answer lengths by name: 4k is Long)
+  await f.frame.waitForFunction(() => document.querySelector('#tokSeg .on')?.textContent === 'Long');
   assert.deepEqual(f.reqs('/api/prefs').at(-1).body, { maxTokens: 4096 });
   // an account without web search sees why
   const g = await fixture(t, { width: 720, user: { allowWeb: false } });
