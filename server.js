@@ -1736,7 +1736,7 @@ function pastMessage(m) {
     const q = splitQuestion(m.content);
     return { role: 'user', text: q.text, highlight: q.highlight.slice(0, 2000), page: m.has_doc || !!q.page, url: x.url || q.page?.url || null,
       image: m.had_image, web: !!x.web, at,
-      ...(m.pdf_name != null && { pdf: { name: m.pdf_name, pages: m.pdf_pages, gone: !m.pdf_stored } }) }; // pdf uploads: a chip, greyed once the file's been cleared
+      ...(m.pdf_name != null && { pdf: { id: Number(m.attachment_id), name: m.pdf_name, pages: m.pdf_pages, gone: !m.pdf_stored } }) }; // pdf uploads: a chip, greyed once the file's been cleared
   }
   const blank = m.content === (m.refused ? '[declined]' : m.incomplete ? '(stopped)' : '(no answer)'); // the stand-ins chat() saves
   return {
@@ -1805,7 +1805,7 @@ app.get('/api/chats/:id', limit(120, 'chats-read'), auth, trusted, async (req, r
   const c = id && (await pool.query(`${chatSql()} WHERE c.id = $1 AND COALESCE(c.user_id, 0) = $2 AND c.hidden_at IS NULL`, [id, req.user?.id ?? 0])).rows[0];
   if (!c) return res.status(404).json(GONE); // someone else's chat looks the same as one that isn't there
   const r = await pool.query(`SELECT * FROM (SELECT id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, incomplete, meta, steps,
-      created_at, page_doc IS NOT NULL AS has_doc,
+      created_at, page_doc IS NOT NULL AS has_doc, attachment_id,
       (SELECT f.name FROM attachments f WHERE f.id = messages.attachment_id) AS pdf_name, (SELECT f.pages FROM attachments f WHERE f.id = messages.attachment_id) AS pdf_pages,
       (SELECT f.bytes IS NOT NULL FROM attachments f WHERE f.id = messages.attachment_id) AS pdf_stored FROM messages WHERE conversation_id = $1 ORDER BY id DESC LIMIT ${MAX_PAST + 1}) x ORDER BY id`, [id]);
   const rows = r.rows.slice(-MAX_PAST);
@@ -1837,6 +1837,11 @@ const PDF_PAGE_TOKENS = 2500; // rough prompt tokens per page (its text plus the
 const MAX_CHAT_PDFS = 3, MAX_CHAT_PDF_BYTES = 20 * 1024 * 1024;
 const MAX_UNUSED_PDFS = 10; // uploads not sent with a question yet; older ones make way for new ones
 const UNUSED_PDF_HOURS = 24, PDF_KEEP_DAYS = 30;
+// What one person may keep stored at once (PDF_STORAGE_MB, fractions allowed): the sizes of their files that still have bytes.
+// Cleared files (bytes NULL: the sweep, or deleting one) keep their size column for the record but don't count.
+const PDF_CAP = Math.round((Number(process.env.PDF_STORAGE_MB) > 0 ? Number(process.env.PDF_STORAGE_MB) : 100) * 1048576);
+const pdfMB = n => `${(n / 1048576).toFixed(n < 1048576 ? 2 : 1)} MB`;
+const pdfUsed = (db, uid) => db.query('SELECT COALESCE(SUM(size), 0)::bigint AS n FROM attachments WHERE user_id IS NOT DISTINCT FROM $1 AND bytes IS NOT NULL', [uid]).then(r => Number(r.rows[0].n));
 const MB = n => `${Math.round(n / 1024 / 1024 * 10) / 10} MB`;
 // a file name to show, never a path
 const pdfName = v => (typeof v === 'string' ? v : '').normalize('NFC').replace(/[\u0000-\u001f\u007f\\/]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) || 'document.pdf';
@@ -1925,17 +1930,50 @@ app.post('/api/pdf', limit(20, 'pdf'), limit(120, 'pdf-hour', 3600_000), auth, t
   const pages = pdfPageCount(buf);
   if (pages > MAX_PDF_PAGES) return res.status(413).json({ error: `That PDF has ${pages} pages. PDFs can have up to ${MAX_PDF_PAGES} pages, so split it or save just the part you need.` });
   const tokens = await pdfTokens(buf, pages), name = pdfName(req.query.name);
-  const r = await pool.query('INSERT INTO attachments(user_id, name, bytes, size, pages, tokens) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
-    [uid, name, buf, buf.length, pages, tokens]);
+  // the cap is checked and the file stored under one per-person lock, so parallel uploads can't both slip under it
+  const db = await pool.connect();
+  let r;
+  try {
+    await db.query('BEGIN');
+    await db.query(`SELECT pg_advisory_xact_lock(hashtextextended('pdf_storage:' || $1::text, 0))`, [uid ?? 0]);
+    const used = await pdfUsed(db, uid);
+    if (used + buf.length > PDF_CAP) {
+      await db.query('ROLLBACK');
+      return res.status(413).json({ storage: true, used, cap: PDF_CAP, error: `You have ${pdfMB(used)} of PDFs stored, out of ${pdfMB(PDF_CAP)}, and this one is ${pdfMB(buf.length)}. Delete a PDF you’re done with to make room.` });
+    }
+    r = await db.query('INSERT INTO attachments(user_id, name, bytes, size, pages, tokens) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+      [uid, name, buf, buf.length, pages, tokens]);
+    await db.query('COMMIT');
+  } catch (e) { await db.query('ROLLBACK').catch(() => {}); throw e; } finally { db.release(); }
   await pool.query(`DELETE FROM attachments WHERE id IN (SELECT id FROM attachments WHERE user_id IS NOT DISTINCT FROM $1 AND conversation_id IS NULL
     ORDER BY id DESC OFFSET $2)`, [uid, MAX_UNUSED_PDFS]);
   res.json({ id: Number(r.rows[0].id), name, size: buf.length, pages, tokens });
+});
+
+// Your stored PDFs (newest first) and how much of the cap they use, and deleting one: its file goes (bytes NULL, the same state the
+// retention sweep leaves), the row stays so chats still show the chip as "no longer available". Neither route needs PDF uploads
+// to be on: you can always see and delete your own files.
+app.get('/api/pdf', limit(120, 'pdf-list'), auth, trusted, async (req, res) => {
+  const uid = req.user?.id ?? null;
+  const [used, r] = await Promise.all([pdfUsed(pool, uid), pool.query(`SELECT a.id, a.name, a.size, a.pages, a.created_at, a.conversation_id, c.page_title, f.content AS first
+      FROM attachments a LEFT JOIN conversations c ON c.id = a.conversation_id
+      LEFT JOIN LATERAL (SELECT left(m.content, 4000) AS content FROM messages m WHERE m.conversation_id = c.id AND m.role = 'user' ORDER BY m.id LIMIT 1) f ON true
+      WHERE a.user_id IS NOT DISTINCT FROM $1 AND a.bytes IS NOT NULL ORDER BY a.id DESC LIMIT 500`, [uid])]);
+  res.json({ used, cap: PDF_CAP, pdfs: r.rows.map(x => ({ id: Number(x.id), name: x.name, size: x.size, pages: x.pages, createdAt: x.created_at,
+    inChat: x.conversation_id != null, chatId: x.conversation_id != null ? Number(x.conversation_id) : null, chatTitle: x.conversation_id != null ? chatTitle(x) : null })) });
+});
+app.delete('/api/pdf/:id', limit(60, 'pdf-delete'), auth, trusted, async (req, res) => {
+  const id = chatId(req.params.id), uid = req.user?.id ?? null;
+  const r = id && await pool.query('UPDATE attachments SET bytes = NULL WHERE id = $1 AND user_id IS NOT DISTINCT FROM $2 AND bytes IS NOT NULL', [id, uid]);
+  if (!r?.rowCount) return res.status(404).json({ error: 'That PDF isn’t stored anymore.' }); // someone else's looks the same, and so does a second delete
+  res.json({ ok: true, used: await pdfUsed(pool, uid), cap: PDF_CAP });
 });
 
 // Retention: uploads never sent with a question go after a day, and every PDF's file after 30 days (or once its account
 // is gone). The rows stay, so chats and /admin can still name the PDF, and follow-ups send a note in its place.
 // A chat removed from someone's history keeps its PDF until then, like the rest of the chat.
 async function sweepPdfs() {
+  // (clearing sets only bytes to NULL; size stays as the file's record, and the storage cap counts just rows that still have bytes)
   const gone = await pool.query(`DELETE FROM attachments WHERE conversation_id IS NULL AND created_at < now() - make_interval(hours => $1)`, [UNUSED_PDF_HOURS]);
   const old = await pool.query(`UPDATE attachments a SET bytes = NULL WHERE bytes IS NOT NULL AND (created_at < now() - make_interval(days => $1)
     OR (user_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = a.user_id)))`, [PDF_KEEP_DAYS]);
@@ -2297,6 +2335,7 @@ app.get('/api/admin/users', limit(300, 'admin'), admin, async (req, res) => {
       FROM messages GROUP BY user_id
     )
     SELECT u.*, (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id)::int AS devices,
+      (SELECT ARRAY[COUNT(*), COALESCE(SUM(size), 0)] FROM attachments f WHERE f.user_id = u.id AND f.bytes IS NOT NULL) AS pdf_stored, -- pdf storage
       t.today_tokens, t.today_usd, t.today_q, t.week_tokens, t.week_usd, t.week_q, t.total_tokens, t.total_usd, t.total_q, t.last_q,
       (SELECT row_to_json(x) FROM (${BAN_SQL} WHERE b.id = u.ban_id) x) AS ban,
       (SELECT row_to_json(r) FROM bans r WHERE r.id = u.restrict_id) AS restriction,
@@ -2316,7 +2355,8 @@ app.get('/api/admin/users', limit(300, 'admin'), admin, async (req, res) => {
       SUM(input_tokens + output_tokens) AS total_tokens, SUM(cost_usd) AS total_usd, COUNT(*) FILTER (WHERE role = 'user') AS total_q,
       MAX(created_at) FILTER (WHERE role = 'user') AS last_q,
       (SELECT COUNT(*) FROM sessions WHERE user_id IS NULL)::int AS devices,
-      (SELECT MAX(last_used) FROM sessions WHERE user_id IS NULL) AS last_seen
+      (SELECT MAX(last_used) FROM sessions WHERE user_id IS NULL) AS last_seen,
+      (SELECT ARRAY[COUNT(*), COALESCE(SUM(size), 0)] FROM attachments WHERE user_id IS NULL AND bytes IS NOT NULL) AS pdf_stored
     FROM messages WHERE user_id IS NULL`, [TIMEZONE])).rows[0];
   const bans = await pool.query(`${BAN_SQL} ORDER BY b.id DESC LIMIT 100`);
   const appeals = await pool.query(`SELECT a.*, (SELECT row_to_json(x) FROM (${BAN_SQL} WHERE b.id = a.ban_id) x) AS ban
@@ -2329,8 +2369,9 @@ app.get('/api/admin/users', limit(300, 'admin'), admin, async (req, res) => {
       today: { tokens: +own.today_tokens || 0, usd: +own.today_usd || 0, questions: +own.today_q || 0 },
       week: { tokens: +own.week_tokens || 0, usd: +own.week_usd || 0, questions: +own.week_q || 0 },
       total: { tokens: +own.total_tokens || 0, usd: +own.total_usd || 0, questions: +own.total_q || 0 },
-      devices: own.devices || 0, lastSeen: own.last_seen, lastQuestion: own.last_q,
+      devices: own.devices || 0, lastSeen: own.last_seen, lastQuestion: own.last_q, pdfs: pdfStored(own.pdf_stored),
     },
+    pdfCap: PDF_CAP,
     users: r.rows.map(adminUser),
   });
 });
@@ -2343,9 +2384,10 @@ function adminUser(x) {
     today: { tokens: +x.today_tokens || 0, usd: +x.today_usd || 0, questions: +x.today_q || 0 },
     week: { tokens: +x.week_tokens || 0, usd: +x.week_usd || 0, questions: +x.week_q || 0 },
     total: { tokens: +x.total_tokens || 0, usd: +x.total_usd || 0, questions: +x.total_q || 0 },
-    lastQuestion: x.last_q || null,
+    lastQuestion: x.last_q || null, pdfs: pdfStored(x.pdf_stored),
   };
 }
+const pdfStored = a => ({ count: Number(a?.[0]) || 0, bytes: Number(a?.[1]) || 0 }); // what a person has stored (admin's side panel)
 
 // approve, block, set limits and access, leave a note, reset the password, or sign an account out
 app.post('/api/admin/users/:id', limit(300, 'admin'), admin, async (req, res) => {

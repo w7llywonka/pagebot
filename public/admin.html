@@ -1464,6 +1464,10 @@ function renderDrawer() {
     ll.append(meter(f), `${pctText(f)} of today’s ${limitText(e.limitKind, e.limitValue)}` + (u.restriction?.limits?.limitKind ? ' (while restricted)' : ''));
     nums.appendChild(ll);
   }
+  if (st.pdfs) { // pdf storage: what they keep stored, against the cap
+    const mb = n => `${(n / 1048576).toFixed(n < 1048576 ? 2 : 1)} MB`;
+    nums.appendChild(mk('p', 'sub', `PDFs stored: ${st.pdfs.count} (${mb(st.pdfs.bytes)} of ${mb(S.users.pdfCap)} cap)`));
+  }
   body.appendChild(nums);
   // their last 30 days
   const fig = mk('figure', 'chart'), NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'), tip = mk('div', 'tip');
