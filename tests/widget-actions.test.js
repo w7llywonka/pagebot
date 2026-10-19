@@ -167,6 +167,7 @@ browserTest('Skip all permissions asks for a confirmation about hidden page inst
   const f = await fixture(t);
   assert.equal(await f.frame.locator('#actTag').isVisible(), false);
   await f.frame.locator('#setBtn').click();
+  await f.frame.locator('#tab-actions').click(); // Settings is a list of categories at this width
   assert.equal(await f.frame.locator('#actAsk').getAttribute('aria-checked'), 'true', 'asking is the default');
   await f.frame.locator('#actSkip').click();
   assert.match(await f.frame.locator('#actWarn').innerText(), /hide instructions/);
@@ -204,7 +205,9 @@ browserTest('the Actions toggle is unavailable, with a reason, on /chat, on book
   await denied.frame.locator('#addBtn').click();
   assert.match(await denied.frame.locator('#actNote').innerText(), /Not turned on for your account/);
   await denied.frame.locator('#setBtn').click();
+  await denied.frame.locator('#tab-actions').click();
   assert.equal(await denied.frame.locator('#actSec').isVisible(), false);
+  assert.match(await denied.frame.locator('#actAvail').innerText(), /Not turned on for your account/, 'and Settings says why');
 
   const on = await fixture(t);
   await on.frame.locator('#addBtn').click();

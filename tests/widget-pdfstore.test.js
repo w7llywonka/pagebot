@@ -167,7 +167,7 @@ browserTest('the history sheet has a Manage your PDFs link, and the sheets swap'
   await f.frame.locator('#setBtn').click();
   assert.equal(await f.frame.locator('#pdfs').isVisible(), false, 'so does Settings');
   assert.equal(await f.frame.locator('#sheet').isVisible(), true);
-  assert.equal(await f.frame.locator('#sheet', { hasText: 'Your PDFs' }).count(), 0, 'and Settings has nothing about PDF storage');
+  assert.equal(await f.frame.locator('#sheet', { hasText: 'Your PDFs' }).count(), 0, 'and Settings does not hold the list itself (its Files & chats category has a Manage PDFs button)');
 });
 
 browserTest('when the cap is reached the upload note has a Manage PDFs button that opens the list', async t => {
