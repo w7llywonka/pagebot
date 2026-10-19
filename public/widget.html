@@ -3115,7 +3115,7 @@ async function send() {
         else if (ev.t === 's') searchStep(bot, ev.q);
         else if (ev.t === 'act' && run) pageAct(run, ev);
         else if (ev.t === 'done') { renderer.flush(); refused = 'refusal' in ev; if (ctrl === mine) { ctrl = null; stopMode(false); } finish(bot, out, ev, acc); }
-        else if (ev.t === 'err') { if (!ev.conversationId) pdfBack(); throw new Error(ev.v); } // a broken-off answer stays in the chat
+        else if (ev.t === 'err') { if (ev.quota && cfg) { cfg.quota = ev.quota; renderQuota(); } if (!ev.conversationId) pdfBack(); throw new Error(ev.v); } // a broken-off answer stays in the chat
       }
     }
     renderer.flush();

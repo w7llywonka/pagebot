@@ -1291,6 +1291,8 @@ function stepsNote(json) {
   const how = { done: 'done', denied: 'skipped by the user', failed: 'didn’t work' };
   return `[Page actions I took in this answer: ${s.slice(0, ACT_MAX).map((x, i) => `${i + 1}. ${clip(x?.text, 200)} (${how[x?.outcome] || 'didn’t work'})`).join('; ')}]\n\n`;
 }
+const LIMITED = '\n\n_Stopped here: another step would go past today’s limit._';
+const msgTokens = msg => { const u = msg.usage || {}; return (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.output_tokens || 0); };
 // would another model round still fit in today's limit? Its prompt is about est tokens. Returns the answer length to
 // use, or 0 when it wouldn't fit (accounts without a daily limit always fit).
 function actRoom(q0, tot, est, model, cap, searchUsd) {
@@ -1338,8 +1340,7 @@ function pageActs(out, who, limits, closed) {
     // after a round that ended in tool calls: run them and set up the next round. Returns true to go on, or else the
     // note to end the answer with ('' when the panel went away).
     async round(final, params, room) {
-      const u = final.usage || {}, prev = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.output_tokens || 0);
-      const limited = '\n\n_Stopped here: another step would go past today’s limit._';
+      const prev = msgTokens(final), limited = LIMITED;
       if (params.tool_choice?.type === 'none') return ''; // it was already told to finish
       if (!room(prev + 1000)) return limited; // don't touch the page if there's no room left to say what happened
       const results = await this.run(final.content);
@@ -1349,7 +1350,10 @@ function pageActs(out, who, limits, closed) {
       params.max_tokens = max;
       params.messages = [...params.messages, { role: 'assistant', content: final.content }, { role: 'user', content: results }];
       if (n >= ACT_MAX) params.tool_choice = { type: 'none' }; // out of steps: the model finishes in words
-      params.cache_control = { type: 'ephemeral' }; // each round's prompt starts with the last one's, so cache it as it grows
+      // each round's prompt starts with the last one's, so cache it as it grows; the API allows 4 breakpoints in all, and
+      // the question's text and each PDF (up to 3) already hold some
+      const marked = params.messages.reduce((k, m) => k + (Array.isArray(m.content) ? m.content.filter(b => b.cache_control).length : 0), 0);
+      if (marked < 4) params.cache_control = { type: 'ephemeral' };
       return true;
     },
   };
@@ -1396,13 +1400,15 @@ async function chat(req, res) {
   if (q0 && q0.left <= 0)
     return res.status(429).json({ error: `You’ve used today’s limit of ${fmtLimit(q0.kind, q0.limit)}. It resets at midnight.`, quota: q0 });
 
-  const message = String(b.message || '').slice(0, 8000);
+  // PostgreSQL text can't hold a NUL, and the rows are only saved once the answer is in: one in a question would lose its usage
+  const str = v => String(v || '').replaceAll('\0', '');
+  const message = str(b.message).slice(0, 8000);
   const page = b.page && typeof b.page === 'object' ? {
-    url: String(b.page.url || '').slice(0, 2000),
-    title: String(b.page.title || '').slice(0, 300),
-    text: String(b.page.text || '').slice(0, limits.pageTokens * 4), // ~4 characters per token; it goes in a document block
+    url: str(b.page.url).slice(0, 2000),
+    title: str(b.page.title).slice(0, 300),
+    text: str(b.page.text).slice(0, limits.pageTokens * 4), // ~4 characters per token; it goes in a document block
   } : null;
-  const selection = fence(String(b.selection || '').slice(0, 8000));
+  const selection = fence(str(b.selection).slice(0, 8000));
   const hasSite = Object.hasOwn(b, 'site');
   const explicitSite = hasSite && b.site != null && b.site !== '';
   // An explicit null clears context (for example when the bookmarklet cannot read the current site).
@@ -1592,7 +1598,14 @@ async function chat(req, res) {
             sources.set(c.url, String(c.title || '').slice(0, 200));
         }
       }
-      if (final.stop_reason === 'pause_turn' && ++pauses < 4) { params.messages = [...params.messages, { role: 'assistant', content: final.content }]; continue; }
+      if (final.stop_reason === 'pause_turn' && ++pauses < 4) {
+        // the continuation sends the whole prompt again, so it needs room in today's limit like a page-action round
+        const max = room(msgTokens(final));
+        if (!max) { reply += LIMITED; out({ t: 'd', v: LIMITED }); break; }
+        params.max_tokens = max;
+        params.messages = [...params.messages, { role: 'assistant', content: final.content }];
+        continue;
+      }
       if (final.stop_reason !== 'tool_use' || !acts) break;
       const next = await acts.round(final, params, room);
       if (next !== true) { if (next) { reply += next; out({ t: 'd', v: next }); } break; }
@@ -1616,11 +1629,12 @@ async function chat(req, res) {
   }
 
   const refused = (failed ? cut : final)?.stop_reason === 'refusal';
-  const replyText = reply.trim() ? reply : refused ? '[declined]' : failed ? '(stopped)' : '(no answer)';
+  const replyText = reply.trim() ? reply.replaceAll('\0', '') : refused ? '[declined]' : failed ? '(stopped)' : '(no answer)'; // (a NUL would fail the insert too)
   // an answer that broke off still counts toward usage, and stays in the chat as far as it got, for follow-ups
+  // (The PDF is looked up again in the insert: newer uploads can push an unused one out mid-answer, and a dangling id would lose both rows.)
   await pool.query(
     `INSERT INTO messages(conversation_id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, user_id, cost_usd, incomplete, page_doc, theme, meta, steps, attachment_id)
-     VALUES ($1,'user',$2,$3,0,0,NULL,0,$4,$10,0,$12,$13,$14,$15,NULL,$18), ($1,'assistant',$5,false,$6,$7,$8,$9,$4,$10,$11,$12,NULL,NULL,$16,$17,NULL)`,
+     VALUES ($1,'user',$2,$3,0,0,NULL,0,$4,$10,0,$12,$13,$14,$15,NULL,(SELECT id FROM attachments WHERE id = $18)), ($1,'assistant',$5,false,$6,$7,$8,$9,$4,$10,$11,$12,NULL,NULL,$16,$17,NULL)`,
     [convId, userText, !!image, refused, replyText, tot.in, tot.out, (cut || final)?.model || m.id, tot.searches, uid, tot.usd, !!failed,
       doc ? JSON.stringify({ url: doc.url, title: doc.title, text: doc.text }) : null, prefs.theme,
       questionMeta({ doc, web }), answerMeta({ sources, quotes, cites, pdfPages, refused, end: failed ? cut : final, requested: m.id }),
@@ -1628,8 +1642,9 @@ async function chat(req, res) {
   await pool.query('UPDATE conversations SET updated_at = now() WHERE id = $1', [convId]); // chat history lists it first now
   // pdf uploads: the PDF belongs to this chat from now on (one that never reached the model stays free to send again)
   if (pdf.cur) await pool.query('UPDATE attachments SET conversation_id = $1 WHERE id = $2 AND conversation_id IS NULL', [convId, pdf.cur.id]);
+  const left = used && quota(u, { tokens: used.tokens + tot.in + tot.out, usd: used.usd + tot.usd }); // the bar, after this answer
   if (failed) {
-    out({ t: 'err', v: friendly(failed, m.id), conversationId: convId });
+    out({ t: 'err', v: friendly(failed, m.id), conversationId: convId, ...(left && { quota: left }) }); // (a broken-off answer was billed too)
     return void res.end();
   }
   out({
@@ -1638,7 +1653,7 @@ async function chat(req, res) {
     searches: tot.searches, sources: [...sources].slice(0, 8).map(([url, title]) => ({ url, title })),
     ...(cites.length && !refused && { quotes, cites, ...(pdfPages.length && { pdfPages: Array.from(quotes, (_, i) => pdfPages[i] || null) }) }),
     ...(refused && { refusal: final.stop_details?.category || null }),
-    ...(used && { quota: quota(u, { tokens: used.tokens + tot.in + tot.out, usd: used.usd + tot.usd }) }),
+    ...(left && { quota: left }),
   });
   res.end();
 }

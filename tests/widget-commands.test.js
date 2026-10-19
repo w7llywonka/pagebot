@@ -220,9 +220,10 @@ browserTest('a command sends its prompt, fills in {input}, and the bubble shows 
 browserTest('names nobody saved, paths and // go as typed, and /help with words after it is a question', async t => {
   const f = await fixture(t, { commands: [TLDR] });
   for (const [typed, sent] of [['/usr/bin/env node', '/usr/bin/env node'], ['/nope hi', '/nope hi'], ['//new', '/new'], ['/help me read this', '/help me read this']]) {
+    const n = f.chats().length + 1; // (counted before Enter: the request can be recorded before this line would run)
     await f.q.fill(typed);
     await f.q.press('Enter');
-    await f.answered(f.chats().length + 1);
+    await f.answered(n);
     assert.equal(f.chats().at(-1).body.message, sent, typed);
     assert.equal(await f.frame.locator('.msg.user').last().locator('.ctag').count(), 0);
   }
