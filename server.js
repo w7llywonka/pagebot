@@ -209,6 +209,17 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS theme TEXT;
 CREATE INDEX IF NOT EXISTS messages_conv_idx ON messages (conversation_id, id);
 CREATE INDEX IF NOT EXISTS messages_created_idx ON messages (created_at);
 CREATE INDEX IF NOT EXISTS messages_user_idx ON messages (user_id, created_at);
+-- chat history: when each chat last changed (history lists newest first) and when its person removed it from their
+-- history. Removing only hides it: the messages stay, since they're the usage limits, /admin and Wrapped count.
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMPTZ;
+UPDATE conversations c SET updated_at = COALESCE((SELECT max(m.created_at) FROM messages m WHERE m.conversation_id = c.id), c.created_at)
+  WHERE c.updated_at IS NULL;
+ALTER TABLE conversations ALTER COLUMN updated_at SET DEFAULT now();
+CREATE INDEX IF NOT EXISTS conversations_history_idx ON conversations (COALESCE(user_id, 0), updated_at DESC, id DESC) WHERE hidden_at IS NULL;
+-- per-message extras as JSON, so a reopened chat looks the way it did: an answer's {sources, quotes, cites, stop,
+-- fallback, refusal} (its sources and "show me where" markers) and a question's {url, web} (the page it sent, web search on)
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS meta TEXT;
 -- rough cost for rows saved before costs were tracked (cache reads were counted as plain input then)
 UPDATE messages SET cost_usd = CASE WHEN COALESCE(model, '') LIKE '%sonnet%'
     THEN (input_tokens * 2 + output_tokens * 10) / 1e6 ELSE (input_tokens * 0.10 + output_tokens * 0.50) / 1e6 END
@@ -1125,7 +1136,8 @@ async function chat(req, res) {
   let convId = Number.isSafeInteger(b.conversationId) ? b.conversationId : null;
   let history = [];
   if (convId) {
-    const c = await pool.query('SELECT memory_site, page_url FROM conversations WHERE id=$1 AND user_id IS NOT DISTINCT FROM $2', [convId, uid]);
+    // a chat removed from history can't be continued (chat history): the question starts a new chat instead
+    const c = await pool.query('SELECT memory_site, page_url FROM conversations WHERE id=$1 AND user_id IS NOT DISTINCT FROM $2 AND hidden_at IS NULL', [convId, uid]);
     if (c.rowCount) {
       if (!hasSite && !page) site = c.rows[0].memory_site ?? memorySite(c.rows[0].page_url);
       history = (await pool.query(
@@ -1294,10 +1306,12 @@ async function chat(req, res) {
   const replyText = reply.trim() ? reply : refused ? '[declined]' : failed ? '(stopped)' : '(no answer)';
   // an answer that broke off still counts toward usage, and stays in the chat as far as it got, for follow-ups
   await pool.query(
-    `INSERT INTO messages(conversation_id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, user_id, cost_usd, incomplete, page_doc, theme)
-     VALUES ($1,'user',$2,$3,0,0,NULL,0,$4,$10,0,$12,$13,$14), ($1,'assistant',$5,false,$6,$7,$8,$9,$4,$10,$11,$12,NULL,NULL)`,
+    `INSERT INTO messages(conversation_id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, user_id, cost_usd, incomplete, page_doc, theme, meta)
+     VALUES ($1,'user',$2,$3,0,0,NULL,0,$4,$10,0,$12,$13,$14,$15), ($1,'assistant',$5,false,$6,$7,$8,$9,$4,$10,$11,$12,NULL,NULL,$16)`,
     [convId, userText, !!image, refused, replyText, tot.in, tot.out, (cut || final)?.model || m.id, tot.searches, uid, tot.usd, !!failed,
-      doc ? JSON.stringify({ url: doc.url, title: doc.title, text: doc.text }) : null, prefs.theme]);
+      doc ? JSON.stringify({ url: doc.url, title: doc.title, text: doc.text }) : null, prefs.theme,
+      questionMeta({ doc, web }), answerMeta({ sources, quotes, cites, refused, end: failed ? cut : final, requested: m.id })]);
+  await pool.query('UPDATE conversations SET updated_at = now() WHERE id = $1', [convId]); // chat history lists it first now
   if (failed) {
     out({ t: 'err', v: friendly(failed, m.id), conversationId: convId });
     return void res.end();
@@ -1324,6 +1338,154 @@ function friendly(e, model) {
   if (s === 529 || s === 503) return 'The API is overloaded — try again in a moment.';
   return (e?.error?.error?.message || e?.message || 'Something went wrong').slice(0, 300);
 }
+
+// ---------- chat history: your past chats, to reopen, keep going, or remove from your history ----------
+// Removing a chat only hides it from that person's history. Its messages stay (they're the usage daily limits, /admin
+// and Wrapped count), and the owner still sees them in /admin's Activity, tagged "removed from history".
+const CHATS_PAGE = 30, MAX_CHAT_SEARCH = 100;
+// What chat() sends when nothing was typed, and the panel's starters: a chat that opens with one is named after its page.
+const STOCK_QUESTIONS = new Set(['Summarize this page.', 'What are the key points of this page?', 'Explain this page simply, as if I’m new to the topic.',
+  'Help me with what is in this screenshot.', 'Explain the highlighted text.']);
+// what the done event carries, minus what the message row already has (model, tokens, searches)
+function answerMeta({ sources, quotes, cites, refused, end, requested }) {
+  const o = {}, src = [...sources].slice(0, 8).map(([url, title]) => ({ url, title }));
+  if (src.length) o.sources = src;
+  if (cites.length && !refused) Object.assign(o, { quotes, cites }); // cites[].at are offsets into the stored answer
+  if (end?.stop_reason && !['end_turn', 'refusal'].includes(end.stop_reason)) o.stop = end.stop_reason;
+  if (end?.model && end.model !== requested) o.fallback = true;
+  if (refused) o.refusal = end?.stop_details?.category || null;
+  return Object.keys(o).length ? JSON.stringify(o) : null;
+}
+// the page a question sent (its address only; the text is in page_doc), so markers know where their quotes are
+const questionMeta = ({ doc, web }) => doc || web ? JSON.stringify({ ...(doc && { url: doc.url }), ...(web && { web: true }) }) : null;
+const oneLine = s => String(s || '').replace(/\s+/g, ' ').trim();
+const cutTitle = s => s.length > 100 ? s.slice(0, 100).replace(/\s+\S{0,20}$/, '') + '…' : s;
+const unquot = s => s.replace(/&quot;/g, '"');
+// Questions are stored as the model saw them: a <page> tag (empty when the page went as a document; older rows have its
+// text inside), then the fenced highlight, then what was typed. History shows them apart.
+const PAGE_TAG = /^<page url="([^"]*)" title="([^"]*)">(?:<\/page>|\n[\s\S]*\n<\/page>)(?:\n\n|$)/, HL_TAG = /^<highlighted_text>\n([\s\S]*?)\n<\/highlighted_text>(?:\n\n|$)/;
+function splitQuestion(content) {
+  let text = String(content || ''), page = null, highlight = '';
+  const p = PAGE_TAG.exec(text), open = !p && /^<page url="([^"]*)" title="([^"]*)">/.exec(text); // open: only the start of an old inline page was read
+  if (p || open) { page = { url: unquot((p || open)[1]), title: unquot((p || open)[2]) }; text = p ? text.slice(p[0].length) : ''; }
+  const h = HL_TAG.exec(text);
+  if (h) { highlight = h[1]; text = text.slice(h[0].length); }
+  return { text, page, highlight };
+}
+function chatTitle(c) {
+  const q = splitQuestion(c.first), typed = oneLine(q.text), page = oneLine(c.page_title || q.page?.title);
+  const quote = q.highlight && `“${oneLine(q.highlight).slice(0, 120)}”`;
+  if (typed && !STOCK_QUESTIONS.has(typed)) return cutTitle(typed);
+  return cutTitle((typed === 'Explain the highlighted text.' ? quote || page : page || quote) || typed || 'Chat');
+}
+// a bit of the message a search found, around the match
+function chatSnippet(text, q) {
+  const s = oneLine(text), i = s.toLowerCase().indexOf(q.toLowerCase());
+  if (i < 0) return null;
+  const a = Math.max(0, i - 40), b = Math.min(s.length, i + q.length + 80);
+  return (a ? '…' : '') + s.slice(a, b) + (b < s.length ? '…' : '');
+}
+const chatId = v => /^[1-9]\d{0,15}$/.test(String(v)) ? Number(v) : null;
+// a chat as history lists it; `cursor` pages on (updated_at, id), with the microseconds the timestamp really has
+const chatSql = (more = '') => `SELECT c.id, c.page_url, c.page_title, c.memory_site, c.created_at, c.updated_at, f.content AS first,
+    to_char(c.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') || '_' || c.id AS cursor${more}
+  FROM conversations c
+  JOIN LATERAL (SELECT left(m.content, 4000) AS content FROM messages m
+    WHERE m.conversation_id = c.id AND m.role = 'user' ORDER BY m.id LIMIT 1) f ON true`; // chats whose first question never reached the model have none
+// what search looks through: the words of every question and answer, without the page tag's markup
+const SEARCHABLE = `regexp_replace(m.content, '^<page url="[^"]*" title="[^"]*">(</page>)?|</?highlighted_text>', '', 'g')`;
+const publicChat = c => ({
+  id: Number(c.id), title: chatTitle(c), site: hostOf(c.page_url) || c.memory_site || null, url: c.page_url || null,
+  pageTitle: c.page_title || null, createdAt: c.created_at, updatedAt: c.updated_at,
+});
+// one stored message as the panel draws it; page text never leaves the server
+function pastMessage(m) {
+  const at = m.created_at, x = parseJSON(m.meta);
+  if (m.role === 'user') {
+    const q = splitQuestion(m.content);
+    return { role: 'user', text: q.text, highlight: q.highlight.slice(0, 2000), page: m.has_doc || !!q.page, url: x.url || q.page?.url || null,
+      image: m.had_image, web: !!x.web, at };
+  }
+  const blank = m.content === (m.refused ? '[declined]' : m.incomplete ? '(stopped)' : '(no answer)'); // the stand-ins chat() saves
+  return {
+    role: 'assistant', text: blank ? '' : m.content, model: m.model ? modelLabel(m.model) : null, usage: { in: m.input_tokens, out: m.output_tokens },
+    searches: m.web_searches, stopped: m.incomplete, sources: Array.isArray(x.sources) ? x.sources : [], at,
+    ...(Array.isArray(x.quotes) && Array.isArray(x.cites) && { quotes: x.quotes, cites: x.cites }),
+    ...(x.stop && { stop: x.stop }), ...(x.fallback && { fallback: true }), ...(m.refused && { refusal: x.refusal ?? null }),
+  };
+}
+const GONE = { error: 'That chat isn’t in your history anymore.' };
+
+// Search reads every message a person has, so it gets its own budget: 30 a minute from each address, one at a time for
+// each person, and 3 seconds at most, so a big history can't hold up the five database connections everyone shares.
+const searching = new Set();
+// your chats, newest first, CHATS_PAGE at a time; `q` searches what was asked and answered, page titles and addresses
+app.get('/api/chats', limit(120, 'chats-read'), auth, trusted, async (req, res) => {
+  const raw = req.query.q ?? '', before = req.query.before ?? '', who = req.user?.id ?? 0;
+  if (typeof raw !== 'string' || typeof before !== 'string') return res.status(400).json({ error: 'Search for some text.' });
+  const cur = /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{6}Z)_([1-9]\d{0,15})$/.exec(before);
+  if (before && !cur) return res.status(400).json({ error: 'Bad page of chats.' });
+  let q = oneLine(raw).slice(0, MAX_CHAT_SEARCH);
+  if (q.length < 2) q = ''; // one letter matches nearly everything
+  if (q && !take('chats-search:' + req.ip, 30, 60_000)) return res.status(429).json({ error: 'Too many searches. Wait a minute.' });
+  if (q && searching.has(who)) return res.status(429).json({ error: 'Still searching. Try again in a moment.' });
+  const like = q ? '%' + q.replace(/[\\%_]/g, '\\$&') + '%' : null; // % and _ are literal
+  if (q) searching.add(who);
+  const db = await pool.connect();
+  let r;
+  try {
+    await db.query('BEGIN');
+    await db.query(`SET LOCAL statement_timeout = '3s'`);
+    r = await db.query(`${chatSql(', h.hit')}
+      LEFT JOIN LATERAL (SELECT left(${SEARCHABLE}, 4000) AS hit FROM messages m
+        WHERE $2::text IS NOT NULL AND m.conversation_id = c.id AND ${SEARCHABLE} ILIKE $2 ORDER BY m.id LIMIT 1) h ON true
+      WHERE COALESCE(c.user_id, 0) = $1 AND c.hidden_at IS NULL
+        AND ($2::text IS NULL OR h.hit IS NOT NULL OR c.page_title ILIKE $2 OR c.page_url ILIKE $2)
+        AND ($3::timestamptz IS NULL OR (c.updated_at, c.id) < ($3::timestamptz, $4::bigint))
+      ORDER BY c.updated_at DESC, c.id DESC LIMIT ${CHATS_PAGE + 1}`, [who, like, cur?.[1] || null, cur?.[2] || null]);
+    await db.query('COMMIT');
+  } catch (e) {
+    await db.query('ROLLBACK').catch(() => {});
+    if (e.code === '57014') return res.status(400).json({ error: 'That search took too long. Try more words.' });
+    throw e;
+  } finally { db.release(); if (q) searching.delete(who); }
+  const rows = r.rows.slice(0, CHATS_PAGE);
+  res.json({
+    chats: rows.map(c => {
+      const x = publicChat(c), s = q && c.hit && !x.title.toLowerCase().includes(q.toLowerCase()) ? chatSnippet(c.hit, q) : null;
+      return { ...x, ...(s && { snippet: s }) };
+    }),
+    next: r.rows.length > CHATS_PAGE ? rows.at(-1).cursor : null,
+  });
+});
+
+// one chat to read again and keep going: its last MAX_PAST messages as they looked, and the page it was last about
+const MAX_PAST = 200;
+app.get('/api/chats/:id', limit(120, 'chats-read'), auth, trusted, async (req, res) => {
+  const id = chatId(req.params.id);
+  const c = id && (await pool.query(`${chatSql()} WHERE c.id = $1 AND COALESCE(c.user_id, 0) = $2 AND c.hidden_at IS NULL`, [id, req.user?.id ?? 0])).rows[0];
+  if (!c) return res.status(404).json(GONE); // someone else's chat looks the same as one that isn't there
+  const r = await pool.query(`SELECT * FROM (SELECT id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, incomplete, meta,
+      created_at, page_doc IS NOT NULL AS has_doc FROM messages WHERE conversation_id = $1 ORDER BY id DESC LIMIT ${MAX_PAST + 1}) x ORDER BY id`, [id]);
+  const rows = r.rows.slice(-MAX_PAST);
+  while (rows[0]?.role === 'assistant') rows.shift(); // start on a question
+  const chat = publicChat(c), messages = rows.map(pastMessage);
+  chat.url = messages.findLast(m => m.url)?.url || chat.url;
+  res.json({ chat, messages, earlier: r.rows.length > rows.length });
+});
+
+// "Remove from history": hides the chat from you. It can't be reopened or continued, but nothing is deleted.
+app.delete('/api/chats/:id', limit(30, 'chats-write'), auth, trusted, async (req, res) => {
+  const id = chatId(req.params.id);
+  const r = id && await pool.query('UPDATE conversations SET hidden_at = now() WHERE id = $1 AND COALESCE(user_id, 0) = $2 AND hidden_at IS NULL', [id, req.user?.id ?? 0]);
+  if (!r?.rowCount) return res.status(404).json(GONE);
+  res.json({ ok: true });
+});
+app.delete('/api/chats', limit(30, 'chats-write'), auth, trusted, async (req, res) => {
+  if (req.query.all !== '1') return res.status(400).json({ error: 'Say which chat to remove.' });
+  const r = await pool.query('UPDATE conversations SET hidden_at = now() WHERE COALESCE(user_id, 0) = $1 AND hidden_at IS NULL', [req.user?.id ?? 0]);
+  res.json({ ok: true, removed: r.rowCount });
+});
 
 // ---------- wrapped: a year of your questions ----------
 // The panel sends its own timezone so hours and streaks follow the viewer's clock.
@@ -1554,7 +1716,7 @@ app.get('/api/admin/activity', limit(300, 'admin'), admin, async (req, res) => {
     SELECT m.id, m.created_at, m.user_id, u.username, m.had_image, m.conversation_id,
       left(regexp_replace(m.content, $4, ''), 300) AS question,
       (m.page_doc IS NOT NULL OR m.content LIKE '<page %') AS has_page, strpos(m.content, '<highlighted_text>') > 0 AS has_sel,
-      c.page_url, c.page_title,
+      c.page_url, c.page_title, c.hidden_at IS NOT NULL AS removed,
       a.model, a.input_tokens, a.output_tokens, a.cost_usd, a.web_searches, a.refused, a.incomplete
     FROM messages m CROSS JOIN b
     JOIN conversations c ON c.id = m.conversation_id
@@ -1577,6 +1739,7 @@ app.get('/api/admin/activity', limit(300, 'admin'), admin, async (req, res) => {
       conversationId: Number(x.conversation_id), model: x.model, modelLabel: x.model ? modelLabel(x.model) : null, family: modelFamily(x.model),
       in: x.input_tokens || 0, out: x.output_tokens || 0, usd: Number(x.cost_usd) || 0, searches: x.web_searches || 0,
       refused: !!x.refused, stopped: !!x.incomplete, fallback: !!x.model && !ids.includes(x.model), answered: x.model != null,
+      removed: x.removed, // its person removed the chat from their history (chat history)
     })),
   });
 });
