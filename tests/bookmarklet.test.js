@@ -101,6 +101,7 @@ test('resize bursts keep final dimensions available before the next paint and fl
 
 test('viewport resize keeps the panel on screen and docked resize retains its constraints', () => {
   const p = page();
+  p.bot.w = 380; p.bot.h = 560; // a saved size (the default is now half the window; see bookmarklet-size.test.js)
   p.bot.r = 600; p.bot.b = 300;
   p.window.innerWidth = 500; p.window.innerHeight = 600;
   p.resize(); p.resize();
