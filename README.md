@@ -117,7 +117,18 @@ What people ask (and the answers) is stored and shows up under Activity, along w
 - When a new version of pagebot is out, a panel opened from an older bookmark shows a small strip that links to the homepage, where dragging the button again updates it. The version is in small print at the bottom of ⚙ Settings and in the homepage footer.
 - While an answer is coming in, the send button turns into a **stop** button. What arrived so far stays in the chat, and follow-ups can build on it.
 - Scroll up while an answer is coming in and the panel stays where you are. **Jump to latest** takes you back down.
-- A new chat offers one-click starters: **Summarize this page**, **Key points**, and **Explain it simply**.
+- A new chat offers one-click starters: **Summarize this page**, **Key points**, and **Explain it simply**, plus any of your own slash commands you chose to show there.
+- **Slash commands**: type `/` at the start of the message box for a list of commands, and keep typing to narrow it down. ↑ ↓ pick one, Enter (or a click) runs it, Tab fills in its name so you can type more after it, and Esc closes the list without closing the panel.
+  - `/summarize`, `/keypoints` and `/simple` send the same questions as the starters, and on a new chat they send the page along like the starters do. With text highlighted they're about your highlight, and with a screenshot attached they're about the screenshot (and skip the page). Anything you type after them is added at the end, like `/summarize in three bullets`.
+  - `/web` and `/page` turn web search or Page text on or off. Put a question after them (`/web who won last night?`) and they're on for just that message. They also work in front of another command, like `/page /keypoints`.
+  - `/new` starts a new chat (it also stops an answer that's still coming in), `/screenshot` and `/region` take a screenshot, `/settings` opens ⚙ Settings, and `/help` shows the whole list. Anything you type after these stays in the message box for your next message.
+  - **Your own commands** live in ⚙ Settings → **Slash commands**: give one a name, like `tldr` or `translate-es`, and the prompt it sends. Put `{input}` where the words you type after the command should go. With the prompt `Translate the highlighted text into {input}.`, typing `/translate Spanish` sends “Translate the highlighted text into Spanish.” A command with `{input}` waits until you type something after it, and says so. Without `{input}`, anything you type after the command is added at the end after a blank line.
+  - Your message shows the prompt that was actually sent, with a small `/translate` tag on it. The page, your highlight and screenshots go along like with any message, and it counts toward your daily limit like any message.
+  - Pick a saved command from the list in Settings to change its name or prompt, or delete it. Tick **Show on new chats** to put it next to the starters as a `/tldr` chip (up to 3); clicking a chip sends it, or fills it in if it has `{input}`.
+  - Each account has its own commands, up to 50 with up to 2,000 characters each. They follow you to every site and device, and to `/chat`. Names are up to 24 lowercase letters, numbers, `-` or `_`, start with a letter, and can't be a built-in command's name.
+  - The owner sees the questions your commands send in Activity, like any question; your saved commands themselves stay private to your account.
+  - Things that only look like commands, like `/usr/bin` or a name you haven't saved, are sent as normal messages, and so is `/help` with words after it. To send a message that starts with a command's name, start it with two slashes: `//new` sends “/new”. Pasting text that starts with `/` doesn't open the list.
+  - In `/chat` there's no page, so `/page` says it needs the bookmark, and `/summarize`, `/keypoints` and `/simple` work on a screenshot you add or text you type after them. `/screenshot` and `/region` work there like the **+** menu's screenshot items: they ask which tab or window to capture.
 - Each answer has a copy button next to its details, and code blocks get their own **Copy** button when you hover them.
 - The panel opens as soon as its settings load. Reopening an existing panel goes straight back to the chat while refreshing your session.
 - **⚙ Settings**: pick a theme (Auto, Ember, Paper, Midnight, Forest, Dusk, Sakura, Terminal, Glass, or Clear) and the max tokens per answer, from presets between 512 and 8k (anything up to 100,000 can be set in `/admin`). Settings apply everywhere you use pagebot, and each account has its own.
@@ -151,6 +162,7 @@ Updating from an older version? Drag the button from the homepage to your bookma
   - Every page runs only its own scripts and talks only to this server.
   - Only `/widget` can be embedded in other sites.
   - Answers are shown as text with simple formatting, never as raw HTML.
+  - Slash commands only run from what you type in the message box (or a list row or chip you click). Page text, highlights and answers can't run them, and no command changes a permission setting.
 - These counters live in memory, so restarting the server resets them, and they assume a single server instance (Railway's default).
 - **Be careful on pages you don't trust**:
   - The bookmarklet runs inside the page you're on, so a malicious page could draw a fake panel to catch what you type.
@@ -171,6 +183,6 @@ npm ci
 npm run dev
 ```
 
-Node 20 or newer and PostgreSQL are required. The server creates its tables and applies additive schema updates at startup, including website memory. Set `INITIAL_PASSWORD` and a 16-character-or-longer `ADMIN_TOKEN` for local sign-in and administration. An `ANTHROPIC_API_KEY` is required for real Claude replies; `OPENROUTER_API_KEY` is optional. Keep credentials in environment variables or the ignored `.env` file.
+Node 20 or newer and PostgreSQL are required. The server creates its tables and applies additive schema updates at startup, including website memory and slash commands. Set `INITIAL_PASSWORD` and a 16-character-or-longer `ADMIN_TOKEN` for local sign-in and administration. An `ANTHROPIC_API_KEY` is required for real Claude replies; `OPENROUTER_API_KEY` is optional. Keep credentials in environment variables or the ignored `.env` file.
 
-Run `npm test` for bookmarklet regression tests. To also run the website-memory and ban integration tests, point `PAGEBOT_TEST_DATABASE_URL` at a disposable PostgreSQL database before running `npm test`; without it, those integration tests are explicitly skipped. They create and clean up a separate schema and use local mock model servers, so they need no AI keys or credits. Browser regression tests run with `npm run test:browser` and require Playwright and Chromium.
+Run `npm test` for bookmarklet regression tests. To also run the website-memory, slash-command and ban integration tests, point `PAGEBOT_TEST_DATABASE_URL` at a disposable PostgreSQL database before running `npm test`; without it, those integration tests are explicitly skipped. They create and clean up a separate schema and use local mock model servers, so they need no AI keys or credits. Browser regression tests run with `npm run test:browser` and require Playwright and Chromium.

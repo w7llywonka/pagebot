@@ -231,6 +231,33 @@ textarea:focus,input:focus{border-color:var(--focus)}
 #memoryStatus{min-height:1.45em;overflow-wrap:anywhere}
 #memoryStatus.error{color:var(--err)}
 
+/* slash commands: the list above the message box (it's a .menu, so glass and clear give it their backing) */
+.menu.slash{right:10px;min-width:0;display:flex;flex-direction:column;padding:4px}
+body.standalone #composer .menu.slash{right:14px}
+:root:is([data-theme=glass],[data-theme=clear]) .menu.slash{background-image:linear-gradient(var(--pop),var(--pop))} /* a second layer: the list is long and sits over the chat's own text */
+.slash .sl{position:relative;max-height:min(264px,calc(100vh - 170px));overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.slash .mh{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:650;padding:6px 9px 2px}
+.slash .sl button{padding:5px 9px;gap:9px}
+.menu.slash .sl button:hover{background:none} /* the pointer moves the highlight, so only one row is ever lit */
+.menu.slash .sl button[aria-selected=true]{background:var(--chip-on)}
+.slash .sl button[aria-disabled=true]{cursor:default}
+.slash .sl button[aria-disabled=true] :is(.mi,b){opacity:.5}
+.slash .mt b{font-weight:600}
+.slash .ar{color:var(--muted);font-style:italic;margin-left:5px;font-size:12px}
+.slash .md{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slash .none{padding:7px 9px;font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.slash .none.err{color:var(--err)}
+.slash .tip{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center;margin-top:3px}
+.menu.slash .tip .mini{display:inline;width:auto;margin-left:auto;padding:0;border-radius:0;font-size:11.5px;background:none} /* not a .menu row */
+@media (pointer:coarse){.slash .sl button{min-height:40px}.slash .keys{display:none}}
+.msg .ctag{display:inline-block;padding:0 5px;margin-right:1px;border-radius:5px;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);font-weight:650;font-family:var(--mono);font-size:10.5px}
+.starters button.mine{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));font-family:var(--mono);font-size:12px}
+#cmdStatus{min-height:1.45em;overflow-wrap:anywhere}
+#cmdStatus.error{color:var(--err)}
+.memory-form label.cmdst{font-weight:400;max-width:none;align-items:center}
+.memory-form .cmdst input{width:auto;min-width:0;padding:0;margin:0;border:0}
+#cmdStarterNote{margin:0}
+
 /* lock screen */
 #login{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px 24px;text-align:center;overflow-y:auto;outline:none}
 #login.leave{animation:fadeOut .2s ease forwards}
@@ -619,6 +646,23 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
       <p class="fine" id="memoryStatus" role="status" aria-live="polite"></p>
     </form>
   </section>
+  <section id="cmdSec" aria-labelledby="cmdTitle">
+    <h3 id="cmdTitle">Slash commands</h3>
+    <p class="fine">Type / in the message box for a list of commands. Save your own for prompts you send a lot. Put {input} where the words you type after the command should go; without it, they go at the end.</p>
+    <form class="memory-form" id="cmdForm" autocomplete="off">
+      <label for="cmdList">Your commands</label>
+      <select id="cmdList"><option value="">New command…</option></select>
+      <label for="cmdName">Name</label>
+      <input id="cmdName" type="text" maxlength="25" placeholder="tldr" autocapitalize="off" autocomplete="off" spellcheck="false" aria-describedby="cmdNameHint">
+      <p class="fine" id="cmdNameHint">Letters, numbers, - and _, starting with a letter (up to 24).</p>
+      <label for="cmdPrompt">Prompt</label>
+      <textarea id="cmdPrompt" rows="4" maxlength="2000" placeholder="For example: Translate the highlighted text into {input}." aria-describedby="cmdCount"></textarea>
+      <p class="fine" id="cmdCount">0 / 2,000 characters</p>
+      <label class="bagree cmdst"><input type="checkbox" id="cmdStarter"> Show on new chats <span class="fine" id="cmdStarterNote"></span></label>
+      <div class="acct"><button class="ghost" id="cmdSave" type="submit" disabled>Save command</button><button class="ghost" id="cmdDelete" type="button" disabled>Delete command</button></div>
+      <p class="fine" id="cmdStatus" role="status" aria-live="polite"></p>
+    </form>
+  </section>
   <section id="wrapSec"><button class="wcta" id="wrapBtn" type="button"><b>✨ Your pagebot Wrapped</b><span>Your year in questions, sites, hours and streaks</span></button></section>
   <section><h3>Appearance</h3><div class="themes" id="themes"></div>
     <p class="fine" id="glassNote" hidden>To make <span id="glassName">Glass</span> see-through on every site, including dark-mode ones, drag the button from the pagebot homepage to your bookmarks bar again.</p></section>
@@ -680,6 +724,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
     <div class="tip">You can also paste an image.</div>
   </div>
   <div class="menu right" id="modelMenu" role="menu" hidden></div>
+  <div class="menu slash" id="slashMenu" hidden></div>
 </div>
 
 <script>
@@ -1005,17 +1050,43 @@ function markQuotes(out, text, ev) {
     };
   });
 }
-// one click to ask the usual first questions about a page
-const STARTERS = [
-  ['Summarize this page', 'Summarize this page.'],
-  ['Key points', 'What are the key points of this page?'],
-  ['Explain it simply', 'Explain this page simply, as if I’m new to the topic.'],
+// ---- slash commands: the built-ins ----
+// What you can type after "/" besides your own commands. Each one is { name, icon, hint } plus one of:
+//   prompt(what): sends that text, like your own commands do (`what` is "this page", "the highlighted text", …)
+//   run(arg):     does something in the panel and sends nothing. `arg` is the text typed after the command, which stays
+//                 in the message box unless `takes` is set. `mod` ones (/web, /page) with text after them apply to
+//                 just that message instead. With `alone`, it's only a command when nothing follows it.
+// Optional: why() says why it can't run right now (the list greys it out with that reason), and hide() leaves it out of
+// the list where it can never work. No command ever changes a permission setting. Other features add theirs with one
+// line here, for example
+//   { name: 'history', icon: '🕘', hint: 'Your past chats', takes: true, run: arg => openHistory(arg) },
+// and the name must also go in BUILTIN_COMMANDS in server.js (history, pdf and actions are already there).
+const canShoot = !!navigator.mediaDevices?.getDisplayMedia;
+const noShot = () => canShoot ? '' : 'Screenshots aren’t supported in this browser — paste one instead.';
+const BUILTINS = [
+  { name: 'summarize', icon: '📝', hint: standalone ? 'Summarize what you add or paste' : 'Summarize this page', starter: 'Summarize this page', prompt: w => `Summarize ${w}.` },
+  { name: 'keypoints', icon: '🔑', hint: 'The key points', starter: 'Key points', prompt: w => `What are the key points of ${w}?` },
+  { name: 'simple', icon: '💡', hint: 'Explain it simply', starter: 'Explain it simply', prompt: w => `Explain ${w} simply, as if I’m new to the topic.` },
+  { name: 'new', icon: '➕', hint: 'Start a new chat', run: () => $('#newBtn').click() },
+  // chat history: { name: 'history', icon: '🕘', hint: 'Your past chats', takes: true, run: arg => openHistory(arg) },
+  { name: 'web', icon: '🌐', hint: 'Search the web for one message, or turn web search on or off', mod: 'web', run: () => $('#webBtn').click(),
+    why: () => !isUser() || cfg?.user?.allowWeb ? '' : cfg?.restriction?.limits?.noWeb ? 'Web search is off while your account is restricted.' : 'Web search isn’t turned on for your account.' },
+  { name: 'page', icon: '📄', hint: 'Send the page text with one message, or turn it on or off', mod: 'page', run: () => $('#pageBtn').click(),
+    why: () => standalone ? 'Needs the bookmark: open pagebot on a page to send its text.' : '' },
+  { name: 'screenshot', icon: '📷', hint: standalone ? 'Screenshot a tab or window' : 'Screenshot this tab', run: () => $('#shotBtn').click(), why: noShot },
+  { name: 'region', icon: '⛶', hint: 'Screenshot a region', run: () => $('#areaBtn').click(), why: noShot },
+  // PDF upload: { name: 'pdf', icon: '📎', hint: 'Attach a PDF', run: () => pickPdf() },
+  // page actions: { name: 'actions', icon: '🖱', hint: 'Turn page actions on or off', run: () => toggleActions() },
+  { name: 'settings', icon: '⚙', hint: 'Open settings', run: () => { openSheet(); $('#setBtn').focus(); } }, // like clicking ⚙, so typing doesn't go to the hidden box
+  { name: 'help', icon: '❔', hint: 'Show every command', alone: true, takes: true, run: () => slashHelp() }, // "/help me with…" is a question
 ];
+// one click to ask the usual first questions about a page (the same text as /summarize, /keypoints and /simple)
+const STARTERS = BUILTINS.filter(c => c.starter).map(c => [c.starter, c.prompt('this page')]);
 function empty() {
   stick = true; jump.hidden = true;
   if (standalone)
-    return void (log.innerHTML = '<div class="empty"><b>Ask anything.</b>Use + to screenshot a tab or turn on web search, or paste an image.</div>');
-  log.innerHTML = '<div class="empty"><b>Ask about this page.</b>The page text goes with your first message, and anything you highlight is included. Use + for a screenshot or web search.' +
+    return void (log.innerHTML = '<div class="empty"><b>Ask anything.</b>Use + to screenshot a tab or turn on web search, or paste an image. Type / for commands.</div>', slashStarters());
+  log.innerHTML = '<div class="empty"><b>Ask about this page.</b>The page text goes with your first message, and anything you highlight is included. Use + for a screenshot or web search, or type / for commands.' +
     '</div>';
   const box = el('div', 'starters');
   for (const [label, text] of STARTERS) {
@@ -1024,6 +1095,7 @@ function empty() {
     box.appendChild(b);
   }
   log.querySelector('.empty').appendChild(box);
+  slashStarters(box); // slash commands: yours that you chose to show on new chats
 }
 
 // ---- views: the chat, the lock screen (owner passcode/password, account sign-in or sign-up), and waiting for approval ----
@@ -1037,7 +1109,7 @@ function setHeader(chat) {
 function hideViews() {
   $('#login').style.display = 'none'; $('#login').classList.remove('leave');
   $('#wait').hidden = true; $('#ban').hidden = true; log.hidden = true; $('#composer').hidden = true; $('#ann').hidden = true; $('#rst').hidden = true; $('#upd').hidden = true;
-  stopWaitPoll(); closeWrap();
+  stopWaitPoll(); closeWrap(); closeSlash();
 }
 let chatWho = null; // whose chat is in the log
 const whoKey = () => cfg?.who === 'user' ? 'u:' + (cfg.user?.name || '').toLowerCase() : cfg?.who || null;
@@ -1365,7 +1437,7 @@ const onBanned = () => loadBoot().then(() => route()).catch(() => {});
 
 function lock(msg) {
   if (token) fetch('/api/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }).catch(() => {});
-  token = null; store.set('pb_token', null); resetSiteMemory(); chatGen++; ctrl?.abort();
+  token = null; store.set('pb_token', null); resetSiteMemory(); resetCommands(); chatGen++; ctrl?.abort();
   showLogin(msg);
 }
 function logout(msg) { leaveChat(); chatWho = null; annGone = 0; log.innerHTML = ''; clearImg(); setPage(true); stopStream(); setArea(null); lock(msg); }
@@ -1405,7 +1477,7 @@ async function apiGet(path) {
   return j;
 }
 async function loadBoot() {
-  const session = token;
+  const session = token, cmdSeen = cmdWrites; // slash commands: a save made meanwhile is newer than this boot's list
   const r = await fetch('/api/boot', { headers: { 'X-Pagebot-Device': device, ...(session ? { Authorization: 'Bearer ' + session } : {}) } });
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const next = await r.json();
@@ -1418,6 +1490,7 @@ async function loadBoot() {
   if (cfg.authed && cfg.user) { store.set('pb_user', cfg.user.name); store.set('pb_pin', cfg.user.passcode ? '1' : null); }
   if (cfg.authed && cfg.prefs) { Object.assign(prefs, cfg.prefs); limits = cfg.limits; models = cfg.models || models; }
   else if (!cfg.authed && token) { token = null; store.set('pb_token', null); resetSiteMemory(); }
+  if (cmdSeen === cmdWrites || !cfg.authed) setCommands(cfg.commands, cfg.commandLimits); // slash commands (none until signed in and accepted)
   renderPrefs(); renderAccount(); renderAnn(); renderRst(); renderUpd();
   return cfg;
 }
@@ -2196,7 +2269,7 @@ setInterval(() => {
 const q = $('#q');
 function autosize() { q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight, 140) + 'px'; }
 q.addEventListener('input', autosize);
-q.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
+q.addEventListener('keydown', e => { if (slashKey(e)) return; if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } }); // the open slash list takes ↑↓ Enter Tab Esc first
 // while an answer is coming in, the send button stops it; what arrived so far stays in the chat
 const ICON_SEND = '<svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
 const ICON_STOP = '<svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" stroke="none"/></svg>';
@@ -2247,21 +2320,32 @@ function finish(bot, out, ev, text) {
 }
 
 async function send() {
-  if (busy || view !== 'chat') return;
+  if (view !== 'chat') return;
+  // slash commands: read the box before any await, so /screenshot and /region keep the key press their picker needs.
+  // Panel actions (/new, /settings, …) and hints work even while an answer is coming in, like the buttons do.
+  let plan = slashPlan(q.value);
+  closeSlash();
+  if (plan.run || plan.hint) return void slashAct(plan);
+  if (busy) return;
   busy = true; // a second Enter waits while the page text and any region shot come in
   const gen = chatGen, session = token, pageRequest = ++contextRequest;
   const stale = () => gen !== chatGen || session !== token || view !== 'chat';
   const cancelPreparing = () => { busy = false; $('#sendBtn').disabled = false; setStatus(); };
-  const info = await ask('page', { max: pageOn ? limits.pageTokens * 4 : 1 });
+  const withPage = pageOn || !!plan.page || (!!plan.forcePage && !img && !area); // slash commands: "/page …", and built-in prompts on a new chat
+  const info = await ask('page', { max: withPage ? limits.pageTokens * 4 : 1 });
   if (stale()) return cancelPreparing();
   if (pageRequest === contextRequest) updateSiteContext(info);
-  const page = pageOn && info?.page ? info.page : null;
+  const page = withPage && info?.page ? info.page : null;
   let selection = info?.selection?.trim() || '';
   if (pageV7) {
     if (selection !== hostSel) { hostSel = selection; selOff = false; } // highlighted a moment ago
     if (selOff) selection = '';
   }
-  if (!q.value.trim() && !img && !area && !page && !selection) { busy = false; return; }
+  if (q.value.trim() !== plan.typed) { // typed more while the page came in
+    plan = slashPlan(q.value);
+    if (plan.run || plan.hint) { cancelPreparing(); return void slashAct(plan); }
+  }
+  if (!plan.cmd && !plan.text && !img && !area && !page && !selection) { busy = false; return; }
 
   $('#sendBtn').disabled = true; setStatus();
   if (area && !img) { // screenshots are on: a new shot of the same area (or the whole tab) goes with this message
@@ -2274,14 +2358,19 @@ async function send() {
       return shotFailed(e);
     }
   }
-  const text = q.value.trim();
-  const tags = [page && '📄 page', selection && '✂️ highlighted', img && (imgKind === 'region' ? '📷 region' : imgKind === 'paste' ? '🖼 image' : '📷 screenshot'), prefs.web && '🌐 web'].filter(Boolean).join(' · ');
+  // slash commands: a command's prompt is what gets sent (and shown, with a small /name tag); "/web …" searches this once
+  const what = selection ? 'the highlighted text' : img ? (imgKind === 'paste' ? 'this image' : 'this screenshot') : !standalone ? 'this page' : 'this';
+  const text = plan.cmd ? expandCommand(plan.cmd, plan.input, what) : plan.text;
+  if (plan.cmd && text.length > 8000) { cancelPreparing(); return void slashHint(`That’s too long once /${plan.cmd.name} is filled in (8,000 characters at most).`); }
+  const webNow = !!prefs.web || !!plan.web;
+  const tags = [page && '📄 page', selection && '✂️ highlighted', img && (imgKind === 'region' ? '📷 region' : imgKind === 'paste' ? '🖼 image' : '📷 screenshot'), webNow && '🌐 web'].filter(Boolean).join(' · ');
   const u = addMsg('user', text ? esc(text).replace(/\n/g, '<br>') : '<i>(no text)</i>', tags);
+  if (plan.cmd) cmdTag(u, plan.cmd.name);
   if (img) { const im = el('img', 'thumb'); im.src = img; u.appendChild(im); }
 
-  const sent = { text, img, imgKind, pageOn, sel: !!selection };
+  const sent = { text: plan.typed, img, imgKind, pageOn, sel: !!selection }; // unsend puts back what was typed, command and all
   // cite: this page can find quoted passages, so ask for numbered quotes
-  const reqBody = { conversationId: convId, message: text, page, site: normalizeMemorySite(info?.page?.url) || null, selection, image: img, model: prefs.model, web: !!prefs.web, cite: pageV7 };
+  const reqBody = { conversationId: convId, message: text, page, site: normalizeMemorySite(info?.page?.url) || null, selection, image: img, model: prefs.model, web: webNow, cite: pageV7 };
   q.value = ''; autosize(); clearImg(); setPage(false);
   if (selection) selOff = true; // it's in the chat now; a new highlight brings the pill back
   renderSel();
@@ -2356,6 +2445,308 @@ async function send() {
     setStatus();
   }
 }
+
+// ---- slash commands ----
+// Your own commands come with /api/boot, so the list works on the first frame, and are edited in Settings. Commands are
+// only read from what you type in the message box (or a list row or starter chip you click): never from the page, a
+// highlight or an answer. A prompt is expanded here, and the server gets (and stores) the expanded text like any message.
+let commands = []; // your saved commands { name, prompt, starter, updatedAt }, sorted by name
+let cmdLimits = { maxCommands: 50, maxPrompt: 2000, maxStarters: 3, reserved: [] };
+const isBuiltin = name => BUILTINS.some(c => c.name === name);
+const takesInput = p => p.includes('{input}');
+// a saved command, in the same shape as a built-in
+const ownCommand = c => ({ name: c.name, icon: '/', hint: c.prompt.replace(/\s+/g, ' ').slice(0, 160), prompt: c.prompt, own: true, needsInput: takesInput(c.prompt) });
+// built-ins win over a saved command with the same name (only possible once a built-in is added later)
+function findCommand(name) {
+  const b = BUILTINS.find(c => c.name === name);
+  if (b) return b;
+  const c = commands.find(c => c.name === name);
+  return c ? ownCommand(c) : null;
+}
+// What the message box asks for: { run, rest } (a panel action), { hint } (nothing to send yet), { cmd, input } (a prompt),
+// or { text } (a plain message). "/web …" and "/page …" turn that on for this message and the rest is read again.
+// A name only counts when a space, a line break or the end follows it and it is a command, so "/usr/bin" or
+// "/etc hosts" go as typed, and "//new" sends "/new".
+const CMD_RE = /^\/([a-z][\w-]{0,23})(?=\s|$)\s*/i;
+function slashPlan(raw) {
+  const typed = raw.trim();
+  if (typed.startsWith('//')) return { typed, text: typed.slice(1) };
+  let s = typed, web = false, page = false, lead = false;
+  for (let m; (m = CMD_RE.exec(s));) {
+    const c = findCommand(m[1].toLowerCase()), rest = s.slice(m[0].length);
+    if (!c || (c.alone && rest)) break;
+    const why = c.why?.() || (c.hide?.() && `/${c.name} isn’t available here.`);
+    if (why) return { typed, hint: why };
+    if (c.mod && rest && !(c.mod === 'web' ? web : page)) { if (c.mod === 'web') web = true; else page = true; lead = true; s = rest; continue; }
+    if (c.run) return lead ? { typed, hint: `Put /${c.name} at the start of the message.` } : { typed, run: c, rest };
+    if (c.needsInput && !rest) return { typed, fill: c, hint: `Type what goes in {input} after /${c.name}, then press Enter.` };
+    if (!c.own && standalone && !rest && !img && !area) return { typed, hint: `Add a screenshot, or type or paste some text after /${c.name}.` };
+    // built-ins send the page on a new chat, like the starters (send() leaves it out when there's a screenshot to work on)
+    return { typed, cmd: c, input: rest, web, page, forcePage: !c.own && !standalone && !convId };
+  }
+  return { typed, text: s, web, page };
+}
+// {input} takes the text after the command (a function replacement, so a "$&" you type stays as typed); without
+// {input}, that text goes at the end after a blank line. The result isn't read again for commands.
+function expandCommand(c, input, what) {
+  const t = c.own ? c.prompt : c.prompt(what);
+  return c.needsInput ? t.replaceAll('{input}', () => input) : input ? `${t}\n\n${input}` : t;
+}
+function setBox(v, at = v.length) { q.value = v; autosize(); q.setSelectionRange(at, at); }
+// a panel action, or a hint in place of sending
+function slashAct(plan) {
+  if (plan.fill) setBox(`/${plan.fill.name} `);
+  if (plan.hint) return slashHint(plan.hint);
+  setBox(plan.run.takes ? '' : plan.rest);
+  plan.run.run(plan.rest);
+}
+// the small "/name" tag on your message, before the usual 📄 page · ✂️ highlighted line
+function cmdTag(m, name) {
+  let t = m.querySelector('.tags');
+  if (!t) m.prepend(t = el('div', 'tags'));
+  const s = el('span', 'ctag'); s.textContent = '/' + name;
+  t.prepend(s, t.textContent ? ' · ' : '');
+}
+// up to 3 of yours, as chips after the starters on an empty chat (in /chat, on their own)
+function slashStarters(box) {
+  const mine = commands.filter(c => c.starter && !isBuiltin(c.name)).slice(0, cmdLimits.maxStarters);
+  if (!mine.length) return;
+  if (!box) log.querySelector('.empty')?.appendChild(box = el('div', 'starters'));
+  for (const c of mine) {
+    const b = el('button', 'mine'); b.type = 'button'; b.textContent = '/' + c.name; b.title = c.prompt.slice(0, 300);
+    b.onclick = () => { if (busy) return; const fill = takesInput(c.prompt); setBox('/' + c.name + (fill ? ' ' : '')); if (fill) q.focus(); else send(); };
+    box?.appendChild(b);
+  }
+}
+
+// the list above the message box, while the box starts with "/" and the caret is still in that first word
+const slashBox = $('#slashMenu');
+let slash = null, slashGone = null; // the open list { items, i, qry, hint }; the "/word" Esc closed it on, so it stays shut until that changes
+function slashWord() {
+  if (document.activeElement !== q || q.selectionStart !== q.selectionEnd) return null;
+  return /^\/[\w-]*$/.exec(q.value.slice(0, q.selectionStart))?.[0] ?? null;
+}
+// yours first, then the built-ins; names starting with what you typed come first (an exact match on top), then names containing it
+function slashItems(qry) {
+  const all = [...commands.filter(c => !isBuiltin(c.name)).map(ownCommand), ...BUILTINS.filter(c => !c.hide?.())];
+  if (!qry) return all;
+  const pre = all.filter(c => c.name.startsWith(qry)).sort((a, b) => (b.name === qry) - (a.name === qry));
+  return qry.length < 2 ? pre : [...pre, ...all.filter(c => !c.name.startsWith(qry) && c.name.includes(qry))];
+}
+// Filtering also runs while an input method is composing (phone keyboards compose every word); only its keys are left alone.
+function slashSync() {
+  const w = view === 'chat' && !sheetOpen && !wrap && !minimized ? slashWord() : null;
+  if (w !== slashGone) slashGone = null;
+  if (w == null || slashGone != null) return void closeSlash();
+  const qry = w.slice(1).toLowerCase(), items = slashItems(qry);
+  slash = { items, qry, i: items.findIndex(c => !c.why?.()), hint: '' };
+  closeMenus(); renderSlash();
+}
+function slashHint(text) { slash = { items: [], qry: '', i: -1, hint: text }; closeMenus(); renderSlash(); focusView(); }
+function slashHelp() { slashGone = null; setBox('/'); q.focus(); slashSync(); }
+function closeSlash(dismiss) {
+  if (dismiss) slashGone = slashWord(); // slashSync forgets it once the word changes
+  slash = null; slashBox.hidden = true; slashBox.replaceChildren(); q.removeAttribute('aria-activedescendant');
+}
+// The listbox holds only options (in a group per heading when nothing's typed yet); the hint and the footer sit outside it.
+function renderSlash() {
+  const { items, qry, hint } = slash, list = el('div', 'sl');
+  list.id = 'slashList'; list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', 'Commands');
+  let group = '', box = list;
+  items.forEach((c, k) => {
+    const g = c.own ? 'Your commands' : 'Built in', why = c.why?.() || '';
+    if (!qry && g !== group) {
+      group = g; box = el('div'); box.setAttribute('role', 'group'); box.setAttribute('aria-label', g);
+      const h = el('div', 'mh'); h.textContent = g; h.setAttribute('aria-hidden', 'true');
+      box.appendChild(h); list.appendChild(box);
+    }
+    const b = el('button', '', '<span class="mi"></span><span class="mt"><b></b><span class="ar">text</span><span class="md"></span></span>');
+    b.type = 'button'; b.id = 'slash-' + k; b.tabIndex = -1; b.setAttribute('role', 'option');
+    if (why) b.setAttribute('aria-disabled', 'true');
+    b.querySelector('.mi').textContent = c.icon;
+    b.querySelector('b').textContent = '/' + c.name;
+    b.querySelector('.ar').hidden = !c.needsInput;
+    b.querySelector('.md').textContent = why || c.hint;
+    if (c.own) b.title = c.prompt.slice(0, 300);
+    b.onclick = () => slashPick(c, false);
+    b.onmousemove = () => { if (slash && slash.i !== k && !why) { slash.i = k; markSlash(); } };
+    box.appendChild(b);
+  });
+  const parts = items.length ? [list] : [];
+  if (hint || !items.length) { // only a hint is announced; "no command called …" would read out on every key
+    const n = el('div', 'none' + (hint ? ' err' : '')); if (hint) n.setAttribute('role', 'status');
+    n.textContent = hint || `No command called /${qry}. Enter sends it as a message.`;
+    parts.push(n);
+  }
+  if (!hint) {
+    const tip = el('div', 'tip', '<span class="keys">↑↓ choose · Enter runs · Tab fills in · Esc closes</span>'), edit = el('button', 'mini');
+    edit.type = 'button'; edit.id = 'slashEdit'; edit.textContent = commands.length ? 'Edit your commands' : 'Make your own';
+    edit.onclick = () => { closeSlash(); openSheet(); cmdFocus(); };
+    tip.appendChild(edit); parts.push(tip);
+  }
+  slashBox.replaceChildren(...parts);
+  slashBox.hidden = false;
+  markSlash();
+}
+function markSlash() {
+  const list = $('#slashList'), a = $('#slash-' + slash.i);
+  slashBox.querySelectorAll('[role=option]').forEach(b => b.setAttribute('aria-selected', String(b === a)));
+  if (!a) return void q.removeAttribute('aria-activedescendant');
+  q.setAttribute('aria-activedescendant', a.id);
+  // scrolled by hand: scrollIntoView could scroll the page around the panel too
+  if (a.offsetTop < list.scrollTop) list.scrollTop = a.offsetTop - 4;
+  else if (a.offsetTop + a.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = a.offsetTop + a.offsetHeight - list.clientHeight + 4;
+}
+// ↑↓ wrap around and skip commands that can't run
+function slashMove(d) {
+  const n = slash.items.length; let j = slash.i < 0 ? (d > 0 ? -1 : n) : slash.i;
+  for (let k = 0; k < n; k++) { j = (j + d + n) % n; if (!slash.items[j].why?.()) { slash.i = j; return markSlash(); } }
+}
+// Enter, a click or a tap runs the command; Tab, or a command still waiting for its {input}, only fills it in.
+// Only the first word is replaced, so whatever follows it stays.
+function slashPick(c, fill) {
+  if (c.why?.()) return;
+  const v = q.value, rest = v.slice(v.search(/\s|$/)).replace(/^\s+/, '');
+  closeSlash();
+  if (fill || (c.needsInput && !rest)) {
+    setBox(`/${c.name} ${rest}`, c.name.length + 2);
+    if (!fill) slashHint(`Type what goes in {input} after /${c.name}, then press Enter.`);
+    return;
+  }
+  setBox(`/${c.name}` + (rest ? ' ' + rest : ''));
+  send();
+}
+// The open list takes ↑↓, Enter, Tab and Esc (Esc closes just the list, not the panel). An input method keeps them while
+// it composes, and Shift+Enter still makes a new line.
+function slashKey(e) {
+  if (!slash || e.isComposing || e.keyCode === 229 || e.altKey || e.ctrlKey || e.metaKey) return false;
+  if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeSlash(true); return true; }
+  const c = slash.items[slash.i];
+  if (e.shiftKey || !c) return false; // nothing to pick: Enter sends the text as typed, Tab moves on
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') slashMove(e.key === 'ArrowDown' ? 1 : -1);
+  else if (e.key === 'Enter' || e.key === 'Tab') slashPick(c, e.key === 'Tab');
+  else return false;
+  e.preventDefault(); return true;
+}
+q.setAttribute('aria-autocomplete', 'list'); q.setAttribute('aria-controls', 'slashList');
+q.addEventListener('input', e => /^insertFrom(Paste|Drop)/.test(e.inputType || '') ? closeSlash() : slashSync()); // pasted "/…" text isn't a command list
+q.addEventListener('compositionend', () => slashSync());
+q.addEventListener('click', () => slashSync());
+q.addEventListener('keyup', e => { if (/^(ArrowLeft|ArrowRight|Home|End)$/.test(e.key) || (!slash && /^Arrow(Up|Down)$/.test(e.key))) slashSync(); });
+q.addEventListener('blur', () => closeSlash());
+// keeps the caret (and a phone's keyboard) in the message box; the click still comes
+for (const ev of ['pointerdown', 'mousedown']) slashBox.addEventListener(ev, e => e.preventDefault());
+document.addEventListener('pointerdown', e => { if (slash && !e.target.closest('#slashMenu,#q')) closeSlash(); });
+
+// Settings → Slash commands, built like Website memory: pick one to edit or "New command…"; drafts stay until saved
+let cmdSlot = '', cmdSaving = false, cmdEpoch = 0, cmdWrites = 0, starterKey = ''; // cmdSlot: the saved command being edited ('' = a new one)
+const cmdDrafts = new Map();
+const cleanCmdName = v => String(v || '').trim().replace(/^\//, '').toLowerCase();
+const CMD_NAME = /^[a-z][a-z0-9_-]{0,23}$/;
+const cmdFields = () => ({ name: cleanCmdName($('#cmdName').value), prompt: $('#cmdPrompt').value, starter: $('#cmdStarter').checked });
+function cmdMessage(text, error = false) { $('#cmdStatus').textContent = text; $('#cmdStatus').classList.toggle('error', error); }
+function setCommands(list, lim) {
+  commands = Array.isArray(list) ? [...list].sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0) : [];
+  if (lim) cmdLimits = { ...cmdLimits, ...lim };
+  $('#cmdPrompt').maxLength = cmdLimits.maxPrompt;
+  renderCmdList();
+  // the chips on an empty chat follow right away (the log is filled in even while another view shows)
+  const key = JSON.stringify(commands.filter(c => c.starter).map(c => [c.name, c.prompt]));
+  if (key !== starterKey) { starterKey = key; if (log.querySelector('.empty')) empty(); }
+  if (slash && !slash.hint) slashSync();
+}
+function resetCommands() {
+  cmdEpoch++; cmdSaving = false; cmdSlot = ''; cmdDrafts.clear();
+  $('#cmdName').value = $('#cmdPrompt').value = ''; $('#cmdStarter').checked = false; cmdMessage('');
+  setCommands([]); closeSlash();
+}
+// what's wrong with the form, or what saving it will do
+function cmdProblem() {
+  const { name, prompt } = cmdFields(), saved = commands.some(c => c.name === name), no = error => ({ error, block: true });
+  if (!name) return { block: true, info: 'Name your command and write the prompt it sends.' };
+  if (!CMD_NAME.test(name)) return no('Start the name with a letter, then use letters, numbers, - or _ (up to 24).');
+  if (isBuiltin(name) || cmdLimits.reserved?.includes(name)) return no(`/${name} is a built-in command. Pick another name.`);
+  if (cmdSlot && name !== cmdSlot && saved) return no(`You already have /${name}. Pick another name.`);
+  if (!cmdSlot && !saved && commands.length >= cmdLimits.maxCommands) return no(`You have ${cmdLimits.maxCommands} commands, the most you can save. Delete one to add another.`);
+  if (!prompt.trim()) return { block: true, info: 'Write the prompt this command sends.' };
+  return { info: !cmdSlot && saved ? `You already have /${name}. Saving replaces it.` : cmdSlot && name !== cmdSlot ? `Saving renames /${cmdSlot} to /${name}.` : 'Unsaved changes.' };
+}
+function renderCmdForm() {
+  const p = cmdProblem(), { name } = cmdFields();
+  $('#cmdSave').disabled = cmdSaving || !!p.block;
+  $('#cmdDelete').disabled = cmdSaving || !cmdSlot;
+  for (const id of ['cmdList', 'cmdName', 'cmdPrompt']) $('#' + id).disabled = cmdSaving;
+  const full = commands.filter(c => c.starter && c.name !== cmdSlot && c.name !== name).length >= cmdLimits.maxStarters;
+  $('#cmdStarter').disabled = cmdSaving || (full && !$('#cmdStarter').checked);
+  $('#cmdStarterNote').textContent = full ? `(${cmdLimits.maxStarters} already shown)` : '';
+  $('#cmdNameHint').textContent = (CMD_NAME.test(name) && !p.error ? `You’ll type it as /${name}. ` : '') + 'Letters, numbers, - and _, starting with a letter (up to 24).';
+  $('#cmdCount').textContent = `${$('#cmdPrompt').value.length.toLocaleString()} / ${cmdLimits.maxPrompt.toLocaleString()} characters`;
+}
+function cmdCheck() { const p = cmdProblem(); cmdMessage(p.error || p.info || '', !!p.error); renderCmdForm(); }
+function renderCmdList() {
+  const list = $('#cmdList');
+  if (cmdSlot && !commands.some(c => c.name === cmdSlot)) cmdSlot = ''; // deleted on another device: the form becomes a new one
+  list.replaceChildren(new Option(commands.length ? 'New command…' : 'New command… (none saved yet)', ''));
+  for (const c of commands) list.add(new Option('/' + c.name + (c.starter ? ' · on new chats' : '') + (isBuiltin(c.name) ? ' · hidden by a built-in' : ''), c.name));
+  list.value = cmdSlot;
+  renderCmdForm();
+}
+function rememberCmdDraft() {
+  const f = cmdFields(), s = commands.find(c => c.name === cmdSlot);
+  const same = s ? f.name === s.name && f.prompt === s.prompt && f.starter === s.starter : !f.name && !f.prompt && !f.starter;
+  if (same) cmdDrafts.delete(cmdSlot); else cmdDrafts.set(cmdSlot, { ...f, name: $('#cmdName').value });
+}
+function selectCmd(slot) {
+  rememberCmdDraft();
+  cmdSlot = slot;
+  const d = cmdDrafts.get(slot), s = commands.find(c => c.name === slot);
+  $('#cmdName').value = d ? d.name : s?.name || '';
+  $('#cmdPrompt').value = d ? d.prompt : s?.prompt || '';
+  $('#cmdStarter').checked = d ? d.starter : !!s?.starter;
+  cmdMessage(d ? 'Unsaved changes.' : !s ? 'Name your command and write the prompt it sends.'
+    : isBuiltin(s.name) ? `A built-in command now uses /${s.name}. Rename this one to keep using it.` : `Editing /${s.name}. Changes apply after saving.`);
+  renderCmdList();
+}
+// "Edit your commands" in the list: Settings, scrolled to this section
+function cmdFocus() {
+  if (!sheetOpen) return;
+  $('#sheet').scrollTop = $('#cmdSec').offsetTop - 10;
+  (cmdSlot || $('#cmdName').value ? $('#cmdList') : $('#cmdName')).focus({ preventScroll: true });
+}
+async function writeCommand(remove) {
+  if (cmdSaving || !token || (remove ? !cmdSlot : cmdProblem().block)) return;
+  const session = token, epoch = cmdEpoch, slot = cmdSlot, f = cmdFields();
+  cmdSaving = true; renderCmdForm(); cmdMessage(remove ? 'Deleting…' : 'Saving…');
+  try {
+    const r = await fetch('/api/commands' + (remove ? '?name=' + encodeURIComponent(slot) : ''), {
+      method: remove ? 'DELETE' : 'PUT', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session },
+      ...(!remove && { body: JSON.stringify({ name: f.name, prompt: f.prompt, starter: f.starter, ...(slot && slot !== f.name && { from: slot }) }) }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (session !== token || epoch !== cmdEpoch) return;
+    if (r.status === 403 && data.banned) onBanned();
+    if (!r.ok) throw Object.assign(new Error(data.error || 'HTTP ' + r.status), { status: r.status });
+    const c = remove ? null : data.command;
+    cmdWrites++; cmdDrafts.delete(slot); cmdSlot = c?.name || ''; cmdDrafts.delete(cmdSlot);
+    setCommands(data.commands); // the server sends the whole list back
+    $('#cmdName').value = c?.name || ''; $('#cmdPrompt').value = c?.prompt || ''; $('#cmdStarter').checked = !!c?.starter;
+    cmdMessage(c ? `Saved. Type /${c.name} in the message box to use it.` : `Deleted /${slot}.`);
+  } catch (e) {
+    if (session !== token || epoch !== cmdEpoch) return;
+    if (e.status === 401) return lock(lockedMsg());
+    cmdMessage((remove ? 'Couldn’t delete that command: ' : 'Couldn’t save that command: ') + e.message, true);
+  } finally {
+    if (session === token && epoch === cmdEpoch) { cmdSaving = false; renderCmdForm(); }
+  }
+}
+$('#cmdForm').addEventListener('submit', e => { e.preventDefault(); writeCommand(false); });
+$('#cmdDelete').onclick = () => writeCommand(true);
+$('#cmdList').onchange = () => selectCmd($('#cmdList').value);
+$('#cmdName').addEventListener('input', () => { rememberCmdDraft(); cmdCheck(); });
+$('#cmdName').addEventListener('change', () => { $('#cmdName').value = cleanCmdName($('#cmdName').value); rememberCmdDraft(); cmdCheck(); });
+$('#cmdPrompt').addEventListener('input', () => { rememberCmdDraft(); cmdCheck(); });
+$('#cmdStarter').addEventListener('change', () => { rememberCmdDraft(); cmdCheck(); });
+renderCmdList();
 
 // ---- first-load animation; an already loaded panel reopens immediately ----
 const CAP = calm ? 600 : 2150; // don't keep a slow network request behind the intro indefinitely

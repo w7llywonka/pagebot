@@ -63,6 +63,12 @@ const OWNER_FAILS_PER_HOUR = 200; // wrong owner passwords from everywhere befor
 const MAX_ANNOUNCEMENT = 500;
 const MAX_MEMORY_SITES = 100;
 const MAX_MEMORY_INSTRUCTIONS = 4000;
+// slash commands: each person's saved prompts, typed as /name in the panel
+const MAX_COMMANDS = 50, MAX_COMMAND_PROMPT = 2000, MAX_COMMAND_STARTERS = 3;
+const COMMAND_NAME = /^[a-z][a-z0-9_-]{0,23}$/;
+// The panel's own commands (BUILTINS in widget.html); nobody can save these names. history, pdf and actions are held
+// for chat history, PDF upload and page actions, so a saved command can't end up hidden behind them later.
+const BUILTIN_COMMANDS = new Set(['summarize', 'keypoints', 'simple', 'new', 'web', 'page', 'screenshot', 'region', 'settings', 'help', 'history', 'pdf', 'actions']);
 
 // other people's accounts: they sign up, wait for approval, then use pagebot within a daily limit
 const DEFAULT_ACCOUNT = { limitKind: 'tokens', limitValue: 100_000, allowSonnet: true, allowWeb: true };
@@ -209,6 +215,16 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS theme TEXT;
 CREATE INDEX IF NOT EXISTS messages_conv_idx ON messages (conversation_id, id);
 CREATE INDEX IF NOT EXISTS messages_created_idx ON messages (created_at);
 CREATE INDEX IF NOT EXISTS messages_user_idx ON messages (user_id, created_at);
+-- slash commands: each person's saved prompts (NULL is the owner, like site_memories); names are unique per person
+CREATE TABLE IF NOT EXISTS slash_commands (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL CHECK (name ~ '^[a-z][a-z0-9_-]{0,23}$'),
+  prompt TEXT NOT NULL CHECK (char_length(prompt) BETWEEN 1 AND ${MAX_COMMAND_PROMPT}),
+  starter BOOLEAN NOT NULL DEFAULT false, -- shown as a chip on new chats
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS slash_commands_user_name_idx ON slash_commands (COALESCE(user_id, 0), lower(name));
 -- rough cost for rows saved before costs were tracked (cache reads were counted as plain input then)
 UPDATE messages SET cost_usd = CASE WHEN COALESCE(model, '') LIKE '%sonnet%'
     THEN (input_tokens * 2 + output_tokens * 10) / 1e6 ELSE (input_tokens * 0.10 + output_tokens * 0.50) / 1e6 END
@@ -280,6 +296,20 @@ async function getMemory(userId, site) {
   if (!site) return null;
   const r = await pool.query('SELECT site, instructions, updated_at FROM site_memories WHERE COALESCE(user_id, 0)=$1 AND site=$2', [userId ?? 0, site]);
   return r.rows[0] ? publicMemory(r.rows[0]) : null;
+}
+// ---- slash commands ----
+// a command's name as saved: lowercase, without the slash people type (a repeated ?name=a&name=b isn't a string)
+function commandName(v) {
+  if (typeof v !== 'string') return null;
+  const n = v.trim().replace(/^\//, '').toLowerCase();
+  return COMMAND_NAME.test(n) ? n : null;
+}
+const publicCommand = r => ({ name: r.name, prompt: r.prompt, starter: r.starter, updatedAt: r.updated_at });
+const COMMAND_LIMITS = { maxCommands: MAX_COMMANDS, maxPrompt: MAX_COMMAND_PROMPT, maxStarters: MAX_COMMAND_STARTERS, reserved: [...BUILTIN_COMMANDS] };
+const BAD_COMMAND_NAME = 'Start the name with a letter, then use letters, numbers, - or _ (up to 24).';
+async function listCommands(uid) {
+  const r = await pool.query('SELECT name, prompt, starter, updated_at FROM slash_commands WHERE COALESCE(user_id, 0)=$1 ORDER BY name', [uid ?? 0]);
+  return r.rows.map(publicCommand);
 }
 function cleanPrefs(p = {}) {
   const o = {};
@@ -675,7 +705,8 @@ app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
   };
   res.set('Cache-Control', 'no-store');
   if (!s) return res.json(out);
-  if (!u) return res.json({ ...out, who: 'owner', lockMinutes: cfg.lock.on ? cfg.lock.minutes : 0, prefs: cfg.prefs, limits: limitsFor(cfg, null), models: modelList() });
+  if (!u) return res.json({ ...out, who: 'owner', lockMinutes: cfg.lock.on ? cfg.lock.minutes : 0, prefs: cfg.prefs, limits: limitsFor(cfg, null), models: modelList(),
+    commands: await listCommands(null), commandLimits: COMMAND_LIMITS }); // slash commands
   out.who = 'user'; out.lockMinutes = userLockMinutes(u); out.lockChoices = LOCK_CHOICES; out.user = publicUser(u);
   await noteDevice(req, u.name);
   if (u.ban) {
@@ -687,6 +718,7 @@ app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
     Object.assign(out, {
       prefs: prefsFor(cfg, u), limits: limitsFor(cfg, u), models: modelsFor(u), quota: quota(u, await usageToday(u.id)),
       announcement: a && a.id > u.annSeen ? a : null, restriction: u.restriction ? publicBan(u.restriction) : null,
+      commands: await listCommands(u.id), commandLimits: COMMAND_LIMITS, // slash commands
     });
   }
   res.json(out);
@@ -883,6 +915,58 @@ app.delete('/api/site-memory', limit(60, 'memory-write'), auth, trusted, async (
   if (!site) return res.status(400).json({ error: 'Enter a website hostname or an http(s) URL.' });
   await pool.query('DELETE FROM site_memories WHERE COALESCE(user_id, 0)=$1 AND site=$2', [req.user?.id ?? 0, site]);
   res.json({ ok: true });
+});
+
+// ---- slash commands: the signed-in person's own saved prompts (the panel expands them; the server never does) ----
+app.get('/api/commands', limit(60, 'commands-read'), auth, trusted, async (req, res) => {
+  res.json({ commands: await listCommands(req.user?.id ?? null), ...COMMAND_LIMITS });
+});
+
+// saves a command; with `from` (its old name) it renames it too. Saving a name you already have replaces that one.
+app.put('/api/commands', limit(60, 'commands-write'), auth, trusted, async (req, res) => {
+  const b = req.body || {}, uid = req.user?.id ?? null;
+  const name = commandName(b.name), hasFrom = b.from != null && b.from !== '', from = hasFrom ? commandName(b.from) : null;
+  if (!name || (hasFrom && !from)) return res.status(400).json({ error: BAD_COMMAND_NAME });
+  if (BUILTIN_COMMANDS.has(name)) return res.status(400).json({ error: `/${name} is a built-in command. Pick another name.` });
+  if (typeof b.prompt !== 'string') return res.status(400).json({ error: 'The prompt must be text.' });
+  const prompt = b.prompt.trim(), starter = b.starter === true;
+  if (!prompt) return res.status(400).json({ error: 'Write the prompt this command sends.' });
+  if (prompt.length > MAX_COMMAND_PROMPT) return res.status(400).json({ error: `Use at most ${MAX_COMMAND_PROMPT.toLocaleString('en-US')} characters for a command.` });
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+    // a per-person lock (its own key, not website memory's), so two quick saves can't both slip under a cap
+    await db.query(`SELECT pg_advisory_xact_lock(hashtextextended('slash_commands:' || $1::text, 0))`, [uid ?? 0]);
+    // everything but this name and the one it's renamed from
+    const n = (await db.query(`SELECT COUNT(*)::int AS n, COUNT(*) FILTER (WHERE starter)::int AS s FROM slash_commands
+      WHERE COALESCE(user_id, 0)=$1 AND lower(name) <> ALL($2::text[])`, [uid ?? 0, [name, from].filter(Boolean)])).rows[0];
+    const renaming = from && from !== name;
+    const taken = renaming && (await db.query('SELECT 1 FROM slash_commands WHERE COALESCE(user_id, 0)=$1 AND lower(name)=$2', [uid ?? 0, name])).rowCount;
+    const [status, error] = n.n >= MAX_COMMANDS ? [400, `You can save ${MAX_COMMANDS} commands. Delete one before adding another.`]
+      : starter && n.s >= MAX_COMMAND_STARTERS ? [400, `You can show ${MAX_COMMAND_STARTERS} commands on new chats. Turn one off first.`]
+      : taken ? [409, `You already have /${name}. Pick another name, or choose it from the list to edit it.`] : [];
+    if (error) {
+      await db.query('ROLLBACK');
+      return res.status(status).json({ error });
+    }
+    if (renaming) await db.query('DELETE FROM slash_commands WHERE COALESCE(user_id, 0)=$1 AND lower(name)=$2', [uid ?? 0, from]);
+    const r = await db.query(
+      `INSERT INTO slash_commands(user_id, name, prompt, starter) VALUES ($1,$2,$3,$4)
+       ON CONFLICT (COALESCE(user_id, 0), lower(name)) DO UPDATE SET prompt=EXCLUDED.prompt, starter=EXCLUDED.starter, updated_at=now()
+       RETURNING name, prompt, starter, updated_at`, [uid, name, prompt, starter]);
+    await db.query('COMMIT');
+    res.json({ command: publicCommand(r.rows[0]), commands: await listCommands(uid) }); // the whole list, so the panel holds what's saved
+  } catch (e) {
+    await db.query('ROLLBACK');
+    throw e;
+  } finally { db.release(); }
+});
+
+app.delete('/api/commands', limit(60, 'commands-write'), auth, trusted, async (req, res) => {
+  const name = commandName(req.query.name);
+  if (!name) return res.status(400).json({ error: BAD_COMMAND_NAME });
+  await pool.query('DELETE FROM slash_commands WHERE COALESCE(user_id, 0)=$1 AND lower(name)=$2', [req.user?.id ?? 0, name]);
+  res.json({ ok: true, commands: await listCommands(req.user?.id ?? null) });
 });
 
 // accounts can change their own password (other devices get signed out)
