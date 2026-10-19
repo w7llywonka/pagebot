@@ -50,7 +50,11 @@ async function fixture(t, { boot = account, events, chatStatus = 200, chatBody }
   await page.goto('https://pagebot.example.test/chat');
   await page.locator('#setBtn').waitFor({ state: 'visible' });
   await page.locator('#boot').waitFor({ state: 'detached' });
-  const openSettings = async () => { await page.locator('#setBtn').click(); await page.locator('#memoryForm').waitFor({ state: 'visible' }); };
+  const openSettings = async (cat = 'usage') => { // Settings is in categories now: Usage holds the bar, General the answer length
+    await page.locator('#setBtn').click(); await page.locator('#sheet').waitFor({ state: 'visible' });
+    if (await page.locator('#shBack').isVisible()) await page.locator('#shBack').click();
+    await page.locator('#tab-' + cat).click();
+  };
   const usage = async () => ({
     shown: await page.locator('#quotaSec').isVisible(),
     text: (await page.locator('#quotaText').innerText()).trim(), sub: (await page.locator('#quotaSub').innerText()).trim(),
@@ -159,17 +163,17 @@ browserTest('a restriction that lowers the limit says so without a number', asyn
 browserTest('answer lengths are named for accounts and numbered for the owner', async t => {
   const names = f => f.page.locator('#tokSeg button').allInnerTexts();
   const f = await fixture(t);
-  await f.openSettings();
+  await f.openSettings('general');
   assert.deepEqual(await names(f), ['Brief', 'Short', 'Standard', 'Long', 'Very long']);
   assert.equal(await f.page.locator('#tokSeg button.on').innerText(), 'Standard');
   assert.doesNotMatch(await f.page.locator('#tokSec').innerText(), /\d+\s*(k|tokens)\b/i);
   const custom = await fixture(t, { boot: { ...account, limits: { ...account.limits, maxTokens: 3000 } } });
-  await custom.openSettings();
+  await custom.openSettings('general');
   const note = await custom.page.locator('#tokNote').innerText();
   assert.match(note, /custom length/);
   assert.doesNotMatch(note, /\d/);
   const o = await fixture(t, { boot: owner });
-  await o.openSettings();
+  await o.openSettings('general');
   assert.deepEqual(await names(o), ['512', '1k', '2k', '4k', '8k']);
   assert.match(await o.page.locator('#tokSec').innerText(), /Maximum tokens per reply/);
 });

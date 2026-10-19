@@ -20,6 +20,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
+const goCat = async (frame, name) => { if (await frame.locator('#shBack').isVisible()) await frame.locator('#shBack').click(); await frame.locator('#tab-' + name).click(); }; // Settings remembers the category you were in
 const boot = {
   authed: true, who: 'user', theme: 'ember', lockMinutes: 0,
   user: { id: 1, name: 'Test reader', status: 'trusted', allowWeb: true, passcode: false },
@@ -118,6 +119,7 @@ async function fixture(t, { standalone = false, memories = [], events, version =
   await frame.locator('#boot').waitFor({ state: 'detached' });
   const openSettings = async () => {
     await frame.locator('#setBtn').click();
+    await goCat(frame, 'memory'); // the memory form is in the Memory & commands category
     await frame.locator('#memoryForm').waitFor({ state: 'visible' });
   };
   const waitValue = async (selector, value) => {
@@ -199,6 +201,7 @@ browserTest('a delayed website list cannot restore private instructions after lo
   f.state.blockNextList = gate;
   await f.openSettings();
   await gate.started.promise;
+  await goCat(f.frame, 'account');
   await f.frame.locator('#outBtn').click();
   await f.frame.locator('#login').waitFor({ state: 'visible' });
   const response = f.page.waitForResponse(response => response.url().endsWith('/api/site-memory'));
@@ -262,6 +265,7 @@ browserTest('older bookmarks keep the update prompt and reopen without an intro 
   assert.equal(await f.frame.locator('#upd').isVisible(), true);
   assert.equal(await f.frame.locator('#updGo').getAttribute('href'), '/?update');
   await f.openSettings();
+  await goCat(f.frame, 'about');
   assert.match(await f.frame.locator('#verLine').innerText(), /pagebot v8.*your bookmark is v7/);
   await f.frame.locator('#setBtn').click();
   await f.frame.locator('#updX').click();
