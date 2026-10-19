@@ -170,8 +170,12 @@ body.sheet #jump{display:none}
 .tb:hover,.tb.on{background:var(--chip-on);color:var(--text)}
 .tb svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tb.model svg{width:13px;height:13px}
-.pills{flex:1;min-width:0;display:flex;gap:5px;overflow:hidden}
+.pills{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:5px}
 .pills.tight .pl{display:none} /* three pills don't fit beside the model name, so they keep just their icons */
+/* still too many for one line (PDF, page, highlight, region, web, actions in a narrow panel): they take their own row under the buttons and wrap, never overlap */
+.bar.stack{flex-wrap:wrap;row-gap:5px}
+.bar.stack .pills{order:9;flex:1 0 100%}
+.bar.stack .model{margin-left:auto}
 .pill{flex:none;display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 6px 0 8px;border-radius:99px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:var(--chip-on);color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap}
 .pill i{font-style:normal;color:var(--muted);font-size:13px;line-height:1}
 .pill:hover i{color:var(--text)}
@@ -524,7 +528,8 @@ body.docked:not(.min) header{cursor:default}
 /* chat history: a sheet over the chat, like settings */
 #hist{position:absolute;left:0;right:0;top:var(--hd);bottom:0;z-index:2;background:var(--bg);display:flex;flex-direction:column;animation:sheetIn .2s cubic-bezier(.2,.8,.2,1)}
 :root[data-theme=glass] #hist{background:var(--pop);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
-:root[data-theme=clear] body.hist>#log,:root[data-theme=clear] body.hist>#composer,:root[data-theme=clear] body.hist>#ann,:root[data-theme=clear] body.hist>#rst,:root[data-theme=clear] body.hist>#upd{visibility:hidden}
+:root[data-theme=clear] #hist{background:var(--pop);text-shadow:none} /* a list to read, so it gets a backing like Wrapped's: page text showed through the rows */
+:root:is([data-theme=glass],[data-theme=clear]) body.hist>:is(#log,#composer,#ann,#rst,#upd){visibility:hidden} /* the chat ghosted through the sheet between the rows */
 body.hist #jump{display:none}
 .title .name{min-width:0;overflow:hidden;text-overflow:ellipsis} /* gives way to the header buttons in a narrow panel */
 .hsearch{flex:none;padding:10px 10px 4px}
@@ -2623,9 +2628,11 @@ function fitPills() {
   if (fitFrame) return;
   fitFrame = requestAnimationFrame(() => {
     fitFrame = 0;
-    const p = $('.pills');
-    if (!p.clientWidth) return;
-    p.classList.remove('tight'); p.classList.toggle('tight', p.scrollWidth > p.clientWidth);
+    const p = $('.pills'), bar = p.parentNode, wraps = () => p.offsetHeight > 26; // taller than one pill: it wrapped
+    bar.classList.remove('stack'); p.classList.remove('tight');
+    if (!p.clientWidth || !wraps()) return;
+    p.classList.add('tight');
+    if (wraps()) { bar.classList.add('stack'); p.classList.add('tight'); }
   });
 }
 addEventListener('resize', () => { fitPills(); scroll(); }); // a resized panel stays at the newest message if you were there
