@@ -6,64 +6,189 @@
 <meta name="robots" content="noindex">
 <title>pagebot admin</title>
 <style>
-:root{--bg:#141414;--panel:#1d1d1d;--line:#2b2b2b;--text:#ebe8e1;--muted:#8e8a82;--accent:#d97757;--ok:#7fc99a;--err:#ff8a7a;
-  --s-haiku:#3987e5;--s-sonnet:#d95926;--s-router:#a06ee0;--axis:#383835;
+:root{
+  --page:#0f0f0e;--panel:#1a1a19;--panel2:#222220;--hover:#242422;--line:#2c2c2a;--line2:#3a3a37;
+  --text:#f0efec;--text2:#c3c2b7;--muted:#898781;--accent:#d97757;--wash:rgba(217,119,87,.14);
+  --ok:#7fc99a;--warn:#fab219;--err:#ff8a7a;
+  /* data colors: categorical slots 1-3 (dark steps), a neutral for magnitude bars, and the blue sequential ramp for the heatmap */
+  --s-haiku:#3987e5;--s-sonnet:#d95926;--s-router:#a06ee0;--s-other:#199e70;--bar:#6b6a65;
+  --h0:#242422;--h1:#104281;--h2:#1c5cab;--h3:#2a78d6;--h4:#5598e7;--h5:#86b6ef;
   font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text)}
-main{max-width:600px;margin:0 auto;padding:32px 16px 48px}
-h1{font-size:20px;margin:0 0 20px;display:flex;align-items:center;gap:10px}
-h1 .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
-h2{font-size:14px;margin:0 0 12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
-input,select,textarea{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;outline:none;margin-bottom:8px}
-textarea{display:block;resize:vertical;min-height:70px}
-input:focus,select:focus,textarea:focus{border-color:#4a4a4a}
-button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:9px 14px;font:600 14px system-ui,sans-serif;cursor:pointer}
-button.ghost{background:none;border:1px solid var(--line);color:var(--text)}
-button:disabled{opacity:.5;cursor:default}
-.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
-.stat{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
-.stat .v{font-size:20px;font-weight:650}
-.stat .l{font-size:12px;color:var(--muted)}
-.bar{height:8px;background:var(--bg);border:1px solid var(--line);border-radius:99px;overflow:hidden}
-.bar div{height:100%;background:var(--accent);width:0}
-.muted{color:var(--muted);font-size:13px}
-.msg{font-size:13px;min-height:20px;margin-top:6px}.msg.ok{color:var(--ok)}.msg.err{color:var(--err)}
-.foot{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:18px}
-a{color:var(--accent)}
+body{margin:0;background:var(--page);color:var(--text)}
+body.noscroll{overflow:hidden}
 [hidden]{display:none!important}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-label.f{display:block;font-size:12.5px;color:var(--muted);margin-bottom:4px}
-.hint{font-size:12px;color:var(--muted);margin:-4px 0 10px}
-.btns{display:flex;gap:8px;flex-wrap:wrap}
-.pill{display:inline-block;font-size:12px;font-weight:600;border-radius:99px;padding:2px 9px;margin-left:6px;vertical-align:1px}
-.pill.on{background:rgba(127,201,154,.14);color:var(--ok)}
-.pill.off{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+a{color:var(--accent)}
+button{font:inherit;color:inherit}
+h2{font-size:13px;margin:0;color:var(--text2);font-weight:650;letter-spacing:.2px}
+.sub,.muted{color:var(--muted)}
+.sub{font-size:12.5px}
+.wrap{max-width:1320px;margin:0 auto;padding:0 20px}
+input,select,textarea{background:var(--page);color:var(--text);border:1px solid var(--line2);border-radius:9px;padding:7px 10px;font:inherit;font-size:13.5px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:#6a6964}
+input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;margin:0;vertical-align:middle;cursor:pointer}
+:focus-visible{outline:2px solid #6a6964;outline-offset:2px}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:9px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.btn.ghost{background:none;border:1px solid var(--line2);color:var(--text)}
+.btn.ghost:hover{background:var(--panel2)}
+.btn.sm{padding:5px 10px;font-size:12.5px;border-radius:8px}
+.btn.danger{color:var(--err)}
+.btn:disabled{opacity:.5;cursor:default}
+.btns{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.msg{font-size:13px;min-height:0}.msg:not(:empty){margin-top:8px}.msg.ok{color:var(--ok)}.msg.err{color:var(--err)}
 
-/* usage chart */
-.sechead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:22px 0 10px}
-.sechead h2{margin:0}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
-.seg button{background:none;border:0;border-left:1px solid var(--line);color:var(--muted);border-radius:0;padding:5px 12px;font:600 12.5px system-ui,sans-serif}
+/* sign-in gate */
+.gate{max-width:380px;margin:14vh auto 0;padding:24px;background:var(--panel);border:1px solid var(--line);border-radius:16px;display:flex;flex-direction:column;gap:10px}
+.gate label{font-size:12.5px;color:var(--muted)}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;color:var(--text);text-decoration:none;white-space:nowrap}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(217,119,87,.16)}
+.brand .ad{color:var(--muted);font-weight:500}
+.gate .brand{font-size:18px;margin-bottom:8px}
+
+/* top bar */
+.top{position:sticky;top:0;z-index:20;background:rgba(15,15,14,.92);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:18px;height:56px}
+.tabs{display:flex;gap:2px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{background:none;border:0;border-radius:8px;padding:7px 12px;color:var(--muted);font-weight:600;font-size:13.5px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.tab:hover{color:var(--text);background:var(--panel)}
+.tab[aria-selected=true]{color:var(--text);background:var(--panel2)}
+.badge{min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:inline-grid;place-items:center;line-height:1}
+.tools{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12.5px;white-space:nowrap}
+.icon{width:30px;height:30px;padding:0}
+main.wrap{padding-top:20px;padding-bottom:64px}
+.tabpanel{display:flex;flex-direction:column;gap:16px}
+
+/* layout */
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g-chart{grid-template-columns:minmax(0,2.1fr) minmax(280px,1fr)}
+.g-dev{grid-template-columns:minmax(0,2fr) minmax(300px,1fr);align-items:start}
+@media (max-width:1000px){.g2,.g-chart,.g-dev{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;min-width:0}
+.card.flush{padding:0}
+.cardhead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.card.flush .cardhead{padding:14px 18px 0;margin-bottom:8px}
+.pad{padding-left:18px;padding-right:18px}
+.msg.pad:not(:empty){padding-bottom:12px}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filters .grow{flex:1}
+.filters input[type=search]{min-width:220px}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden;background:var(--page)}
+.seg button{background:none;border:0;border-left:1px solid var(--line2);color:var(--muted);padding:6px 11px;font-weight:600;font-size:12.5px;cursor:pointer;white-space:nowrap}
 .seg button:first-child{border-left:0}
-.seg button.on{background:#2a201b;color:var(--text)}
-.sum{margin:0 0 12px;font-size:13px;color:var(--muted)}
-.sum b{color:var(--text);font-weight:650}
-.legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+.seg button.on{background:var(--wash);color:var(--text)}
+.loading .fade{opacity:.5;transition:opacity .15s}
+.fade{transition:opacity .15s}
+
+/* stat tiles */
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+@media (max-width:1150px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+.kpi .l{font-size:12px;color:var(--muted)}
+.kpi .v{font-size:24px;font-weight:650;line-height:1.25;margin:3px 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .d{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .s{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* tables */
+.tablewrap{overflow-x:auto}
+table.dt{width:100%;border-collapse:collapse;font-size:13px}
+.dt th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line2);white-space:nowrap;background:var(--panel)}
+.dt td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+.dt tbody tr:last-child td{border-bottom:0}
+.dt th:first-child,.dt td:first-child{padding-left:18px}
+.dt th:last-child,.dt td:last-child{padding-right:18px}
+.dt .num{text-align:right;font-variant-numeric:tabular-nums}
+.dt .right{text-align:right}
+.dt .muted{color:var(--muted)}
+.dt .mono{font:12.5px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--text2)}
+.dt tbody tr.click{cursor:pointer}
+.dt tbody tr.click:hover>td,.dt tbody tr.click:focus-visible>td{background:var(--hover)}
+.dt tbody tr.click:focus-visible{outline:none}
+.dt th button{background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.dt th button:hover,.dt th[aria-sort] button{color:var(--text)}
+.dt th .arr{font-size:9px}
+.dt .selcol{width:34px;padding-right:0}
+.dt .wrapcell{white-space:normal;min-width:180px;max-width:360px}
+.dt .trunc{max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.dt td.empty{text-align:center;color:var(--muted);padding:28px 10px}
+.dt tr.owner>td{background:rgba(217,119,87,.045)}
+.pname b{font-weight:650}
+.pname .n{display:block;font-size:12px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.pname b{display:block;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+#peopleTbl th.num{white-space:normal;max-width:84px;line-height:1.3}
+#peopleTbl th.num button{white-space:normal;text-align:right;justify-content:flex-end}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;border-radius:99px;padding:1px 8px;border:1px solid var(--line2);color:var(--text2);white-space:nowrap}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.chip.ok{color:var(--ok);border-color:rgba(127,201,154,.35)}
+.chip.err{color:var(--err);border-color:rgba(255,138,122,.35)}
+.chip.warn{color:var(--warn);border-color:rgba(250,178,25,.35)}
+.chip.owner{color:var(--accent);border-color:rgba(217,119,87,.4)}
+.chip.mute{color:var(--muted)}
+.chip.banned{color:#fff;background:#b4432f;border-color:#b4432f}
+.chip.term{color:#141414;background:var(--text);border-color:var(--text)}
+.chip.over{color:var(--warn);border-color:rgba(250,178,25,.45)}
+.banbox{background:rgba(180,67,47,.1);border:1px solid rgba(255,138,122,.35);border-radius:10px;padding:10px 12px;font-size:13px}
+.banbox.term{background:rgba(235,232,225,.06);border-color:#5a5650}
+.banbox .sub{margin-top:4px}
+.banbox.rst{background:rgba(250,178,25,.07);border-color:rgba(250,178,25,.4)}
+.banbox+.banform{margin-top:10px}
+.banform{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.banform input,.banform textarea{width:100%}
+.banform input[type=checkbox]{width:15px}
+/* what a restriction takes away */
+.rform{display:flex;flex-direction:column;gap:8px}
+.rform .inl input{width:120px}
+.btn.bad{background:#b4432f}
+.btn.worst{background:var(--text);color:#141414}
+.btn.warnb{background:#94650f}
+/* shared a browser with a terminated account */
+.linked{font-size:12.5px;color:var(--warn);margin-bottom:10px;overflow-wrap:anywhere}
+/* appeals waiting, at the top of the Moderation card */
+.subh{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:650;padding:4px 18px 8px}
+.appeal{padding:12px 18px;border-top:1px solid var(--line);font-size:13px}
+.appeal:last-child{border-bottom:1px solid var(--line)}
+.appeal .quote{font-size:13px;color:var(--text)}
+.areply{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.areply input{flex:1 1 220px;min-width:0}
+.hist{font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.6;overflow-wrap:anywhere}
+textarea{display:block;resize:vertical;min-height:64px;width:100%}
+.annbox{background:var(--page);border:1px solid rgba(217,119,87,.45);border-radius:10px;padding:10px 12px;margin-bottom:10px;white-space:pre-wrap;overflow-wrap:anywhere}
+.swatch{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:8px;vertical-align:-1px;flex:none}
+.share{display:inline-flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums;color:var(--text2);font-size:12.5px}
+.share i{display:block;height:6px;border-radius:0 3px 3px 0;background:var(--bar)}
+.share .track{width:64px;height:6px;flex:none}
+.meter{display:inline-block;width:64px;height:6px;border-radius:99px;background:rgba(217,119,87,.18);overflow:hidden;vertical-align:middle;flex:none}
+.meter i{display:block;height:100%;border-radius:99px;background:var(--accent)}
+.meter i.warn{background:var(--warn)}.meter i.full{background:var(--err)}
+.today{display:inline-flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
+.tag{display:inline-block;font-size:11px;line-height:16px;border:1px solid var(--line2);border-radius:5px;padding:0 5px;color:var(--text2);margin-left:6px;vertical-align:1px}
+.tag.warn{color:var(--warn);border-color:rgba(250,178,25,.35)}
+.qcell{max-width:440px;overflow:hidden;text-overflow:ellipsis}
+.dt tr.open>td{background:var(--panel2)}
+.dt tr.detail>td{background:var(--panel2);white-space:normal;padding:4px 18px 18px}
+.more{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px;border-top:1px solid var(--line)}
+
+/* chart */
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend i{width:10px;height:10px;border-radius:2px}
-.chart{position:relative;transition:opacity .2s}
-.chart.loading{opacity:.45}
+.sum{margin:0 0 12px;font-size:13px;color:var(--muted)}
+.sum b{color:var(--text);font-weight:650}
+figure{margin:0}
+.chart{position:relative}
 .chart svg{display:block;width:100%;height:auto;overflow:visible;outline:none}
-.chart svg:focus-visible{outline:1px solid #4a4a4a;outline-offset:4px;border-radius:4px}
+.chart svg:focus-visible{outline:1px solid #6a6964;outline-offset:4px;border-radius:4px}
 .chart text{fill:var(--muted);font:11px system-ui,sans-serif;font-variant-numeric:tabular-nums}
 .chart .peak{fill:var(--text);font-weight:600}
 .chart .grid{stroke:var(--line);stroke-width:1}
-.chart .base{stroke:var(--axis);stroke-width:1}
+.chart .base{stroke:var(--line2);stroke-width:1}
 .chart .col.dim{opacity:.45}
 .chart .nodata{fill:var(--muted);font-size:13px}
-.tip{position:absolute;pointer-events:none;background:#0e0e0e;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.5;min-width:150px;box-shadow:0 8px 24px rgba(0,0,0,.45);opacity:0;transition:opacity .1s;z-index:2}
+.chart rect.cell{cursor:default}
+.chart rect.cell.on{stroke:var(--text);stroke-width:1.5}
+.tip{position:absolute;pointer-events:none;background:#0c0c0b;border:1px solid var(--line2);border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.5;min-width:150px;box-shadow:0 8px 24px rgba(0,0,0,.5);opacity:0;transition:opacity .1s;z-index:5}
 .tip.on{opacity:1}
 .tip .d{color:var(--muted)}
 .tip .t{font-size:15px;font-weight:650}
@@ -73,460 +198,817 @@ label.f{display:block;font-size:12.5px;color:var(--muted);margin-bottom:4px}
 .tip .x{color:var(--muted);margin-top:3px}
 details.tv{margin-top:10px}
 details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
-.tv table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px;font-variant-numeric:tabular-nums}
-.tv th,.tv td{text-align:right;padding:4px 6px;border-bottom:1px solid var(--line)}
-.tv th:first-child,.tv td:first-child{text-align:left}
-.tv th{color:var(--muted);font-weight:600}
-.tvwrap{max-height:260px;overflow:auto}
-@media (max-width:480px){.row2{grid-template-columns:1fr}}
+.tvwrap{max-height:280px;overflow:auto;margin-top:8px}
+.tvwrap .dt td,.tvwrap .dt th{padding:4px 8px}
+.scale{display:inline-flex;align-items:center;gap:3px;font-size:12px;color:var(--muted)}
+.scale i{width:14px;height:10px;border-radius:2px;display:inline-block}
+.scale span{margin:0 4px}
 
-/* chart controls */
-.ctrls{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-.ctrls select{width:auto;margin:0;padding:5px 8px;font-size:12.5px;border-radius:9px;max-width:170px}
+/* budget and fact lists */
+.big{font-size:30px;font-weight:650;line-height:1.2;margin:2px 0 10px}
+.big span{font-size:14px;font-weight:500;color:var(--muted)}
+.meter.wide{width:100%;height:8px;margin-bottom:14px}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;margin:0;font-size:13px}
+.facts dt{color:var(--muted)}
+.facts dd{margin:0;color:var(--text2);min-width:0;overflow-wrap:anywhere}
 
-/* users */
-.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
-.hrow h2{margin:0}
+/* people */
 .switch{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer;user-select:none}
-.switch input{appearance:none;-webkit-appearance:none;width:34px;height:20px;margin:0;padding:0;border-radius:99px;background:var(--line);border:0;position:relative;cursor:pointer;transition:background .15s}
+.switch input{appearance:none;-webkit-appearance:none;width:34px;height:20px;margin:0;padding:0;border-radius:99px;background:var(--line2);border:0;position:relative;cursor:pointer;transition:background .15s}
 .switch input::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:var(--text);transition:transform .15s}
 .switch input:checked{background:var(--accent)}
 .switch input:checked::after{transform:translateX(14px);background:#fff}
-.subh{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:600;margin:16px 0 8px}
-.subh:first-of-type{margin-top:4px}
-.count{display:inline-block;min-width:18px;padding:0 6px;border-radius:99px;background:var(--accent);color:#fff;font-size:11px;text-align:center;margin-left:4px;letter-spacing:0}
-.urow{border:1px solid var(--line);border-radius:12px;background:var(--bg);margin-bottom:8px}
-.urow.pending{display:flex;align-items:center;gap:12px;padding:10px 12px}
-.uinfo{flex:1;min-width:0}
-.uinfo b{font-weight:650}
-.unote{font-size:12.5px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
-.ago{font-size:12px;color:var(--muted)}
-.btns{display:flex;gap:6px;flex-wrap:wrap}
-.btns button{padding:7px 11px;font-size:13px}
-.uhead{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-radius:12px;color:var(--text);padding:10px 12px;font:inherit;font-weight:400;cursor:pointer;text-align:left}
-.uhead.static{cursor:default}
-.uhead .uname{font-weight:650;flex:none;max-width:11em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.uhead .ago{flex:none;white-space:nowrap}
-.uhead .grow{flex:1}
-.uhead svg{width:14px;height:14px;stroke:var(--muted);fill:none;stroke-width:2;transition:transform .15s;flex:none}
-.urow.open .uhead svg{transform:rotate(90deg)}
-.chip{font-size:11px;font-weight:600;border-radius:99px;padding:1px 8px;white-space:nowrap;border:1px solid var(--line);color:var(--muted)}
-.chip.trusted{color:var(--ok);border-color:rgba(127,201,154,.35)}
-.chip.blocked{color:var(--err);border-color:rgba(255,138,122,.35)}
-.chip.banned{color:#fff;background:#b4432f;border-color:#b4432f}
-.chip.term{color:#141414;background:var(--text);border-color:var(--text)}
-.chip.over{color:#e0a030;border-color:rgba(224,160,48,.45)}
-/* moderation: bans and terminations */
-.banbox{background:rgba(180,67,47,.1);border:1px solid rgba(255,138,122,.35);border-radius:10px;padding:10px 12px}
-.banbox.term{background:rgba(235,232,225,.06);border-color:#5a5650}
-.banbox.rst{background:rgba(224,160,48,.08);border-color:rgba(224,160,48,.4);margin-bottom:8px}
-.rform{margin-bottom:8px}
-.rform .inl{margin-top:8px}
-.rform .inl input{width:110px}
-button.warnb{background:#b07818}
-.warn{font-size:12.5px;color:#e0a030;margin:2px 0 8px}
-.mrow.appeal{display:block}
-.mrow .abody{margin:6px 0;padding:8px 10px;border-left:3px solid var(--accent);background:var(--bg);border-radius:0 8px 8px 0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13.5px}
-.mrow.appeal input{margin:4px 0 8px}
-.banbox b{font-weight:650}
-.banbox .annmeta{overflow-wrap:anywhere}
-.banbox .btns{margin-top:10px;align-items:center}
-.banform{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
-.banform .inl{margin-bottom:8px}
-.banform select{width:auto;margin:0}
-.banform textarea{min-height:56px}
-.banform .btns{margin-top:2px}
-button.bad{background:#b4432f}
-button.worst{background:var(--text);color:#141414}
-.hist{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.6;overflow-wrap:anywhere}
-.mrow{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
-.mrow:first-child{border-top:0}
-.mrow .uinfo{font-size:13px}
-.mrow .uinfo b{font-size:14px}
-.mrow .btns{flex:none}
-.meterw{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);white-space:nowrap;min-width:0}
-.meterw .mtext{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.mtrack{flex:none;width:70px;height:6px;border-radius:99px;background:rgba(217,119,87,.18);overflow:hidden}
-.mtrack i{display:block;height:100%;border-radius:99px;background:var(--accent)}
-.mtrack i.warn{background:#e0a030}.mtrack i.full{background:var(--err)}
-.ued{padding:4px 12px 12px;border-top:1px solid var(--line)}
+.bulk{display:flex;flex-wrap:wrap;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:8px 12px;position:sticky;top:64px;z-index:10}
+.bulk b{margin-right:6px;font-size:13px}
+.bulk .msg{margin:0 0 0 6px}
+.bulklimit{display:flex;gap:8px;align-items:center;flex-basis:100%;padding-top:6px}
+.bulklimit input{width:120px}
 .field{margin-top:12px}
-.field>label,.field>.fl{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+.field>label:not(.ck),.field>.fl{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px}
 .inl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.inl input{width:130px;margin:0}
+.inl input{width:130px}
 .inl .unit{font-size:12.5px;color:var(--muted)}
-.ck{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;margin-right:14px;cursor:pointer}
-.ck input{width:auto;margin:0;accent-color:var(--accent)}
-.ustats{font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:12px;overflow-wrap:anywhere}
-.ustats b{color:var(--text);font-weight:600}
-.ued .btns{margin-top:12px}
-button.danger{color:var(--err)}
-.ued .np{display:flex;gap:8px;margin-top:10px}
-.ued .np input{margin:0}
-.annbox{background:var(--bg);border:1px solid rgba(217,119,87,.45);border-radius:10px;padding:10px 12px;margin-bottom:10px}
-#annText{white-space:pre-wrap;overflow-wrap:anywhere}
-.annmeta{font-size:12px;color:var(--muted);margin-top:4px}
-details.defaults{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
-details.defaults summary{cursor:pointer;color:var(--muted);font-size:13px}
-@media (max-width:480px){.meterw .mtext{display:none}.uhead .ago{display:none}.uhead .uname{max-width:9em}}
+.ck{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;margin-right:16px;cursor:pointer}
+
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:30;opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(500px,100vw);background:var(--panel);border-left:1px solid var(--line);z-index:31;transform:translateX(102%);visibility:hidden;transition:transform .22s cubic-bezier(.2,.8,.2,1),visibility 0s linear .22s;display:flex;flex-direction:column;box-shadow:-20px 0 50px rgba(0,0,0,.4)}
+.drawer.on{transform:none;visibility:visible;transition:transform .22s cubic-bezier(.2,.8,.2,1)}
+.dwhead{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
+.dwhead h3{margin:0;font-size:18px;overflow-wrap:anywhere}
+.dwhead .sub{margin-top:4px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.dwhead .btn{margin-left:auto}
+.dwbody{overflow:auto;padding:16px 18px 40px;display:flex;flex-direction:column;gap:22px}
+.dwbody h4{margin:0 0 10px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:650}
+.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.trio>div{background:var(--page);border:1px solid var(--line);border-radius:10px;padding:9px 11px;min-width:0}
+.trio .l{font-size:11.5px;color:var(--muted)}
+.trio .v{font-size:17px;font-weight:650}
+.trio .s{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.limitline{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:12.5px;color:var(--text2)}
+.limitline .meter{flex:1;width:auto;height:8px}
+.list{display:flex;flex-direction:column}
+.list .it{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.list .it:last-child{border-bottom:0}
+.list .it .q{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list .it .m{font-size:12px;color:var(--muted);grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.list .it .act{grid-row:1/3;grid-column:2;align-self:center}
+.note{background:var(--page);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--text2);overflow-wrap:anywhere}
+.np{display:flex;gap:8px;margin-top:10px}
+.np input{flex:1}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;font-size:12.5px}
+
+/* activity detail */
+.dgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;padding-top:12px}
+@media (max-width:800px){.dgrid{grid-template-columns:minmax(0,1fr)}}
+.dgrid h5{margin:0 0 6px;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.55;margin:0;max-height:340px;overflow:auto;background:var(--page);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.quote{border-left:3px solid var(--line2);padding:2px 0 2px 10px;color:var(--text2);font-size:12.5px;margin:10px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.dmeta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);margin-top:12px}
+.dmeta a{color:var(--text2)}
+
+/* settings */
+.form{display:flex;flex-direction:column;gap:8px}
+.form label.f{font-size:12.5px;color:var(--muted)}
+.form .hint{font-size:12px;color:var(--muted);margin:-2px 0 4px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row2>div{display:flex;flex-direction:column;gap:6px}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:1px}
+.pill.on{background:rgba(127,201,154,.14);color:var(--ok)}
+.pill.off{color:var(--muted);border:1px solid var(--line2)}
+
+@media (max-width:700px){
+  .wrap{padding:0 12px}
+  .top .wrap{gap:10px;height:52px}
+  .top .brand .bt,.top .brand .ad,#updated{display:none}
+  .card{padding:14px}
+  .card.flush .cardhead{padding:12px 14px 0}
+  .dt th:first-child,.dt td:first-child{padding-left:14px}
+  .dt th:last-child,.dt td:last-child{padding-right:14px}
+  .filters input[type=search]{min-width:0;flex:1 1 100%}
+  .row2{grid-template-columns:1fr}
+  .bulk{top:58px}
+  #pendTbl thead{display:none}
+  #pendTbl tr{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 14px;border-bottom:1px solid var(--line)}
+  #pendTbl tr:last-child{border-bottom:0}
+  #pendTbl td{border:0;padding:0!important;white-space:normal;max-width:none;min-width:0}
+  #pendTbl td:nth-child(2){grid-column:1/-1;grid-row:2}
+  #pendTbl td:nth-child(3){grid-column:1/-1;grid-row:3;font-size:12px;color:var(--muted)}
+  #pendTbl td:nth-child(4){grid-column:2;grid-row:1}
+  #actTbl th:nth-child(3),#actTbl td:nth-child(3),#actTbl th:nth-child(4),#actTbl td:nth-child(4){display:none}
+  .qcell{max-width:260px}
+}
+.dwrap{position:sticky;left:0;max-width:calc(100vw - 72px)}
+@media (prefers-reduced-motion:reduce){.drawer,.scrim,.fade,.tip{transition:none}}
 </style>
 </head>
 <body>
-<main>
-  <h1><span class="dot"></span>pagebot admin</h1>
+<form class="gate" id="unlock" autocomplete="off">
+  <div class="brand"><span class="dot"></span><span class="bt">pagebot</span><span class="ad">admin</span></div>
+  <label for="tok">Admin token</label>
+  <input id="tok" type="password" placeholder="ADMIN_TOKEN">
+  <button class="btn" type="submit">Unlock</button>
+  <div class="msg err" id="unlockMsg"></div>
+</form>
 
-  <form class="card" id="unlock" autocomplete="off">
-    <h2>Admin token</h2>
-    <input id="tok" type="password" placeholder="ADMIN_TOKEN">
-    <button type="submit">Unlock</button>
-    <div class="msg err" id="unlockMsg"></div>
-  </form>
+<div id="app" hidden>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/" title="pagebot home"><span class="dot"></span><span class="bt">pagebot</span><span class="ad">admin</span></a>
+  <nav class="tabs" role="tablist" aria-label="Admin sections">
+    <button class="tab" type="button" role="tab" data-tab="overview" aria-controls="t-overview">Overview</button>
+    <button class="tab" type="button" role="tab" data-tab="people" aria-controls="t-people">People <span class="badge" id="pendBadge" title="Waiting to be accepted" hidden></span></button>
+    <button class="tab" type="button" role="tab" data-tab="activity" aria-controls="t-activity">Activity</button>
+    <button class="tab" type="button" role="tab" data-tab="devices" aria-controls="t-devices">Devices</button>
+    <button class="tab" type="button" role="tab" data-tab="settings" aria-controls="t-settings">Settings</button>
+  </nav>
+  <div class="tools"><span id="updated"></span><button class="btn ghost sm icon" id="refresh" type="button" title="Refresh" aria-label="Refresh">↻</button><button class="btn ghost sm" id="lock" type="button">Lock</button></div>
+</div></header>
 
-  <div id="panel" hidden>
-    <div class="card">
-      <h2>Usage</h2>
-      <div class="stats">
-        <div class="stat"><div class="v" id="sToday">–</div><div class="l">tokens today</div></div>
-        <div class="stat"><div class="v" id="sWeek">–</div><div class="l">tokens, last 7 days</div></div>
-        <div class="stat"><div class="v" id="sTotal">–</div><div class="l">tokens all time</div></div>
-        <div class="stat"><div class="v" id="sQ">–</div><div class="l">questions (today / all)</div></div>
+<main class="wrap">
+  <!-- ===== overview ===== -->
+  <section class="tabpanel" id="t-overview" role="tabpanel" aria-label="Overview">
+    <div class="filters">
+      <div class="seg" id="ovRange" role="group" aria-label="Date range">
+        <button type="button" data-d="1">Today</button><button type="button" data-d="7">7 days</button><button type="button" data-d="30" class="on">30 days</button><button type="button" data-d="90">90 days</button>
       </div>
-      <div class="bar"><div id="fill"></div></div>
-      <p class="muted" id="budget"></p>
+      <select id="ovWho" aria-label="Whose usage"></select>
+      <span class="grow"></span>
+      <div class="seg" id="ovUnit" role="group" aria-label="Show tokens or dollars"><button type="button" data-u="tokens" class="on">Tokens</button><button type="button" data-u="usd">Dollars</button></div>
     </div>
-
-    <div class="sechead">
-      <h2>Daily usage</h2>
-      <div class="ctrls">
-        <select id="who" aria-label="Whose usage"><option value="all">Everyone</option><option value="owner">You (owner)</option></select>
-        <div class="seg" id="unit" role="group" aria-label="Show tokens or dollars"><button type="button" data-u="tokens" class="on">Tokens</button><button type="button" data-u="usd">$</button></div>
-        <div class="seg" id="range" role="group" aria-label="Date range">
-          <button type="button" data-d="7">7d</button><button type="button" data-d="30" class="on">30d</button><button type="button" data-d="90">90d</button>
-        </div>
+    <div class="kpis fade" id="kpis"></div>
+    <div class="grid g-chart">
+      <div class="card">
+        <div class="cardhead"><h2 id="chartHead">Usage per day</h2><div class="legend" id="legend"></div></div>
+        <p class="sum" id="sum">&nbsp;</p>
+        <figure class="chart fade" id="chart"><svg id="svg" role="img" tabindex="0" aria-labelledby="svgTitle"><title id="svgTitle">Usage over time, stacked by model</title></svg><div class="tip" id="tip" role="status" aria-live="polite"></div></figure>
+        <details class="tv"><summary>Table view</summary><div class="tvwrap"><table class="dt" id="tbl"></table></div></details>
       </div>
+      <div class="card" id="budgetCard"></div>
+    </div>
+    <div class="grid g2">
+      <div class="card flush"><div class="cardhead"><h2>By model</h2><span class="sub">Click a row to see those questions</span></div><div class="tablewrap fade"><table class="dt" id="modelTbl"></table></div></div>
+      <div class="card flush"><div class="cardhead"><h2>What came with the questions</h2><span class="sub">Click a row to see them</span></div><div class="tablewrap fade"><table class="dt" id="featTbl"></table></div></div>
+    </div>
+    <div class="grid g2">
+      <div class="card flush"><div class="cardhead"><h2>Top people</h2><span class="sub">By estimated cost</span></div><div class="tablewrap fade"><table class="dt" id="topTbl"></table></div></div>
+      <div class="card flush"><div class="cardhead"><h2>Top sites</h2><span class="sub">Where pagebot was opened</span></div><div class="tablewrap fade"><table class="dt" id="siteTbl"></table></div></div>
     </div>
     <div class="card">
-      <p class="sum" id="sum">&nbsp;</p>
-      <div class="legend" id="legend"></div>
-      <figure class="chart" id="chart" style="margin:0">
-        <svg id="svg" role="img" tabindex="0" aria-labelledby="chartTitle"><title id="chartTitle">Tokens per day, stacked by model</title></svg>
-        <div class="tip" id="tip" role="status" aria-live="polite"></div>
-      </figure>
-      <details class="tv"><summary>Table view</summary><div class="tvwrap"><table id="tbl"></table></div></details>
+      <div class="cardhead"><h2>When it’s used</h2><div class="scale" id="heatScale"></div></div>
+      <p class="sum" id="heatSum">&nbsp;</p>
+      <figure class="chart fade" id="heat"><svg id="heatSvg" role="img" tabindex="0" aria-labelledby="heatTitle"><title id="heatTitle">Questions by day of the week and hour</title></svg><div class="tip" id="heatTip" role="status" aria-live="polite"></div></figure>
+      <details class="tv"><summary>Table view</summary><div class="tvwrap"><table class="dt" id="heatTbl"></table></div></details>
     </div>
+  </section>
 
-    <div class="card" id="usersCard">
-      <div class="hrow"><h2>Users</h2><label class="switch"><input type="checkbox" id="signup"><span id="signupState">Sign-ups open</span></label></div>
-      <p class="muted" id="usersEmpty" style="margin:0" hidden>No one has signed up yet. People create an account from the pagebot panel (“Create an account”), then show up here for you to accept.</p>
-      <div class="subh" id="pendingHead" hidden>Waiting to be accepted<span class="count" id="pendingCount"></span></div>
-      <div id="pendingBox"></div>
-      <div class="subh" id="usersHead">People</div>
-      <div id="userList"></div>
-      <details class="defaults" id="defaults">
-        <summary>What newly accepted users start with</summary>
-        <div class="field"><span class="fl">Daily limit</span>
-          <div class="inl"><div class="seg" id="dKind"><button type="button" data-k="tokens">Tokens</button><button type="button" data-k="usd">Dollars</button><button type="button" data-k="none">No limit</button></div>
-          <input id="dValue" type="number" min="0" step="any"><span class="unit" id="dUnit"></span></div>
-        </div>
-        <div class="field"><span class="fl">Can use</span><label class="ck"><input type="checkbox" id="dSonnet"> Sonnet 5.5</label><label class="ck"><input type="checkbox" id="dWeb"> Web search</label></div>
-        <div class="btns" style="margin-top:12px"><button type="button" id="dSave">Save defaults</button></div>
-        <div class="msg" id="dMsg"></div>
-      </details>
+  <!-- ===== people ===== -->
+  <section class="tabpanel" id="t-people" role="tabpanel" aria-label="People" hidden>
+    <div class="filters">
+      <input id="pSearch" type="search" placeholder="Search names and notes" aria-label="Search people">
+      <div class="seg" id="pStatus" role="group" aria-label="Show"><button type="button" data-s="all" class="on">All</button><button type="button" data-s="trusted">Active</button><button type="button" data-s="blocked">Blocked</button></div>
+      <span class="grow"></span>
+      <label class="switch"><input type="checkbox" id="signup"><span id="signupState">Sign-ups open</span></label>
+      <button class="btn ghost sm" id="pExport" type="button">Export CSV</button>
     </div>
-
-    <div class="card" id="modCard" hidden>
-      <h2>Moderation<span class="count" id="modCount" hidden></span></h2>
-      <div class="subh" id="appealHead" hidden>Appeals waiting</div>
-      <div id="appealList"></div>
-      <div class="subh">Log</div>
-      <p class="muted" style="margin-top:0" id="modHint"></p>
-      <div id="modList"></div>
+    <div class="card flush" id="pendingCard" hidden>
+      <div class="cardhead"><h2>Waiting to be accepted <span class="badge" id="pendCount"></span></h2><div class="btns"><button class="btn sm" id="acceptAll" type="button">Accept all</button><button class="btn ghost sm" id="denyAll" type="button">Deny all</button></div></div>
+      <div class="tablewrap"><table class="dt" id="pendTbl"></table></div>
+      <div class="msg pad" id="pendMsg"></div>
+    </div>
+    <div class="bulk" id="bulk" hidden>
+      <b id="bulkCount"></b>
+      <button class="btn ghost sm" type="button" data-b="limit">Set daily limit…</button>
+      <button class="btn ghost sm" type="button" data-b="sonnet-on">Allow Sonnet</button>
+      <button class="btn ghost sm" type="button" data-b="sonnet-off">No Sonnet</button>
+      <button class="btn ghost sm" type="button" data-b="web-on">Allow web</button>
+      <button class="btn ghost sm" type="button" data-b="web-off">No web</button>
+      <button class="btn ghost sm" type="button" data-b="signout">Sign out</button>
+      <button class="btn ghost sm danger" type="button" data-b="block">Block</button>
+      <button class="btn ghost sm" type="button" data-b="unblock">Unblock</button>
+      <button class="btn ghost sm" type="button" data-b="clear">Clear selection</button>
+      <span class="msg" id="bulkMsg"></span>
+      <div class="bulklimit" id="bulkLimit" hidden>
+        <div class="seg" id="bKind"><button type="button" data-k="tokens" class="on">Tokens</button><button type="button" data-k="usd">Dollars</button><button type="button" data-k="none">No limit</button></div>
+        <input id="bValue" type="number" min="0" step="any" value="100000" aria-label="Daily limit"><span class="sub" id="bUnit">tokens a day</span>
+        <button class="btn sm" type="button" id="bApply">Apply</button>
+      </div>
+    </div>
+    <div class="card flush"><div class="tablewrap"><table class="dt" id="peopleTbl"></table></div></div>
+    <div class="card flush" id="modCard" hidden>
+      <div class="cardhead"><h2>Moderation <span class="badge" id="appealCount" title="Appeals waiting" hidden></span></h2><span class="sub" id="modHint"></span></div>
+      <div class="msg pad" id="appealMsg"></div>
+      <div id="appeals" hidden><div class="subh">Appeals waiting</div><div id="appealList"></div><div class="subh" style="padding-top:14px">Log</div></div>
+      <div class="tablewrap"><table class="dt" id="modTbl"></table></div>
+      <div class="msg pad" id="modMsg"></div>
     </div>
     <datalist id="banReasons"><option value="Spamming"><option value="Harassment or bullying"><option value="Inappropriate content"><option value="Abusing pagebot"><option value="Sharing your account"><option value="Breaking the rules"></datalist>
-
-    <form class="card" id="annForm" autocomplete="off">
-      <h2>Announcement</h2>
+    <div class="grid g2">
+    <form class="card form" id="annForm" autocomplete="off">
+      <div class="cardhead"><h2>Announcement</h2><span class="sub">Shows at the top of everyone’s panel until they close it</span></div>
       <div id="annNow" hidden>
-        <div class="annbox"><div id="annText"></div><div class="annmeta" id="annMeta"></div></div>
-        <div class="btns" style="margin-bottom:14px"><button type="button" class="ghost" id="annDown">Take it down</button></div>
+        <div class="annbox" id="annText"></div>
+        <p class="sub" id="annMeta" style="margin:0 0 10px"></p>
+        <div class="btns" style="margin-bottom:12px"><button type="button" class="btn ghost sm" id="annDown">Take it down</button></div>
       </div>
-      <p class="muted" id="annNone" style="margin-top:0">Nothing is showing. Post a message and everyone with an account sees it at the top of their panel until they close it.</p>
+      <p class="sub" id="annNone" style="margin:0">Nothing is showing. Post a message and everyone with an account sees it at the top of their panel until they close it.</p>
       <textarea id="annBody" rows="3" maxlength="500" placeholder="Write a message for everyone…" aria-label="Announcement"></textarea>
-      <div class="btns" style="align-items:center"><button type="submit" id="annPost">Post to everyone</button><span class="muted" id="annCount"></span></div>
+      <div class="btns"><button class="btn" type="submit" id="annPost">Post to everyone</button><span class="sub" id="annCount"></span></div>
       <div class="msg" id="annMsg"></div>
     </form>
-
-    <form class="card" id="limForm" autocomplete="off">
-      <h2>Limits per question</h2>
-      <label class="f" for="lMax">Max tokens per answer</label>
-      <input id="lMax" type="number" step="1" inputmode="numeric">
-      <p class="hint">Any number from 256 to 100,000. Includes the model's thinking. The panel's ⚙ settings have presets up to 8k.</p>
-      <div class="row2">
-        <div><label class="f" for="lPage">Page text per question (tokens)</label><input id="lPage" type="number" step="500"></div>
-        <div><label class="f" for="lSearch">Web searches per question</label><input id="lSearch" type="number" step="1"></div>
+    <div class="card" id="defaults">
+      <div class="cardhead"><h2>New people start with</h2><span class="sub">Applied when you accept someone</span></div>
+      <div class="field" style="margin-top:0"><span class="fl">Daily limit</span>
+        <div class="inl"><div class="seg" id="dKind"><button type="button" data-k="tokens">Tokens</button><button type="button" data-k="usd">Dollars</button><button type="button" data-k="none">No limit</button></div>
+        <input id="dValue" type="number" min="0" step="any" aria-label="Daily limit for new people"><span class="unit" id="dUnit"></span></div>
       </div>
-      <p class="hint" id="lPageHint">About 4 characters per token.</p>
-      <button type="submit">Save limits</button>
-      <div class="msg" id="limMsg"></div>
-    </form>
-
-    <form class="card" id="pcForm" autocomplete="off">
-      <h2>Passcode lock <span class="pill off" id="pcState">Off</span></h2>
-      <p class="muted" id="pcInfo" style="margin-top:0"></p>
-      <div class="row2">
-        <input id="pc1" type="password" inputmode="numeric" pattern="\d{5}" maxlength="5" placeholder="New 5-digit passcode" autocomplete="new-password">
-        <input id="pc2" type="password" inputmode="numeric" pattern="\d{5}" maxlength="5" placeholder="Confirm" autocomplete="new-password">
-      </div>
-      <label class="f" for="pcLock">Lock the panel after it's idle for</label>
-      <select id="pcLock"></select>
-      <div class="btns"><button type="submit" id="pcSave">Set passcode</button><button type="button" class="ghost" id="pcOff" hidden>Remove passcode</button></div>
-      <div class="msg" id="pcMsg"></div>
-      <p class="muted">With a passcode set, the panel shows a number pad instead of the password box, on every site. After 10 wrong passcodes in a row, only the password can unlock it.</p>
-    </form>
-
-    <form class="card" id="pwForm" autocomplete="off">
-      <h2>Access password</h2>
-      <p class="muted" id="pwState" style="margin-top:0"></p>
-      <input id="p1" type="password" placeholder="New password (min 8)" autocomplete="new-password">
-      <input id="p2" type="password" placeholder="Confirm" autocomplete="new-password">
-      <button type="submit">Change password</button>
-      <div class="msg" id="pwMsg"></div>
-      <p class="muted">Changing it signs out every device using the bookmarklet.</p>
-    </form>
-
-    <div class="card">
-      <h2>Sessions</h2>
-      <p class="muted" id="sess" style="margin-top:0"></p>
-      <button class="ghost" id="signout" type="button">Sign out all devices</button>
-      <div class="msg" id="soMsg"></div>
+      <div class="field"><span class="fl">Can use</span><label class="ck"><input type="checkbox" id="dSonnet"> Sonnet 5.5</label><label class="ck"><input type="checkbox" id="dWeb"> Web search</label></div>
+      <div class="btns" style="margin-top:14px"><button class="btn" type="button" id="dSave">Save defaults</button></div>
+      <div class="msg" id="dMsg"></div>
     </div>
+    </div>
+  </section>
 
-    <div class="foot"><a href="/">pagebot home</a><button class="ghost" id="lock" type="button">Lock</button></div>
-  </div>
+  <!-- ===== activity ===== -->
+  <section class="tabpanel" id="t-activity" role="tabpanel" aria-label="Activity" hidden>
+    <div class="filters">
+      <div class="seg" id="aRange" role="group" aria-label="Date range">
+        <button type="button" data-d="1">Today</button><button type="button" data-d="7">7 days</button><button type="button" data-d="30" class="on">30 days</button><button type="button" data-d="90">90 days</button><button type="button" data-d="3650">All</button>
+      </div>
+      <select id="actWho" aria-label="Person"></select>
+      <select id="aModel" aria-label="Model"><option value="">All models</option><option value="haiku">Haiku</option><option value="sonnet">Sonnet</option><option value="router" hidden>OpenRouter</option></select>
+      <select id="aFlag" aria-label="Show">
+        <option value="">Everything</option><option value="page">With page text</option><option value="highlight">With highlighted text</option><option value="image">With a screenshot</option>
+        <option value="web">Used web search</option><option value="refused">Declined</option><option value="stopped">Stopped early</option><option value="fallback">Fell back to another model</option>
+      </select>
+      <input id="aSearch" type="search" placeholder="Search questions or sites" aria-label="Search questions or sites">
+      <span class="grow"></span>
+      <button class="btn ghost sm" id="aExport" type="button">Export CSV</button>
+    </div>
+    <div class="card flush">
+      <div class="tablewrap fade"><table class="dt" id="actTbl"></table></div>
+      <div class="more"><span class="sub" id="actCount"></span><button class="btn ghost sm" id="actMore" type="button" hidden>Load 50 more</button></div>
+    </div>
+  </section>
+
+  <!-- ===== devices ===== -->
+  <section class="tabpanel" id="t-devices" role="tabpanel" aria-label="Devices" hidden>
+    <div class="grid g-dev">
+      <div class="card flush">
+        <div class="cardhead"><h2>Signed-in devices</h2>
+          <div class="btns"><div class="seg" id="devWho" role="group" aria-label="Show"><button type="button" data-w="all" class="on">All</button><button type="button" data-w="owner">Yours</button><button type="button" data-w="accounts">Accounts</button></div>
+          <button class="btn ghost sm danger" id="signoutAll" type="button">Sign out everyone</button></div></div>
+        <div class="tablewrap fade"><table class="dt" id="devTbl"></table></div>
+        <div class="msg pad" id="devMsg"></div>
+      </div>
+      <div class="card">
+        <div class="cardhead"><h2>Login security</h2><button class="btn ghost sm" id="secClear" type="button">Clear lockouts</button></div>
+        <div id="secBody"></div>
+        <div class="msg" id="secMsg"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== settings ===== -->
+  <section class="tabpanel" id="t-settings" role="tabpanel" aria-label="Settings" hidden>
+    <div class="grid g2">
+      <form class="card form" id="limForm" autocomplete="off">
+        <div class="cardhead"><h2>Limits per question</h2></div>
+        <label class="f" for="lMax">Max tokens per answer</label>
+        <input id="lMax" type="number" step="1" inputmode="numeric">
+        <p class="hint">Any number from 256 to 100,000. Includes the model's thinking. The panel's ⚙ settings have presets up to 8k, and accounts can choose less, never more.</p>
+        <div class="row2">
+          <div><label class="f" for="lPage">Page text per question (tokens)</label><input id="lPage" type="number" step="500"></div>
+          <div><label class="f" for="lSearch">Web searches per question</label><input id="lSearch" type="number" step="1"></div>
+        </div>
+        <p class="hint" id="lPageHint">About 4 characters per token.</p>
+        <div><button class="btn" type="submit">Save limits</button></div>
+        <div class="msg" id="limMsg"></div>
+      </form>
+      <form class="card form" id="pcForm" autocomplete="off">
+        <div class="cardhead"><h2>Passcode lock <span class="pill off" id="pcState">Off</span></h2></div>
+        <p class="sub" id="pcInfo" style="margin:0"></p>
+        <div class="row2">
+          <input id="pc1" type="password" inputmode="numeric" pattern="\d{5}" maxlength="5" placeholder="New 5-digit passcode" autocomplete="new-password" aria-label="New passcode">
+          <input id="pc2" type="password" inputmode="numeric" pattern="\d{5}" maxlength="5" placeholder="Confirm" autocomplete="new-password" aria-label="Confirm passcode">
+        </div>
+        <label class="f" for="pcLock">Lock the panel after it's idle for</label>
+        <select id="pcLock"></select>
+        <div class="btns"><button class="btn" type="submit" id="pcSave">Set passcode</button><button type="button" class="btn ghost" id="pcOff" hidden>Remove passcode</button></div>
+        <div class="msg" id="pcMsg"></div>
+        <p class="hint">With a passcode set, the panel shows a number pad instead of the password box, on every site. Wrong passcodes count for 24 hours; after 10, only the password can unlock it.</p>
+      </form>
+      <form class="card form" id="pwForm" autocomplete="off">
+        <div class="cardhead"><h2>Access password</h2></div>
+        <p class="sub" id="pwState" style="margin:0"></p>
+        <input id="p1" type="password" placeholder="New password (min 8)" autocomplete="new-password" aria-label="New password">
+        <input id="p2" type="password" placeholder="Confirm" autocomplete="new-password" aria-label="Confirm password">
+        <div><button class="btn" type="submit">Change password</button></div>
+        <div class="msg" id="pwMsg"></div>
+        <p class="hint">Changing it signs out every device you're logged in on. Accounts stay signed in.</p>
+      </form>
+      <div class="card"><div class="cardhead"><h2>This server</h2></div><dl class="facts" id="about"></dl></div>
+    </div>
+  </section>
 </main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dwName">
+  <div class="dwhead"><div style="min-width:0"><h3 id="dwName"></h3><div class="sub" id="dwSub"></div></div><button class="btn ghost sm icon" id="dwClose" type="button" aria-label="Close">✕</button></div>
+  <div class="dwbody" id="dwBody"></div>
+</aside>
+
 <script>
 (() => {
-const $ = s => document.querySelector(s);
-const ss = { get(k){ try { return sessionStorage.getItem(k); } catch { return null; } }, set(k,v){ try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k,v); } catch {} } };
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const button = (text, cls) => { const b = mk('button', cls, text); b.type = 'button'; return b; };
+const ss = { get(k) { try { return sessionStorage.getItem(k); } catch { return null; } }, set(k, v) { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch {} } };
 let tok = ss.get('pb_admin');
-const nf = new Intl.NumberFormat();
-const short = n => n >= 1e6 ? (n/1e6).toFixed(n >= 1e8 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 1e3 ? (n/1e3).toFixed(n >= 1e5 ? 0 : 1).replace(/\.0$/, '') + 'K' : String(n);
-const lockName = m => m === 0 ? 'Never' : m < 60 ? `${m} minute${m > 1 ? 's' : ''}` : m < 1440 ? `${m / 60} hour${m > 60 ? 's' : ''}` : '1 day';
 
+// ---- formatting ----
+const nf = new Intl.NumberFormat();
+const short = n => { n = +n || 0; return n >= 1e6 ? (n / 1e6).toFixed(n >= 1e8 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace(/\.0$/, '') + 'K' : String(Math.round(n)); };
+const money = (v, dp) => { v = +v || 0; return v > 0 && v < 0.01 && dp == null ? '<$0.01' : '$' + v.toFixed(dp ?? 2); };
+const cost = v => money(v, v > 0 && v < 0.01 ? 4 : 2);
+const plural = (n, one, many = one + 's') => `${nf.format(n)} ${n === 1 ? one : many}`;
+const frac = (a, b) => b ? a / b : 0;
+const pctText = f => f >= 0.995 && f <= 1.005 ? '100%' : f > 0 && f < 0.01 ? '<1%' : Math.round(f * 100) + '%';
+const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
+const dayFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+const dayYFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+const fullFmt = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+const hourFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric' });
+const utcDay = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const utcLong = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+const asDate = s => new Date(s + 'T00:00:00Z');
+const hourName = h => hourFmt.format(new Date(2026, 0, 5, h % 24));
+const hourTick = h => h === 0 ? '12a' : h < 12 ? h + 'a' : h === 12 ? '12p' : (h - 12) + 'p';
+function when(t) {
+  if (!t) return '—';
+  const d = new Date(t), now = new Date();
+  if (d.toDateString() === now.toDateString()) return timeFmt.format(d);
+  return d.getFullYear() === now.getFullYear() ? `${dayFmt.format(d)}, ${timeFmt.format(d)}` : dayYFmt.format(d);
+}
+function ago(t) {
+  if (!t) return 'never';
+  const s = (Date.now() - new Date(t)) / 1000;
+  return s < 60 ? 'just now' : s < 3600 ? `${Math.floor(s / 60)}m ago` : s < 86400 ? `${Math.floor(s / 3600)}h ago` : s < 86400 * 45 ? `${Math.floor(s / 86400)}d ago` : dayYFmt.format(new Date(t));
+}
+const limitText = (kind, v) => !kind ? 'No limit' : kind === 'usd' ? money(+v) : `${short(+v)} tokens`;
+const famColor = m => !m ? 'var(--s-other)' : m.includes('/') ? 'var(--s-router)' : /haiku/i.test(m) ? 'var(--s-haiku)' : /sonnet/i.test(m) ? 'var(--s-sonnet)' : 'var(--s-other)';
+function device(ua) {
+  if (!ua) return 'Unknown device';
+  const b = /Edg\//.test(ua) ? 'Edge' : /OPR\/|Opera/.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'Browser';
+  const o = /Windows/.test(ua) ? 'Windows' : /iPhone|iPad|iPod/.test(ua) ? 'iOS' : /Mac OS X/.test(ua) ? 'macOS' : /Android/.test(ua) ? 'Android' : /CrOS/.test(ua) ? 'ChromeOS' : /Linux/.test(ua) ? 'Linux' : '';
+  return o ? `${b} on ${o}` : b;
+}
+
+// ---- small DOM pieces ----
+function td(tr, content, cls) {
+  const c = tr.insertCell();
+  if (cls) c.className = cls;
+  if (content instanceof Node) c.appendChild(content); else if (content != null) c.textContent = content;
+  return c;
+}
+// a header row; columns with sortKey get a sort button when opts.sort is given
+function table(el, cols, opts = {}) {
+  el.replaceChildren();
+  const hr = el.createTHead().insertRow();
+  for (const c of cols) {
+    const th = mk('th', [c.num ? 'num' : '', c.cls || ''].join(' ').trim() || null);
+    th.scope = 'col';
+    if (c.title) th.title = c.title;
+    if (c.node) th.appendChild(c.node);
+    else if (c.sortKey && opts.sort) {
+      const b = button(c.label), on = opts.sort.key === c.sortKey;
+      if (on) { th.setAttribute('aria-sort', opts.sort.dir > 0 ? 'ascending' : 'descending'); b.append(mk('span', 'arr', opts.sort.dir > 0 ? '▲' : '▼')); }
+      b.onclick = () => opts.onSort(c.sortKey);
+      th.appendChild(b);
+    } else th.textContent = c.label;
+    hr.appendChild(th);
+  }
+  return el.createTBody();
+}
+function emptyRow(tb, span, text) { const c = tb.insertRow().insertCell(); c.colSpan = span; c.className = 'empty'; c.textContent = text; }
+function rowLink(tr, fn) { tr.classList.add('click'); tr.tabIndex = 0; tr.onclick = e => { if (!e.target.closest('input,button,a')) fn(); }; tr.onkeydown = e => { if (e.key === 'Enter' && e.target === tr) fn(); }; }
+function chip(text, cls) { return mk('span', 'chip ' + (cls || ''), text); }
+function swatch(color) { const s = mk('i', 'swatch'); s.style.background = color; return s; }
+function meter(f, wide) {
+  const m = mk('span', 'meter' + (wide ? ' wide' : '')), i = mk('i');
+  i.style.width = Math.min(100, f * 100) + '%';
+  if (f >= 1) i.className = 'full'; else if (f >= 0.8) i.className = 'warn';
+  m.appendChild(i); return m;
+}
+function shareBar(f) {
+  const w = mk('span', 'share'), t = mk('span', 'track'), i = mk('i');
+  i.style.width = Math.max(f > 0 ? 2 : 0, Math.min(100, f * 100)) + '%';
+  t.appendChild(i); w.append(t, pctText(f)); return w;
+}
+function facts(rows) {
+  const dl = mk('dl', 'facts');
+  for (const [k, v] of rows) { const dd = mk('dd'); if (v instanceof Node) dd.appendChild(v); else dd.textContent = v; dl.append(mk('dt', '', k), dd); }
+  return dl;
+}
+function say(el, ok, text) { el.classList.remove('ok', 'err'); el.classList.add(ok ? 'ok' : 'err'); el.textContent = text; }
+function setSeg(seg, attr, value) { $$('button', seg).forEach(b => b.classList.toggle('on', b.dataset[attr] === String(value))); }
+function onSeg(seg, attr, fn) { seg.addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.dataset[attr] == null) return; setSeg(seg, attr, b.dataset[attr]); fn(b.dataset[attr]); }); }
+
+// ---- CSV ----
+function csvCell(v) {
+  let s = v == null ? '' : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; // keeps spreadsheets from treating text as a formula
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function download(base, rows) {
+  const blob = new Blob(['﻿' + rows.map(r => r.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = mk('a'); a.href = URL.createObjectURL(blob); a.download = `${base}-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+
+// ---- server ----
 async function api(path, opts = {}) {
   const r = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', 'x-admin-token': tok || '', ...(opts.headers || {}) } });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) { const e = new Error(j.error || 'HTTP ' + r.status); e.status = r.status; throw e; }
+  if (!r.ok) {
+    if (r.status === 401 && tok && started) lockOut('Your admin token stopped working. Enter it again.');
+    throw Object.assign(new Error(j.error || 'HTTP ' + r.status), { status: r.status });
+  }
   return j;
 }
-function say(el, ok, text) { el.className = 'msg ' + (ok ? 'ok' : 'err'); el.textContent = text; }
+const send = (path, body, method = 'POST') => api(path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
 
-let stats = null;
-async function load() {
-  const s = stats = await api('/api/admin/stats');
-  $('#unlock').hidden = true; $('#panel').hidden = false;
-  $('#sToday').textContent = short(s.today);
-  $('#sWeek').textContent = short(s.week);
-  $('#sTotal').textContent = short(s.total);
-  $('#sQ').textContent = `${s.questions_today} / ${s.questions}`;
-  const pct = Math.min(100, s.total / s.budget * 100);
-  $('#fill').style.width = pct + '%';
-  const left = Math.max(0, s.budget - s.total), perDay = s.week / 7;
-  $('#budget').textContent = `${nf.format(left)} of ${nf.format(s.budget)} tokens left (${(100 - pct).toFixed(1)}%)` +
-    (perDay > 0 ? ` · at your 7-day pace (~${short(Math.round(perDay))}/day) that's about ${nf.format(Math.round(left / perDay))} days.` : '.') +
-    ` Estimated cost at list prices: ${money(s.today_usd)} today · ${money(s.week_usd)} last 7 days · ${money(s.total_usd)} all time.` +
-    ` Models: ${s.models.map(m => m.id).join(', ')} (effort ${s.effort}). Web searches so far: ${nf.format(s.searches)}.`;
-  $('#pwState').textContent = s.passwordSet ? 'A password is set.' : 'No password set yet — the bookmarklet can’t log in until you set one.';
-  $('#sess').textContent = `${s.sessions} signed-in device${s.sessions === 1 ? '' : 's'}.`;
-
-  // limits
-  const R = s.limitRanges;
-  for (const [id, key] of [['#lMax', 'maxTokens'], ['#lSearch', 'maxSearches'], ['#lPage', 'pageTokens']]) {
-    const i = $(id); i.min = R[key][0]; i.max = R[key][1];
-    if (document.activeElement !== i) i.value = s.limits[key];
+const S = { stats: null, users: null, sessions: null, security: null, tab: 'overview' };
+let started = false;
+async function loadStats() {
+  S.stats = await api('/api/admin/stats');
+  const m = S.stats.models || [];
+  if (m[0]) N.haiku = m[0].label;
+  if (m[1]) N.sonnet = m[1].label;
+  N.router = m.find(x => x.openrouter)?.label || 'OpenRouter';
+  const o = $('#aModel option[value="router"]'); o.textContent = N.router; o.hidden = !routerOn() && !S.routerUsed;
+}
+// past use keeps the OpenRouter filter in Activity, even after its key is removed
+function routerSeen() { S.routerUsed = true; $('#aModel option[value="router"]').hidden = false; }
+async function loadUsers() {
+  S.users = await api('/api/admin/users');
+  const n = S.users.users.filter(u => u.status === 'pending').length;
+  const ap = (S.users.appeals || []).length; // appeals wait for an answer too
+  $('#pendBadge').hidden = !(n + ap); $('#pendBadge').textContent = n + ap;
+  $('#pendBadge').title = [n && `${n} waiting to be accepted`, ap && `${plural(ap, 'appeal')} waiting`].filter(Boolean).join(', ');
+  fillWho();
+}
+const people = () => (S.users?.users || []).filter(u => u.status !== 'pending').sort((a, b) => a.name.localeCompare(b.name));
+const nameOf = id => id === 'owner' || id == null ? 'You (owner)' : S.users?.users.find(u => u.id === +id)?.name || 'Someone';
+function fillWho() {
+  for (const [sel, st] of [[$('#ovWho'), ov], [$('#actWho'), act]]) {
+    sel.replaceChildren(new Option('Everyone', 'all'), new Option('You (owner)', 'owner'), ...people().map(u => new Option(u.name, String(u.id))));
+    sel.value = [...sel.options].some(o => o.value === st.who) ? st.who : 'all';
+    st.who = sel.value;
   }
-  $('#lPageHint').textContent = `About ${nf.format(s.limits.pageTokens * 4)} characters. Longer pages are cut off at this point.`;
-
-  // passcode
-  const L = s.lock;
-  if (!$('#pcLock').options.length) for (const m of L.choices) $('#pcLock').add(new Option(lockName(m), m));
-  $('#pcLock').value = L.minutes;
-  $('#pcState').className = 'pill ' + (L.on ? 'on' : 'off'); $('#pcState').textContent = L.on ? 'On' : 'Off';
-  $('#pcSave').textContent = L.on ? 'Change passcode' : 'Set passcode';
-  $('#pcOff').hidden = !L.on;
-  $('#pcInfo').textContent = !L.on ? 'Off — the panel uses your password.'
-    : L.fails >= L.maxFails ? `Passcode entry is blocked after ${L.maxFails} wrong tries. Unlock once with the password (or set a new passcode) to re-enable it.`
-    : `On — panels lock ${L.minutes ? 'after ' + lockName(L.minutes) + ' without activity' : 'only when you lock them'}.` + (L.fails ? ` ${L.fails} wrong ${L.fails === 1 ? 'try' : 'tries'} since the last unlock.` : '');
-  $('#pc1').required = $('#pc2').required = !L.on;
 }
 
-// ---- usage chart: tokens or dollars per day, stacked by model, for everyone or one person ----
-let days = 30, unit = 'tokens', who = 'all', series = [];
-const SVGNS = 'http://www.w3.org/2000/svg';
-const svgEl = (tag, attrs, parent) => { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
-const dayFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
-const longFmt = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
-const asDate = s => new Date(s + 'T00:00:00Z');
-const money = (v, dp) => v > 0 && v < 0.01 && dp == null ? '<$0.01' : '$' + v.toFixed(dp ?? 2);
-function niceMax(v) {
+// ---- tabs, refresh ----
+const TABS = ['overview', 'people', 'activity', 'devices', 'settings'];
+function showTab(t) {
+  if (!TABS.includes(t)) t = 'overview';
+  S.tab = t;
+  $$('.tab').forEach(b => { const on = b.dataset.tab === t; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
+  $$('.tabpanel').forEach(p => { p.hidden = p.id !== 't-' + t; });
+  if (location.hash !== '#' + t) history.replaceState(null, '', '#' + t);
+  loadTab(t).catch(e => console.warn(e));
+}
+async function loadTab(t) {
+  if (t === 'overview') await loadOverview();
+  else if (t === 'people') { renderPeople(); await loadAnn(); }
+  else if (t === 'activity') await loadActivity(true);
+  else if (t === 'devices') await loadDevices();
+  else if (t === 'settings') renderSettings();
+  stamp(true);
+}
+$$('.tab').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+$('.tabs').addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const i = TABS.indexOf(S.tab) + (e.key === 'ArrowRight' ? 1 : -1), t = TABS[(i + TABS.length) % TABS.length];
+  showTab(t); $(`.tab[data-tab="${t}"]`).focus();
+});
+addEventListener('hashchange', () => { if (started && location.hash.slice(1) !== S.tab) showTab(location.hash.slice(1)); });
+let lastLoad = 0;
+function stamp(now) { if (now) lastLoad = Date.now(); $('#updated').textContent = lastLoad ? 'Updated ' + ago(lastLoad) : ''; }
+async function refresh() {
+  await Promise.all([loadStats(), loadUsers()]);
+  await loadTab(S.tab);
+}
+$('#refresh').onclick = () => refresh().catch(e => console.warn(e));
+// keeps itself current, except while you're typing, have a person open, or are reading far down the activity log
+const busy = () => {
+  const a = document.activeElement;
+  return dw.id != null || (a && a.matches('input:not([type=checkbox]),select,textarea')) || (S.tab === 'activity' && (act.rows.length > 50 || act.open.size)) || ppl.sel.size > 0;
+};
+let timers = [];
+function startTimers() {
+  stopTimers();
+  timers.push(setInterval(() => stamp(), 10_000));
+  timers.push(setInterval(() => { if (document.visibilityState === 'visible' && !busy()) refresh().catch(() => {}); }, 30_000));
+}
+function stopTimers() { timers.forEach(clearInterval); timers = []; }
+
+// ================= overview =================
+const ov = { days: 30, who: 'all', unit: 'tokens', data: null, series: [], by: 'day' };
+const N = { haiku: 'Haiku 5.5', sonnet: 'Sonnet 5.5', router: 'OpenRouter' };
+const SERIES = [['haiku', 'var(--s-haiku)'], ['sonnet', 'var(--s-sonnet)'], ['router', 'var(--s-router)']];
+// the OpenRouter model only gets a color once it's set up or has been used
+const routerOn = () => (S.stats?.models || []).some(m => m.openrouter);
+const shownSeries = series => SERIES.filter(([k]) => k !== 'router' || routerOn() || series.some(d => d.tokens.router || d.usd.router));
+const toSeries = days => days.map(d => {
+  const router = d.router || 0, routerUsd = d.routerUsd || 0;
+  return {
+    ...d,
+    tokens: { total: d.input + d.output, haiku: Math.max(0, d.input + d.output - d.sonnet - router), sonnet: d.sonnet, router },
+    usd: { total: d.usd, haiku: Math.max(0, d.usd - d.sonnetUsd - routerUsd), sonnet: d.sonnetUsd, router: routerUsd },
+  };
+});
+const legendOf = series => shownSeries(series).map(([k, c]) => { const s = mk('span'), i = mk('i'); i.style.background = c; s.append(i, N[k]); return s; });
+async function loadOverview() {
+  const box = $('#t-overview');
+  box.classList.add('loading');
+  try {
+    const q = `days=${ov.days}&user=${encodeURIComponent(ov.who)}`;
+    const [o, u] = await Promise.all([api('/api/admin/overview?' + q), api('/api/admin/usage?' + q)]);
+    ov.data = o; ov.by = u.by;
+    ov.series = toSeries(u.days);
+    if (o.models?.some(m => m.family === 'router')) routerSeen();
+    renderKpis(); drawUsage(); renderBudget(); renderModels(); renderTop(); renderSites(); renderFeatures(); drawHeat();
+  } finally { box.classList.remove('loading'); }
+}
+onSeg($('#ovRange'), 'd', v => { ov.days = +v; loadOverview().catch(() => {}); });
+onSeg($('#ovUnit'), 'u', v => { ov.unit = v; drawUsage(); });
+$('#ovWho').addEventListener('change', e => { ov.who = e.target.value; loadOverview().catch(() => {}); });
+
+const prevName = () => ov.days === 1 ? 'yesterday' : `the ${ov.days} days before`;
+function change(cur, prev) {
+  if (!cur && !prev) return null;
+  if (!prev) return { text: `new vs ${prevName()}` };
+  const p = (cur - prev) / prev * 100, a = Math.abs(p);
+  if (a < 0.5) return { text: `same as ${prevName()}` };
+  return { text: `${p > 0 ? '▲' : '▼'} ${a >= 10 ? Math.round(a) : a.toFixed(1)}% vs ${prevName()}` };
+}
+function renderKpis() {
+  const t = ov.data.totals, b = ov.data.before;
+  const withAccounts = (S.users?.users || []).filter(u => u.status !== 'pending').length + 1;
+  const tiles = [
+    { l: 'Questions', v: nf.format(t.questions), d: change(t.questions, b.questions), s: `in ${plural(t.chats, 'chat')}` },
+    { l: 'Tokens', v: short(t.tokens), d: change(t.tokens, b.tokens), s: `${short(t.input)} in · ${short(t.output)} out` },
+    { l: 'Estimated cost', v: money(t.usd), d: change(t.usd, b.usd), s: t.questions ? `${money(t.usd / t.questions, 4)} a question` : 'at list prices' },
+    ov.who === 'all'
+      ? { l: 'People asking', v: nf.format(t.people), d: change(t.people, b.people), s: `out of ${nf.format(withAccounts)}, counting you` }
+      : { l: 'Chats', v: nf.format(t.chats), s: t.chats ? `${(t.questions / t.chats).toFixed(1)} questions each` : 'none in this range' },
+    { l: 'Web searches', v: nf.format(t.searches), s: t.searches ? `in ${plural(t.web, 'answer')} · ${money(t.searches * 0.01)}` : 'none in this range' },
+    { l: 'Average answer', v: t.questions ? short(Math.round(t.output / t.questions)) : '—', s: t.questions ? `tokens out · prompt ~${short(Math.round(t.input / t.questions))} in` : 'no answers yet' },
+  ];
+  $('#kpis').replaceChildren(...tiles.map(x => {
+    const k = mk('div', 'kpi');
+    k.append(mk('div', 'l', x.l), mk('div', 'v', x.v));
+    const d = mk('div', 'd', x.d ? x.d.text : ' '); if (x.d) d.title = x.d.text; k.append(d);
+    if (x.s) { const sub = mk('div', 's', x.s); sub.title = x.s; k.append(sub); }
+    return k;
+  }));
+}
+
+// stacked columns (Haiku + Sonnet) with a tooltip on hover and keyboard focus; used for the usage chart and each person's chart
+function niceMax(v, unit) {
   if (v <= 0) return unit === 'usd' ? 0.1 : 1000;
   const p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p;
   return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
 }
-async function loadUsage() {
-  $('#chart').classList.add('loading');
-  try {
-    const u = await api(`/api/admin/usage?days=${days}&user=${encodeURIComponent(who)}`);
-    series = u.days.map(d => ({
-      ...d,
-      tokens: { total: d.input + d.output, haiku: Math.max(0, d.input + d.output - d.sonnet - d.router), sonnet: d.sonnet, router: d.router },
-      usd: { total: d.usd, haiku: Math.max(0, d.usd - d.sonnetUsd - d.routerUsd), sonnet: d.sonnetUsd, router: d.routerUsd },
-    }));
-    drawChart(); fillTable();
-  } finally { $('#chart').classList.remove('loading'); }
-}
-const names = () => {
-  const m = stats?.models || [];
-  return { haiku: m[0]?.label || 'Haiku', sonnet: m[1]?.label || 'Sonnet', router: m.find(x => x.openrouter)?.label || 'OpenRouter' };
-};
-// the OpenRouter model only gets a color once it's set up or has been used
-const SERIES = [['haiku', 'var(--s-haiku)'], ['sonnet', 'var(--s-sonnet)'], ['router', 'var(--s-router)']];
-const shown = () => SERIES.filter(([k]) => k !== 'router' || stats?.models?.some(x => x.openrouter) || series.some(d => d.router));
-const val = (d, k) => d[unit][k];
-const fmtV = v => unit === 'usd' ? money(v) : short(v);
-function drawChart() {
-  const svg = $('#svg'), N = names();
-  const W = Math.max(280, $('#chart').clientWidth), plotH = 170, axisH = 22, top = 16, left = 44, right = 6;
-  const H = top + plotH + axisH;
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+function drawBars(o) {
+  const { fig, svg, tip, series, unit } = o;
+  const val = (d, k) => d[unit][k], fmtV = v => unit === 'usd' ? money(v) : short(v);
+  const W = Math.max(260, fig.clientWidth), plotH = o.plotH || 170, axisH = 22, top = 16, left = 44, right = 6;
+  svg.setAttribute('viewBox', `0 0 ${W} ${top + plotH + axisH}`);
   svg.querySelectorAll(':scope > :not(title)').forEach(n => n.remove());
-  const n = series.length, plotW = W - left - right, band = plotW / n;
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs, parent = svg) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
+  const n = series.length, plotW = W - left - right, band = plotW / n, keys = shownSeries(series);
   const barW = Math.max(1, Math.min(24, band - 2)); // 2px surface gap between neighbours
   const peak = series.reduce((a, d) => val(d, 'total') > val(a, 'total') ? d : a, series[0]);
-  const max = niceMax(peak ? val(peak, 'total') : 0);
-  const tickDp = max < 0.1 ? 3 : max < 10 ? 2 : 0;
+  const max = niceMax(peak ? val(peak, 'total') : 0, unit), tickDp = max < 0.1 ? 3 : max < 10 ? 2 : 0;
   const y = v => top + plotH - v / max * plotH;
   for (let i = 0; i <= 4; i++) {
     const v = max * i / 4, yy = Math.round(y(v)) + .5;
-    svgEl('line', { class: i ? 'grid' : 'base', x1: left, x2: W - right, y1: yy, y2: yy }, svg);
-    svgEl('text', { x: left - 6, y: yy + 4, 'text-anchor': 'end' }, svg).textContent = unit === 'usd' ? money(v, tickDp) : short(v);
+    el('line', { class: i ? 'grid' : 'base', x1: left, x2: W - right, y1: yy, y2: yy });
+    el('text', { x: left - 6, y: yy + 4, 'text-anchor': 'end' }).textContent = unit === 'usd' ? money(v, tickDp) : short(v);
   }
-  // x labels: about five, always the first and last day
-  const step = Math.max(1, Math.ceil(n / 5));
   series.forEach((d, i) => {
-    if (i % step && i !== n - 1) return;
-    if (i !== n - 1 && n - 1 - i < step * .6) return; // don't crowd the last label
-    const t = svgEl('text', { x: left + band * i + band / 2, y: top + plotH + 16, 'text-anchor': i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle' }, svg);
-    t.textContent = dayFmt.format(asDate(d.day));
+    const lab = o.label(d, i, n); if (lab == null) return;
+    el('text', { x: left + band * i + band / 2, y: top + plotH + 16, 'text-anchor': i === 0 && band < 30 ? 'start' : i === n - 1 && band < 30 ? 'end' : 'middle' }).textContent = lab;
   });
-  const cols = svgEl('g', {}, svg);
+  const cols = el('g', {});
   series.forEach((d, i) => {
-    const x = left + band * i + (band - barW) / 2, g = svgEl('g', { class: 'col', 'data-i': i }, cols);
-    const segs = SERIES.map(([k, color]) => [val(d, k), color]).filter(s => s[0] > 0);
+    const x = left + band * i + (band - barW) / 2, g = el('g', { class: 'col', 'data-i': i }, cols);
+    const segs = keys.map(([k, color]) => [val(d, k), color]).filter(s => s[0] > 0);
     let base = top + plotH;
     segs.forEach(([v, color], k) => {
       let h = v / max * plotH;
-      const last = k === segs.length - 1;
       if (k > 0) { base -= 2; h -= 2; } // 2px surface gap inside the stack
       if (h < .5) return;
-      const r = last ? Math.min(4, barW / 2, h) : 0; // rounded data-end, square at the baseline
+      const r = k === segs.length - 1 ? Math.min(4, barW / 2, h) : 0; // rounded data end, square at the baseline
       const yTop = base - h;
-      svgEl('path', { fill: color, d: `M${x},${base}V${yTop + r}a${r},${r} 0 0 1 ${r},${-r}H${x + barW - r}a${r},${r} 0 0 1 ${r},${r}V${base}Z` }, g);
+      el('path', { fill: color, d: `M${x},${base}V${yTop + r}a${r},${r} 0 0 1 ${r},${-r}H${x + barW - r}a${r},${r} 0 0 1 ${r},${r}V${base}Z` }, g);
       base = yTop;
     });
   });
   if (peak && val(peak, 'total') > 0) {
     const i = series.indexOf(peak), cx = left + band * i + band / 2;
-    const t = svgEl('text', { class: 'peak', x: Math.min(W - right - 2, Math.max(left + 2, cx)), y: y(val(peak, 'total')) - 5, 'text-anchor': cx < left + 30 ? 'start' : cx > W - right - 30 ? 'end' : 'middle' }, svg);
-    t.textContent = fmtV(val(peak, 'total'));
-  } else {
-    svgEl('text', { class: 'nodata', x: left + plotW / 2, y: top + plotH / 2, 'text-anchor': 'middle' }, svg).textContent = 'No usage in this range yet';
-  }
-  // hit targets: the whole column band, taller than the mark
-  series.forEach((d, i) => {
-    const r = svgEl('rect', { x: left + band * i, y: top, width: band, height: plotH, fill: 'transparent' }, svg);
-    r.addEventListener('pointerenter', () => show(i));
-    r.addEventListener('pointerleave', hide);
+    el('text', { class: 'peak', x: Math.min(W - right - 2, Math.max(left + 2, cx)), y: y(val(peak, 'total')) - 5, 'text-anchor': cx < left + 30 ? 'start' : cx > W - right - 30 ? 'end' : 'middle' }).textContent = fmtV(val(peak, 'total'));
+  } else el('text', { class: 'nodata', x: left + plotW / 2, y: top + plotH / 2, 'text-anchor': 'middle' }).textContent = o.empty || 'No usage in this range';
+  let active = -1;
+  const show = i => {
+    const d = series[i]; if (!d) return;
+    active = i;
+    $$('.col', svg).forEach(c => c.classList.toggle('dim', +c.dataset.i !== i));
+    tip.replaceChildren();
+    const line = (cls, text) => { const e = mk('div', cls, text); tip.appendChild(e); return e; };
+    line('d', o.title(d));
+    line('t', unit === 'usd' ? `${money(d.usd.total, 4)} estimated` : `${nf.format(d.tokens.total)} tokens`);
+    for (const [key, color] of keys) {
+      const r = line('r', ''), k = mk('i'), b = mk('b', '', unit === 'usd' ? money(d.usd[key], 4) : short(d.tokens[key]));
+      k.style.background = color; r.append(k, b, N[key]);
+    }
+    line('x', unit === 'usd' ? `${short(d.tokens.total)} tokens` : `${short(d.input)} in · ${short(d.output)} out · ${money(d.usd.total)}`);
+    line('x', plural(d.questions, 'question') + (d.searches ? ` · ${plural(d.searches, 'web search', 'web searches')}` : ''));
+    const box = fig.getBoundingClientRect(), scale = box.width / W, cx = (left + band * i + band / 2) * scale;
+    tip.classList.add('on');
+    const tw = tip.offsetWidth;
+    // beside the column, pinned to the top of the plot so it never covers the bar or the axis
+    tip.style.left = Math.max(0, Math.min(box.width - tw, cx + 12 > box.width - tw ? cx - tw - 12 : cx + 12)) + 'px';
+    tip.style.top = Math.max(0, top * scale - 6) + 'px';
+  };
+  const hide = () => { active = -1; tip.classList.remove('on'); $$('.col', svg).forEach(c => c.classList.remove('dim')); };
+  series.forEach((d, i) => { // hit targets: the whole column band, taller than the mark
+    const r = el('rect', { x: left + band * i, y: top, width: band, height: plotH, fill: 'transparent' });
+    r.addEventListener('pointerenter', () => show(i)); r.addEventListener('pointerleave', hide);
   });
-  geom = { left, band, top, plotH, y, W };
-  const tot = series.reduce((a, d) => ({ t: a.t + val(d, 'total'), q: a.q + d.questions, s: a.s + d.searches }), { t: 0, q: 0, s: 0 });
-  const whoName = $('#who').selectedOptions[0]?.textContent || 'Everyone';
-  $('#sum').innerHTML = (unit === 'usd' ? `<b>${money(tot.t)}</b> (estimated)` : `<b>${short(tot.t)}</b> tokens`) +
-    ` in the last ${n} days · <b>${fmtV(unit === 'usd' ? tot.t / n : Math.round(tot.t / n))}</b>/day on average · ${nf.format(tot.q)} question${tot.q === 1 ? '' : 's'}` +
-    (tot.s ? ` · ${nf.format(tot.s)} web search${tot.s === 1 ? '' : 'es'}` : '') + (who === 'all' ? '' : ' · <span class="who"></span>');
-  if (who !== 'all') $('#sum .who').textContent = whoName;
-  $('#legend').innerHTML = '';
-  for (const [key, color] of shown()) {
-    const s = document.createElement('span'), i = document.createElement('i');
-    i.style.background = color; s.append(i, document.createTextNode(N[key])); $('#legend').appendChild(s);
+  svg.onfocus = () => show(active >= 0 ? active : n - 1);
+  svg.onblur = hide;
+  svg.onkeydown = e => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    show(Math.max(0, Math.min(n - 1, (active < 0 ? n - 1 : active) + (e.key === 'ArrowLeft' ? -1 : 1))));
+  };
+}
+function drawUsage() {
+  if (!ov.series.length) return;
+  const hourly = ov.by === 'hour', n = ov.series.length, fit = Math.max(2, Math.floor(($('#chart').clientWidth - 60) / 62));
+  const step = Math.max(1, Math.ceil(n / Math.min(6, fit)));
+  $('#chartHead').textContent = hourly ? 'Usage by hour, today' : `Usage per day, last ${ov.days} days`;
+  $('#svgTitle').textContent = `${hourly ? 'Usage by hour today' : 'Usage per day'}, stacked by model, in ${ov.unit === 'usd' ? 'estimated dollars' : 'tokens'}`;
+  drawBars({
+    fig: $('#chart'), svg: $('#svg'), tip: $('#tip'), series: ov.series, unit: ov.unit,
+    label: hourly ? (d => d.hour % (fit >= 8 ? 3 : 6) ? null : hourTick(d.hour)) : ((d, i) => (i % step && i !== n - 1) || (i !== n - 1 && n - 1 - i < step * .85) ? null : utcDay.format(asDate(d.day))),
+    title: hourly ? (d => `${hourName(d.hour)} – ${hourName(d.hour + 1)}`) : (d => utcLong.format(asDate(d.day))),
+  });
+  const tot = ov.series.reduce((a, d) => ({ t: a.t + d[ov.unit].total, q: a.q + d.questions }), { t: 0, q: 0 });
+  const sum = $('#sum'); sum.replaceChildren();
+  sum.append(mk('b', '', ov.unit === 'usd' ? money(tot.t) : short(tot.t)), ov.unit === 'usd' ? ' estimated' : ' tokens', hourly ? ' today' : ` in ${ov.days} days`);
+  if (!hourly) sum.append(' · ', mk('b', '', ov.unit === 'usd' ? money(tot.t / n) : short(Math.round(tot.t / n))), ' a day on average');
+  sum.append(` · ${plural(tot.q, 'question')}`);
+  if (ov.who !== 'all') sum.append(` · ${nameOf(ov.who)}`);
+  $('#legend').replaceChildren(...legendOf(ov.series));
+  const keys = shownSeries(ov.series).map(([k]) => k);
+  const tb = table($('#tbl'), [{ label: hourly ? 'Hour' : 'Day' }, ...keys.map(k => ({ label: N[k], num: 1 })), { label: 'Total tokens', num: 1 }, { label: 'Est. cost', num: 1 }, { label: 'Questions', num: 1 }, { label: 'Searches', num: 1 }]);
+  for (const d of [...ov.series].reverse()) {
+    const tr = tb.insertRow();
+    td(tr, hourly ? `${hourName(d.hour)} – ${hourName(d.hour + 1)}` : utcDay.format(asDate(d.day)));
+    for (const k of keys) td(tr, nf.format(d.tokens[k]), 'num');
+    td(tr, nf.format(d.tokens.total), 'num');
+    td(tr, money(d.usd.total, 3), 'num'); td(tr, nf.format(d.questions), 'num'); td(tr, nf.format(d.searches), 'num');
   }
 }
-let geom = null, active = -1;
-function show(i) {
-  const d = series[i]; if (!d || !geom) return;
-  active = i;
-  document.querySelectorAll('.col').forEach(c => c.classList.toggle('dim', +c.dataset.i !== i));
-  const N = names(), tip = $('#tip');
-  tip.replaceChildren();
-  const line = (cls, text) => { const e = document.createElement('div'); e.className = cls; e.textContent = text; tip.appendChild(e); return e; };
-  line('d', longFmt.format(asDate(d.day)));
-  line('t', unit === 'usd' ? `${money(d.usd.total, 4)} estimated` : `${nf.format(d.tokens.total)} tokens`);
-  for (const [key, color] of shown()) {
-    const r = line('r', ''), k = document.createElement('i'), b = document.createElement('b');
-    k.style.background = color; b.textContent = unit === 'usd' ? money(d.usd[key], 4) : short(d.tokens[key]);
-    r.append(k, b, document.createTextNode(N[key]));
+const lasts = days => days < 1 ? 'less than a day' : days < 60 ? plural(Math.round(days), 'day') : days < 730 ? plural(Math.round(days / 30), 'month') : plural(Math.round(days / 365), 'year');
+function renderBudget() {
+  const s = S.stats; if (!s) return;
+  const left = Math.max(0, s.budget - s.total), f = frac(s.total, s.budget), perDay = s.week / 7;
+  const head = mk('div', 'cardhead'); head.append(mk('h2', '', 'Token budget'), mk('span', 'sub', 'All of pagebot'));
+  const big = mk('div', 'big'); big.append(short(left), mk('span', '', ' tokens left'));
+  $('#budgetCard').replaceChildren(head, big, meter(f, true), facts([
+    ['Used', `${short(s.total)} of ${short(s.budget)} (${pctText(f)})`],
+    ['7-day pace', perDay ? `about ${short(Math.round(perDay))} tokens a day` : 'nothing in the last week'],
+    ['At that pace', perDay ? `lasts ${lasts(left / perDay)}` : '—'],
+    ['Spent', `${money(s.today_usd)} today · ${money(s.week_usd)} this week · ${money(s.total_usd)} in all`],
+    ['Questions', `${nf.format(s.questions_today)} today · ${nf.format(s.questions)} in all`],
+    ['Signed in', plural(s.sessions, 'device')],
+  ]));
+}
+const modelIds = () => (S.stats?.models || []).map(m => m.id);
+function renderModels() {
+  const rows = ov.data.models, total = rows.reduce((a, r) => a + r.questions, 0), ids = modelIds();
+  const tb = table($('#modelTbl'), [{ label: 'Model' }, { label: 'Answers', num: 1 }, { label: 'Share' }, { label: 'Tokens', num: 1 }, { label: 'Est. cost', num: 1 }, { label: 'Per answer', num: 1 }]);
+  if (!rows.length) return emptyRow(tb, 6, 'No answers in this range.');
+  for (const r of rows) {
+    const tr = tb.insertRow(), fallback = !!r.model && !ids.includes(r.model), name = mk('span');
+    name.append(swatch(famColor(r.model)), r.label + (fallback ? ' (fallback)' : ''));
+    td(tr, name); td(tr, nf.format(r.questions), 'num'); td(tr, shareBar(frac(r.questions, total)));
+    td(tr, short(r.input + r.output), 'num'); td(tr, money(r.usd), 'num'); td(tr, cost(frac(r.usd, r.questions)), 'num');
+    rowLink(tr, () => goActivity(fallback ? { flag: 'fallback' } : { model: ['haiku', 'sonnet', 'router'].includes(r.family) ? r.family : '' }));
   }
-  line('x', unit === 'usd' ? `${short(d.tokens.total)} tokens` : `${short(d.input)} in · ${short(d.output)} out · ${money(d.usd.total)}`);
-  line('x', `${d.questions} question${d.questions === 1 ? '' : 's'}` + (d.searches ? ` · ${d.searches} web search${d.searches === 1 ? '' : 'es'}` : ''));
-  const box = $('#chart').getBoundingClientRect(), scale = box.width / geom.W;
-  const cx = (geom.left + geom.band * i + geom.band / 2) * scale;
-  tip.classList.add('on');
-  const tw = tip.offsetWidth;
-  // beside the column, pinned to the top of the plot so it never covers the bar or the date axis
-  tip.style.left = Math.max(0, Math.min(box.width - tw, cx + 12 > box.width - tw ? cx - tw - 12 : cx + 12)) + 'px';
-  tip.style.top = Math.max(0, geom.top * scale - 6) + 'px';
 }
-function hide() { active = -1; $('#tip').classList.remove('on'); document.querySelectorAll('.col').forEach(c => c.classList.remove('dim')); }
-$('#svg').addEventListener('focus', () => show(active >= 0 ? active : series.length - 1));
-$('#svg').addEventListener('blur', hide);
-$('#svg').addEventListener('keydown', e => {
-  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-  e.preventDefault();
-  show(Math.max(0, Math.min(series.length - 1, (active < 0 ? series.length - 1 : active) + (e.key === 'ArrowLeft' ? -1 : 1))));
-});
-function fillTable() {
-  const N = names(), t = $('#tbl');
-  t.replaceChildren();
-  const tr = (cells, th) => { const r = t.insertRow(); for (const c of cells) { const e = document.createElement(th ? 'th' : 'td'); e.textContent = c; r.appendChild(e); } };
-  const keys = shown().map(([k]) => k);
-  tr(['Day', ...keys.map(k => N[k]), 'Total tokens', 'Est. cost', 'Questions', 'Searches'], true);
-  for (const d of [...series].reverse())
-    tr([dayFmt.format(asDate(d.day)), ...keys.map(k => nf.format(d.tokens[k])), nf.format(d.tokens.total), money(d.usd.total, 3), d.questions, d.searches]);
+function renderTop() {
+  const rows = ov.data.people, total = ov.data.totals.usd;
+  const tb = table($('#topTbl'), [{ label: 'Person' }, { label: 'Questions', num: 1 }, { label: 'Tokens', num: 1 }, { label: 'Est. cost', num: 1 }, { label: 'Share of cost' }, { label: 'Last asked' }]);
+  if (!rows.length) return emptyRow(tb, 6, 'No one asked anything in this range.');
+  for (const r of rows) {
+    const tr = tb.insertRow();
+    td(tr, r.user ? r.user.name : 'You (owner)', r.user ? '' : 'muted');
+    td(tr, nf.format(r.questions), 'num'); td(tr, short(r.tokens), 'num'); td(tr, money(r.usd), 'num'); td(tr, shareBar(frac(r.usd, total))); td(tr, ago(r.last));
+    rowLink(tr, () => openPerson(r.user ? r.user.id : 'owner'));
+  }
 }
-$('#range').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  days = +b.dataset.d;
-  $('#range').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
-  loadUsage().catch(() => {});
-});
-$('#unit').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  unit = b.dataset.u;
-  $('#unit').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
-  if (series.length) { drawChart(); hide(); }
-});
-$('#who').addEventListener('change', () => { who = $('#who').value; loadUsage().catch(() => {}); });
+function renderSites() {
+  const rows = ov.data.sites;
+  const tb = table($('#siteTbl'), [{ label: 'Site' }, { label: 'Questions', num: 1 }, { label: 'People', num: 1 }, { label: 'Tokens', num: 1 }, { label: 'Est. cost', num: 1 }]);
+  if (!rows.length) return emptyRow(tb, 5, 'Nothing in this range.');
+  for (const r of rows) {
+    const tr = tb.insertRow();
+    td(tr, r.host || 'No page (web chat or pop-up)', 'trunc' + (r.host ? '' : ' muted'));
+    td(tr, nf.format(r.questions), 'num'); td(tr, nf.format(r.people), 'num'); td(tr, short(r.tokens), 'num'); td(tr, money(r.usd), 'num');
+    if (r.host) rowLink(tr, () => goActivity({ q: r.host }));
+  }
+}
+const FEATS = [
+  ['page', 'Page text', 'pages'], ['highlight', 'Highlighted text', 'highlights'], ['image', 'A screenshot or image', 'images'],
+  ['web', 'Used web search', 'web'], ['refused', 'Declined by the model', 'refused'], ['stopped', 'Stopped before it finished', 'stopped'],
+  ['fallback', 'Answered by a fallback model', 'fallbacks'],
+];
+function renderFeatures() {
+  const t = ov.data.totals;
+  const tb = table($('#featTbl'), [{ label: 'What' }, { label: 'Questions', num: 1 }, { label: 'Share of questions' }]);
+  for (const [flag, label, key] of FEATS) {
+    const tr = tb.insertRow();
+    td(tr, label); td(tr, nf.format(t[key]), 'num'); td(tr, shareBar(frac(t[key], t.questions)));
+    if (t[key]) rowLink(tr, () => goActivity({ flag }));
+  }
+}
+// questions by day of the week × hour, as a one-hue heatmap (darker = fewer, brighter = more)
+const DAYS = [1, 2, 3, 4, 5, 6, 7].map(i => new Date(2026, 0, 4 + i)); // Jan 5 2026 was a Monday
+const dayShort = new Intl.DateTimeFormat(undefined, { weekday: 'short' }), dayLong = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
+const binOf = (n, max) => n <= 0 || !max ? 0 : Math.max(1, Math.ceil(n / max * 5));
+function drawHeat() {
+  const grid = Array.from({ length: 7 }, () => Array(24).fill(0));
+  for (const [dow, h, n] of ov.data.heat) grid[dow - 1][h] = n;
+  const max = Math.max(0, ...grid.flat()), fig = $('#heat'), svg = $('#heatSvg'), tip = $('#heatTip');
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs, parent = svg) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
+  const W = Math.max(320, fig.clientWidth), left = 40, top = 2, cw = (W - left) / 24, ch = Math.max(16, Math.min(28, cw * .82)), H = top + ch * 7 + 20;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.querySelectorAll(':scope > :not(title)').forEach(n => n.remove());
+  DAYS.forEach((d, r) => el('text', { x: left - 8, y: top + r * ch + ch / 2 + 4, 'text-anchor': 'end' }).textContent = dayShort.format(d));
+  for (let h = 0; h < 24; h += 3) el('text', { x: left + h * cw + 1, y: top + ch * 7 + 15 }).textContent = hourTick(h);
+  const cells = [];
+  grid.forEach((row, r) => row.forEach((n, h) => {
+    const c = el('rect', { class: 'cell', x: left + h * cw + 1, y: top + r * ch + 1, width: Math.max(1, cw - 2), height: ch - 2, rx: 3, fill: `var(--h${binOf(n, max)})` });
+    cells.push({ c, r, h, n });
+  }));
+  let active = -1;
+  const show = k => {
+    const x = cells[k]; if (!x) return;
+    if (active >= 0) cells[active].c.classList.remove('on');
+    active = k; x.c.classList.add('on');
+    tip.replaceChildren(mk('div', 'd', `${dayLong.format(DAYS[x.r])}, ${hourName(x.h)} – ${hourName(x.h + 1)}`), mk('div', 't', plural(x.n, 'question')));
+    const box = fig.getBoundingClientRect(), scale = box.width / W;
+    tip.classList.add('on');
+    const tw = tip.offsetWidth, cx = (left + x.h * cw + cw) * scale;
+    tip.style.left = Math.max(0, Math.min(box.width - tw, cx + 8 > box.width - tw ? (left + x.h * cw) * scale - tw - 8 : cx + 8)) + 'px';
+    tip.style.top = Math.max(0, (top + x.r * ch) * scale - 8) + 'px';
+  };
+  const hide = () => { if (active >= 0) cells[active].c.classList.remove('on'); active = -1; tip.classList.remove('on'); };
+  cells.forEach((x, k) => { x.c.addEventListener('pointerenter', () => show(k)); x.c.addEventListener('pointerleave', hide); });
+  const best = cells.reduce((a, x) => x.n > a.n ? x : a, { n: 0 });
+  svg.onfocus = () => show(best.n ? cells.indexOf(best) : 0);
+  svg.onblur = hide;
+  svg.onkeydown = e => {
+    const mv = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -24, ArrowDown: 24 }[e.key]; if (!mv) return;
+    e.preventDefault(); show(Math.max(0, Math.min(cells.length - 1, (active < 0 ? 0 : active) + mv)));
+  };
+  const sc = $('#heatScale'); sc.replaceChildren(mk('span', '', 'Fewer'));
+  for (let i = 1; i <= 5; i++) { const s = mk('i'); s.style.background = `var(--h${i})`; sc.appendChild(s); }
+  sc.appendChild(mk('span', '', 'More'));
+  $('#heatSum').textContent = best.n
+    ? `Busiest: ${dayLong.format(DAYS[best.r])}s around ${hourName(best.h)} (${plural(best.n, 'question')}). Times are in ${ov.data.timezone}.`
+    : `No questions in this range. Times are in ${ov.data.timezone}.`;
+  const tb = table($('#heatTbl'), [{ label: 'Day' }, ...Array.from({ length: 24 }, (_, h) => ({ label: hourTick(h), num: 1 }))]);
+  grid.forEach((row, r) => { const tr = tb.insertRow(); td(tr, dayShort.format(DAYS[r])); row.forEach(n => td(tr, n ? nf.format(n) : '·', 'num')); });
+}
+new ResizeObserver(() => { if (ov.series.length && S.tab === 'overview') drawUsage(); if (ov.data && S.tab === 'overview') drawHeat(); }).observe($('#chart'));
+function goActivity(f) {
+  Object.assign(act, { days: ov.days, who: ov.who, model: '', flag: '', q: '' }, f);
+  syncActFilters();
+  showTab('activity');
+}
 
-// ---- users: approve sign-ups, set daily limits and access, notes, passwords, sign-outs ----
-let users = null, openUser = null;
-const ago = t => {
-  if (!t) return 'never';
-  const s = (Date.now() - new Date(t)) / 1000;
-  return s < 60 ? 'just now' : s < 3600 ? `${Math.floor(s / 60)}m ago` : s < 86400 ? `${Math.floor(s / 3600)}h ago` : `${Math.floor(s / 86400)}d ago`;
-};
-const dateFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
-const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-const limitText = (kind, v) => kind === 'usd' ? money(+v) : `${short(+v)} tokens`;
 // ---- bans, terminations, restrictions and appeals ----
 const banDur = h => h == null || h === 0 ? 'permanently' : h < 24 ? `${h} hour${h === 1 ? '' : 's'}` : `${h / 24} day${h === 24 ? '' : 's'}`;
 const until = t => { const s = (new Date(t) - Date.now()) / 1000; return s <= 60 ? 'a minute' : s < 3600 ? `${Math.ceil(s / 60)}m` : s < 86400 ? `${Math.round(s / 3600)}h` : `${Math.round(s / 86400)}d`; };
@@ -550,311 +1032,363 @@ const appealText = a => !a ? '' : a.decision === 'accepted' ? `appeal accepted $
 function banChip(b) {
   const [cls, text] = b.state === 'terminated' ? ['term', `Terminated · ${until(b.endsAt)}`] : b.state === 'ended' ? ['over', 'Ban over']
     : b.state === 'restricted' ? ['over', `Restricted · ${until(b.endsAt)}`] : ['banned', b.endsAt ? `Banned · ${until(b.endsAt)}` : 'Banned'];
-  const c = mk('span', 'chip ' + cls, text); c.title = `${banWhat(b)}: ${b.reason}`;
+  const c = chip(text, cls); c.title = `${banWhat(b)}: ${b.kind === 'restrict' ? lostText(b.limits) + ' · ' : ''}${b.reason}`;
   return c;
 }
-// the "same browser as a terminated account" warning
-const linkedNote = u => u.linked?.length ? mk('div', 'warn', `⚠ Used the same browser as ${u.linked.join(', ')} (terminated)`) : null;
-// a ban, termination or restriction in force, with its undo
-function liveBox(u, b) {
-  const box = mk('div', 'banbox' + (b.kind === 'terminate' ? ' term' : b.kind === 'restrict' ? ' rst' : ''));
-  box.append(mk('b', '', banWhat(b)), ' · ' + banStatus(b));
-  if (b.kind === 'restrict') box.appendChild(mk('div', 'unote', `Takes away: ${lostText(b.limits)}`));
-  box.appendChild(mk('div', 'unote', `Reason: ${b.reason}`));
-  if (b.note) box.appendChild(mk('div', 'unote', `Note: ${b.note}`));
-  box.appendChild(mk('div', 'annmeta', `${ago(b.at)}` + (b.endsAt ? ` · ${b.kind === 'terminate' ? 'deleted' : 'ends'} ${dateFmt.format(new Date(b.endsAt))}` : '') +
-    (b.kind === 'restrict' ? '' : b.seenAt ? ` · they saw the notice ${ago(b.seenAt)}` : ' · they haven’t seen the notice yet')));
-  if (b.appeal) {
-    box.appendChild(mk('div', 'unote', `Their appeal (${appealText(b.appeal)}): “${b.appeal.body}”`));
-    if (b.appeal.reply) box.appendChild(mk('div', 'unote', `You replied: “${b.appeal.reply}”`));
-  }
-  const btns = mk('div', 'btns'), undo = mk('button', 'ghost', b.kind === 'terminate' ? 'Reverse termination' : b.kind === 'restrict' ? 'Lift restriction' : 'Unban');
-  undo.type = 'button';
-  undo.onclick = () => unban(u, b);
-  btns.append(undo); box.appendChild(btns);
-  return box;
+// a restriction shows in place of "Active"; a ban or a block outranks it
+const statusChip = u => u.ban ? banChip(u.ban) : u.status === 'blocked' ? chip('Blocked', 'err') : u.status === 'pending' ? chip('Waiting', 'warn')
+  : u.restriction ? banChip(u.restriction) : chip('Active', 'ok');
+// what an account works with right now: its own settings with the restriction in force on top, as the server applies it
+function eff(u) {
+  const l = u.restriction?.limits || {}, e = { limitKind: u.limitKind, limitValue: u.limitValue, allowSonnet: u.allowSonnet, allowWeb: u.allowWeb };
+  if (l.noSonnet) e.allowSonnet = false;
+  if (l.noWeb) e.allowWeb = false;
+  if (l.limitKind) { e.limitKind = l.limitKind; e.limitValue = l.limitValue; }
+  return e;
 }
-// what a person's details show: what's in force with an undo, a form to ban, terminate or restrict them, then their history
-function moderation(u) {
-  const f = mk('div', 'field'); f.appendChild(mk('span', 'fl', 'Moderation'));
-  const ln = linkedNote(u); if (ln) f.appendChild(ln);
-  if (u.ban) f.appendChild(liveBox(u, u.ban));
-  if (u.restriction && !u.ban) f.appendChild(liveBox(u, u.restriction));
+// accounts that used the same browser as a terminated account
+const linkedText = u => u.linked?.length ? `Used the same browser as ${u.linked.join(', ')} (terminated)` : '';
+function linkedTag(u) { if (!u.linked?.length) return null; const t = mk('span', 'tag warn', '⚠ shared browser'); t.title = linkedText(u); return t; }
+async function lift(u, b, msgEl) {
+  const term = b.kind === 'terminate', rst = b.kind === 'restrict';
+  if (!confirm(term ? `Reverse ${u.name}’s termination? Their account won’t be deleted and they can use pagebot again.` : rst ? `Lift ${u.name}’s restriction now?` : `Unban ${u.name}?`)) return;
+  let ok = true, text = term ? `${u.name}’s termination is reversed.` : rst ? `${u.name}’s restriction is lifted.` : `${u.name} is unbanned.`;
+  try { await send(`/api/admin/users/${u.id}/ban${rst ? '?kind=restrict' : ''}`, undefined, 'DELETE'); }
+  catch (err) { ok = false; text = err.message; }
+  await loadUsers(); renderPeople(); if (dw.id != null) renderDrawer();
+  say(msgEl(), ok, text); // after the redraw, which replaces the panel's message line
+}
+// answering an appeal: accepting lifts the ban, denying keeps it; either way the reply shows in their panel
+function appealForm(a, msgEl) {
+  const b = a.ban, row = mk('div', 'areply'), reply = mk('input'), yes = button('Accept & unban', 'btn sm'), no = button('Deny', 'btn ghost sm');
+  reply.maxLength = 1000; reply.placeholder = 'Reply (optional, they see it)'; reply.setAttribute('aria-label', `Reply to ${b.name}`);
+  const answer = async decision => {
+    if (decision === 'deny' && !confirm(`Deny ${b.name}’s appeal? The ${b.kind === 'terminate' ? 'termination' : 'ban'} stays, and they can’t appeal it again.`)) return;
+    yes.disabled = no.disabled = true;
+    let ok = true, text = decision === 'deny' ? `${b.name}’s appeal is denied.` : b.kind === 'terminate' ? `${b.name}’s appeal is accepted and the termination is reversed.` : `${b.name}’s appeal is accepted and they’re unbanned.`;
+    try { await send(`/api/admin/appeals/${a.id}`, { decision, reply: reply.value }); }
+    catch (err) { ok = false; text = err.message; }
+    await loadUsers(); renderPeople(); if (dw.id != null) renderDrawer();
+    say(msgEl(), ok, text);
+  };
+  yes.onclick = () => answer('accept'); no.onclick = () => answer('deny');
+  row.append(reply, yes, no);
+  return row;
+}
+// appeals waiting, then the log of bans, terminations and restrictions, newest first
+function renderMod() {
+  const list = S.users.bans || [], live = list.filter(b => LIVE.includes(b.state)), appeals = S.users.appeals || [];
+  $('#modCard').hidden = !list.length;
+  $('#appealCount').hidden = $('#appeals').hidden = !appeals.length; $('#appealCount').textContent = appeals.length;
+  $('#modHint').textContent = `${live.length ? `${live.length} in force · ` : ''}terminated accounts are deleted after ${S.users.terminateDays} days`;
+  $('#appealList').replaceChildren(...appeals.map(a => {
+    const b = a.ban, it = mk('div', 'appeal'), head = mk('div');
+    head.append(mk('b', '', b.name), ' ', mk('span', 'sub', `${banWhat(b)} · ${banStatus(b)} · appealed ${ago(a.at)}`));
+    it.append(head, mk('div', 'sub', `Reason: ${b.reason}${b.note ? ` — ${b.note}` : ''}`), mk('div', 'quote', `“${a.body}”`), appealForm(a, () => $('#appealMsg')));
+    if (b.userId != null && S.users.users.some(u => u.id === b.userId)) { const o = button('Open their panel', 'linkbtn'); o.style.marginTop = '8px'; o.onclick = () => openPerson(b.userId); it.appendChild(o); }
+    return it;
+  }));
+  const tb = table($('#modTbl'), [{ label: 'Person' }, { label: 'What' }, { label: 'Reason' }, { label: 'When' }, { label: 'Status' }, { label: '' }]);
+  for (const b of list.slice(0, 30)) {
+    const tr = tb.insertRow();
+    td(tr, mk('b', '', b.name)); td(tr, banWhat(b));
+    td(tr, (b.kind === 'restrict' ? lostText(b.limits) + ' · ' : '') + b.reason + (b.note ? ` — ${b.note}` : ''), 'wrapcell');
+    const w = td(tr, ago(b.at)); w.title = fullFmt.format(new Date(b.at));
+    td(tr, banStatus(b) + (b.kind === 'restrict' ? '' : b.seenAt ? ` · seen ${ago(b.seenAt)}` : ' · not seen yet') + (b.appeal ? ` · ${appealText(b.appeal)}` : ''), 'muted');
+    if (LIVE.includes(b.state) && b.userId != null) {
+      const x = button(b.kind === 'terminate' ? 'Reverse' : b.kind === 'restrict' ? 'Lift' : 'Unban', 'btn ghost sm');
+      x.onclick = () => lift({ id: b.userId, name: b.name }, b, () => $('#modMsg'));
+      td(tr, x, 'right');
+    } else td(tr, '');
+    if (b.userId != null && S.users.users.some(u => u.id === b.userId)) rowLink(tr, () => openPerson(b.userId));
+  }
+}
+// a ban, termination or restriction in force, with its appeal (if any) and its undo
+function liveBox(u, b) {
+  const bb = mk('div', 'banbox' + (b.kind === 'terminate' ? ' term' : b.kind === 'restrict' ? ' rst' : ''));
+  bb.append(mk('b', '', banWhat(b)), ` · ${banStatus(b)}`);
+  if (b.kind === 'restrict') bb.appendChild(mk('div', 'sub', `Takes away: ${lostText(b.limits)}`));
+  bb.appendChild(mk('div', 'sub', `Reason: ${b.reason}`));
+  if (b.note) bb.appendChild(mk('div', 'sub', `Note: ${b.note}`));
+  bb.appendChild(mk('div', 'sub', `${ago(b.at)}` + (b.endsAt ? ` · ${b.kind === 'terminate' ? 'deleted' : 'ends'} ${(b.kind === 'restrict' ? fullFmt : dayFmt).format(new Date(b.endsAt))}` : '') +
+    (b.kind === 'restrict' ? '' : ` · ${b.seenAt ? `they saw the notice ${ago(b.seenAt)}` : 'they haven’t seen the notice yet'}`)));
+  const a = b.appeal;
+  if (a) {
+    bb.appendChild(mk('div', 'quote', `Their appeal (${appealText(a)}): “${a.body}”`));
+    if (a.reply) bb.appendChild(mk('div', 'sub', `You replied: “${a.reply}”`));
+    const w = !a.decision && (S.users.appeals || []).find(x => x.id === a.id);
+    if (w) bb.appendChild(appealForm(w, () => $('#dwMod')));
+  }
+  const undo = button(b.kind === 'terminate' ? 'Reverse termination' : b.kind === 'restrict' ? 'Lift restriction' : 'Unban', 'btn ghost sm'); undo.style.marginTop = '10px';
+  undo.onclick = () => lift(u, b, () => $('#dwMod'));
+  bb.appendChild(undo);
+  return bb;
+}
+// in a person's panel: what's in force with its undo, a form to ban, restrict or terminate them, then their history
+function moderationBox(u) {
+  const box = mk('div'), msg = mk('div', 'msg'); msg.id = 'dwMod';
+  if (u.linked?.length) box.appendChild(mk('div', 'linked', '⚠ ' + linkedText(u)));
+  if (u.ban) box.appendChild(liveBox(u, u.ban));
+  else if (u.restriction) box.appendChild(liveBox(u, u.restriction));
   if (!u.ban) {
     const form = mk('div', 'banform'), inl = mk('div', 'inl'), seg = mk('div', 'seg'), len = mk('select');
     let kind = 'ban';
+    // only a ban can be permanent; a restriction always ends
     const setLens = perm => {
       const keep = len.value; len.replaceChildren();
-      for (const h of users.banHours) if (h || perm) len.add(new Option(h ? 'for ' + banDur(h) : 'permanently', h));
+      for (const h of S.users.banHours || []) if (h || perm) len.add(new Option(h ? 'for ' + banDur(h) : 'permanently', h));
       len.value = [...len.options].some(o => o.value === keep) ? keep : '24';
     };
     len.setAttribute('aria-label', 'Length');
     // what a restriction takes away
-    const rbox = mk('div', 'rform'), cb = label => { const l = mk('label', 'ck'), c = mk('input'); c.type = 'checkbox'; l.append(c, ' ' + label); return [l, c]; };
+    const rbox = mk('div', 'rform'), cks = mk('div'), cb = label => { const l = mk('label', 'ck'), c = mk('input'); c.type = 'checkbox'; l.append(c, label); return [l, c]; };
     const [ls, cs] = cb('Take away Sonnet'), [lw, cw] = cb('Take away web search');
+    cks.append(ls, lw);
     const lim = mk('div', 'inl'), lseg = mk('div', 'seg'), lval = mk('input'), lunit = mk('span', 'unit');
     let lkind = 'none';
     lval.type = 'number'; lval.min = '0'; lval.step = 'any'; lval.setAttribute('aria-label', 'Daily limit while restricted');
     const setL = k => {
-      lkind = k; lseg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.k === k));
-      lval.hidden = k === 'none'; lunit.textContent = k === 'usd' ? 'dollars a day' : k === 'tokens' ? 'tokens a day' : 'keep their daily limit';
-      if (k !== 'none' && !lval.value) lval.value = k === 'usd' ? 0.1 : 20000;
+      lkind = k; setSeg(lseg, 'k', k); lval.hidden = k === 'none';
+      lunit.textContent = k === 'usd' ? 'dollars a day' : k === 'tokens' ? 'tokens a day' : 'keep their daily limit';
+      if (k !== 'none') lval.value = k === 'usd' ? 0.1 : 20000;
     };
-    for (const [k, label] of [['none', 'Same limit'], ['tokens', 'Tokens'], ['usd', 'Dollars']]) {
-      const x = mk('button', '', label); x.type = 'button'; x.dataset.k = k; x.onclick = () => { lval.value = ''; setL(k); }; lseg.appendChild(x);
-    }
+    for (const [k, label] of [['none', 'Same limit'], ['tokens', 'Tokens'], ['usd', 'Dollars']]) { const x = button(label); x.dataset.k = k; x.onclick = () => setL(k); lseg.appendChild(x); }
     lim.append(lseg, lval, lunit); setL('none');
-    rbox.append(ls, lw, lim);
-    const reason = mk('input'), note = mk('textarea'), go = mk('button', 'bad', ''), hint = mk('p', 'hint');
+    rbox.append(cks, lim);
+    const reason = mk('input'), note = mk('textarea'), go = button('', 'btn bad'), hint = mk('p', 'sub');
     reason.setAttribute('list', 'banReasons'); reason.maxLength = 120; reason.placeholder = 'Reason (they see it)'; reason.setAttribute('aria-label', 'Reason');
     note.maxLength = 1000; note.rows = 2; note.placeholder = 'Moderator note (optional, they see it too)'; note.setAttribute('aria-label', 'Moderator note');
-    go.type = 'button';
+    hint.style.margin = '0';
     const setK = k => {
-      kind = k;
-      seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.k === k));
-      len.hidden = k === 'terminate'; setLens(k === 'ban'); rbox.hidden = k !== 'restrict';
-      go.className = k === 'terminate' ? 'worst' : k === 'restrict' ? 'warnb' : 'bad';
-      go.textContent = k === 'ban' ? `Ban ${u.name}` : k === 'restrict' ? `Restrict ${u.name}` : `Terminate ${u.name}`;
+      kind = k; setSeg(seg, 'k', k); len.hidden = k === 'terminate'; setLens(k === 'ban'); rbox.hidden = k !== 'restrict';
+      go.className = 'btn ' + (k === 'terminate' ? 'worst' : k === 'restrict' ? 'warnb' : 'bad');
+      go.textContent = k === 'ban' ? `Ban ${u.name}` : k === 'restrict' ? `${u.restriction ? 'Replace the restriction on' : 'Restrict'} ${u.name}` : `Terminate ${u.name}`;
       hint.textContent = k === 'ban' ? 'Their pagebot panel switches to a ban notice right away, with your reason and note. They can appeal it, and re-activate once it ends.'
-        : k === 'restrict' ? 'They keep using pagebot without what you take away, with a note above their chat saying why and until when. It ends by itself.'
-        : `Every sign-in shows the termination notice, and the account is deleted in ${users.terminateDays} days. You can reverse it until then. Its username and browser can’t sign up again.`;
+        : k === 'restrict' ? 'They keep using pagebot without what you take away, with a note above their chat saying why and until when. It ends by itself, and their own settings stay as they are.'
+        : `Every sign-in shows the termination notice, and the account is deleted in ${S.users.terminateDays} days. You can reverse it until then. Its username and browser can’t sign up again.`;
     };
-    for (const [k, label] of [['ban', 'Ban'], ['restrict', 'Restrict'], ['terminate', 'Terminate']]) {
-      const x = mk('button', '', label); x.type = 'button'; x.dataset.k = k; x.onclick = () => setK(k); seg.appendChild(x);
-    }
+    for (const [k, label] of [['ban', 'Ban'], ['restrict', 'Restrict'], ['terminate', 'Terminate']]) { const x = button(label); x.dataset.k = k; x.onclick = () => setK(k); seg.appendChild(x); }
     inl.append(seg, len); setK('ban');
-    go.onclick = () => {
-      const oops = text => { flash = { id: u.id, text, err: true }; showFlash(); };
-      if (kind === 'restrict' && !cs.checked && !cw.checked && lkind === 'none') return oops('Pick at least one thing to take away.');
-      if (kind === 'restrict' && lkind !== 'none' && !(+lval.value > 0)) return oops('Enter a number above zero for the daily limit.');
-      if (!reason.value.trim()) { reason.focus(); return oops('Give a reason. They see it.'); }
-      if (kind === 'terminate' && !confirm(`Terminate ${u.name}? They’ll see the termination notice every time they sign in, and the account is deleted in ${users.terminateDays} days.`)) return;
+    go.onclick = async () => {
+      if (kind === 'restrict' && !cs.checked && !cw.checked && lkind === 'none') return say(msg, false, 'Pick at least one thing to take away.');
+      if (kind === 'restrict' && lkind !== 'none' && !(+lval.value > 0)) { lval.focus(); return say(msg, false, 'Enter a number above zero for the daily limit.'); }
+      if (!reason.value.trim()) { reason.focus(); return say(msg, false, 'Give a reason. They see it.'); }
+      if (kind === 'terminate' && !confirm(`Terminate ${u.name}? They’ll see the termination notice every time they sign in, and the account is deleted in ${S.users.terminateDays} days.`)) return;
       const body = { kind, reason: reason.value, note: note.value, ...(kind !== 'terminate' && { hours: +len.value }),
         ...(kind === 'restrict' && { noSonnet: cs.checked, noWeb: cw.checked, limitKind: lkind, limitValue: +lval.value }) };
-      const done = kind === 'ban' ? `${u.name} is banned ${len.value === '0' ? 'permanently' : 'for ' + banDur(+len.value)}.`
-        : kind === 'restrict' ? `${u.name} is restricted for ${banDur(+len.value)}.` : `${u.name}’s account is terminated.`;
-      act(u, body, done, false, { path: `/api/admin/users/${u.id}/ban` });
+      try {
+        await send(`/api/admin/users/${u.id}/ban`, body);
+        await loadUsers(); renderPeople(); renderDrawer();
+        say($('#dwMod'), true, kind === 'ban' ? `${u.name} is banned ${len.value === '0' ? 'permanently' : 'for ' + banDur(+len.value)}.`
+          : kind === 'restrict' ? `${u.name} is restricted for ${banDur(+len.value)}.` : `${u.name}’s account is terminated.`);
+      } catch (err) { say(msg, false, err.message); }
     };
     const btns = mk('div', 'btns'); btns.appendChild(go);
     form.append(inl, rbox, reason, note, btns, hint);
-    f.appendChild(form);
+    box.appendChild(form);
   }
-  const past = users.bans.filter(x => x.userId === u.id && x.id !== u.ban?.id && x.id !== u.restriction?.id);
+  const past = (S.users.bans || []).filter(x => x.userId === u.id && x.id !== u.ban?.id && x.id !== u.restriction?.id);
   if (past.length) {
-    const h = mk('div', 'hist');
-    h.appendChild(mk('div', '', 'History:'));
-    for (const x of past.slice(0, 10)) h.appendChild(mk('div', '', `${dateFmt.format(new Date(x.at))} · ${banWhat(x)} · ${x.reason} · ${banStatus(x)}` + (x.appeal ? ` · ${appealText(x.appeal)}` : '')));
-    f.appendChild(h);
+    const h = mk('div', 'hist'); h.appendChild(mk('div', '', 'History:'));
+    for (const x of past.slice(0, 10)) h.appendChild(mk('div', '', `${dayFmt.format(new Date(x.at))} · ${banWhat(x)} · ${x.reason} · ${banStatus(x)}` + (x.appeal ? ` · ${appealText(x.appeal)}` : '')));
+    box.appendChild(h);
   }
-  return f;
-}
-async function unban(u, b) {
-  const term = b.kind === 'terminate', rst = b.kind === 'restrict';
-  if (!confirm(term ? `Reverse ${u.name}’s termination? Their account won’t be deleted and they can use pagebot again.` : rst ? `Lift ${u.name}’s restriction now?` : `Unban ${u.name}?`)) return;
-  await act(u, null, term ? `${u.name}’s termination is reversed.` : rst ? `${u.name}’s restriction is lifted.` : `${u.name} is unbanned.`, false,
-    { path: `/api/admin/users/${u.id}/ban${rst ? '?kind=restrict' : ''}`, method: 'DELETE' });
-}
-// appeals waiting for an answer, at the top of the Moderation card
-function appealRow(a) {
-  const b = a.ban, row = mk('div', 'mrow appeal'), info = mk('div', 'uinfo');
-  info.append(mk('b', '', b.name), ' ', mk('span', 'ago', `${banWhat(b)} · appealed ${ago(a.at)}`));
-  info.appendChild(mk('div', 'unote', `Banned for: ${b.reason}${b.note ? ` — ${b.note}` : ''}`));
-  info.appendChild(mk('div', 'abody', `“${a.body}”`));
-  const reply = mk('input'); reply.maxLength = 1000; reply.placeholder = 'Reply (optional, they see it)'; reply.setAttribute('aria-label', `Reply to ${b.name}`);
-  const btns = mk('div', 'btns'), yes = mk('button', '', 'Accept & unban'), no = mk('button', 'ghost', 'Deny'), msg = mk('div', 'msg');
-  yes.type = no.type = 'button';
-  const answer = async decision => {
-    if (decision === 'deny' && !confirm(`Deny ${b.name}’s appeal? The ${b.kind === 'terminate' ? 'termination' : 'ban'} stays, and they can’t appeal it again.`)) return;
-    yes.disabled = no.disabled = true;
-    try { await api(`/api/admin/appeals/${a.id}`, { method: 'POST', body: JSON.stringify({ decision, reply: reply.value }) }); await loadUsers(); }
-    catch (err) { say(msg, false, err.message); yes.disabled = no.disabled = false; }
-  };
-  yes.onclick = () => answer('accept'); no.onclick = () => answer('deny');
-  btns.append(yes, no);
-  info.append(reply, btns, msg);
-  row.appendChild(info);
-  return row;
-}
-function renderMod() {
-  const list = users.bans, live = list.filter(b => LIVE.includes(b.state)), appeals = users.appeals || [];
-  $('#modCard').hidden = !list.length;
-  $('#modCount').hidden = !appeals.length; $('#modCount').textContent = appeals.length;
-  $('#appealHead').hidden = !appeals.length;
-  $('#appealList').replaceChildren(...appeals.map(appealRow));
-  $('#modHint').textContent = `${live.length ? `${live.length} in force. ` : ''}Bans, terminations and restrictions, newest first. ` +
-    `A terminated account is deleted ${users.terminateDays} days after it’s terminated.`;
-  $('#modList').replaceChildren(...list.slice(0, 30).map(b => {
-    const row = mk('div', 'mrow'), info = mk('div', 'uinfo');
-    info.append(mk('b', '', b.name), ' ', mk('span', 'ago', `${banWhat(b)} · ${ago(b.at)}`));
-    info.appendChild(mk('div', 'unote', `${b.kind === 'restrict' ? lostText(b.limits) + ' · ' : ''}${b.reason}${b.note ? ` — ${b.note}` : ''}`));
-    info.appendChild(mk('div', 'ago', banStatus(b) + (b.kind === 'restrict' ? '' : b.seenAt ? ` · seen ${ago(b.seenAt)}` : ' · not seen yet') +
-      (b.appeal ? ` · ${appealText(b.appeal)}` : '')));
-    row.appendChild(info);
-    const btns = mk('div', 'btns');
-    if (LIVE.includes(b.state) && b.userId != null) {
-      const x = mk('button', 'ghost', b.kind === 'terminate' ? 'Reverse' : b.kind === 'restrict' ? 'Lift' : 'Unban'); x.type = 'button';
-      x.onclick = () => unban({ id: b.userId, name: b.name }, b);
-      btns.appendChild(x);
-    }
-    row.appendChild(btns);
-    return row;
-  }));
+  box.appendChild(msg);
+  return box;
 }
 
-async function loadUsers() {
-  const d = users = await api('/api/admin/users');
-  renderMod();
-  $('#signup').checked = d.signup;
-  $('#signupState').textContent = d.signup ? 'Sign-ups open' : 'Sign-ups closed';
-  renderDefaults(d.defaults);
-  const pending = d.users.filter(u => u.status === 'pending'), rest = d.users.filter(u => u.status !== 'pending');
-  $('#pendingHead').hidden = !pending.length; $('#pendingCount').textContent = pending.length;
-  $('#pendingBox').replaceChildren(...pending.map(pendingRow));
-  $('#usersEmpty').hidden = d.users.length > 0;
-  $('#userList').replaceChildren(ownerRow(d.owner), ...rest.map(userRow));
-  // the chart's person filter
-  const sel = $('#who'), keep = sel.value;
-  sel.replaceChildren(new Option('Everyone', 'all'), new Option('You (owner)', 'owner'), ...rest.map(u => new Option(u.name, String(u.id))));
-  sel.value = [...sel.options].some(o => o.value === keep) ? keep : 'all';
-  if (sel.value !== who) { who = sel.value; loadUsage().catch(() => {}); }
+// ---- the announcement everyone with an account sees until they close it ----
+let annMax = 500;
+async function loadAnn() {
+  const d = await api('/api/admin/announcement'), a = d.announcement;
+  annMax = d.max || annMax;
+  $('#annNow').hidden = !a; $('#annNone').hidden = !!a;
+  if (a) {
+    $('#annText').textContent = a.body;
+    $('#annMeta').textContent = `Posted ${ago(a.createdAt)} · ` + (d.people ? `${d.seen} of ${plural(d.people, 'person', 'people')} closed it` : 'no one has an account yet');
+  }
+  $('#annPost').textContent = a ? 'Post (replaces this one)' : 'Post to everyone';
 }
-function pendingRow(u) {
-  const row = mk('div', 'urow pending'), info = mk('div', 'uinfo');
-  info.append(mk('b', '', u.name), ' ', mk('span', 'ago', `asked ${ago(u.createdAt)}`));
-  if (u.note) info.appendChild(mk('div', 'unote', `“${u.note}”`));
-  const ln = linkedNote(u); if (ln) info.appendChild(ln);
-  const btns = mk('div', 'btns'), yes = mk('button', '', 'Accept'), no = mk('button', 'ghost', 'Deny');
-  yes.type = no.type = 'button';
-  yes.onclick = () => act(u, { status: 'trusted' }, `${u.name} is in.`, true);
-  no.onclick = async () => { if (confirm(`Turn down ${u.name}? Their request is deleted.`)) await del(u); };
-  btns.append(yes, no); row.append(info, btns);
-  return row;
-}
-function meter(used, limit) {
-  const w = mk('span', 'meterw'), track = mk('span', 'mtrack'), fill = mk('i');
-  const pct = limit ? Math.min(100, used / limit * 100) : 0;
-  fill.style.width = pct + '%'; if (pct >= 100) fill.className = 'full'; else if (pct >= 80) fill.className = 'warn';
-  track.appendChild(fill); w.appendChild(track);
+const annCount = () => { const n = $('#annBody').value.length; $('#annCount').textContent = n ? `${n} / ${annMax}` : ''; };
+$('#annBody').addEventListener('input', annCount);
+$('#annForm').addEventListener('submit', async e => {
+  e.preventDefault(); const m = $('#annMsg'), body = $('#annBody').value.trim();
+  if (!body) return say(m, false, 'Write something first.');
+  try { await send('/api/admin/announcement', { body }); $('#annBody').value = ''; annCount(); await loadAnn(); say(m, true, 'Posted. People see it the next time they open pagebot.'); }
+  catch (err) { say(m, false, err.message); }
+});
+$('#annDown').onclick = async () => {
+  try { await send('/api/admin/announcement', undefined, 'DELETE'); await loadAnn(); say($('#annMsg'), true, 'Taken down. No one sees it anymore.'); }
+  catch (err) { say($('#annMsg'), false, err.message); }
+};
+
+// ================= people =================
+const ppl = { q: '', status: 'all', sort: { key: 'last', dir: -1 }, sel: new Set() };
+// limit, today and access go by what the account works with right now, so a restriction in force counts
+const usedToday = u => eff(u).limitKind === 'usd' ? u.today.usd : u.today.tokens;
+const PCOLS = [
+  { key: 'name', label: 'Person', v: u => u.name.toLowerCase() },
+  { key: 'status', label: 'Status', v: u => u.ban ? 'b' + u.ban.state : u.restriction && u.status === 'trusted' ? 'restricted' : u.status },
+  { key: 'limit', label: 'Daily limit', v: u => { const e = eff(u); return !e.limitKind ? 3e12 : (e.limitKind === 'usd' ? 1e12 : 0) + +e.limitValue; } },
+  { key: 'today', label: 'Today', v: u => { const e = eff(u); return e.limitKind ? frac(usedToday(u), e.limitValue) : -1 + u.today.tokens / 1e12; } },
+  { key: 'q7', label: 'Questions, 7 days', num: 1, v: u => u.week.questions },
+  { key: 'c7', label: 'Cost, 7 days', num: 1, v: u => u.week.usd },
+  { key: 'ct', label: 'Cost, all time', num: 1, v: u => u.total.usd },
+  { key: 'access', label: 'Can use', v: u => { const e = eff(u); return (e.allowSonnet ? 2 : 0) + (e.allowWeb ? 1 : 0); } },
+  { key: 'dev', label: 'Devices', num: 1, v: u => u.devices },
+  { key: 'last', label: 'Last active', v: u => u.lastSeen ? +new Date(u.lastSeen) : 0 },
+  { key: 'joined', label: 'Joined', v: u => +new Date(u.createdAt) },
+];
+const accessText = u => (u.allowSonnet ? 'Sonnet' : 'Haiku only') + (u.allowWeb ? ', web' : '');
+// marks a value a restriction is overriding; their own setting comes back when it ends
+function rTag(u, own) { const t = mk('span', 'tag warn', 'restricted'); t.title = `Restricted until ${fullFmt.format(new Date(u.restriction.endsAt))}. Their own setting: ${own}`; return t; }
+function todayCell(u) {
+  const w = mk('span', 'today'), e = eff(u);
+  if (e.limitKind) w.append(meter(frac(usedToday(u), e.limitValue)), e.limitKind === 'usd' ? `${money(u.today.usd)} / ${money(e.limitValue)}` : `${short(u.today.tokens)} / ${short(e.limitValue)}`);
+  else w.append(`${short(u.today.tokens)} tokens`);
   return w;
 }
-function ownerRow(o) {
-  const row = mk('div', 'urow'), head = mk('div', 'uhead static');
-  head.append(mk('span', 'uname', 'You (owner)'), mk('span', 'chip', 'No limit'), mk('span', 'grow'),
-    mk('span', 'ago', `${short(o.today.tokens)} tokens · ${money(o.today.usd)} today`));
-  row.appendChild(head);
-  return row;
+function nameCell(name, sub) { const s = mk('span', 'pname'); s.append(mk('b', '', name)); if (sub) s.append(mk('span', 'n', sub)); return s; }
+function renderPeople() {
+  const d = S.users; if (!d) return;
+  $('#signup').checked = d.signup; $('#signupState').textContent = d.signup ? 'Sign-ups open' : 'Sign-ups closed';
+  renderPending(d.users.filter(u => u.status === 'pending'));
+  renderDefaults(d.defaults);
+  renderMod();
+  for (const id of [...ppl.sel]) if (!d.users.some(u => u.id === id && u.status !== 'pending')) ppl.sel.delete(id);
+  const q = ppl.q.trim().toLowerCase();
+  const list = d.users.filter(u => u.status !== 'pending' && (ppl.status === 'all' || u.status === ppl.status)
+    && (!q || [u.name, u.note, u.adminNote].some(x => (x || '').toLowerCase().includes(q))));
+  const col = PCOLS.find(c => c.key === ppl.sort.key) || PCOLS[11];
+  list.sort((a, b) => { const x = col.v(a), y = col.v(b); return (x < y ? -1 : x > y ? 1 : 0) * ppl.sort.dir || a.name.localeCompare(b.name); });
+  const all = mk('input'); all.type = 'checkbox'; all.setAttribute('aria-label', 'Select everyone shown');
+  all.checked = list.length > 0 && list.every(u => ppl.sel.has(u.id));
+  all.indeterminate = !all.checked && list.some(u => ppl.sel.has(u.id));
+  all.onchange = () => { list.forEach(u => all.checked ? ppl.sel.add(u.id) : ppl.sel.delete(u.id)); renderPeople(); };
+  const tb = table($('#peopleTbl'), [{ node: all, cls: 'selcol' }, ...PCOLS.map(c => ({ label: c.label, num: c.num, sortKey: c.key }))], {
+    sort: ppl.sort,
+    onSort: k => { const c = PCOLS.find(x => x.key === k); ppl.sort = { key: k, dir: ppl.sort.key === k ? -ppl.sort.dir : c.num || ['last', 'today', 'joined'].includes(k) ? -1 : 1 }; renderPeople(); },
+  });
+  if (!q && ppl.status !== 'blocked') ownerRow(tb, d.owner);
+  for (const u of list) personRow(tb, u);
+  if (!list.length) emptyRow(tb, PCOLS.length + 1, d.users.some(u => u.status !== 'pending')
+    ? 'No one matches.' : 'No accounts yet. People create one from the pagebot panel (“Create an account”) and show up here for you to accept.');
+  renderBulk();
 }
-function userRow(u) {
-  const row = mk('div', 'urow' + (openUser === u.id ? ' open' : ''));
-  const head = mk('button', 'uhead'); head.type = 'button'; head.setAttribute('aria-expanded', String(openUser === u.id));
-  head.append(mk('span', 'uname', u.name), u.ban || u.restriction ? banChip(u.ban || u.restriction) : mk('span', 'chip ' + u.status, u.status === 'trusted' ? 'Trusted' : 'Blocked'));
-  if (u.linked?.length) { const w = mk('span', 'chip term', '⚠'); w.title = `Used the same browser as ${u.linked.join(', ')} (terminated)`; head.appendChild(w); }
-  const usedNow = u.limitKind === 'usd' ? u.today.usd : u.today.tokens;
-  if (u.limitKind) {
-    const m = meter(usedNow, u.limitValue);
-    m.title = `${u.limitKind === 'usd' ? money(usedNow) : short(usedNow)} / ${limitText(u.limitKind, u.limitValue)} today` + (usedNow >= u.limitValue ? ' · limit reached' : '');
-    m.appendChild(mk('span', 'mtext', m.title));
-    head.appendChild(m);
-  } else {
-    const m = mk('span', 'meterw'); m.title = `${short(u.today.tokens)} tokens today · no limit`;
-    m.appendChild(mk('span', 'mtext', m.title)); head.appendChild(m);
-  }
-  head.append(mk('span', 'grow'), mk('span', 'ago', u.lastSeen ? `active ${ago(u.lastSeen)}` : 'not used yet'));
-  head.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>');
-  head.onclick = () => { openUser = openUser === u.id ? null : u.id; loadUsersView(); };
-  row.appendChild(head);
-  if (openUser === u.id) row.appendChild(editor(u));
-  return row;
+function ownerRow(tb, o) {
+  const tr = tb.insertRow(); tr.className = 'owner';
+  td(tr, '', 'selcol'); td(tr, nameCell('You (owner)', 'Password or passcode'));
+  td(tr, chip('Owner', 'owner')); td(tr, 'No limit', 'muted'); td(tr, `${short(o.today.tokens)} tokens`);
+  td(tr, nf.format(o.week.questions), 'num'); td(tr, money(o.week.usd), 'num'); td(tr, money(o.total.usd), 'num');
+  td(tr, 'Everything', 'muted'); td(tr, nf.format(o.devices), 'num'); td(tr, ago(o.lastSeen)); td(tr, '—', 'muted');
+  rowLink(tr, () => openPerson('owner'));
 }
-const loadUsersView = () => { if (users) { $('#userList').replaceChildren(ownerRow(users.owner), ...users.users.filter(u => u.status !== 'pending').map(userRow)); } };
-function editor(u) {
-  const ed = mk('div', 'ued');
-  let kind = u.limitKind || 'none';
-  // daily limit
-  const f1 = mk('div', 'field'); f1.appendChild(mk('span', 'fl', 'Daily limit'));
-  const inl = mk('div', 'inl'), seg = mk('div', 'seg'), input = mk('input'), unitL = mk('span', 'unit');
-  input.type = 'number'; input.min = '0'; input.step = 'any'; input.setAttribute('aria-label', 'Daily limit');
-  const setKind = k => {
-    kind = k;
-    seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
-    input.hidden = k === 'none';
-    unitL.textContent = k === 'usd' ? 'dollars per day (estimated at list prices)' : k === 'tokens' ? 'tokens per day' : 'they can use as much as they like';
-    if (k !== 'none' && (u.limitKind !== k || input.value === '')) input.value = k === u.limitKind ? u.limitValue : k === 'usd' ? 0.5 : 100000;
-  };
-  for (const [k, label] of [['tokens', 'Tokens'], ['usd', 'Dollars'], ['none', 'No limit']]) {
-    const b = mk('button', '', label); b.type = 'button'; b.dataset.k = k; b.onclick = () => setKind(k); seg.appendChild(b);
-  }
-  input.value = u.limitValue ?? '';
-  inl.append(seg, input, unitL); f1.appendChild(inl); setKind(kind);
-  // access
-  const f2 = mk('div', 'field'); f2.appendChild(mk('span', 'fl', 'Can use'));
-  const cb = (label, on) => { const l = mk('label', 'ck'), c = mk('input'); c.type = 'checkbox'; c.checked = on; l.append(c, ' ' + label); return [l, c]; };
-  const [ls, cs] = cb('Sonnet 5.5', u.allowSonnet), [lw, cw] = cb('Web search', u.allowWeb);
-  f2.append(ls, lw);
-  // private note
-  const f3 = mk('div', 'field'), nl = mk('label', '', 'Private note (only you see it)'), note = mk('input');
-  note.maxLength = 300; note.value = u.adminNote; note.placeholder = 'e.g. Sam from class';
-  f3.append(nl, note);
-  // numbers
-  const st = mk('div', 'ustats');
-  const line = (label, text) => { const b = mk('b', '', label + ': '); st.append(b, text, document.createElement('br')); };
-  line('Today', `${nf.format(u.today.tokens)} tokens · ${money(u.today.usd)} · ${u.today.questions} question${u.today.questions === 1 ? '' : 's'}`);
-  line('Last 7 days', `${nf.format(u.week.tokens)} tokens · ${money(u.week.usd)}`);
-  line('All time', `${nf.format(u.total.tokens)} tokens · ${money(u.total.usd)} · ${u.total.questions} question${u.total.questions === 1 ? '' : 's'}`);
-  st.append(`Joined ${dateFmt.format(new Date(u.createdAt))}` + (u.approvedAt ? ` · accepted ${dateFmt.format(new Date(u.approvedAt))}` : '') +
-    ` · ${u.devices} device${u.devices === 1 ? '' : 's'} signed in · ` +
-    (!u.passcode ? 'no passcode' : u.lockMinutes ? `passcode on, locks after ${lockName(u.lockMinutes)}` : 'passcode on, no auto-lock'));
-  if (u.note) { st.appendChild(document.createElement('br')); st.append(`They wrote: “${u.note}”`); }
-  const fm = moderation(u);
-  // actions
-  const btns = mk('div', 'btns'), msg = mk('div', 'msg');
-  const save = mk('button', '', 'Save'), reset = mk('button', 'ghost', 'Reset password'), out = mk('button', 'ghost', 'Sign out'),
-    blk = mk('button', 'ghost', u.status === 'blocked' ? 'Unblock' : 'Block'), rm = mk('button', 'ghost danger', 'Delete');
-  [save, reset, out, blk, rm].forEach(b => { b.type = 'button'; });
-  save.onclick = () => {
-    const v = +input.value;
-    if (kind !== 'none' && !(v > 0)) { msg.className = 'msg err'; msg.textContent = 'Enter a number above zero.'; return; }
-    act(u, { limitKind: kind, limitValue: v, allowSonnet: cs.checked, allowWeb: cw.checked, adminNote: note.value }, 'Saved.');
-  };
-  const np = mk('div', 'np'); np.hidden = true;
-  const npIn = mk('input'), npGo = mk('button', '', 'Set'); npIn.type = 'text'; npIn.placeholder = 'New password (6+ characters)'; npGo.type = 'button';
-  np.append(npIn, npGo);
-  reset.onclick = () => { np.hidden = !np.hidden; if (!np.hidden) npIn.focus(); };
-  npGo.onclick = () => act(u, { password: npIn.value }, `Password changed and ${u.name} was signed out.` +
-    (u.passcode ? ' Their passcode was turned off too.' : '') + ' Tell them the new password.');
-  out.onclick = () => act(u, { signout: true }, `${u.name} was signed out everywhere.`);
-  blk.onclick = () => act(u, { status: u.status === 'blocked' ? 'trusted' : 'blocked' }, u.status === 'blocked' ? `${u.name} can use pagebot again.` : `${u.name} is blocked and signed out.`);
-  rm.onclick = async () => { if (confirm(`Delete ${u.name}? They're signed out and the account is gone. Their past usage stays in the totals.`)) await del(u); };
-  btns.append(save, reset, out, blk, rm);
-  ed.append(f1, f2, f3, st, btns, np, fm, msg);
-  ed.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); (i === npIn ? npGo : save).click(); } }));
-  return ed;
+function personRow(tb, u) {
+  const tr = tb.insertRow();
+  const box = mk('input'); box.type = 'checkbox'; box.checked = ppl.sel.has(u.id); box.setAttribute('aria-label', 'Select ' + u.name);
+  box.onchange = () => { box.checked ? ppl.sel.add(u.id) : ppl.sel.delete(u.id); renderPeople(); };
+  td(tr, box, 'selcol');
+  td(tr, nameCell(u.name, u.adminNote));
+  const sc = td(tr, statusChip(u)), lt = linkedTag(u); if (lt) sc.appendChild(lt);
+  const e = eff(u), rl = u.restriction?.limits || {};
+  const lc = td(tr, limitText(e.limitKind, e.limitValue), e.limitKind ? '' : 'muted');
+  if (rl.limitKind) lc.appendChild(rTag(u, limitText(u.limitKind, u.limitValue)));
+  td(tr, todayCell(u));
+  td(tr, nf.format(u.week.questions), 'num'); td(tr, money(u.week.usd), 'num'); td(tr, money(u.total.usd), 'num');
+  const ac = td(tr, accessText(e)); if (rl.noSonnet || rl.noWeb) ac.appendChild(rTag(u, accessText(u)));
+  td(tr, nf.format(u.devices), 'num');
+  const la = td(tr, ago(u.lastSeen)); if (u.lastSeen) la.title = fullFmt.format(new Date(u.lastSeen));
+  td(tr, dayYFmt.format(new Date(u.createdAt)));
+  rowLink(tr, () => openPerson(u.id));
 }
-let flash = null; // message to show after the list re-renders
-async function act(u, body, okText, isApproval, { path = '/api/admin/users/' + u.id, method = 'POST' } = {}) {
-  try {
-    await api(path, { method, ...(body && { body: JSON.stringify(body) }) });
-    if (isApproval) openUser = u.id;
-    flash = { id: u.id, text: okText };
-    await loadUsers(); load().catch(() => {});
-  } catch (err) { flash = { id: u.id, text: err.message, err: true }; loadUsersView(); }
-  showFlash();
-}
-async function del(u) {
-  try { await api('/api/admin/users/' + u.id, { method: 'DELETE' }); if (openUser === u.id) openUser = null; await loadUsers(); }
-  catch (err) { alert(err.message); }
-}
-function showFlash() {
-  if (!flash) return;
-  const ed = document.querySelector('.urow.open .msg');
-  if (ed && openUser === flash.id) { ed.className = 'msg ' + (flash.err ? 'err' : 'ok'); ed.textContent = flash.text; }
-  flash = null;
-}
+$('#pSearch').addEventListener('input', e => { ppl.q = e.target.value; renderPeople(); });
+onSeg($('#pStatus'), 's', v => { ppl.status = v; renderPeople(); });
 $('#signup').addEventListener('change', async () => {
-  try { await api('/api/admin/accounts', { method: 'POST', body: JSON.stringify({ signup: $('#signup').checked }) }); }
-  catch (err) { alert(err.message); }
-  loadUsers().catch(() => {});
+  try { await send('/api/admin/accounts', { signup: $('#signup').checked }); } catch (err) { alert(err.message); }
+  await loadUsers(); renderPeople();
 });
+$('#pExport').onclick = () => {
+  const d = S.users; if (!d) return;
+  download('pagebot-people', [
+    ['Name', 'Status', 'Daily limit type', 'Daily limit', 'Today tokens', 'Today cost (USD)', 'Questions 7d', 'Tokens 7d', 'Cost 7d (USD)', 'Questions all time', 'Tokens all time', 'Cost all time (USD)',
+      'Sonnet', 'Web search', 'Passcode', 'Ban', 'Ban reason', 'Restriction', 'Restriction ends', 'Restriction reason', 'Shared a browser with', 'Devices', 'Last active', 'Last question', 'Joined', 'Accepted', 'Their note', 'Private note'],
+    ...d.users.map(u => [u.name, u.status, u.limitKind || 'none', u.limitValue ?? '', u.today.tokens, u.today.usd.toFixed(4), u.week.questions, u.week.tokens, u.week.usd.toFixed(4),
+      u.total.questions, u.total.tokens, u.total.usd.toFixed(4), u.allowSonnet ? 'yes' : 'no', u.allowWeb ? 'yes' : 'no', u.passcode ? 'yes' : 'no',
+      u.ban ? banWhat(u.ban) + ` (${banStatus(u.ban)})` : '', u.ban?.reason || '',
+      u.restriction ? lostText(u.restriction.limits) : '', u.restriction?.endsAt || '', u.restriction?.reason || '', (u.linked || []).join(' '), u.devices,
+      u.lastSeen || '', u.lastQuestion || '', u.createdAt, u.approvedAt || '', u.note, u.adminNote]),
+  ]);
+};
+function renderPending(list) {
+  $('#pendingCard').hidden = !list.length; $('#pendCount').textContent = list.length;
+  const tb = table($('#pendTbl'), [{ label: 'Person' }, { label: 'Their note' }, { label: 'Asked' }, { label: '' }]);
+  for (const u of list) {
+    const tr = tb.insertRow();
+    const nc = td(tr, mk('b', '', u.name)), lt = linkedTag(u); if (lt) nc.appendChild(lt);
+    td(tr, u.note ? `“${u.note}”` : '—', 'wrapcell' + (u.note ? '' : ' muted'));
+    const a = td(tr, ago(u.createdAt)); a.title = fullFmt.format(new Date(u.createdAt));
+    const btns = mk('div', 'btns'), yes = button('Accept', 'btn sm'), no = button('Deny', 'btn ghost sm');
+    btns.style.justifyContent = 'flex-end';
+    yes.onclick = () => accept([u]); no.onclick = () => deny([u]);
+    btns.append(yes, no); td(tr, btns, 'right');
+  }
+}
+const pendingList = () => (S.users?.users || []).filter(u => u.status === 'pending');
+$('#acceptAll').onclick = () => accept(pendingList());
+$('#denyAll').onclick = () => deny(pendingList());
+async function accept(list) {
+  const m = $('#pendMsg');
+  try {
+    for (const u of list) await send('/api/admin/users/' + u.id, { status: 'trusted' });
+    say(m, true, list.length === 1 ? `${list[0].name} is in, with the defaults for new people.` : `${list.length} people are in, with the defaults for new people.`);
+  } catch (err) { say(m, false, err.message); }
+  await loadUsers(); renderPeople();
+}
+async function deny(list) {
+  if (!list.length || !confirm(list.length === 1 ? `Turn down ${list[0].name}? Their request is deleted.` : `Turn down all ${list.length} requests? They're deleted.`)) return;
+  const m = $('#pendMsg');
+  try { for (const u of list) await send('/api/admin/users/' + u.id, undefined, 'DELETE'); say(m, true, list.length === 1 ? `${list[0].name} was turned down.` : `${list.length} requests were turned down.`); }
+  catch (err) { say(m, false, err.message); }
+  await loadUsers(); renderPeople();
+}
+// bulk changes to the selected people
+let bKind = 'tokens';
+function renderBulk() {
+  const n = ppl.sel.size;
+  $('#bulk').hidden = !n;
+  $('#bulkCount').textContent = `${plural(n, 'person', 'people')} selected`;
+  if (!n) $('#bulkLimit').hidden = true;
+}
+onSeg($('#bKind'), 'k', v => { bKind = v; $('#bValue').hidden = v === 'none'; $('#bUnit').textContent = v === 'usd' ? 'dollars a day' : v === 'tokens' ? 'tokens a day' : 'they can use as much as they like'; $('#bValue').value = v === 'usd' ? 0.5 : 100000; });
+async function bulk(body, label) {
+  const ids = [...ppl.sel], m = $('#bulkMsg');
+  // a restriction in force keeps overriding what it covers, so say when a change waits for one to end
+  const held = ids.map(id => S.users.users.find(u => u.id === id)).filter(u => { const l = u?.restriction?.limits || {};
+    return ('limitKind' in body && l.limitKind) || (body.allowSonnet && l.noSonnet) || (body.allowWeb && l.noWeb); });
+  let done = 0, failed = 0;
+  for (const id of ids) {
+    try { await send('/api/admin/users/' + id, body); done++; } catch { failed++; }
+    m.className = 'msg'; m.textContent = `${label}… ${done + failed} of ${ids.length}`;
+  }
+  say(m, !failed, (failed ? `${done} updated, ${failed} failed.` : `${label}: done for ${plural(done, 'person', 'people')}.`) +
+    (held.length ? ` ${held.length === 1 ? held[0].name + ' is' : plural(held.length, 'person', 'people') + ' are'} restricted right now, so it applies once that ends.` : ''));
+  await loadUsers(); renderPeople();
+}
+$('#bulk').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-b]'); if (!b) return;
+  const a = b.dataset.b;
+  if (a === 'clear') { ppl.sel.clear(); $('#bulkMsg').textContent = ''; renderPeople(); return; }
+  if (a === 'limit') { $('#bulkLimit').hidden = !$('#bulkLimit').hidden; if (!$('#bulkLimit').hidden) $('#bValue').focus(); return; }
+  const bodies = { 'sonnet-on': { allowSonnet: true }, 'sonnet-off': { allowSonnet: false }, 'web-on': { allowWeb: true }, 'web-off': { allowWeb: false }, signout: { signout: true }, block: { status: 'blocked' }, unblock: { status: 'trusted' } };
+  if (a === 'block' && !confirm(`Block ${plural(ppl.sel.size, 'person', 'people')}? They're signed out right away.`)) return;
+  await bulk(bodies[a], b.textContent);
+});
+$('#bApply').onclick = async () => {
+  const v = +$('#bValue').value;
+  if (bKind !== 'none' && !(v > 0)) return say($('#bulkMsg'), false, 'Enter a number above zero.');
+  await bulk({ limitKind: bKind, limitValue: v }, 'Daily limit');
+  $('#bulkLimit').hidden = true;
+};
 // what newly accepted accounts start with
 let dKind = 'tokens';
 function renderDefaults(d) {
@@ -863,126 +1397,447 @@ function renderDefaults(d) {
   $('#dSonnet').checked = d.allowSonnet; $('#dWeb').checked = d.allowWeb;
 }
 function setDKind(k, v) {
-  dKind = k;
-  $('#dKind').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+  dKind = k; setSeg($('#dKind'), 'k', k);
   $('#dValue').hidden = k === 'none';
-  $('#dUnit').textContent = k === 'usd' ? 'dollars per day' : k === 'tokens' ? 'tokens per day' : '';
+  $('#dUnit').textContent = k === 'usd' ? 'dollars a day' : k === 'tokens' ? 'tokens a day' : 'they can use as much as they like';
   if (v != null) $('#dValue').value = v; else if (k !== 'none') $('#dValue').value = k === 'usd' ? 0.5 : 100000;
 }
 $('#dKind').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setDKind(b.dataset.k); });
 $('#dSave').onclick = async () => {
-  const m = $('#dMsg');
   try {
-    await api('/api/admin/accounts', { method: 'POST', body: JSON.stringify({ defaults: { limitKind: dKind, limitValue: +$('#dValue').value, allowSonnet: $('#dSonnet').checked, allowWeb: $('#dWeb').checked } }) });
-    say(m, true, 'Saved. People you accept from now on start with these.');
-  } catch (err) { say(m, false, err.message); }
+    await send('/api/admin/accounts', { defaults: { limitKind: dKind, limitValue: +$('#dValue').value, allowSonnet: $('#dSonnet').checked, allowWeb: $('#dWeb').checked } });
+    say($('#dMsg'), true, 'Saved. People you accept from now on start with these.');
+  } catch (err) { say($('#dMsg'), false, err.message); }
 };
-// ---- announcement: one message everyone with an account sees until they close it ----
-let annMax = 500;
-async function loadAnn() {
-  const d = await api('/api/admin/announcement');
-  const a = d.announcement;
-  annMax = d.max || annMax;
-  $('#annNow').hidden = !a; $('#annNone').hidden = !!a;
-  if (a) {
-    $('#annText').textContent = a.body;
-    $('#annMeta').textContent = `Posted ${ago(a.createdAt)} · ` +
-      (d.people ? `${d.seen} of ${d.people} ${d.people === 1 ? 'person has' : 'people have'} closed it` : 'no one has an account yet');
+
+// ---- one person, in a side panel ----
+const dw = { id: null, back: null, usage: null, recent: null };
+function openPerson(id) {
+  dw.id = id; dw.usage = dw.recent = null; dw.back = document.activeElement;
+  $('#drawer').classList.add('on'); $('#scrim').classList.add('on'); document.body.classList.add('noscroll');
+  renderDrawer();
+  setTimeout(() => $('#dwClose').focus(), 30);
+  const q = encodeURIComponent(String(id));
+  Promise.all([api(`/api/admin/usage?days=30&user=${q}`), api(`/api/admin/activity?days=3650&limit=8&user=${q}`), api('/api/admin/sessions')])
+    .then(([u, a, s]) => {
+      if (dw.id !== id) return;
+      dw.usage = toSeries(u.days);
+      dw.recent = a.rows; S.sessions = s;
+      renderDrawer();
+    }).catch(err => { if (dw.id === id) { dw.error = err.message; renderDrawer(); } });
+}
+function closeDrawer() {
+  if (dw.id == null) return;
+  dw.id = null;
+  $('#drawer').classList.remove('on'); $('#scrim').classList.remove('on'); document.body.classList.remove('noscroll');
+  if (dw.back && document.contains(dw.back)) dw.back.focus();
+}
+$('#dwClose').onclick = closeDrawer;
+$('#scrim').onclick = closeDrawer;
+addEventListener('keydown', e => { if (e.key === 'Escape' && dw.id != null) closeDrawer(); });
+const section = (title, ...kids) => { const s = mk('section'); s.append(mk('h4', '', title), ...kids); return s; };
+function renderDrawer() {
+  const owner = dw.id === 'owner', u = owner ? null : S.users.users.find(x => x.id === dw.id);
+  if (!owner && !u) return closeDrawer();
+  const o = S.users.owner, st = owner ? o : u;
+  $('#dwName').textContent = owner ? 'You (owner)' : u.name;
+  const sub = $('#dwSub'); sub.replaceChildren();
+  if (owner) sub.append(chip('Owner', 'owner'), mk('span', '', `Last active ${ago(o.lastSeen)}`));
+  else sub.append(statusChip(u), ...[linkedTag(u)].filter(Boolean),
+    mk('span', '', [`Joined ${dayYFmt.format(new Date(u.createdAt))}`, u.approvedAt && `accepted ${dayFmt.format(new Date(u.approvedAt))}`, `active ${ago(u.lastSeen)}`].filter(Boolean).join(' · ')));
+  const body = $('#dwBody'); body.replaceChildren();
+  // numbers
+  const trio = mk('div', 'trio');
+  for (const [l, x] of [['Today', st.today], ['Last 7 days', st.week], ['All time', st.total]]) {
+    const c = mk('div'); c.append(mk('div', 'l', l), mk('div', 'v', money(x.usd)), mk('div', 's', `${plural(x.questions, 'question')} · ${short(x.tokens)} tokens`)); trio.appendChild(c);
   }
-  $('#annPost').textContent = a ? 'Post (replaces this one)' : 'Post to everyone';
+  const nums = section('Usage', trio);
+  const e = u && eff(u);
+  if (e?.limitKind) {
+    const f = frac(usedToday(u), e.limitValue), ll = mk('div', 'limitline');
+    ll.append(meter(f), `${pctText(f)} of today’s ${limitText(e.limitKind, e.limitValue)}` + (u.restriction?.limits?.limitKind ? ' (while restricted)' : ''));
+    nums.appendChild(ll);
+  }
+  body.appendChild(nums);
+  // their last 30 days
+  const fig = mk('figure', 'chart'), NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'), tip = mk('div', 'tip');
+  svg.setAttribute('role', 'img'); svg.setAttribute('tabindex', '0');
+  const t = document.createElementNS(NS, 'title'); t.textContent = 'Their usage per day for the last 30 days, stacked by model'; svg.appendChild(t);
+  fig.append(svg, tip);
+  const lg = mk('div', 'legend'); lg.style.marginBottom = '6px';
+  lg.append(...legendOf(dw.usage || []));
+  body.appendChild(section(`Last 30 days · ${ov.unit === 'usd' ? 'estimated dollars' : 'tokens'}`, lg, dw.usage ? fig : mk('p', 'sub', dw.error || 'Loading…')));
+  if (dw.usage) requestAnimationFrame(() => drawBars({
+    fig, svg, tip, series: dw.usage, unit: ov.unit, plotH: 110, empty: 'Nothing in the last 30 days',
+    label: (d, i, n) => i === 0 || i === n - 1 || i === Math.floor(n / 2) ? utcDay.format(asDate(d.day)) : null,
+    title: d => utcLong.format(asDate(d.day)),
+  }));
+  // settings for an account
+  if (u && u.status !== 'pending') body.appendChild(section('Daily limit and access', editor(u)));
+  // recent questions
+  const rq = mk('div', 'list');
+  if (!dw.recent) rq.appendChild(mk('p', 'sub', dw.error || 'Loading…'));
+  else if (!dw.recent.length) rq.appendChild(mk('p', 'sub', 'No questions yet.'));
+  for (const r of dw.recent || []) {
+    const it = mk('div', 'it');
+    it.append(mk('span', 'q', r.question || '(no text)'));
+    const m = mk('span', 'm');
+    if (r.model) m.append(swatch(famColor(r.model)));
+    m.append(`${when(r.at)} · ${r.modelLabel || 'no answer'} · ${short(r.in + r.out)} tokens · ${cost(r.usd)}`, r.host ? ` · ${r.host}` : '');
+    it.appendChild(m); rq.appendChild(it);
+  }
+  const all = button('See all their questions →', 'linkbtn');
+  all.onclick = () => { closeDrawer(); goActivity({ who: owner ? 'owner' : String(u.id), days: 3650 }); };
+  body.appendChild(section('Recent questions', rq, all));
+  // devices
+  const devs = (S.sessions?.sessions || []).filter(s => owner ? !s.user : s.user?.id === u.id);
+  const dl = mk('div', 'list');
+  if (!S.sessions) dl.appendChild(mk('p', 'sub', 'Loading…'));
+  else if (!devs.length) dl.appendChild(mk('p', 'sub', 'Not signed in anywhere.'));
+  for (const s of devs) {
+    const it = mk('div', 'it'), out = button('Sign out', 'btn ghost sm act');
+    it.append(mk('span', 'q', device(s.ua)), out);
+    it.appendChild(mk('span', 'm', `${s.ip || 'unknown address'} · last used ${ago(s.lastUsed)}${s.active ? '' : owner ? ' · locked' : ' · expired'}`));
+    out.onclick = async () => { try { await send('/api/admin/sessions/' + s.id, undefined, 'DELETE'); } catch {} S.sessions = await api('/api/admin/sessions'); await loadUsers(); renderDrawer(); };
+    dl.appendChild(it);
+  }
+  body.appendChild(section('Devices', dl));
+  if (u && u.status !== 'pending') body.appendChild(section('Moderation', moderationBox(u)));
+  if (u) body.appendChild(section('Account', accountBox(u)));
+  else body.appendChild(section('Account', mk('p', 'sub', 'You have no limit. Your password and passcode are under Settings.')));
 }
-const annCount = () => { const n = $('#annBody').value.length; $('#annCount').textContent = n ? `${n} / ${annMax}` : ''; };
-$('#annBody').addEventListener('input', annCount);
-$('#annForm').addEventListener('submit', async e => {
-  e.preventDefault(); const m = $('#annMsg');
-  const body = $('#annBody').value.trim();
-  if (!body) return say(m, false, 'Write something first.');
+function editor(u) {
+  const ed = mk('div');
+  let kind = u.limitKind || 'none';
+  const inl = mk('div', 'inl'), seg = mk('div', 'seg'), input = mk('input'), unitL = mk('span', 'unit');
+  input.type = 'number'; input.min = '0'; input.step = 'any'; input.setAttribute('aria-label', 'Daily limit'); input.value = u.limitValue ?? '';
+  const setKind = k => {
+    kind = k; setSeg(seg, 'k', k); input.hidden = k === 'none';
+    unitL.textContent = k === 'usd' ? 'dollars a day (estimated)' : k === 'tokens' ? 'tokens a day' : 'they can use as much as they like';
+    if (k !== 'none' && (u.limitKind !== k || input.value === '')) input.value = k === u.limitKind ? u.limitValue : k === 'usd' ? 0.5 : 100000;
+  };
+  for (const [k, label] of [['tokens', 'Tokens'], ['usd', 'Dollars'], ['none', 'No limit']]) { const b = button(label); b.dataset.k = k; b.onclick = () => setKind(k); seg.appendChild(b); }
+  inl.append(seg, input, unitL); setKind(kind);
+  const f2 = mk('div', 'field'); f2.appendChild(mk('span', 'fl', 'Can use'));
+  const cb = (label, on) => { const l = mk('label', 'ck'), c = mk('input'); c.type = 'checkbox'; c.checked = on; l.append(c, label); return [l, c]; };
+  const [ls, cs] = cb('Sonnet 5.5', u.allowSonnet), [lw, cw] = cb('Web search', u.allowWeb);
+  f2.append(ls, lw);
+  const f3 = mk('div', 'field'), nl = mk('label', '', 'Private note (only you see it)'), note = mk('input');
+  note.maxLength = 300; note.value = u.adminNote; note.placeholder = 'e.g. Sam from class'; note.style.width = '100%';
+  f3.append(nl, note);
+  const save = button('Save', 'btn'), msg = mk('div', 'msg'), row = mk('div', 'btns'); row.style.marginTop = '14px'; row.append(save);
+  save.onclick = async () => {
+    const v = +input.value;
+    if (kind !== 'none' && !(v > 0)) return say(msg, false, 'Enter a number above zero.');
+    try { await send('/api/admin/users/' + u.id, { limitKind: kind, limitValue: v, allowSonnet: cs.checked, allowWeb: cw.checked, adminNote: note.value }); await loadUsers(); renderPeople(); renderDrawer(); say($('#dwFlash') || msg, true, 'Saved.'); }
+    catch (err) { say(msg, false, err.message); }
+  };
+  [input, note].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save.click(); } }));
+  msg.id = 'dwFlash';
+  if (u.restriction) { const r = mk('p', 'sub', `Restricted until ${fullFmt.format(new Date(u.restriction.endsAt))} (${lostText(u.restriction.limits)}). These are their own settings, which come back when it ends.`); r.style.margin = '0 0 10px'; ed.appendChild(r); }
+  ed.append(inl, f2, f3, row, msg);
+  return ed;
+}
+function accountBox(u) {
+  const box = mk('div');
+  if (u.note) { const n = mk('div', 'note'); n.append(mk('span', 'sub', 'They wrote: '), `“${u.note}”`); box.appendChild(n); }
+  const pc = mk('p', 'sub', !u.passcode ? 'No passcode: they sign in with their password.'
+    : u.lockMinutes ? `Passcode on: their panel locks after ${lockName(u.lockMinutes)} without activity.` : 'Passcode on, with no auto-lock.');
+  pc.style.margin = u.note ? '10px 0 0' : '0'; box.appendChild(pc);
+  const msg = mk('div', 'msg'), row = mk('div', 'btns'); row.style.marginTop = '12px';
+  const reset = button('Reset password', 'btn ghost sm'), out = button('Sign out everywhere', 'btn ghost sm'),
+    blk = button(u.status === 'blocked' ? 'Unblock' : 'Block', 'btn ghost sm' + (u.status === 'blocked' ? '' : ' danger')), rm = button('Delete', 'btn ghost sm danger');
+  row.append(reset, out, blk, rm);
+  const np = mk('div', 'np'); np.hidden = true;
+  const npIn = mk('input'), npGo = button('Set', 'btn sm'); npIn.type = 'text'; npIn.placeholder = 'New password (6+ characters)'; npIn.setAttribute('aria-label', 'New password');
+  np.append(npIn, npGo);
+  const act1 = async (body, ok) => {
+    try { await send('/api/admin/users/' + u.id, body); await loadUsers(); S.sessions = await api('/api/admin/sessions'); renderPeople(); renderDrawer(); say($('#dwAcct'), true, ok); }
+    catch (err) { say(msg, false, err.message); }
+  };
+  reset.onclick = () => { np.hidden = !np.hidden; if (!np.hidden) npIn.focus(); };
+  npGo.onclick = () => act1({ password: npIn.value }, `Password changed and ${u.name} was signed out.` + (u.passcode ? ' Their passcode was turned off too.' : '') + ' Tell them the new password.');
+  npIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); npGo.click(); } });
+  out.onclick = () => act1({ signout: true }, `${u.name} was signed out everywhere.`);
+  blk.onclick = () => act1({ status: u.status === 'blocked' ? 'trusted' : 'blocked' }, u.status === 'blocked' ? `${u.name} can use pagebot again.` : `${u.name} is blocked and signed out.`);
+  rm.onclick = async () => {
+    if (!confirm(`Delete ${u.name}? They're signed out and the account is gone. Their past usage stays in the totals.`)) return;
+    try { await send('/api/admin/users/' + u.id, undefined, 'DELETE'); closeDrawer(); await loadUsers(); renderPeople(); } catch (err) { say(msg, false, err.message); }
+  };
+  msg.id = 'dwAcct';
+  box.append(row, np, msg);
+  return box;
+}
+
+// ================= activity =================
+const act = { days: 30, who: 'all', model: '', flag: '', q: '', rows: [], more: false, open: new Set(), detail: new Map(), loading: false };
+function syncActFilters() {
+  setSeg($('#aRange'), 'd', act.days);
+  $('#actWho').value = [...$('#actWho').options].some(o => o.value === act.who) ? act.who : 'all';
+  act.who = $('#actWho').value;
+  $('#aModel').value = act.model; $('#aFlag').value = act.flag; $('#aSearch').value = act.q;
+}
+const actParams = extra => new URLSearchParams({ days: act.days, user: act.who, model: act.model, flag: act.flag, q: act.q, ...extra });
+async function loadActivity(reset) {
+  if (act.loading) return;
+  act.loading = true; $('#t-activity').classList.add('loading');
   try {
-    await api('/api/admin/announcement', { method: 'POST', body: JSON.stringify({ body }) });
-    $('#annBody').value = ''; annCount(); await loadAnn();
-    say(m, true, 'Posted. People see it the next time they open pagebot.');
-  } catch (err) { say(m, false, err.message); }
-});
-$('#annDown').onclick = async () => {
-  const m = $('#annMsg');
-  try { await api('/api/admin/announcement', { method: 'DELETE' }); await loadAnn(); say(m, true, 'Taken down. No one sees it anymore.'); }
-  catch (err) { say(m, false, err.message); }
+    const p = actParams({ limit: 50 });
+    if (!reset && act.rows.length) p.set('before', act.rows[act.rows.length - 1].id);
+    const r = await api('/api/admin/activity?' + p);
+    if (reset) { act.rows = []; act.open.clear(); }
+    act.rows.push(...r.rows); act.more = r.more;
+    if (r.rows.some(x => x.family === 'router')) routerSeen();
+    renderActivity();
+  } finally { act.loading = false; $('#t-activity').classList.remove('loading'); }
+}
+onSeg($('#aRange'), 'd', v => { act.days = +v; loadActivity(true).catch(() => {}); });
+for (const [sel, key] of [['#actWho', 'who'], ['#aModel', 'model'], ['#aFlag', 'flag']]) $(sel).addEventListener('change', e => { act[key] = e.target.value; loadActivity(true).catch(() => {}); });
+let searchT = 0;
+$('#aSearch').addEventListener('input', e => { clearTimeout(searchT); searchT = setTimeout(() => { act.q = e.target.value.trim(); loadActivity(true).catch(() => {}); }, 300); });
+$('#actMore').onclick = () => loadActivity(false).catch(() => {});
+function tags(r) {
+  const t = [];
+  if (r.page) t.push(['Page']);
+  if (r.highlight) t.push(['Highlight']);
+  if (r.image) t.push(['Screenshot']);
+  if (r.searches) t.push([`Web ×${r.searches}`]);
+  if (r.fallback) t.push(['Fallback']);
+  if (r.refused) t.push(['Declined', 'warn']);
+  if (r.stopped) t.push(['Stopped', 'warn']);
+  if (!r.answered) t.push(['No answer', 'warn']);
+  return t.map(([text, cls]) => mk('span', 'tag' + (cls ? ' ' + cls : ''), text));
+}
+function renderActivity() {
+  const cols = [{ label: 'When' }, { label: 'Person' }, { label: 'Model' }, { label: 'Site' }, { label: 'Question' }, { label: 'In', num: 1, title: 'Tokens in' }, { label: 'Out', num: 1, title: 'Tokens out' }, { label: 'Cost', num: 1, title: 'Estimated cost' }];
+  const tb = table($('#actTbl'), cols);
+  if (!act.rows.length) emptyRow(tb, cols.length, act.q || act.flag || act.model || act.who !== 'all' ? 'No questions match these filters.' : 'No questions in this range yet.');
+  for (const r of act.rows) {
+    const tr = tb.insertRow();
+    const w = td(tr, when(r.at)); w.title = fullFmt.format(new Date(r.at));
+    td(tr, r.user ? r.user.name : 'You', r.user ? '' : 'muted');
+    const m = mk('span'); if (r.model) m.append(swatch(famColor(r.model))); m.append(r.modelLabel || '—'); td(tr, m);
+    const site = td(tr, r.host || '—', 'trunc' + (r.host ? '' : ' muted')); if (r.title) site.title = r.title;
+    const qc = td(tr, null, 'qcell'); qc.append(r.question || '(no text)', ...tags(r)); qc.title = r.question;
+    td(tr, short(r.in), 'num'); td(tr, short(r.out), 'num'); td(tr, cost(r.usd), 'num');
+    rowLink(tr, () => { act.open.has(r.id) ? act.open.delete(r.id) : act.open.add(r.id); renderActivity(); });
+    tr.setAttribute('aria-expanded', String(act.open.has(r.id)));
+    if (act.open.has(r.id)) { tr.classList.add('open'); detailRow(tb, r, cols.length); }
+  }
+  $('#actMore').hidden = !act.more;
+  $('#actCount').textContent = act.rows.length ? `Showing ${plural(act.rows.length, 'question')}${act.more ? ', newest first. There are more.' : ', newest first.'}` : '';
+}
+function detailRow(tb, r, span) {
+  const c = tb.insertRow(); c.className = 'detail';
+  const cell = c.insertCell(); cell.colSpan = span;
+  const x = act.detail.get(r.id);
+  if (!x) {
+    cell.appendChild(mk('p', 'sub', 'Loading…'));
+    api('/api/admin/activity/' + r.id).then(d => { act.detail.set(r.id, d); renderActivity(); }).catch(err => { cell.replaceChildren(mk('p', 'msg err', err.message)); });
+    return;
+  }
+  const g = mk('div', 'dgrid'), qcol = mk('div'), acol = mk('div');
+  qcol.append(mk('h5', '', 'Question'), mk('p', 'pre', x.question || '(no text)'));
+  if (x.highlight) qcol.append(mk('h5', '', 'Highlighted text'), mk('p', 'quote', x.highlight));
+  if (x.page) {
+    const p = mk('p', 'sub'); p.style.margin = '10px 0 0';
+    p.append('Page: ');
+    if (/^https?:\/\//i.test(x.page.url)) { const a = mk('a', '', x.page.title || x.page.url); a.href = x.page.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; p.appendChild(a); }
+    else p.append(x.page.title || x.page.url || 'unknown');
+    if (x.page.chars != null) p.append(` · ${nf.format(x.page.chars)} characters of page text went with it`);
+    qcol.appendChild(p);
+  }
+  if (x.image) qcol.appendChild(mk('p', 'sub', 'A screenshot was attached (screenshots aren’t stored).'));
+  acol.append(mk('h5', '', 'Answer'), mk('p', 'pre', x.answer ?? '(no answer was saved)'));
+  g.append(qcol, acol);
+  const meta = mk('div', 'dmeta');
+  const bits = [fullFmt.format(new Date(x.at)), `Question ${x.turn.n} of ${x.turn.total} in chat #${x.conversationId}`,
+    x.modelLabel && `${x.modelLabel}${x.fallback ? ' (fallback)' : ''}`, `${nf.format(x.in)} tokens in · ${nf.format(x.out)} out`, `${money(x.usd, 4)} estimated`,
+    x.searches && plural(x.searches, 'web search', 'web searches'), x.refused && 'Declined by the model', x.stopped && 'Stopped before it finished'];
+  meta.append(...bits.filter(Boolean).map(b => mk('span', '', b)));
+  const who = button(x.user ? `Open ${x.user.name}` : 'Open your usage', 'linkbtn');
+  who.onclick = () => openPerson(x.user ? x.user.id : 'owner');
+  meta.appendChild(who);
+  const wrap = mk('div', 'dwrap'); wrap.append(g, meta);
+  cell.appendChild(wrap);
+}
+$('#aExport').onclick = async () => {
+  const b = $('#aExport'); b.disabled = true; b.textContent = 'Exporting…';
+  try {
+    const rows = []; let before = '';
+    for (let i = 0; i < 25; i++) { // up to 5,000 questions
+      const p = actParams({ limit: 200 }); if (before) p.set('before', before);
+      const r = await api('/api/admin/activity?' + p);
+      rows.push(...r.rows);
+      if (!r.more || !r.rows.length) break;
+      before = r.rows[r.rows.length - 1].id;
+    }
+    download('pagebot-activity', [
+      ['Time', 'Person', 'Model', 'Site', 'Page title', 'Question', 'Tokens in', 'Tokens out', 'Estimated cost (USD)', 'Web searches', 'Page text', 'Highlight', 'Screenshot', 'Declined', 'Stopped', 'Fallback', 'Chat'],
+      ...rows.map(r => [new Date(r.at).toISOString(), r.user ? r.user.name : 'owner', r.modelLabel || '', r.host || '', r.title || '', r.question, r.in, r.out, r.usd.toFixed(6), r.searches,
+        r.page ? 'yes' : '', r.highlight ? 'yes' : '', r.image ? 'yes' : '', r.refused ? 'yes' : '', r.stopped ? 'yes' : '', r.fallback ? 'yes' : '', r.conversationId]),
+    ]);
+  } catch (err) { alert(err.message); }
+  finally { b.disabled = false; b.textContent = 'Export CSV'; }
 };
 
-new ResizeObserver(() => { if (series.length) drawChart(); }).observe($('#chart'));
-
-let usersTimer = 0;
-async function unlocked() {
-  await load(); await loadUsers(); await loadUsage(); await loadAnn();
-  // new sign-ups (and who closed the announcement) show up without reloading; skipped while you're typing there
-  clearInterval(usersTimer);
-  usersTimer = setInterval(() => {
-    if (!tok) return;
-    if (!$('#usersCard').contains(document.activeElement)) loadUsers().catch(() => {});
-    if (!$('#annForm').contains(document.activeElement)) loadAnn().catch(() => {});
-  }, 30000);
+// ================= devices =================
+const devs = { who: 'all' };
+async function loadDevices() {
+  $('#t-devices').classList.add('loading');
+  try {
+    const [s, sec] = await Promise.all([api('/api/admin/sessions'), api('/api/admin/security')]);
+    S.sessions = s; S.security = sec;
+    renderDevices(); renderSecurity();
+  } finally { $('#t-devices').classList.remove('loading'); }
 }
+onSeg($('#devWho'), 'w', v => { devs.who = v; renderDevices(); });
+function renderDevices() {
+  const list = S.sessions.sessions.filter(x => devs.who === 'all' || (devs.who === 'owner' ? !x.user : !!x.user));
+  const tb = table($('#devTbl'), [{ label: 'Person' }, { label: 'Device' }, { label: 'Address' }, { label: 'Signed in' }, { label: 'Last used' }, { label: 'Status' }, { label: '' }]);
+  if (!list.length) emptyRow(tb, 7, 'No devices are signed in.');
+  for (const x of list) {
+    const tr = tb.insertRow();
+    td(tr, x.user ? x.user.name : 'You (owner)', x.user ? '' : 'muted');
+    const dv = td(tr, device(x.ua)); if (x.ua) dv.title = x.ua;
+    td(tr, x.ip || '—', 'mono');
+    const si = td(tr, when(x.createdAt)); si.title = fullFmt.format(new Date(x.createdAt));
+    const lu = td(tr, ago(x.lastUsed)); lu.title = fullFmt.format(new Date(x.lastUsed));
+    const status = x.active ? chip('Active', 'ok') : chip(x.user ? 'Expired' : 'Locked', 'mute');
+    if (!x.active) status.title = x.user ? 'Unused for too long; it has to sign in again' : 'Idle past the passcode lock; it asks for the passcode again';
+    else status.title = `Stays signed in until ${fullFmt.format(new Date(x.endsAt))} unless it's used`;
+    td(tr, status);
+    const b = button('Sign out', 'btn ghost sm');
+    b.onclick = async () => {
+      try { await send('/api/admin/sessions/' + x.id, undefined, 'DELETE'); say($('#devMsg'), true, `Signed out ${device(x.ua)} (${x.user ? x.user.name : 'you'}).`); }
+      catch (err) { say($('#devMsg'), false, err.message); }
+      await loadDevices(); loadStats().catch(() => {});
+    };
+    td(tr, b, 'right');
+    if (x.user) { tr.classList.add('click'); tr.tabIndex = 0; tr.onclick = e => { if (!e.target.closest('button')) openPerson(x.user.id); }; }
+  }
+}
+$('#signoutAll').onclick = async () => {
+  if (!confirm('Sign out every device, yours and everyone else’s? People keep their accounts and can sign in again.')) return;
+  try { const r = await send('/api/admin/signout-all', {}); say($('#devMsg'), true, `Signed out ${plural(r.signedOut, 'device')}.`); }
+  catch (err) { say($('#devMsg'), false, err.message); }
+  await loadDevices(); loadStats().catch(() => {});
+};
+function renderSecurity() {
+  const s = S.security, box = $('#secBody');
+  const pc = s.passcode;
+  box.replaceChildren(facts([
+    ['Wrong logins', s.failsLastHour ? `${nf.format(s.failsLastHour)} in the last hour, from ${plural(s.addressCount, 'address', 'addresses')}` : 'none in the last hour'],
+    ['Each address', `gets ${s.perAddress} wrong logins an hour, then has to wait`],
+    ['Owner password', s.ownerPaused ? chip(`Paused: ${s.ownerFails} wrong tries this hour`, 'err') : `open · ${s.ownerFails} of ${s.ownerPauseAt} wrong tries before logins pause`],
+    ['Passcode', !pc.on ? 'not set' : pc.locked ? chip(`Locked after ${pc.max} wrong tries; the password unlocks it`, 'warn') : `${pc.fails} of ${pc.max} wrong tries on record (they count for 24 hours)`],
+    ['Admin token', s.adminFails ? `${plural(s.adminFails, 'wrong try', 'wrong tries')} in the last 10 minutes (20 per address, then it waits)` : 'no wrong tries in the last 10 minutes'],
+  ]));
+  if (s.addresses.length) {
+    const wrap = mk('div', 'tablewrap'), t = mk('table', 'dt'); wrap.style.margin = '14px -18px 0'; wrap.appendChild(t);
+    const tb = table(t, [{ label: 'Address' }, { label: 'Wrong tries', num: 1 }, { label: 'Last try' }, { label: '' }]);
+    for (const a of s.addresses) { const tr = tb.insertRow(); td(tr, a.ip, 'mono'); td(tr, nf.format(a.fails), 'num'); td(tr, ago(a.last)); td(tr, a.blocked ? chip('Waiting', 'warn') : '', 'right'); }
+    box.appendChild(wrap);
+  }
+  box.appendChild(mk('p', 'sub', 'These counters reset when the server restarts. “Clear lockouts” resets them now, along with wrong passcodes.'));
+}
+$('#secClear').onclick = async () => {
+  try { await send('/api/admin/security/clear', {}); say($('#secMsg'), true, 'Lockouts cleared.'); } catch (err) { say($('#secMsg'), false, err.message); }
+  await loadDevices();
+};
 
-$('#unlock').addEventListener('submit', async e => {
-  e.preventDefault(); tok = $('#tok').value.trim(); $('#unlockMsg').textContent = '';
-  try { await unlocked(); ss.set('pb_admin', tok); $('#tok').value = ''; }
-  catch (err) { tok = null; $('#unlockMsg').textContent = err.message; }
-});
-
+// ================= settings =================
+const lockName = m => m === 0 ? 'Never' : m < 60 ? `${m} minute${m > 1 ? 's' : ''}` : m < 1440 ? `${m / 60} hour${m > 60 ? 's' : ''}` : '1 day';
+function renderSettings() {
+  const s = S.stats; if (!s) return;
+  const R = s.limitRanges;
+  for (const [id, key] of [['#lMax', 'maxTokens'], ['#lSearch', 'maxSearches'], ['#lPage', 'pageTokens']]) {
+    const i = $(id); i.min = R[key][0]; i.max = R[key][1];
+    if (document.activeElement !== i) i.value = s.limits[key];
+  }
+  $('#lPageHint').textContent = `About ${nf.format(s.limits.pageTokens * 4)} characters. Longer pages are cut off at this point.`;
+  const L = s.lock;
+  if (!$('#pcLock').options.length) for (const m of L.choices) $('#pcLock').add(new Option(lockName(m), m));
+  $('#pcLock').value = L.minutes;
+  $('#pcState').className = 'pill ' + (L.on ? 'on' : 'off'); $('#pcState').textContent = L.on ? 'On' : 'Off';
+  $('#pcSave').textContent = L.on ? 'Change passcode' : 'Set passcode';
+  $('#pcOff').hidden = !L.on;
+  $('#pcInfo').textContent = !L.on ? 'Off — the panel uses your password.'
+    : L.fails >= L.maxFails ? `Passcode entry is blocked after ${L.maxFails} wrong tries. Unlock once with the password (or set a new passcode) to turn it back on.`
+    : `On — panels lock ${L.minutes ? 'after ' + lockName(L.minutes) + ' without activity' : 'only when you lock them'}.` + (L.fails ? ` ${plural(L.fails, 'wrong try', 'wrong tries')} on record.` : '');
+  $('#pc1').required = $('#pc2').required = !L.on;
+  $('#pwState').textContent = s.passwordSet ? 'A password is set.' : 'No password set yet — the bookmarklet can’t log in until you set one.';
+  $('#about').replaceChildren(...facts([
+    ['Models', s.models.map(m => `${m.label} (${m.id})`).join(' · ')],
+    ['Thinking effort', s.effort],
+    ['Time zone', S.users?.timezone || '—'],
+    ['Token budget', `${nf.format(s.budget)} tokens (TOKEN_BUDGET)`],
+    ['Signed-in devices', nf.format(s.sessions)],
+    ['Accounts', `${nf.format(people().length)} · ${S.users?.signup ? 'sign-ups open' : 'sign-ups closed'}`],
+  ]).childNodes);
+}
 $('#limForm').addEventListener('submit', async e => {
   e.preventDefault(); const m = $('#limMsg');
   try {
-    const r = await api('/api/admin/limits', { method: 'POST', body: JSON.stringify({ maxTokens: $('#lMax').value, maxSearches: $('#lSearch').value, pageTokens: $('#lPage').value }) });
-    say(m, true, `Saved: ${nf.format(r.limits.maxTokens)} tokens per answer, ${r.limits.maxSearches} search${r.limits.maxSearches === 1 ? '' : 'es'}, ${nf.format(r.limits.pageTokens)} tokens of page text.`);
-    load();
+    const r = await send('/api/admin/limits', { maxTokens: $('#lMax').value, maxSearches: $('#lSearch').value, pageTokens: $('#lPage').value });
+    say(m, true, `Saved: ${nf.format(r.limits.maxTokens)} tokens per answer, ${plural(r.limits.maxSearches, 'search', 'searches')}, ${nf.format(r.limits.pageTokens)} tokens of page text.`);
+    await loadStats(); renderSettings();
   } catch (err) { say(m, false, err.message); }
 });
-
 $('#pcForm').addEventListener('submit', async e => {
   e.preventDefault(); const m = $('#pcMsg');
-  const a = $('#pc1').value.trim(), b = $('#pc2').value.trim();
-  const body = { lockMinutes: +$('#pcLock').value };
-  if (a || b || !stats.lock.on) {
+  const a = $('#pc1').value.trim(), b = $('#pc2').value.trim(), body = { lockMinutes: +$('#pcLock').value };
+  if (a || b || !S.stats.lock.on) {
     if (!/^\d{5}$/.test(a)) return say(m, false, 'The passcode must be exactly 5 digits.');
     if (a !== b) return say(m, false, 'Passcodes don’t match.');
     body.passcode = a;
   }
   try {
-    await api('/api/admin/passcode', { method: 'POST', body: JSON.stringify(body) });
-    say(m, true, body.passcode ? 'Passcode saved. Panels will ask for it next time they lock.' : 'Auto-lock time saved.');
-    $('#pc1').value = $('#pc2').value = ''; load();
+    await send('/api/admin/passcode', body);
+    say(m, true, body.passcode ? 'Passcode saved. Panels ask for it the next time they lock.' : 'Auto-lock time saved.');
+    $('#pc1').value = $('#pc2').value = ''; await loadStats(); renderSettings();
   } catch (err) { say(m, false, err.message); }
 });
 $('#pcLock').addEventListener('change', async () => {
-  if (!stats?.lock.on) return;
-  try { await api('/api/admin/passcode', { method: 'POST', body: JSON.stringify({ lockMinutes: +$('#pcLock').value }) }); say($('#pcMsg'), true, 'Auto-lock time saved.'); load(); }
+  if (!S.stats?.lock.on) return;
+  try { await send('/api/admin/passcode', { lockMinutes: +$('#pcLock').value }); say($('#pcMsg'), true, 'Auto-lock time saved.'); await loadStats(); renderSettings(); }
   catch (err) { say($('#pcMsg'), false, err.message); }
 });
 $('#pcOff').onclick = async () => {
-  try { await api('/api/admin/passcode', { method: 'POST', body: JSON.stringify({ passcode: null }) }); say($('#pcMsg'), true, 'Passcode removed. The panel uses the password again.'); load(); }
+  try { await send('/api/admin/passcode', { passcode: null }); say($('#pcMsg'), true, 'Passcode removed. The panel uses the password again.'); await loadStats(); renderSettings(); }
   catch (err) { say($('#pcMsg'), false, err.message); }
 };
-
 $('#pwForm').addEventListener('submit', async e => {
   e.preventDefault(); const m = $('#pwMsg');
   const a = $('#p1').value, b = $('#p2').value;
   if (a !== b) return say(m, false, 'Passwords don’t match.');
   try {
-    const r = await api('/api/admin/password', { method: 'POST', body: JSON.stringify({ password: a }) });
-    say(m, true, `Password updated. Signed out ${r.signedOut} device${r.signedOut === 1 ? '' : 's'}.`);
-    $('#p1').value = $('#p2').value = ''; load();
+    const r = await send('/api/admin/password', { password: a });
+    say(m, true, `Password updated. Signed out ${plural(r.signedOut, 'device')}.`);
+    $('#p1').value = $('#p2').value = ''; await loadStats(); renderSettings();
   } catch (err) { say(m, false, err.message); }
 });
 
-$('#signout').onclick = async () => {
-  const m = $('#soMsg');
-  try { const r = await api('/api/admin/signout-all', { method: 'POST' }); say(m, true, `Signed out ${r.signedOut}.`); load(); }
-  catch (err) { say(m, false, err.message); }
-};
-
-$('#lock').onclick = () => { ss.set('pb_admin', null); tok = null; clearInterval(usersTimer); $('#panel').hidden = true; $('#unlock').hidden = false; };
-
-if (tok) unlocked().catch(() => { ss.set('pb_admin', null); tok = null; $('#panel').hidden = true; $('#unlock').hidden = false; });
+// ================= sign in / out =================
+async function start() {
+  await Promise.all([loadStats(), loadUsers()]);
+  started = true;
+  $('#unlock').hidden = true; $('#app').hidden = false;
+  showTab((location.hash || '#overview').slice(1));
+  startTimers();
+}
+function lockOut(msg) {
+  started = false; ss.set('pb_admin', null); tok = null; stopTimers(); closeDrawer();
+  $('#app').hidden = true; $('#unlock').hidden = false; $('#unlockMsg').textContent = msg || '';
+}
+$('#unlock').addEventListener('submit', async e => {
+  e.preventDefault(); tok = $('#tok').value.trim(); $('#unlockMsg').textContent = '';
+  try { await start(); ss.set('pb_admin', tok); $('#tok').value = ''; }
+  catch (err) { tok = null; $('#unlockMsg').textContent = err.message; }
+});
+$('#lock').onclick = () => lockOut();
+if (tok) start().catch(() => lockOut());
+else $('#tok').focus();
 })();
 </script>
 </body>
