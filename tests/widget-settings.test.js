@@ -100,6 +100,8 @@ async function fixture(t, { width = 720, height = 760, standalone = false, who =
   return { context, page, frame, state, opens, go, reqs, host, vis };
 }
 
+const until = async (fn, ms = 4000) => { const end = Date.now() + ms; let v; do { v = await fn(); if (v) return v; await new Promise(r => setTimeout(r, 50)); } while (Date.now() < end); return v; }; // polls: the host's postMessages and re-renders land a moment after a click
+
 browserTest('a wide panel shows two panes: the category list beside the selected category, with a sticky header and a readable column', async t => {
   const f = await fixture(t, { width: 720 });
   await f.opens();
@@ -278,14 +280,14 @@ browserTest('Appearance: panel layout can dock, and Reset puts the size and posi
   await f.frame.locator('#dockTog').click();
   assert.equal(await f.frame.locator('#dockTog').getAttribute('aria-checked'), 'true');
   assert.equal(await f.frame.evaluate(() => localStorage.getItem('pb_dock')), '1', 'it opens docked next time');
-  assert.equal((await f.host()).filter(r => r.type === 'dock').at(-1).on, true);
-  assert.equal(await f.frame.evaluate(() => document.body.classList.contains('docked')), true);
+  assert.equal(await until(async () => (await f.host()).filter(r => r.type === 'dock').at(-1)?.on === true), true); // (the host's messages arrive a moment after the click)
+  assert.equal(await until(() => f.frame.evaluate(() => document.body.classList.contains('docked'))), true);
   await f.frame.locator('#panelReset').click();
   assert.match(await f.frame.locator('#panelMsg').innerText(), /back in the corner/);
   assert.deepEqual(await f.frame.evaluate(() => ['pb_size', 'pb_pos', 'pb_dock', 'pb_dockw'].map(k => localStorage.getItem(k))), [null, null, null, null]);
-  assert.equal(await f.frame.locator('#dockTog').getAttribute('aria-checked'), 'false');
-  const ready = (await f.host()).filter(r => r.type === 'ready').at(-1);
-  assert.deepEqual([ready.pos, ready.dock], [{ r: 16, b: 16 }, false]);
+  assert.equal(await until(async () => (await f.frame.locator('#dockTog').getAttribute('aria-checked')) === 'false'), true);
+  const ready = await until(async () => { const r = (await f.host()).filter(r => r.type === 'ready').at(-1); return r?.dock === false && r.pos?.r === 16 ? r : null; });
+  assert.deepEqual([ready?.pos, ready?.dock], [{ r: 16, b: 16 }, false]);
   assert.ok(ready.size.w > 0 && ready.size.h > 0, 'the host is sent a size to go back to');
   // not on /chat, where there's no panel to move; and an old bookmark can move it but not dock it
   const chat = await fixture(t, { width: 900, standalone: true });
