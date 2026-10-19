@@ -642,6 +642,202 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 .awarn .warnb{border-color:color-mix(in srgb,var(--warn) 70%,var(--line));color:var(--text);font-weight:600}
 :root[data-theme=clear] .awarn{background:var(--pop);text-shadow:none}
 </style>
+<style id="redesign">
+/* =====================================================================================================
+   REDESIGN: a half-screen panel, four new themes, dithered textures and the pixel loader.
+   Everything for it is in this one block, after the main styles, so each rule here adds to or overrides
+   one above. Settings is left exactly as it was (only the theme picker gains swatches).
+   ===================================================================================================== */
+
+/* ---- ordered-dither tiles (4 x 4 Bayer, drawn at 2px a cell). The m- ones are masks, tinted by whatever colour the element has ---- */
+:root{--m-d12:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM2 2h1v1h-1z' fill='%23000'/%3E%3C/svg%3E");--m-d25:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM2 0h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1z' fill='%23000'/%3E%3C/svg%3E");--m-d50:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM2 0h1v1h-1zM1 1h1v1h-1zM3 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM1 3h1v1h-1zM3 3h1v1h-1z' fill='%23000'/%3E%3C/svg%3E");--m-plus:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath d='M10 12h5v1h-5zM12 10h1v5h-1zM0 0h1v1H0z' fill='%23000'/%3E%3C/svg%3E");
+  --ct-pond:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM2 0h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1z' fill='%234fd6b8' fill-opacity='.16'/%3E%3C/svg%3E");--ct-void:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM2 0h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1z' fill='%23f2914a' fill-opacity='.15'/%3E%3C/svg%3E");--ct-orbit:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath d='M10 12h5v1h-5zM12 10h1v5h-1zM0 0h1v1H0z' fill='%23aab8ff' fill-opacity='.3'/%3E%3C/svg%3E");--ct-arcade:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM2 0h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1z' fill='%23ff5fb0' fill-opacity='.2'/%3E%3C/svg%3E");--ring:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Ccircle cx='300' cy='300' r='262' fill='none' stroke='%23aab8ff' stroke-opacity='.34' stroke-width='5' stroke-linecap='round' stroke-dasharray='0.1 22.86'/%3E%3Ccircle cx='404' cy='62' r='9' fill='%23fff' fill-opacity='.9'/%3E%3Ccircle cx='520' cy='130' r='7' fill='%237b97ff'/%3E%3Ccircle cx='496' cy='146' r='5' fill='%237b97ff' fill-opacity='.7'/%3E%3Ccircle cx='76' cy='420' r='6' fill='%23fff' fill-opacity='.8'/%3E%3C/svg%3E");
+  --m-dn:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAABgCAYAAAA6lNMyAAAASklEQVR42t3QMQoAIRBD0R/vf+exXQKChRNZp0sIrxgBxecGds8X8mL5D3lRpwwPpQ6jZeGhIoYiBi3G5QVRg4jxswXbBhGDNmMCBXBm20gp/mkAAAAASUVORK5CYII=");--m-up:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAABgCAYAAAA6lNMyAAAAS0lEQVR42mNgIAv8Z6Ac/KeCSmqaMURV/CfajP90MeM/Tc2gswpGNBlGupjxny5mMNDEDJqoYEL3OhPBxEuGGUzIAQsToKkZw18AAPpVZtu5u8XOAAAAAElFTkSuQmCC");--ring-s:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Ccircle cx='60' cy='60' r='48' fill='none' stroke='%23aab8ff' stroke-opacity='.55' stroke-width='3' stroke-linecap='round' stroke-dasharray='0.1 7.54'/%3E%3Ccircle cx='93' cy='25' r='6' fill='%23fff'/%3E%3Ccircle cx='14' cy='72' r='4.5' fill='%237b97ff'/%3E%3Ccircle cx='30' cy='98' r='3' fill='%23fff' fill-opacity='.7'/%3E%3C/svg%3E")}
+
+/* ---- the new themes ---- */
+/* pond: a dithered cave pond. Dark brown rock, tan where the light hits, turquoise water */
+:root[data-theme=pond]{color-scheme:dark;--bg:#17120e;--panel:#251d17;--line:#4a3a2d;--text:#f1e6d2;--muted:#bfa98e;--accent:#4fd6b8;--on-accent:#08211b;--user:#1c3a37;--err:#ff9c85;--code:#100c09;--chip-on:#1d3733;--focus:#6fb7a4;--warn:#e8b04a;--tx1:#d9b27c;--tx2:#4fd6b8}
+/* orbit: near-black, a field of faint + marks, a dotted orbit, blue and white, a red/blue fringe on the lettering */
+:root[data-theme=orbit]{color-scheme:dark;--bg:#05060b;--panel:#0c0f18;--line:#222a3f;--text:#e9edf8;--muted:#9aa3bd;--accent:#7b97ff;--on-accent:#050814;--user:#131c40;--err:#ff8585;--code:#030409;--chip-on:#111a3a;--focus:#4d63b3;--warn:#e8b04a;--fr:rgba(255,72,72,.75);--fb:rgba(72,120,255,.85)}
+/* void: muted grey, dithered, an isometric lattice, with orange strings hanging down */
+:root[data-theme=void]{color-scheme:dark;--bg:#24282d;--panel:#30353b;--line:#555b64;--text:#eef0f2;--muted:#bcc2c9;--accent:#f6a05a;--on-accent:#1d1007;--user:#4a3b30;--err:#ffa08c;--code:#1e2227;--chip-on:#4a4035;--focus:#8d949d;--warn:#f2c14a}
+/* arcade: deep purple, neon pink, scanlines, a grid floor and notched corners */
+:root[data-theme=arcade]{color-scheme:dark;--bg:#120a29;--panel:#1c1140;--line:#3d2a78;--text:#f5ecff;--muted:#b9a6e6;--accent:#ff5fb0;--on-accent:#1a0620;--user:#3a1a5e;--err:#ff9a9a;--code:#0c061c;--chip-on:#32185a;--focus:#8f6bff;--warn:#ffd25a}
+
+/* ---- textures: two fixed layers behind the chat, static (no animation), faded out toward the middle so text stays clean ---- */
+:root:is([data-theme=pond],[data-theme=orbit],[data-theme=void],[data-theme=arcade]) body{isolation:isolate}
+:root:is([data-theme=pond],[data-theme=orbit],[data-theme=void],[data-theme=arcade]) body::before,
+:root:is([data-theme=pond],[data-theme=orbit],[data-theme=void],[data-theme=arcade]) body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  -webkit-mask-repeat:repeat,no-repeat;mask-repeat:repeat,no-repeat;-webkit-mask-composite:source-in;mask-composite:intersect}
+/* pond: tan light from the top right, turquoise water at the bottom */
+:root[data-theme=pond] body::before{background:var(--tx1);opacity:.3;-webkit-mask-image:var(--m-dn),linear-gradient(to left,#000 10%,transparent 95%);mask-image:var(--m-dn),linear-gradient(to left,#000 10%,transparent 95%);-webkit-mask-size:8px 256px,100% 100%;mask-size:8px 256px,100% 100%;-webkit-mask-repeat:repeat-x,no-repeat;mask-repeat:repeat-x,no-repeat;-webkit-mask-position:0 0,0 0;mask-position:0 0,0 0}
+:root[data-theme=pond] body::after{background:var(--tx2);opacity:.28;-webkit-mask-image:var(--m-up),linear-gradient(to right,#000 25%,rgba(0,0,0,.45));mask-image:var(--m-up),linear-gradient(to right,#000 25%,rgba(0,0,0,.45));-webkit-mask-size:8px 256px,100% 100%;mask-size:8px 256px,100% 100%;-webkit-mask-repeat:repeat-x,no-repeat;mask-repeat:repeat-x,no-repeat;-webkit-mask-position:0 100%,0 0;mask-position:0 100%,0 0}
+/* orbit: the + field, and one big dotted orbit behind the chat */
+:root[data-theme=orbit] body::before{background:#aab8ff;opacity:.2;-webkit-mask-image:var(--m-plus);mask-image:var(--m-plus);-webkit-mask-size:24px 24px;mask-size:24px 24px;-webkit-mask-composite:source-over;mask-composite:add}
+:root[data-theme=orbit] body::after{background:var(--ring) 50% 46%/min(108vmin,900px) auto no-repeat;opacity:.6}
+/* void: an isometric lattice (30 degree lines), a dithered orange glow in the corner, and three orange strings */
+:root[data-theme=void] body::before{background:
+  linear-gradient(to bottom,rgba(246,160,90,.5),rgba(246,160,90,0)) 76% 0/2px 38% no-repeat,
+  linear-gradient(to bottom,rgba(246,160,90,.5),rgba(246,160,90,0)) 84% 0/2px 24% no-repeat,
+  linear-gradient(to bottom,rgba(246,160,90,.5),rgba(246,160,90,0)) 91% 0/2px 31% no-repeat,
+  repeating-linear-gradient(30deg,rgba(255,255,255,.05) 0 1px,transparent 1px 38px),repeating-linear-gradient(-30deg,rgba(255,255,255,.05) 0 1px,transparent 1px 38px)}
+:root[data-theme=void] body::after{background:var(--accent);opacity:.3;-webkit-mask-image:var(--m-up),linear-gradient(to left,#000 5%,transparent 80%);mask-image:var(--m-up),linear-gradient(to left,#000 5%,transparent 80%);-webkit-mask-size:8px 224px,100% 100%;mask-size:8px 224px,100% 100%;-webkit-mask-repeat:repeat-x,no-repeat;mask-repeat:repeat-x,no-repeat;-webkit-mask-position:0 100%,0 0;mask-position:0 100%,0 0}
+/* arcade: scanlines over everything, and a neon grid floor rising from the bottom */
+:root[data-theme=arcade] body::before{background:repeating-linear-gradient(to bottom,rgba(255,255,255,.035) 0 1px,transparent 1px 3px)}
+:root[data-theme=arcade] body::after{background:linear-gradient(rgba(255,95,176,.42) 1px,transparent 1px) 0 0/100% 30px,linear-gradient(90deg,rgba(255,95,176,.32) 1px,transparent 1px) 0 0/38px 100%;
+  -webkit-mask-image:linear-gradient(to top,#000,transparent 38%);mask-image:linear-gradient(to top,#000,transparent 38%);-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+
+/* ---- the new themes, component by component (everything else follows the variables) ---- */
+/* pond: bubbles catch a little light, yours shimmer with a turquoise dither, and the message box sparkles when you click into it */
+/* citation chips: the accent on a light tint of itself, kept light enough to read in every one of these */
+:root:is([data-theme=pond],[data-theme=orbit],[data-theme=void],[data-theme=arcade]) .cite{background:color-mix(in srgb,var(--accent) 9%,var(--panel))}
+:root[data-theme=pond] .msg.bot{box-shadow:inset 0 1px 0 rgba(241,230,210,.07)}
+:root[data-theme=pond] .msg.user{background-image:var(--ct-pond)}
+:root[data-theme=pond] .box{position:relative}
+:root[data-theme=pond] .box:focus-within{border-color:var(--accent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 38%,transparent),0 0 24px color-mix(in srgb,var(--accent) 20%,transparent)}
+:root[data-theme=pond] .box::after{content:"";position:absolute;right:44px;top:11px;width:2px;height:2px;background:#fff;opacity:0;pointer-events:none;
+  box-shadow:-26px 9px 0 #fff,-61px -2px 0 rgba(255,255,255,.7),-98px 7px 0 #fff,-139px 1px 0 rgba(255,255,255,.6),-42px 19px 0 rgba(255,255,255,.55),14px 14px 0 rgba(255,255,255,.8)}
+:root[data-theme=pond] .box:focus-within::after{opacity:.95;animation:twinkle 1.6s steps(2) 3}
+@keyframes twinkle{50%{opacity:.25}}
+:root[data-theme=pond] .go,:root[data-theme=pond] .send{box-shadow:0 0 0 1px color-mix(in srgb,#fff 25%,transparent) inset}
+:root[data-theme=pond] .cite.on{box-shadow:0 0 8px color-mix(in srgb,var(--accent) 70%,transparent)}
+/* orbit: monospace for the small lettering, a red/blue fringe on headings and the active state, square-ish corners */
+:root[data-theme=orbit] :is(header,.tags,.meta,.pill,.tb,.hday,.hsub,.menu .md,.menu .tip,.slash .mh,.cite,.starters button,.acts,.src){font-family:var(--mono)}
+:root[data-theme=orbit] :is(.title .name,.empty b,.msg .h,.hrow.on .htitle,.slash [aria-selected=true] b,.cite.on,.tb.on,.ib.on){text-shadow:-1px 0 0 var(--fr),1px 0 0 var(--fb)}
+:root[data-theme=orbit] .msg{border-radius:7px}
+:root[data-theme=orbit] .msg.bot{border-left:2px solid color-mix(in srgb,var(--accent) 75%,var(--line))}
+:root[data-theme=orbit] .msg.user{background-image:linear-gradient(90deg,color-mix(in srgb,var(--accent) 14%,transparent),transparent 40%);border-right:2px solid var(--accent)}
+:root[data-theme=orbit] .box{border-radius:9px}
+:root[data-theme=orbit] .box:focus-within{border-color:var(--accent);box-shadow:-1px 0 0 var(--fr),1px 0 0 var(--fb),0 0 18px color-mix(in srgb,var(--accent) 18%,transparent)}
+:root[data-theme=orbit] .empty::before{content:"";display:block;width:104px;height:104px;margin:0 auto 10px;background:var(--ring-s) 50% 50%/contain no-repeat}
+:root[data-theme=orbit] .empty::after{content:"-=:.  @%+.%::..  #=:.  +:";display:block;margin-top:12px;font:11px/1.3 var(--mono);letter-spacing:.14em;color:var(--muted);opacity:.6}
+/* void: warm bubbles for you, grey for it, orange strings above the box */
+:root[data-theme=void] .msg.user{background-image:var(--ct-void)}
+:root[data-theme=void] .msg.bot{box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+:root[data-theme=void] .box{box-shadow:0 -1px 0 rgba(255,255,255,.04) inset}
+:root[data-theme=void] .box:focus-within{border-color:var(--accent)}
+:root[data-theme=void] .title .name{color:var(--accent)}
+/* arcade: notched corners (clipped, so no shadows on those), neon glow on the lettering, hard pill and button shapes */
+:root[data-theme=arcade] :is(.msg,.box,.acard){clip-path:polygon(0 4px,4px 4px,4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px))}
+:root[data-theme=arcade] .msg,:root[data-theme=arcade] .box{border-radius:0}
+:root[data-theme=arcade] .box{border-width:2px}
+:root[data-theme=arcade] .box:focus-within{border-color:var(--accent)}
+:root[data-theme=arcade] .msg.user{background-image:var(--ct-arcade);border:1px solid color-mix(in srgb,var(--accent) 50%,var(--user))}
+:root[data-theme=arcade] :is(.pill,.starters button,.go,.tb,.menu button){border-radius:3px}
+:root[data-theme=arcade] .go{width:32px;height:32px;box-shadow:0 0 12px color-mix(in srgb,var(--accent) 55%,transparent)}
+:root[data-theme=arcade] :is(.title .name,.empty b,.msg .h){font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;text-shadow:0 0 10px color-mix(in srgb,var(--accent) 60%,transparent)}
+:root[data-theme=arcade] header{border-bottom:2px solid var(--line)}
+/* the picker's swatches for the new themes (the previews keep the same shapes as the others, with the texture on top) */
+:root[data-theme=pond] :is(#hist,#wrap){background-image:var(--ct-pond)} /* the sheets over the chat carry the theme's dither too (Settings keeps its plain background) */
+:root[data-theme=void] :is(#hist,#wrap){background-image:var(--ct-void)}
+:root[data-theme=orbit] :is(#hist,#wrap){background-image:var(--ct-orbit)}
+:root[data-theme=arcade] :is(#hist,#wrap){background-image:var(--ct-arcade)}
+.sw[data-t=pond] .pv{background-image:var(--ct-pond),linear-gradient(135deg,rgba(217,178,124,.32),transparent 55%,rgba(79,214,184,.32))}
+.sw[data-t=void] .pv{background-image:var(--ct-void),radial-gradient(circle at 100% 100%,rgba(246,160,90,.4),transparent 60%),repeating-linear-gradient(30deg,rgba(255,255,255,.08) 0 1px,transparent 1px 9px)}
+.sw[data-t=orbit] .pv{background-image:var(--ct-orbit)}
+.sw[data-t=arcade] .pv{background-image:repeating-linear-gradient(to bottom,rgba(255,255,255,.06) 0 1px,transparent 1px 3px),var(--ct-arcade),linear-gradient(to top,rgba(255,95,176,.4),transparent 55%)}
+
+/* ---- the big panel: layout that follows the panel's own width (an iframe's viewport IS the panel, so these rules see its size) ----
+   --grow: how many extra px the type gets (0 up to about 420px wide, 2.5px from about 900px). --gut: the side space that centres a
+   reading column of at most --col. Narrow and docked panels get 0 and 12px, so they look as they always did. */
+:root{--col:760px;--grow:clamp(0px,.6vw - 3px,2.5px);--gut:max(clamp(12px,3.2vw,28px),calc((100vw - var(--col))/2))}
+.msg{font-size:calc(1em + var(--grow))}
+.msg code{font-size:calc(12.5px + var(--grow)*.8)}
+.msg table{font-size:calc(12.5px + var(--grow)*.8)}
+#log{padding-inline:var(--gut)}
+.empty{font-size:calc(13px + var(--grow))}
+.empty b{font-size:calc(14px + var(--grow)*1.6)}
+@media (min-width:560px){
+  :root{--hd:52px}
+  header{padding-left:var(--gut)}
+  .title{font-size:15px;gap:10px}
+  .dot{width:9px;height:9px}
+  .ib{width:34px;height:34px;border-radius:10px}
+  .ib svg{width:18px;height:18px}
+  #log{padding-top:18px;padding-bottom:14px;gap:14px}
+  .msg{padding:11px 15px;border-radius:16px;line-height:1.58}
+  .msg.bot{max-width:min(100%,var(--col))}
+  .msg.user{max-width:min(84%,600px)}
+  .msg p{margin-bottom:9px}
+  .msg .h{margin-top:14px}
+  .msg pre{padding:11px 13px}
+  .msg th,.msg td{padding:6px 11px}
+  .empty{max-width:min(460px,100%)}
+  .starters{gap:8px;margin-top:18px}
+  .starters button{padding:7px 14px;font-size:calc(12.5px + var(--grow)*.5)}
+  .note{font-size:12.5px}
+  .tags,.meta{font-size:11.5px}
+  /* the message box: roomier, and as wide as the reading column */
+  #composer{width:100%;max-width:calc(var(--col) + 28px);margin:0 auto;padding:0 14px 16px}
+  #composer .menu{left:14px}
+  #composer .menu.right{left:auto;right:14px}
+  #composer .menu.slash{right:14px}
+  .box{border-radius:18px}
+  #q{font-size:calc(1em + var(--grow));padding:14px 16px 4px;min-height:54px;max-height:220px}
+  .bar{padding:5px 9px 9px;gap:6px}
+  .tb{height:32px;min-width:32px;padding:0 8px;font-size:13px}
+  .pill{height:26px;font-size:12.5px}
+  .go{width:36px;height:36px}
+  .go svg{width:18px;height:18px}
+  .menu{min-width:260px;border-radius:14px;padding:6px}
+  .menu button{padding:9px 11px;font-size:13.5px}
+  /* the lists: slash commands run on one line each, the extra width goes to the hint */
+  .slash .sl{max-height:min(340px,calc(100vh - 190px))}
+  .slash .sl button{padding:8px 12px}
+  .slash .mt{display:flex;align-items:baseline;gap:4px 12px;min-width:0}
+  .slash .mt b{flex:none;min-width:8.6em}
+  .slash .md{flex:1;min-width:0}
+  /* history: a search box and cards in two columns, centred like the chat */
+  #hist .hsearch{padding:16px var(--gut) 6px}
+  #histQ{padding:11px 14px;border-radius:12px;font-size:calc(14px + var(--grow))}
+  #histList{padding:0 var(--gut) 20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;align-content:start}
+  #histList>*{grid-column:1/-1}
+  #histList>.hrow{grid-column:auto;border:1px solid var(--line);background:var(--panel);border-radius:12px;padding-right:4px}
+  #histList>.hrow:hover,#histList>.hrow:focus-within{background:var(--chip-on);border-color:var(--focus)}
+  :root:is([data-theme=glass],[data-theme=clear]) #histList>.hrow{background:var(--pop)} /* the cards need a solid-ish backing over the see-through sheet */
+  .hopen{padding:11px 12px;gap:3px}
+  .htitle{font-size:calc(13.5px + var(--grow))}
+  .hsub{font-size:12px}
+  .hday{padding-top:16px}
+  .hstate{max-width:340px}
+  /* Wrapped keeps cards a comfortable width */
+  .wslide>*{max-width:520px}
+  .wload{font-size:14px}
+}
+@media (min-width:900px){
+  #log{padding-top:24px;gap:16px}
+  .msg{padding:13px 18px}
+  #hist #histList{gap:10px 12px}
+}
+@media (min-height:760px) and (min-width:560px){#log{padding-top:28px}}
+
+/* /chat and the pop-up window: the whole window, with the reading column in the middle (Settings keeps the width it always had) */
+body.standalone{max-width:none;border:0}
+body.standalone header{padding-left:max(18px,calc((100vw - var(--col))/2 + 8px));padding-right:max(12px,calc((100vw - var(--col))/2 + 2px))}
+body.standalone #composer{padding-inline:14px}
+body.standalone #log{padding-inline:var(--gut)}
+body.standalone #sheet,body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid var(--line)}
+
+/* ---- the loader (see loaderSprite): the splash, the waiting screen, and an answer that hasn't started yet ---- */
+.pbl{display:block;image-rendering:crisp-edges;image-rendering:pixelated}
+#boot .ring,#boot .pulse,#boot .sats{display:none} /* the old orb gives way to the loader; the little core still flies up to the header dot */
+#boot .orb{width:100%;height:150px;position:relative;display:block;margin-bottom:2px}
+#boot .orb .pbl{position:absolute;left:50%;bottom:0;margin:0;transform:translateX(-50%);transition:opacity .28s ease,transform .3s ease}
+#boot .fly{position:absolute;left:50%;top:62%;margin:-10px 0 0 -10px;opacity:0}
+#boot.out .fly{opacity:1;transition:opacity .12s}
+#boot.out .orb .pbl{opacity:0;transform:translateX(-50%) translateY(-14px)}
+#boot .bg::after{content:"";position:absolute;inset:0;background:var(--accent);opacity:.12;pointer-events:none;
+  -webkit-mask-image:var(--m-d25),radial-gradient(52% 46% at 50% 40%,#000,transparent 78%);mask-image:var(--m-d25),radial-gradient(52% 46% at 50% 40%,#000,transparent 78%);
+  -webkit-mask-size:8px 8px,100% 100%;mask-size:8px 8px,100% 100%;-webkit-mask-repeat:repeat,no-repeat;mask-repeat:repeat,no-repeat;-webkit-mask-composite:source-in;mask-composite:intersect}
+:root[data-theme=glass] #boot .bg::after,:root[data-theme=clear] #boot .bg::after{display:none}
+.wl{display:grid;place-items:center;margin-bottom:2px}
+#wait:not(.in) .hg{display:none}
+#wait.in .wl{display:none}
+.thinking{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12.5px}
+.thinking .pbl{flex:none}
+.thinking .tl{display:flex;align-items:center;gap:8px}
+@media (max-width:359px){.thinking .tl{display:none}}
+</style>
 </head>
 <body class="booting" tabindex="-1">
 <div id="boot" aria-hidden="true">
@@ -651,6 +847,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
       <svg class="ring" viewBox="0 0 80 80"><circle class="trail" cx="40" cy="40" r="27"/><circle cx="40" cy="40" r="27"/></svg>
       <i class="pulse"></i>
       <div class="sats"><div class="spin"><i style="--a:0deg;--n:0"></i><i style="--a:120deg;--n:1"></i><i style="--a:240deg;--n:2"></i></div></div>
+      <canvas id="bootPbl"></canvas><!-- the loader (loaderSprite) -->
       <div class="fly"><b class="core"></b></div>
     </div>
     <div class="txt">
@@ -698,6 +895,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 </form>
 
 <div id="wait" hidden>
+  <div class="wl"><canvas id="waitPbl"></canvas></div><!-- the loader, while you wait; the check mark below takes over once you're in -->
   <div class="hg"><svg id="hgIcon" viewBox="0 0 24 24"></svg></div>
   <h2 id="waitTitle">You’re on the list</h2>
   <p id="waitText">Thanks for signing up, <b id="waitName"></b>. You’re waiting to be accepted into the program. This panel opens up by itself as soon as the owner approves you.</p>
@@ -960,11 +1158,26 @@ addEventListener('message', e => {
 let savedPos = null, savedSize = null;
 try { savedPos = JSON.parse(store.get('pb_pos')); } catch {}
 try { savedSize = JSON.parse(store.get('pb_size')); } catch {}
-let docked = hostV7 && store.get('pb_dock') === '1', dockW = Number(store.get('pb_dockw')) || 420;
+// ---- default panel size (redesign): about half the window; a size the person saved always wins ----
+// A v11 bookmark works the default out from its window and just keeps it unless we send one. Older bookmarks can't, so for
+// them (and only when nothing is saved) we send a size worked out from the screen: 50% wide, and 72% of the screen's height
+// since the browser's own bars take the rest of it. The bookmark clamps whatever it's sent to the window.
+const hostSized = hostV >= 11;
+const screenSize = () => {
+  const aw = screen.availWidth || 0, ah = screen.availHeight || 0;
+  if (!(aw > 0 && ah > 0)) return null;
+  return {
+    w: Math.min(Math.max(Math.round(aw * .5), 360), Math.max(aw - 32, 300)), h: Math.min(Math.max(Math.round(ah * .72), 420), Math.max(ah - 32, 360)),
+    dw: Math.min(Math.max(Math.round(aw * .4), 420), Math.max(aw - 40, 300)),
+  };
+};
+let docked = hostV7 && store.get('pb_dock') === '1', dockW = Number(store.get('pb_dockw')) || 0; // 0: nothing saved
+const savedBox = hostV7 && savedSize?.w > 0 && savedSize?.h > 0;
+const oldDefault = !hostSized ? screenSize() : null;
 tell('ready', {
   ...(hostV2 && savedPos ? { pos: savedPos } : {}),
-  size: hostV7 && savedSize?.w > 0 && savedSize?.h > 0 ? savedSize : { w: 400, h: 600 },
-  ...(hostV7 ? { dock: docked, dw: dockW } : {}),
+  ...(savedBox ? { size: savedSize } : oldDefault ? { size: { w: oldDefault.w, h: oldDefault.h } } : !hostSized ? { size: { w: 400, h: 600 } } : {}),
+  ...(hostV7 ? { dock: docked, ...(dockW ? { dw: dockW } : oldDefault ? { dw: oldDefault.dw } : {}) } : {}),
 });
 // the pop-up window only hears about highlights made after it opened, so ask for the current one
 if (popup && pageV7) ask('page', { max: 1 }).then(r => { if (r) setSel(r.selection || ''); });
@@ -979,6 +1192,10 @@ const THEMES = [
   ['dusk', 'Dusk', '#14111c', '#b48cff', '#291f3d', '#ebe6f5'],
   ['sakura', 'Sakura', '#fff7f9', '#d9467a', '#fde3ec', '#2b2026'],
   ['terminal', 'Terminal', '#050805', '#39e75f', '#0e2111', '#a3f7a3'],
+  ['pond', 'Pond', '#17120e', '#4fd6b8', '#1c3a37', '#f1e6d2'],
+  ['orbit', 'Orbit', '#05060b', '#7b97ff', '#131c40', '#e9edf8'],
+  ['void', 'Void', '#24282d', '#f6a05a', '#4a3b30', '#eef0f2'],
+  ['arcade', 'Arcade', '#120a29', '#ff5fb0', '#3a1a5e', '#f5ecff'],
   ['glass', 'Glass', 'transparent', '#ffffff', 'rgba(255,255,255,.55)', '#ffffff'],
   ['clear', 'Clear', 'transparent', '#9cc2ff', 'transparent', '#ffffff'],
 ];
@@ -992,6 +1209,7 @@ function applyTheme(t, fade) {
   if (fade) { body.classList.add('tt'); clearTimeout(applyTheme.t); applyTheme.t = setTimeout(() => body.classList.remove('tt'), 400); }
   document.documentElement.dataset.theme = r;
   syncGlass();
+  loaders.forEach(l => l.retheme()); // the pixel loader follows the theme's colours
 }
 // glass needs the bookmarklet to blur the page behind the panel, and clear needs it to drop the panel's shadow;
 // either way it also says if that page is light or dark
@@ -1448,6 +1666,7 @@ function showWait() {
   hideViews(); view = 'wait'; closeSheet(); closeMenus();
   setHeader(false);
   $('#wait').hidden = false; $('#wait').classList.remove('in');
+  (waitLoader ||= loaderSprite($('#waitPbl'), { w: 72, h: 60, scale: 3 })).start();
   $('#hgIcon').innerHTML = '<path d="M5 22h14M5 2h14"/><path d="M17 22v-4.2a2 2 0 0 0-.6-1.4L12 12l-4.4 4.4a2 2 0 0 0-.6 1.4V22M7 2v4.2a2 2 0 0 0 .6 1.4L12 12l4.4-4.4a2 2 0 0 0 .6-1.4V2"/>';
   $('#waitTitle').textContent = 'You’re on the list';
   $('#waitName').textContent = cfg?.user?.name || 'there';
@@ -2565,7 +2784,7 @@ function syncDock() {
 syncDock();
 $('#dockBtn').onclick = () => {
   docked = !docked; store.set('pb_dock', docked ? '1' : null); syncDock();
-  tell('dock', { on: docked, w: dockW });
+  tell('dock', { on: docked, ...(dockW ? { w: dockW } : {}) }); // no saved width: the bookmark keeps its own default
 };
 let sizing = null;
 document.querySelectorAll('.grip').forEach(g => {
@@ -3095,7 +3314,7 @@ setInterval(() => {
 
 // ---- composer ----
 const q = $('#q');
-function autosize() { q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight, 140) + 'px'; }
+function autosize() { q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight, parseFloat(getComputedStyle(q).maxHeight) || 140) + 'px'; }
 q.addEventListener('input', autosize);
 q.addEventListener('keydown', e => { if (slashKey(e)) return; if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } }); // the open slash list takes ↑↓ Enter Tab Esc first
 // while an answer is coming in, the send button stops it; what arrived so far stays in the chat
@@ -3215,8 +3434,9 @@ async function send() {
     pdfBack();
   };
 
-  const bot = addMsg('bot', '<span class="typing"><i></i><i></i><i></i></span>');
+  const bot = addMsg('bot', thinking());
   const out = bot.querySelector('.body');
+  thinkingMount(out); // the pixel loader, until the first words arrive
   const mine = ctrl = new AbortController();
   const renderer = answerRenderer(out, () => !stale());
   const run = acting ? actRun = { bot, stale: () => stale() || run.over, all: false, asks: new Set(), over: false } : null; // page actions
@@ -3587,6 +3807,162 @@ $('#cmdName').addEventListener('change', () => { $('#cmdName').value = cleanCmdN
 $('#cmdPrompt').addEventListener('input', () => { rememberCmdDraft(); cmdCheck(); });
 $('#cmdStarter').addEventListener('change', () => { rememberCmdDraft(); cmdCheck(); });
 renderCmdList();
+
+// ---- pixel loader (redesign): a little fox dangling from strings over a dithered void ----
+// loaderSprite(canvas, opts) draws the scene into any <canvas> and keeps it swaying while it's on screen. It's the one
+// place the loader lives, so moving it is a matter of putting a canvas somewhere and calling this on it.
+//   opts.w, opts.h   the scene size in art pixels (default 72 x 60); opts.scale  css px per art pixel (default 3)
+//   opts.drop        art pixels from the canvas top to the animal's head (default 30% of the height); a tall canvas gives long strings
+//   opts.void        false: no dithered backdrop, just the strings and the animal
+//   opts.sway        0..1, how far it swings (default 1)
+// Returns { start, stop, retheme }. The colours come from the theme's --accent/--text, so it follows the theme.
+// Cost: ~12 frames a second of a few hundred pixels, only while the canvas is visible; with reduced motion it draws one still frame.
+const loaders = new Set();
+function loaderSprite(canvas, opts = {}) {
+  const W = opts.w || 72, H = opts.h || 60, S = opts.scale || 3, sway = opts.sway ?? 1, drop = opts.drop ?? Math.round(H * .3);
+  canvas.width = W; canvas.height = H;
+  canvas.style.width = W * S + 'px'; canvas.style.height = H * S + 'px';
+  canvas.classList.add('pbl'); canvas.setAttribute('aria-hidden', 'true');
+  const g = canvas.getContext('2d');
+  const probe = loaderSprite.probe || (loaderSprite.probe = el('canvas').getContext('2d', { willReadFrequently: true }));
+  // any css colour -> [r, g, b, a]
+  const rgba = c => { probe.clearRect(0, 0, 1, 1); probe.fillStyle = '#000'; probe.fillStyle = c; probe.fillRect(0, 0, 1, 1); return [...probe.getImageData(0, 0, 1, 1).data]; };
+  const mix = (a, b, k) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
+  const css = c => `rgba(${c[0]},${c[1]},${c[2]},${(c[3] ?? 255) / 255})`;
+  let pal = null, floor = null, raf = 0, last = 0, t0 = 0, frames = 0, live = false;
+
+  // the animal: a little fox, drawn from shapes on a 30 x 30 grid (front view, bushy tail to the right); an outline is added around it
+  const AW = 30, AH = 30;
+  const ell = (x, y, cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
+  const tri = (x, y, a, b, c) => { // is the point inside triangle abc
+    const s = (p, q, r) => (p[0] - r[0]) * (q[1] - r[1]) - (q[0] - r[0]) * (p[1] - r[1]), p = [x, y], d1 = s(p, a, b), d2 = s(p, b, c), d3 = s(p, c, a);
+    return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+  };
+  const TAIL = s => [16 + 10.5 * s - 3.2 * s * s, 24 - 15 * s ** 1.15]; // the tail's centre line, s from 0 (body) to 1 (tip)
+  function animal(wag, kick) { // wag swings the tail, kick moves the feet
+    const px = new Map(), put = (x, y, k) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && x < AW && y >= 0 && y < AH) px.set(x + ',' + y, k); };
+    // tail first (behind everything): stamped discs along a curve, stripes every few, a light tip
+    for (let i = 0; i <= 24; i++) {
+      const s = i / 24, [cx, cy] = TAIL(s), r = 1.6 + 1.6 * Math.sin(Math.PI * Math.min(1, s * 1.15 + .12)), a = wag * s * s;
+      const x0 = cx + Math.sin(a) * 4 * s, y0 = cy;
+      for (let y = Math.floor(y0 - r); y <= Math.ceil(y0 + r); y++) for (let x = Math.floor(x0 - r); x <= Math.ceil(x0 + r); x++)
+        if (Math.hypot(x - x0, y - y0) <= r) put(x, y, s > .86 ? 'l' : Math.floor(i / 3.2) % 2 ? 'd' : 'b');
+    }
+    const L = [[4.2, 6.5], [4.4, .4], [10, 3.6]], R = [[18.8, 6.5], [18.6, .4], [13, 3.6]];
+    for (let y = 0; y < AH; y++) for (let x = 0; x < AW; x++) {
+      if (x > 22 && y < 28 && px.has(x + ',' + y)) continue;
+      if (ell(x, y, 11.5, 9.4, 7.6, 6) || tri(x, y, ...L) || tri(x, y, ...R)) put(x, y, 'b');
+    }
+    for (let y = 0; y < AH; y++) for (let x = 0; x < AW; x++) { // inner ears, cheeks, muzzle
+      if (tri(x, y, [5.2, 5.2], [4.9, 1.9], [8, 3.8]) || tri(x, y, [17.8, 5.2], [18.1, 1.9], [15, 3.8])) put(x, y, 'd');
+      if (ell(x, y, 11.5, 12.6, 3.8, 2.3) || ell(x, y, 6.4, 12.3, 2.8, 1.6) || ell(x, y, 16.6, 12.3, 2.8, 1.6)) put(x, y, 'l');
+      if (ell(x, y, 11.5, 21, 4.7, 5.2)) put(x, y, 'b');
+      if (ell(x, y, 11.5, 21.8, 2.7, 3.6)) put(x, y, 'l');
+    }
+    for (let y = 16; y <= 22; y++) for (const x of [5, 6, 17, 18]) put(x, y + (x > 11 ? kick : -kick) * (y > 20), y > 20 ? 'l' : 'd'); // arms with pale paws
+    for (let y = 25; y <= 28; y++) for (const x of [8, 9, 14, 15]) put(x, y - (x > 11 ? -kick : kick) * (y > 26), y > 26 ? 'l' : 'd'); // legs, pale feet
+    return px;
+  }
+  function theme() {
+    const cs = getComputedStyle(document.documentElement);
+    const acc = rgba(cs.getPropertyValue('--accent').trim() || '#d97757'), tx = rgba(cs.getPropertyValue('--text').trim() || '#ebe8e1');
+    const dark = [14, 12, 12, 255], white = [255, 255, 255, 255];
+    pal = {
+      b: acc, d: mix(acc, dark, .38), l: mix(acc, white, .78), h: white, o: mix(acc, dark, .7), eye: dark,
+      string: mix(acc, tx, .15), ink: tx,
+    };
+    floor = null;
+  }
+  // the void: ordered (Bayer) dither, dense around the animal and fading to nothing at the edges, plus faint isometric lines
+  const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  function makeVoid() {
+    const v = el('canvas'); v.width = W; v.height = H;
+    const c = v.getContext('2d');
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const d = Math.hypot((x - W / 2) / 40, (y - drop - 14) / 34); // 0 around the animal, 1 at the edge
+      const density = Math.max(0, 1 - d) ** 1.6 * 8 + (y > H * .66 && ((x + y * 2) % 24 === 0 || (x - y * 2 + 480) % 24 === 0) ? 2 : 0);
+      if (density > BAYER[(y % 4) * 4 + (x % 4)]) { c.fillStyle = css([...pal.ink.slice(0, 3), 34]); c.fillRect(x, y, 1, 1); }
+    }
+    return v;
+  }
+  function line(x0, y0, x1, y1, col) {
+    x0 |= 0; y0 |= 0; x1 |= 0; y1 |= 0;
+    const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    let err = dx + dy;
+    g.fillStyle = col;
+    for (;;) {
+      g.fillRect(x0, y0, 1, 1);
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = 2 * err;
+      if (e2 >= dy) { err += dy; x0 += sx; }
+      if (e2 <= dx) { err += dx; y0 += sy; }
+    }
+  }
+  function draw(t) {
+    if (!pal) theme();
+    g.clearRect(0, 0, W, H);
+    if (opts.void !== false) g.drawImage(floor || (floor = makeVoid()), 0, 0);
+    // pendulum: the animal swings on its strings and its body tilts a little behind the swing
+    const swing = Math.sin(t * 1.25) * 3.4 * sway, tilt = Math.sin(t * 1.25 - .7) * 2 * sway, bob = Math.abs(Math.sin(t * 1.25)) * -1.2 * sway;
+    const px = animal(Math.sin(t * 2.4) * .7 * (.5 + .5 * sway), Math.sin(t * 2.4 + 1) > .4 ? 1 : 0);
+    const ox = Math.round((W - AW) / 2 + swing - 3), oy = Math.round(drop + bob);
+    const shear = y => Math.round(tilt * (y - 6) / 12); // rows slide sideways: a pixel-art tilt that stays crisp
+    const at = (x, y) => [ox + x + shear(y), oy + y];
+    // the strings first, so the animal hangs in front of them: both ears and the tip of the tail
+    const top = [[W * .5 - 22, 0], [W * .5 - 2, 0], [W * .5 + 20, 0]], hang = [[4.4, 1], [18.6, 1], [TAIL(1)[0] + 2, TAIL(1)[1]]];
+    top.forEach(([x, y], i) => { const [hx, hy] = at(hang[i][0], hang[i][1]); line(x, y, hx, hy, css(pal.string)); line(x + 1, y, hx + 1, hy, css([...pal.string.slice(0, 3), 110])); });
+    // outline = every empty cell that touches the animal
+    g.fillStyle = css(pal.o);
+    for (const k of px.keys()) {
+      const [x, y] = k.split(',').map(Number);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!px.has((x + dx) + ',' + (y + dy))) { const [ax, ay] = at(x + dx, y + dy); g.fillRect(ax, ay, 1, 1); }
+    }
+    for (const [k, c] of px) { const [x, y] = k.split(',').map(Number), [ax, ay] = at(x, y); g.fillStyle = css(pal[c]); g.fillRect(ax, ay, 1, 1); }
+    // eyes (they blink now and then) with a glint, a nose and a small mouth
+    const blink = (t % 3.7) > 3.55;
+    g.fillStyle = css(pal.eye);
+    for (const ex of [7, 15]) { const [ax, ay] = at(ex, blink ? 9 : 8); g.fillRect(ax, ay, 2, blink ? 1 : 3); }
+    if (!blink) for (const ex of [7, 15]) { const [ax, ay] = at(ex, 8); g.fillStyle = css(pal.h); g.fillRect(ax, ay, 1, 1); }
+    g.fillStyle = css(pal.eye);
+    { const [ax, ay] = at(10, 11); g.fillRect(ax, ay, 3, 1); } { const [ax, ay] = at(11, 12); g.fillRect(ax, ay, 1, 1); }
+    { const [ax, ay] = at(10, 14); g.fillRect(ax, ay, 1, 1); } { const [ax, ay] = at(12, 14); g.fillRect(ax, ay, 1, 1); }
+  }
+  function frame(now) {
+    raf = 0;
+    if (!canvas.isConnected) { live = false; loaders.delete(api); return; }
+    if (document.hidden || !canvas.getClientRects().length) { live = false; return; } // restarts from start()
+    raf = requestAnimationFrame(frame);
+    if (now - last < 80) return; // about 12 frames a second is plenty for pixel art
+    last = now; frames++;
+    draw((now - t0) / 1000);
+    canvas.dataset.frames = frames;
+  }
+  const api = {
+    start() {
+      if (!canvas.isConnected) { loaders.delete(api); return; } // its message or screen is gone
+      loaders.add(api);
+      if (calm || opts.still) { draw(1.1); canvas.dataset.anim = 'off'; return; }
+      canvas.dataset.anim = 'on';
+      if (live) return;
+      live = true; t0 = t0 || performance.now(); raf = requestAnimationFrame(frame);
+    },
+    stop() { cancelAnimationFrame(raf); raf = 0; live = false; loaders.delete(api); canvas.dataset.anim = 'off'; },
+    retheme() { if (!canvas.isConnected) return void loaders.delete(api); theme(); if (!live) draw(1.1); },
+  };
+  theme(); draw(1.1);
+  return api;
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) loaders.forEach(l => l.start()); }); // a hidden panel pauses its loaders; they pick up again when it shows
+
+// where the loader appears: the first-load splash, the waiting screen, and an answer that hasn't started (see thinking())
+// the splash canvas is as tall as the panel, so the strings come down from its top edge to the animal above the wordmark
+const bigPanel = Math.max(innerWidth, (screen.availWidth || 0) / 2) >= 600; // an older bookmark opens small and grows once we tell it the size, so look at the screen too
+const bootScale = bigPanel ? 4 : 3, bootH = Math.ceil(Math.max(innerHeight, screen.availHeight || 0) / bootScale) + 8;
+const bootLoader = loaderSprite($('#bootPbl'), { w: 72, h: bootH, scale: bootScale, drop: bootH - 40 });
+bootLoader.start();
+let waitLoader = null;
+function thinking() { return '<div class="thinking"><canvas></canvas><span class="tl">Thinking<span class="typing"><i></i><i></i><i></i></span></span></div>'; }
+function thinkingMount(out) { const c = out.querySelector('.thinking canvas'); if (c) loaderSprite(c, { w: 60, h: 48, scale: 2 }).start(); }
 
 // ---- first-load animation; an already loaded panel reopens immediately ----
 const CAP = calm ? 600 : 2150; // don't keep a slow network request behind the intro indefinitely

@@ -3,8 +3,11 @@ var O="__ORIGIN__",ID="__pagebot",W=window,D=document,P=W.__pb,TR="opacity .22s 
 if(P&&P.f&&P.f.isConnected){if(P.ready||Date.now()-P.t<4000){P.toggle();return;}P.f.remove();P.f=null;P.blocked=1;}
 if(!P){
 P=W.__pb={r:16,b:16,w:380,h:560,mw:200,mh:46,dw:420,v:__VERSION__};
+/* v11: the default panel is about half the window (50% wide, 80% tall; the docked sidebar 40% wide), worked out when the page loads.
+   Sizes a person saved still win: the panel sends those on "ready". The literals above are only the fallback for a window that reports no size. */
+P.def=function(){var vw=W.innerWidth,vh=W.innerHeight;if(!(vw>0&&vh>0)){return;}P.w=Math.min(Math.max(Math.round(vw*.5),360),vw-32);P.h=Math.min(Math.max(Math.round(vh*.8),420),vh-32);P.dw=Math.min(Math.max(Math.round(vw*.4),420),vw-40);};P.def();
 P.lit=function(){var e=[D.body,D.documentElement],i,c,m;for(i=0;i<2;i++){if(e[i]){c=getComputedStyle(e[i]).backgroundColor;m=c.match(/[\d.]+/g);if(m&&(m.length<4||+m[3]>.5)){return .299*m[0]+.587*m[1]+.114*m[2]>140;}}}return true;};
-P.win=function(){if(P.pop&&!P.pop.closed){P.pop.focus();}else{P.pop=W.open(O+"/widget?popup=1&v="+P.v,"pagebot","width=420,height=680");}};
+P.win=function(){var sc=W.screen||{},pw=sc.availWidth>0?Math.min(Math.max(Math.round(sc.availWidth*.5),420),sc.availWidth):420,ph=sc.availHeight>0?Math.min(Math.max(Math.round(sc.availHeight*.8),680),sc.availHeight):680;if(P.pop&&!P.pop.closed){P.pop.focus();}else{P.pop=W.open(O+"/widget?popup=1&v="+P.v,"pagebot","width="+pw+",height="+ph);}};
 P.bounds=function(){if(P.full||(P.dock&&!P.min)){return;}var w=P.min?P.mw:Math.min(P.w,W.innerWidth-32),h=P.min?P.mh:Math.min(P.h,W.innerHeight-32);P.r=Math.max(0,Math.min(P.r,W.innerWidth-w));P.b=Math.max(0,Math.min(P.b,W.innerHeight-h));};
 /* Pointer events can arrive several times per frame. Keep their state current, then paint once. */
 P.schedulePlace=function(now){P.placeNow=P.placeNow||now;if(P.placeFrame){return;}P.placeFrame=requestAnimationFrame(function(){var n=P.placeNow;P.placeFrame=0;P.placeNow=0;P.place(n);});};
