@@ -1606,6 +1606,7 @@ function tags(r) {
   if (r.refused) t.push(['Declined', 'warn']);
   if (r.stopped) t.push(['Stopped', 'warn']);
   if (!r.answered) t.push(['No answer', 'warn']);
+  if (r.removed) t.push(['Removed from history']); // they removed the chat from their history; it's kept here
   return t.map(([text, cls]) => mk('span', 'tag' + (cls ? ' ' + cls : ''), text));
 }
 function renderActivity() {

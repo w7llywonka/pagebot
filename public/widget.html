@@ -521,6 +521,49 @@ body.docked:not(.min) header{cursor:default}
 .wload{margin:auto;display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);font-size:13px;text-align:center;padding:20px;cursor:default}
 .wload p{margin:0}
 
+/* chat history: a sheet over the chat, like settings */
+#hist{position:absolute;left:0;right:0;top:var(--hd);bottom:0;z-index:2;background:var(--bg);display:flex;flex-direction:column;animation:sheetIn .2s cubic-bezier(.2,.8,.2,1)}
+:root[data-theme=glass] #hist{background:var(--pop);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+:root[data-theme=clear] body.hist>#log,:root[data-theme=clear] body.hist>#composer,:root[data-theme=clear] body.hist>#ann,:root[data-theme=clear] body.hist>#rst,:root[data-theme=clear] body.hist>#upd{visibility:hidden}
+body.hist #jump{display:none}
+.title .name{min-width:0;overflow:hidden;text-overflow:ellipsis} /* gives way to the header buttons in a narrow panel */
+.hsearch{flex:none;padding:10px 10px 4px}
+#histQ{width:100%;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 11px;outline:none}
+#histList{flex:1;min-height:0;overflow-y:auto;padding:0 6px 14px;scrollbar-width:thin}
+.hday{padding:12px 8px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:650}
+.hrow{display:flex;align-items:center;gap:2px;border-radius:10px;padding-right:3px}
+.hrow:hover,.hrow:focus-within{background:var(--chip-on)}
+.hrow.wait{opacity:.55;pointer-events:none}
+.hrow.err .hsub{color:var(--err)}
+.hopen{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;background:none;border:0;padding:7px 8px;text-align:left;cursor:pointer;border-radius:10px}
+.htitle,.hsub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.htitle{font-size:13px;font-weight:600}
+.hrow.on .htitle::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin:0 6px 1px 0;vertical-align:middle}
+.hsub{font-size:11.5px;color:var(--muted)}
+.hsnip{font-size:12px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.hsnip mark{background:color-mix(in srgb,var(--accent) 30%,transparent);color:var(--text);border-radius:3px;padding:0 1px}
+.hdel{opacity:0}
+.hrow:hover .hdel,.hrow:focus-within .hdel{opacity:1}
+@media (hover:none){.hdel{opacity:1}}
+.hask{flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:8px}
+.hask p{flex:1 1 160px;margin:0;font-size:12.5px;overflow-wrap:anywhere}
+.hask p span{display:block;margin-top:1px;font-size:11.5px;color:var(--muted)}
+.hask .ghost{padding:4px 10px;font-size:12.5px}
+.ghost.bad{border-color:color-mix(in srgb,var(--err) 55%,var(--line));color:var(--err)}
+#hist .ghost:disabled{opacity:.5;cursor:default}
+.hstate{margin:28px auto 0;max-width:272px;text-align:center;color:var(--muted);font-size:13px}
+.hstate b{display:block;margin-bottom:4px;color:var(--text);font-size:14px}
+.hstate .typing{display:flex;justify-content:center;margin-bottom:8px}
+.hmore{display:block;margin:10px auto 0}
+.hfoot{margin:18px 8px 0;padding-top:12px;border-top:1px solid var(--line)}
+.hfoot .fine{margin:4px 0 0}
+.hfoot .hask{padding:0}
+.hbusy{margin:8px 8px 0}
+/* a reopened question: what was highlighted goes above it, and quotes from a page you're not on only show on hover */
+.msg .hq{font-size:11.5px;color:var(--muted);border-left:2px solid color-mix(in srgb,var(--accent) 55%,var(--line));padding:1px 0 1px 7px;margin:1px 0 5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.cite.away{opacity:.6;cursor:help}
+.cite.away:hover{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+
 /* full-page chat at /chat */
 body.standalone{--hd:54px;max-width:780px;margin:0 auto;border-left:1px solid var(--line);border-right:1px solid var(--line)}
 body.standalone header{padding:0 12px 0 18px}
@@ -553,6 +596,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 <header>
   <div class="title"><span class="dot"></span><span class="name">pagebot</span><span class="mstat" id="mstat"><span class="typing"><i></i><i></i><i></i></span></span></div>
   <button class="ib hide-min" id="newBtn" title="New chat" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="ib hide-min" id="histBtn" title="Chat history" aria-label="Chat history" aria-controls="hist" aria-expanded="false" hidden><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></button>
   <button class="ib hide-min" id="setBtn" title="Settings" hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <button class="ib hide-min" id="lockBtn" title="Lock" hidden><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button>
   <button class="ib hide-min" id="dockBtn" title="Dock to the side" hidden><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
@@ -698,6 +742,11 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 
 <div id="wrap" hidden></div>
 
+<div id="hist" role="region" aria-label="Chat history" hidden>
+  <div class="hsearch"><input id="histQ" type="search" placeholder="Search your chats" aria-label="Search your chats" maxlength="100" autocomplete="off" spellcheck="false"></div>
+  <div id="histList"></div>
+</div>
+
 <div id="composer" hidden>
   <button id="jump" type="button" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>Jump to latest</button>
   <div class="box">
@@ -773,7 +822,7 @@ let ctrl = null, chatGen = 0; // stops the answer being streamed; which chat an 
 // a lock or an approval never pulls your typing out of the page or out of another tab.
 const shown = e => !!e && e.getClientRects().length > 0;
 function viewTarget() {
-  if (view === 'chat') return sheetOpen || wrap ? null : $('#q');
+  if (view === 'chat') return histOpen ? $('#histQ') : sheetOpen || wrap ? null : $('#q');
   if (view === 'lock') return pinMode() ? $('#login') : lockTarget || $('#uName'); // renderLock picks the box
   return null;
 }
@@ -810,7 +859,7 @@ addEventListener('message', e => {
   const d = e.data || {};
   if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); }
   else if (d.type === 'restore') { setMin(false); claim(); }
-  else if (d.type === 'open') { claim(); refreshOnOpen(); }
+  else if (d.type === 'open') { claim(); refreshOnOpen(); if (histOpen) loadHist(); } // history left open while the panel was hidden gets fresh
   else if (d.type === 'hidden') release();
   else if (d.type === 'sel') setSel(String(d.text || ''));
 });
@@ -1101,7 +1150,7 @@ function empty() {
 // ---- views: the chat, the lock screen (owner passcode/password, account sign-in or sign-up), and waiting for approval ----
 const isUser = () => cfg?.who === 'user';
 function setHeader(chat) {
-  $('#newBtn').hidden = $('#setBtn').hidden = !chat;
+  $('#newBtn').hidden = $('#setBtn').hidden = $('#histBtn').hidden = !chat;
   // anyone with a passcode (the owner or an account) can lock right away
   const canLock = chat && (cfg?.who === 'owner' ? cfg?.lock === 'passcode' : !!cfg?.user?.passcode);
   $('#lockBtn').hidden = $('#lockNow').hidden = !canLock;
@@ -1109,7 +1158,7 @@ function setHeader(chat) {
 function hideViews() {
   $('#login').style.display = 'none'; $('#login').classList.remove('leave');
   $('#wait').hidden = true; $('#ban').hidden = true; log.hidden = true; $('#composer').hidden = true; $('#ann').hidden = true; $('#rst').hidden = true; $('#upd').hidden = true;
-  stopWaitPoll(); closeWrap(); closeSlash();
+  stopWaitPoll(); closeWrap(); closeSlash(); closeHistory(); // lock, logout, an account switch or a ban: history closes and late answers are dropped
 }
 let chatWho = null; // whose chat is in the log
 const whoKey = () => cfg?.who === 'user' ? 'u:' + (cfg.user?.name || '').toLowerCase() : cfg?.who || null;
@@ -1445,7 +1494,9 @@ $('#outBtn').onclick = () => logout();
 $('#lockBtn').onclick = $('#lockNow').onclick = () => lock();
 // stops an answer that's still coming in, so it can't land in (or take over) the next chat
 function leaveChat() { chatGen++; ctrl?.abort(); convId = null; }
-$('#newBtn').onclick = () => { leaveChat(); setPage(true); clearImg(); closeSheet(); closeWrap(); empty(); $('#q').focus(); };
+// a new, empty chat; it doesn't move the keyboard or close anything, so history can use it with its sheet still open
+function newChat() { leaveChat(); setPage(true); clearImg(); empty(); }
+$('#newBtn').onclick = () => { closeSheet(); closeWrap(); closeHistory(); newChat(); $('#q').focus(); };
 // Screen sharing stays on when the panel closes, so the next screenshot doesn't ask again. It ends when you stop it
 // (+ menu or Chrome's own bar), log out, or leave the page.
 function closePanel() {
@@ -1859,6 +1910,243 @@ $('#wrap').addEventListener('click', e => {
 });
 $('#wrapBtn').onclick = openWrap;
 
+// ---- chat history: your past chats, newest first. Open one to keep going, or remove it from your history. ----
+// Removing only hides a chat from you: what it used still counts, and the owner still sees it in /admin.
+// Nothing about history is kept in the browser; each open asks the server again.
+let histOpen = false, histReq = 0, openReq = 0, histNext = null, histQ = '', histTimer = 0, histBusy = false, histLast = null;
+const ICON_REMOVE = '<svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+const oneLine = s => String(s || '').replace(/\s+/g, ' ').trim();
+const dayStart = t => { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+const daysAgo = t => Math.round((dayStart(Date.now()) - dayStart(t)) / 86400000); // rounds over daylight-saving days
+const histDay = t => { const n = daysAgo(t); return n <= 0 ? 'Today' : n === 1 ? 'Yesterday' : n < 7 ? 'Previous 7 days' : 'Older'; };
+function histWhen(t) {
+  const n = daysAgo(t), d = new Date(t);
+  return n <= 0 ? ago(t) : n < 7 ? `${n}d ago` : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(d.getFullYear() !== new Date().getFullYear() && { year: 'numeric' }) });
+}
+// the same page, give or take the #part
+const sameDoc = (a, b) => { try { const x = new URL(a), y = new URL(b); x.hash = y.hash = ''; return x.href === y.href; } catch { return false; } };
+function markHit(text, q) { // every piece is escaped
+  const i = q ? text.toLowerCase().indexOf(q.toLowerCase()) : -1;
+  return i < 0 ? esc(text) : esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length));
+}
+async function histApi(path, method = 'GET') {
+  const r = await fetch(path, { method, headers: { Authorization: 'Bearer ' + token } });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 403) j.banned ? onBanned() : loadBoot().then(() => route()).catch(() => {}); // banned, or not accepted anymore
+  if (!r.ok) throw Object.assign(new Error(j.error || 'HTTP ' + r.status), { status: r.status });
+  return j;
+}
+function histState(bold, text, retry) {
+  const p = el('p', 'hstate');
+  if (bold === null) p.appendChild(el('span', 'typing', '<i></i><i></i><i></i>'));
+  else if (bold) p.appendChild(el('b')).textContent = bold;
+  p.append(text);
+  if (retry) { const b = el('button', 'link', 'Try again'); b.type = 'button'; b.onclick = () => loadHist(); p.append(' ', b); }
+  return p;
+}
+const noChats = () => histState('No chats yet.', 'Your chats show up here, so you can pick one back up later.');
+// Opens history, searching for q if given. The slash-command registry calls this for /history.
+function openHistory(q = '') {
+  if (view !== 'chat') return;
+  closeSheet(); closeWrap(); closeMenus();
+  histOpen = true; $('#hist').hidden = false; body.classList.add('hist');
+  $('#histBtn').classList.add('on'); $('#histBtn').setAttribute('aria-expanded', 'true');
+  $('#histQ').value = q; histQ = searchText(q);
+  loadHist();
+  if (document.hasFocus()) $('#histQ').focus();
+}
+function closeHistory(back) {
+  if (!histOpen) return;
+  histOpen = false; histReq++; openReq++; histBusy = false; clearTimeout(histTimer); // whatever is still loading is dropped
+  $('#hist').hidden = true; body.classList.remove('hist');
+  $('#histBtn').classList.remove('on'); $('#histBtn').setAttribute('aria-expanded', 'false');
+  $('#histList').replaceChildren(); histNext = histLast = null;
+  if (back) focusView();
+}
+async function loadHist(more) {
+  if (more && (!histNext || histBusy)) return;
+  const session = token, req = ++histReq, q = histQ, list = $('#histList');
+  histBusy = true;
+  if (!more) { histNext = histLast = null; list.replaceChildren(histState(null, 'Loading your chats…')); }
+  else { const b = list.querySelector('.hmore'); if (b) { b.disabled = true; b.textContent = 'Loading…'; } }
+  try {
+    const data = await histApi('/api/chats?' + new URLSearchParams({ ...(q && { q }), ...(more && { before: histNext }) }));
+    if (req !== histReq || session !== token || !histOpen) return;
+    if (more) list.querySelectorAll('.hmore,.hfoot').forEach(e => e.remove());
+    else {
+      list.replaceChildren();
+      // the chat being answered right now isn't saved until its answer ends
+      if (ctrl) list.appendChild(el('p', 'fine hbusy', 'An answer is still coming in. Opening another chat stops it.'));
+    }
+    histNext = data.next || null;
+    for (const c of data.chats) if (!list.querySelector(`.hrow[data-id="${c.id}"]`)) addHistRow(c, q); // a chat that moved up between pages
+    if (!list.querySelector('.hrow')) list.replaceChildren(q ? histState('', `No chats match “${q}”.`) : noChats());
+    histFoot();
+  } catch (e) {
+    if (req !== histReq || session !== token || !histOpen) return;
+    if (e.status === 401) return lock(lockedMsg());
+    if (!more) return void list.replaceChildren(histState('', `Couldn’t load your chats: ${e.message}`, true));
+    histFoot();
+    const b = list.querySelector('.hmore'); if (b) b.textContent = 'Couldn’t load more · Try again';
+  } finally { if (req === histReq) histBusy = false; }
+}
+function addHistRow(c, q) {
+  const list = $('#histList'), day = histDay(c.updatedAt);
+  if (histLast !== day) list.appendChild(el('div', 'hday')).textContent = histLast = day;
+  const row = el('div', 'hrow' + (c.id === convId ? ' on' : '')), open = el('button', 'hopen');
+  row.dataset.id = c.id; open.type = 'button';
+  open.appendChild(el('span', 'htitle')).textContent = c.title;
+  open.appendChild(el('span', 'hsub')).textContent = [c.site, histWhen(c.updatedAt)].filter(Boolean).join(' · ');
+  if (c.snippet) open.appendChild(el('span', 'hsnip', markHit(c.snippet, q)));
+  open.title = [c.title, c.pageTitle && c.pageTitle !== c.title && c.pageTitle, banWhen.format(new Date(c.updatedAt))].filter(Boolean).join('\n');
+  open.onclick = () => openChat(c.id, row);
+  const del = el('button', 'ib hdel', ICON_REMOVE);
+  del.type = 'button'; del.title = 'Remove from history'; del.setAttribute('aria-label', `Remove “${c.title}” from history`);
+  del.onclick = () => confirmIn(row, 'Remove this chat from your history?', isUser() ? 'It’s hidden from you only. The owner of this pagebot can still see it.'
+    : 'It still shows in Activity in /admin.', 'Remove', () => histApi('/api/chats/' + c.id, 'DELETE'), () => { if (c.id === convId) newChat(); dropRow(row); });
+  row.append(open, del);
+  list.appendChild(row);
+}
+function histFoot() {
+  const list = $('#histList');
+  list.querySelectorAll('.hmore,.hfoot').forEach(e => e.remove());
+  if (histNext) { const b = el('button', 'ghost hmore', 'Load more'); b.type = 'button'; b.onclick = () => loadHist(true); list.appendChild(b); }
+  if (histQ || !list.querySelector('.hrow')) return;
+  const f = el('div', 'hfoot'), all = el('button', 'link', 'Remove all from history'), fine = el('p', 'fine');
+  all.type = 'button';
+  fine.textContent = isUser() ? 'Removing a chat hides it from you only. The owner can still see it, and what it used still counts toward your daily limit.'
+    : 'Removed chats still show in Activity in /admin.';
+  all.onclick = () => confirmIn(f, 'Remove every chat from your history?', isUser() ? 'They’re hidden from you only. The owner of this pagebot can still see them.'
+    : 'They still show in Activity in /admin.', 'Remove all', () => histApi('/api/chats?all=1', 'DELETE'), () => {
+    if (convId) newChat();
+    histNext = histLast = null;
+    $('#histList').replaceChildren(noChats());
+    if (document.hasFocus()) $('#histQ').focus();
+  });
+  f.append(all, fine);
+  list.appendChild(f);
+}
+// an inline "are you sure", in place of the row (dialogs in cross-origin frames aren't reliable)
+function confirmIn(holder, ask, fine, yesLabel, run, done) {
+  const keep = [...holder.childNodes], box = el('div', 'hask'), p = el('p'), msg = document.createTextNode(ask);
+  const yes = el('button', 'ghost bad'), no = el('button', 'ghost hno');
+  yes.type = no.type = 'button'; yes.textContent = yesLabel; no.textContent = 'Cancel';
+  p.append(msg, el('span')); p.lastChild.textContent = fine;
+  box.append(p, yes, no); holder.replaceChildren(box);
+  if (document.hasFocus()) yes.focus();
+  no.onclick = () => { holder.replaceChildren(...keep); if (document.hasFocus()) holder.querySelector('button')?.focus(); };
+  yes.onclick = async () => {
+    const session = token;
+    yes.disabled = no.disabled = true; msg.textContent = 'Removing…';
+    try { await run(); }
+    catch (e) {
+      if (session !== token || !histOpen) return;
+      if (e.status === 401) return lock(lockedMsg());
+      if (e.status !== 404) { msg.textContent = `Couldn’t remove it: ${e.message}`; yes.disabled = no.disabled = false; return; } // 404: already gone
+    }
+    if (session === token && histOpen) done();
+  };
+}
+function dropRow(row) {
+  const list = $('#histList'), prev = row.previousElementSibling, next = row.nextElementSibling;
+  if (document.hasFocus() && row.contains(document.activeElement)) (next?.classList.contains('hrow') ? next.querySelector('.hopen') : $('#histQ')).focus();
+  row.remove();
+  if (prev?.classList.contains('hday') && !next?.classList.contains('hrow')) prev.remove();
+  histLast = [...list.querySelectorAll('.hday')].at(-1)?.textContent || null;
+  if (!list.querySelector('.hrow')) loadHist(); // the next page, or the empty state
+}
+async function openChat(id, row) {
+  if (id === convId) return closeHistory(true);
+  const session = token, req = ++openReq;
+  row.classList.add('wait'); row.setAttribute('aria-busy', 'true');
+  // a page that doesn't answer quickly (a pop-up whose page moved on) counts as a different page
+  const [data, info] = await Promise.all([histApi('/api/chats/' + id).catch(e => e), ask('page', { max: 1 }, 800)]);
+  if (req !== openReq || session !== token || !histOpen || view !== 'chat') return;
+  row.classList.remove('wait'); row.removeAttribute('aria-busy');
+  if (data instanceof Error) {
+    if (data.status === 401) return lock(lockedMsg());
+    if (data.status === 404) return dropRow(row);
+    row.classList.add('err'); row.querySelector('.hsub').textContent = `Couldn’t open it: ${data.message}`;
+    return;
+  }
+  // The chat's own pages are resent from the server on follow-ups, so Page text starts off; the note says how to add this one.
+  closeHistory(); leaveChat(); clearImg(); setPage(false);
+  updateSiteContext(info);
+  showPast(data, info?.page?.url || '');
+  convId = data.chat.id;
+  focusView();
+}
+// like addMsg, but into a fragment, so a long chat is drawn (and scrolled) once
+function pastMsg(box, role, html, tags) {
+  const m = el('div', 'msg ' + role);
+  if (tags) m.appendChild(el('div', 'tags')).textContent = tags;
+  m.appendChild(el('div', 'body', html));
+  box.appendChild(m); return m;
+}
+// a reopened chat, drawn the way it looked; `here` is the page the panel is on now
+function showPast({ chat, messages, earlier }, here) {
+  const box = document.createDocumentFragment(), last = chat.url, same = !!here && !!last && sameDoc(last, here), top = el('div', 'note');
+  top.append(`Chat from ${banWhen.format(new Date(chat.createdAt))}${same ? ' on this page' : chat.site ? ' on ' + chat.site : ''}.`);
+  if (!same && /^https?:\/\//i.test(last || '')) {
+    const a = el('a'); a.href = last; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = 'Open that page ↗';
+    top.append(' ', a);
+  }
+  if (target) top.append(el('br'), same ? 'This page is already part of it.' : 'The page you’re on isn’t part of it. Turn on Page text in + to add it.');
+  if (earlier) top.append(el('br'), 'Earlier messages aren’t shown here, but pagebot still has them.');
+  box.appendChild(top);
+  let doc = null; // the page an answer's quotes came from: the last one sent with a question
+  for (const m of messages) {
+    if (m.role === 'user') {
+      if (m.url) doc = m.url;
+      const u = pastMsg(box, 'user', m.text ? esc(m.text).replace(/\n/g, '<br>') : '<i>(no text)</i>', [m.page && '📄 page', m.image && '📷 screenshot', m.web && '🌐 web'].filter(Boolean).join(' · '));
+      if (m.highlight) {
+        const h = el('div', 'hq'), flat = oneLine(m.highlight);
+        h.textContent = `✂️ “${flat.length > 200 ? flat.slice(0, 200).trimEnd() + '…' : flat}”`; h.title = flat.length > 600 ? flat.slice(0, 600) + '…' : flat;
+        u.querySelector('.body').before(h);
+      }
+      continue;
+    }
+    const bot = pastMsg(box, 'bot', m.text ? md(m.text) : m.stopped ? '<span class="stp">Stopped</span>' : '<i>(empty reply)</i>'), out = bot.querySelector('.body');
+    finish(bot, out, { model: m.model || 'Claude', fallback: !!m.fallback, usage: m.usage, searches: m.searches, sources: m.sources, stop: m.stop,
+      ...('refusal' in m && { refusal: m.refusal }) }, m.text);
+    if (m.text && m.cites?.length && m.quotes?.length && !('refusal' in m)) {
+      markQuotes(out, m.text, m);
+      // "show me where" only works on the page the quotes came from; elsewhere a marker just shows its quote on hover
+      if (!(pageV7 && doc && sameDoc(doc, here))) out.querySelectorAll('.cite').forEach(b => {
+        const quote = m.quotes[+b.dataset.q - 1] || '', short = quote.length > 280 ? quote.slice(0, 280) + '…' : quote;
+        b.classList.add('away'); b.onclick = null; b.setAttribute('aria-label', `Quote ${b.dataset.q}: ${short}`);
+        b.title = `“${short}”\nFrom ${doc ? host(doc) : 'the page'}. Open that page to find it.`;
+      });
+    }
+    if (m.stopped) bot.querySelector('.meta')?.append(' · stopped early');
+  }
+  log.replaceChildren(box);
+  scroll(true);
+}
+// a follow-up to a chat that was removed from history (on another device, say) started a new chat on the server
+function historyGone(u) { const n = el('div', 'note'); n.textContent = 'That chat was removed from your history, so this question started a new chat.'; u.before(n); }
+const searchText = v => { const q = oneLine(v); return q.length < 2 ? '' : q; }; // one letter would match nearly everything
+function searchHist() { clearTimeout(histTimer); const q = searchText($('#histQ').value); if (q !== histQ) { histQ = q; loadHist(); } }
+$('#histBtn').onclick = () => histOpen ? closeHistory(true) : openHistory();
+$('#histQ').addEventListener('input', () => { clearTimeout(histTimer); histTimer = setTimeout(searchHist, 250); });
+$('#histQ').addEventListener('keydown', e => {
+  if (e.isComposing) return;
+  if (e.key === 'Enter') { e.preventDefault(); searchHist(); }
+  else if (e.key === 'Escape' && $('#histQ').value) { e.preventDefault(); e.stopPropagation(); $('#histQ').value = ''; searchHist(); } // an empty box: Esc closes history
+  else if (e.key === 'ArrowDown' && $('#histList .hopen')) { e.preventDefault(); $('#histList .hopen').focus(); }
+});
+$('#histList').addEventListener('keydown', e => {
+  if (e.key === 'Escape' && e.target.closest('.hask')) { e.preventDefault(); e.stopPropagation(); return void e.target.closest('.hask').querySelector('.hno').click(); } // Esc cancels the "are you sure"
+  if ((e.key !== 'ArrowDown' && e.key !== 'ArrowUp') || !e.target.matches('.hopen')) return;
+  const rows = [...$('#histList').querySelectorAll('.hopen')], i = rows.indexOf(e.target);
+  e.preventDefault();
+  (e.key === 'ArrowUp' && i === 0 ? $('#histQ') : rows[Math.max(0, Math.min(rows.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))]).focus();
+});
+$('#histList').addEventListener('scroll', () => {
+  const l = $('#histList');
+  if (histNext && !histBusy && l.scrollHeight - l.scrollTop - l.clientHeight < 120) loadHist(true);
+});
+
 // ---- settings: theme, model, web search, answer limit ----
 const TOK = [[512, '512'], [1024, '1k'], [2048, '2k'], [4096, '4k'], [8000, '8k']]; // presets; /admin can set anything up to 100,000
 for (const [n, label] of TOK) {
@@ -1930,6 +2218,7 @@ document.addEventListener('pointerdown', e => { if (openMenu && !e.target.closes
 let sheetOpen = false;
 function openSheet(focusTokens) {
   if (view !== 'chat') return;
+  closeHistory();
   sheetOpen = true; $('#sheet').hidden = false; $('#setBtn').classList.add('on'); body.classList.add('sheet');
   refreshSiteContext(); loadSiteMemories();
   if (focusTokens) { $('#tokSec').scrollIntoView({ block: 'center' }); ($('#tokSeg button.on:not([hidden])') || $('#tokSeg button:not([hidden])'))?.focus(); }
@@ -1947,7 +2236,7 @@ function setMin(on) {
   if (!hostV2 || minimized === on) return;
   minimized = on; body.classList.toggle('min', on);
   $('#minBtn').title = on ? 'Expand' : 'Minimize';
-  if (on) { closeSheet(); closeMenus(); release(); } else unseen = false;
+  if (on) { closeSheet(); closeHistory(); closeMenus(); release(); } else unseen = false;
   tell('min', { on, w: 200, h: 46 });
   setStatus();
   if (!on) setTimeout(focusView, 220);
@@ -2245,7 +2534,7 @@ addEventListener('keydown', e => {
     if (e.key === 'Backspace') { e.preventDefault(); return pinKey('del'); }
   }
   // a held-down Esc, or one that just cancels typing in an input method, doesn't close the panel
-  if (e.key === 'Escape' && !e.isComposing) { if (openMenu) closeMenus(); else if (sheetOpen) closeSheet(); else if (!e.repeat) closePanel(); }
+  if (e.key === 'Escape' && !e.isComposing) { if (openMenu) closeMenus(); else if (histOpen) closeHistory(true); else if (sheetOpen) closeSheet(); else if (!e.repeat) closePanel(); }
 });
 
 // ---- auto-lock after the passcode timeout, and keep the session alive while you're active ----
@@ -2410,6 +2699,7 @@ async function send() {
         const ev = JSON.parse(line);
         // the server names the chat as soon as the answer starts, so one you stop (or that breaks off) stays part of it
         if (ev.conversationId) named = true;
+        if (ev.t === 'id' && reqBody.conversationId && ev.conversationId !== reqBody.conversationId && gen === chatGen) historyGone(u); // chat history
         if (ev.conversationId && gen === chatGen) convId = ev.conversationId;
         if (ev.t === 'd') { acc += ev.v; renderer.queue(acc); }
         else if (ev.t === 's') searchStep(bot, ev.q);
