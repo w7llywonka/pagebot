@@ -608,6 +608,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 .acard .aq{display:flex;gap:5px;font-weight:600;overflow-wrap:anywhere}
 .acard .aq span:first-child{flex:none;width:16px;text-align:center}
 .acard .aw{margin-top:5px;color:var(--warn);font-size:12px}
+.acard .ad{margin-top:4px;color:var(--muted);font-size:12px;overflow-wrap:anywhere}
 .acard .ab{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .acard button{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer}
 .acard button:hover{border-color:var(--focus)}
@@ -2341,6 +2342,7 @@ const ACT_NO = {
   off: 'It’s disabled or read-only right now.',
   radio: 'A radio button can’t be unticked. Pick another option instead.',
   nav: 'This click leaves the page, so it needs the user’s approval.',
+  tab: 'This click opens another site in a new tab, so it needs the user’s approval.',
 };
 const actNo = r => r.no === 'kind' ? `That’s a ${r.role || 'different element'}, not the kind of element this tool works on.`
   : r.no === 'option' ? `There’s no option like that. It has: ${(r.opts || []).join(', ')}.` : r.no === 'err' ? `It went wrong on the page. ${r.why || ''}` : ACT_NO[r.no] || 'It couldn’t be done.';
@@ -2380,15 +2382,18 @@ function actSet(line, text, how) { line.className = 'astep ' + (how || 'live'); 
 // the approval card stands in for the step line until you choose. It never takes the keyboard (see focus, above).
 function actAsk(run, line, now, info, wait) {
   return new Promise(resolve => {
-    const card = el('div', 'acard' + (info.nav ? ' nav' : '')), q = el('div', 'aq'), ab = el('div', 'ab');
+    const go = info.nav || info.tab, card = el('div', 'acard' + (go ? ' nav' : '')), q = el('div', 'aq'), ab = el('div', 'ab');
     q.append(el('span'), el('span')); q.firstChild.textContent = line.firstChild.textContent; q.lastChild.textContent = now;
     card.appendChild(q);
-    if (info.nav) {
-      let to = ''; try { const u = new URL(info.nav); to = u.hostname.replace(/^www\./, '') + clip(u.pathname.length > 1 ? u.pathname : '', 40); } catch {}
-      card.appendChild(el('div', 'aw')).textContent = `⚠ This leaves the page${to ? ` (for ${to})` : ''}. ${popup ? 'pagebot can’t follow it there.' : 'pagebot closes with it.'}`;
+    // what the page itself calls the control, when that differs from the label the model was shown: a label can say "Cancel" on a "Pay now" button
+    if (info.text) card.appendChild(el('div', 'ad')).textContent = `The ${ACT_KIND[info.role] || 'element'} itself says “${clip(info.text, 60)}”.`;
+    if (go) {
+      let to = ''; try { const u = new URL(go); to = u.hostname.replace(/^www\./, '') + clip(u.pathname.length > 1 ? u.pathname : '', 40); } catch {}
+      card.appendChild(el('div', 'aw')).textContent = info.nav ? (to ? `⚠ This leaves the page (for ${to}). ` : '⚠ This runs a script that may leave the page. ') + (popup ? 'pagebot can’t follow it there.' : 'pagebot closes with it.')
+        : `⚠ This opens ${to || 'another site'} in a new tab.`;
     }
     const done = v => { if (!run.asks.delete(done)) return; clearTimeout(late); card.remove(); line.hidden = false; resolve(v); };
-    for (const [label, cls, v] of [['Allow', 'aok', 'allow'], ['Skip', 'ano', 'skip'], ...(info.nav ? [] : [['Allow all for this answer', 'aall', 'all']])]) {
+    for (const [label, cls, v] of [['Allow', 'aok', 'allow'], ['Skip', 'ano', 'skip'], ...(go ? [] : [['Allow all for this answer', 'aall', 'all']])]) {
       const b = el('button', cls); b.type = 'button'; b.textContent = label; b.onclick = () => done(v); ab.appendChild(b);
     }
     card.appendChild(ab);
@@ -2431,7 +2436,8 @@ async function pageAct(run, ev) {
   const [now, done] = actSay(name, input, info);
   if (!info) return fail(now, 'The page didn’t answer.');
   if (info.no) return fail(['password', 'payment', 'file'].includes(info.no) ? 'Tried a protected field' : now, actNo(info)); // (what it tried to type isn't kept)
-  if (info.nav || !(prefs.actionsAuto || run.all)) {
+  const go = info.nav || info.tab; // leaving the page, or another site in a new tab: asks even with permissions skipped
+  if (go || !(prefs.actionsAuto || run.all)) {
     const v = await actAsk(run, line, now, info, ev.wait);
     if (v === 'stop' || run.stale()) return actSet(line, `${now} — stopped`, 'skip');
     if (v !== 'allow' && v !== 'all') { actSet(line, `${now} — ${v === 'late' ? 'no answer, so not done' : 'skipped'}`, 'skip'); return post({ denied: true, note: now }); }
@@ -2441,9 +2447,9 @@ async function pageAct(run, ev) {
   if (info.nav) { // the page (and the panel with it) goes away on this click, so its result goes first
     await post({ result: { ...info, ok: 1 }, note: done });
     actSet(line, done, 'done');
-    return void page({ sure: 1 });
+    return void page({ sure: info.nav }); // (the address that was approved, so a link that changed since asks again)
   }
-  const r = await page({});
+  const r = await page(go ? { sure: go } : {});
   if (run.stale()) return;
   if (!r) return fail(now, 'The page didn’t answer.');
   if (r.no) return fail(now, actNo(r));

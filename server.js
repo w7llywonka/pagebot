@@ -15,7 +15,7 @@ const PUB = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
 // pagebot's version. It's written into the bookmark people drag from the homepage, so raise it by one to release an
 // update: panels opened from an older bookmark then send people to the homepage to drag the new one.
-const VERSION = 9;
+const VERSION = 10; // 10: the bookmarklet's page-action checks got stricter (see README, “Page actions”)
 // the two models the panel can switch between; web search tool versions differ per model
 const MODELS = {
   haiku: { id: process.env.HAIKU_MODEL || process.env.MODEL || 'claude-haiku-5-5', label: 'Haiku 5.5', search: 'web_search_20250305' },
@@ -1263,7 +1263,7 @@ function actResultText(name, r, limits) {
     return els.map(e => `[${e.ref}] ${word(e.role, /^[a-z]{1,12}$/) || 'element'}${word(e.type, /^[a-z-]{1,20}$/) ? ` (${e.type})` : ''} ${q(e.label)}` +
       (e.no ? ` - ${e.no === 'password' ? 'password' : e.no === 'file' ? 'file' : 'payment'} field: you can't read or fill it${e.value ? ' (it has something in it)' : ''}` : e.value != null ? ` value=${q(e.value)}` : '') +
       (typeof e.checked === 'boolean' ? (e.checked ? ' checked' : ' unchecked') : '') +
-      (Array.isArray(e.opts) ? ` options: ${e.opts.slice(0, 15).map(q).join(', ')}` : '') + (e.off ? ' disabled' : '') + (e.nav ? ' (leaves the page)' : '')).join('\n') + more;
+      (Array.isArray(e.opts) ? ` options: ${e.opts.slice(0, 15).map(q).join(', ')}` : '') + (e.off ? ' disabled' : '') + (e.nav ? ' (leaves the page)' : e.tab ? ' (opens another site in a new tab)' : '')).join('\n') + more;
   }
   if (name === 'highlight') {
     const f = Array.isArray(r.found) ? r.found : [], n = f.filter(Boolean).length;
@@ -1273,7 +1273,7 @@ function actResultText(name, r, limits) {
   if (name === 'fill') return `Done. The field now holds ${q(r.value)}.`;
   if (name === 'select') return `Done. ${q(r.option || r.value)} is chosen.`;
   if (name === 'check') return `Done. It's ${r.checked === false ? 'unticked' : 'ticked'} now.`;
-  return r.nav ? 'Clicked. The page is going to another address.' : 'Clicked. If the page changed, call find_elements again.';
+  return r.nav ? 'Clicked. The page is going to another address.' : r.tab ? 'Clicked. Another site opened in a new tab.' : 'Clicked. If the page changed, call find_elements again.';
 }
 const ACT_DONE = { read_page: 'Read the page', find_elements: 'Looked at the page’s controls', highlight: 'Highlighted passages', scroll_to: 'Scrolled the page',
   fill: 'Typed into a field', select: 'Chose an option', check: 'Ticked a checkbox', click: 'Clicked on the page' };
@@ -1846,13 +1846,21 @@ const pdfName = v => (typeof v === 'string' ? v : '').normalize('NFC').replace(/
 function pdfPageCount(buf) {
   const s = buf.toString('latin1'), count = t => (t.match(/\/Type\s*\/Page(?![A-Za-z])/g) || []).length;
   let n = count(s), budget = 64 * 1024 * 1024; // a cap on what unpacking may produce, against zip bombs
-  for (const m of s.matchAll(/\/Type\s*\/ObjStm\b[^]*?>>\s*stream\r?\n/g)) {
-    const start = m.index + m[0].length, end = s.indexOf('endstream', start);
+  // Scanned forward in one pass: each object stream is found, then skipped to its end. (A lazy "[^]*?" between the
+  // two patterns made a file full of "/Type /ObjStm" rescan the rest of the file for every one: minutes of CPU for 10 MB.)
+  // and at most 1000 of them are unpacked (a real 100-page PDF has a handful), since each attempt has a cost of its own
+  const objStm = /\/Type\s*\/ObjStm\b/g, head = />>\s*stream\r?\n/g;
+  for (let m, tries = 0; (m = objStm.exec(s)) && tries++ < 1000;) {
+    head.lastIndex = m.index;
+    const h = head.exec(s);
+    if (!h) break; // no stream header after this one, so none after the later ones either
+    const start = h.index + h[0].length, end = s.indexOf('endstream', start);
     if (end < 0 || budget <= 0) break;
+    objStm.lastIndex = end;
     try {
       const out = zlib.inflateSync(buf.subarray(start, end), { maxOutputLength: budget, finishFlush: zlib.constants.Z_SYNC_FLUSH });
       budget -= out.length; n += count(out.toString('latin1'));
-    } catch { /* not deflated, or damaged: skip it */ }
+    } catch (e) { budget -= e?.code === 'ERR_BUFFER_TOO_LARGE' ? budget : 1 << 20; } // (not deflated, or damaged: skip it; a bomb or a miss costs its share of the budget)
   }
   return n || null;
 }
@@ -1892,6 +1900,8 @@ async function pdfTurn(pdfId, uid, u, convId, history, m) {
     if (u && !u.allowPdf) return { error: [400, 'PDF uploads aren’t turned on for your account.'] };
   }
   const live = [...prior.values(), ...(cur ? [cur] : [])].filter(p => p.bytes);
+  // PDFs already in the chat go with every follow-up, so turning PDFs off (or a noPdf restriction) has to stop those too
+  if (u && !u.allowPdf && live.length) return { error: [400, 'PDF uploads aren’t turned on for your account, and this chat has a PDF in it. Start a new chat (+ at the top).'] };
   if (m.openrouter && live.length) return { error: [400, `${m.label} can’t read PDFs. Pick Haiku or Sonnet for a chat with a PDF.`] };
   if (cur && (live.length > MAX_CHAT_PDFS || live.reduce((n, p) => n + p.size, 0) > MAX_CHAT_PDF_BYTES))
     return { error: [400, `A chat can hold ${MAX_CHAT_PDFS} PDFs, ${MB(MAX_CHAT_PDF_BYTES)} in all. Start a new chat (+ at the top) for this one.`] };
