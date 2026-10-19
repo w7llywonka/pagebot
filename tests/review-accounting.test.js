@@ -267,7 +267,7 @@ test('accounting and request shape across features', { skip: !database && 'Set P
     const r = await chat({ message: 'Act', actions: true }, { token: a.token, onAct: ev => api('/api/chat/act', { method: 'POST', token: a.token, body: { id: ev.id, result: { url: 'u', title: 't', text: 'x' } } }) });
     assert.ok(r.error, JSON.stringify(r.events));
     assert.equal(await spent(a.id), 730);
-    assert.equal(r.events.find(e => e.t === 'err').quota.left, 1_000_000 - 730, 'the tokens-left bar hears about what the broken-off answer used');
+    assert.deepEqual(r.events.find(e => e.t === 'err').quota, { pct: 0.07 }, 'the usage bar hears about what the broken-off answer used (730 of 1,000,000), as a percentage only');
     const row = (await db.query("SELECT incomplete, content, steps FROM messages WHERE user_id=$1 AND role='assistant'", [a.id])).rows[0];
     assert.equal(row.incomplete, true);
     assert.match(row.content, /Checking/);
@@ -307,7 +307,7 @@ test('accounting and request shape across features', { skip: !database && 'Set P
           conv: (await odb.query('SELECT updated_at IS NOT NULL AS stamped, hidden_at FROM conversations')).rows };
       };
       const a = await look(first.origin);
-      assert.equal(a.boot.quota.used, 1200, 'the old rows count toward today’s limit');
+      assert.deepEqual(a.boot.quota, { pct: 2 }, 'the old rows count toward today’s limit (1,200 of 50,000)');
       assert.equal(a.boot.user.allowPdf, true); assert.equal(a.boot.user.allowActions, true);
       assert.equal(a.chats.chats[0].id, conv); assert.equal(a.chats.chats[0].title, 'Old question');
       assert.deepEqual(a.one.messages.map(m => [m.role, m.text]), [['user', 'Old question'], ['assistant', 'Old answer']]);
@@ -379,14 +379,17 @@ test('accounting and request shape across features', { skip: !database && 'Set P
     assert.ok(first.done, JSON.stringify(first.events));
     const conv = first.done.conversationId;
     const q = async () => (await api('/api/boot', { token: a.token })).data.quota;
-    assert.equal((await q()).used, 1310);
+    assert.deepEqual(await q(), { pct: 33 }); // 1,310 of 4,000
+    assert.equal(await spent(a.id), 1310);
     const second = await chat({ conversationId: conv, message: 'More' }, { token: a.token });
     assert.ok(second.done, JSON.stringify(second.events));
-    assert.equal((await q()).used, 2620);
+    assert.deepEqual(await q(), { pct: 66 }); // 2,620
+    assert.equal(await spent(a.id), 2620);
     const stats = (await api('/api/admin/stats', { token: null, admin: true })).data;
     const wrapped = (await api('/api/wrapped', { token: a.token })).data;
     assert.equal((await api('/api/chats?all=1', { method: 'DELETE', token: a.token })).status, 200);
-    assert.equal((await q()).used, 2620, 'removing a chat from history keeps what it used');
+    assert.deepEqual(await q(), { pct: 66 }, 'removing a chat from history keeps what it used');
+    assert.equal(await spent(a.id), 2620);
     assert.deepEqual((await api('/api/admin/stats', { token: null, admin: true })).data.total, stats.total);
     assert.equal((await api('/api/wrapped', { token: a.token })).data.questions, wrapped.questions);
     // with 1,380 left, the next question's PDF alone (1,234) leaves no room for an answer
@@ -396,15 +399,15 @@ test('accounting and request shape across features', { skip: !database && 'Set P
     assert.equal(calls.length, base, 'nothing reached the model');
   });
 
-  await t.test('a restriction’s daily limit is the one checked, and the one the tokens-left bar shows', async () => {
+  await t.test('a restriction’s daily limit is the one checked, and the one the usage bar is a percentage of', async () => {
     const a = await account(1_000_000);
     const res = await api(`/api/admin/users/${a.id}/ban`, { admin: true, token: null, method: 'POST', body: { kind: 'restrict', hours: 1, reason: 'Testing', limitKind: 'tokens', limitValue: 3000 } });
     assert.equal(res.status, 200, JSON.stringify(res.data));
-    assert.deepEqual((await api('/api/boot', { token: a.token })).data.quota, { kind: 'tokens', limit: 3000, used: 0, left: 3000 });
+    assert.deepEqual((await api('/api/boot', { token: a.token })).data.quota, { pct: 0 });
     script = () => ({ text: 'Fine.', usage: { input_tokens: 2900, output_tokens: 10 } });
     const base = calls.length;
     const first = await chat({ message: 'One' }, { token: a.token });
-    assert.equal(first.done.quota.left, 90);
+    assert.deepEqual(first.done.quota, { pct: 97 }); // 2,910 of the restricted 3,000
     const second = await chat({ message: 'Two' }, { token: a.token });
     assert.equal(second.status, 429);
     assert.equal(calls.length - base, 1);

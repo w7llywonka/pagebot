@@ -315,12 +315,14 @@ test('pdf uploads', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL to run P
     fixture.count = 150_000;
     let p;
     try { p = (await upload(pdfFile(60), { token: bob })).data; } finally { fixture.count = 4321; }
-    assert.equal(p.tokens, 150_000);
+    assert.equal(p.tokens, undefined, 'an account isn’t told a PDF’s size in tokens');
+    assert.equal((await db.query('SELECT tokens FROM attachments WHERE id = $1', [p.id])).rows[0].tokens, 150_000);
     const n = calls.length;
     const r = await api('/api/chat', { method: 'POST', body: { message: 'Summarize it.', pdf: p.id }, token: bob });
     assert.equal(r.status, 429);
-    assert.match(r.data.error, /left of today’s limit/);
-    assert.match(r.data.error, /The PDF in this chat is about 150K tokens on its own\. Try a smaller PDF/);
+    assert.match(r.data.error, /more than what’s left of today\./);
+    assert.match(r.data.error, /The PDF in this chat is a big part of that on its own\. Try a smaller PDF/);
+    assert.doesNotMatch(r.data.error, /\d/);
     assert.equal(calls.length, n);
     assert.equal((await db.query('SELECT conversation_id FROM attachments WHERE id = $1', [p.id])).rows[0].conversation_id, null, 'it stays free to use');
     const small = (await upload(pdfFile(1), { token: bob })).data;

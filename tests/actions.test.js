@@ -321,7 +321,7 @@ test('page actions integration', { skip: !database && 'Set PAGEBOT_TEST_DATABASE
     const row = await lastAnswer(r.done.conversationId);
     assert.match(row.content, /^Looking\.\n\n_Stopped here: another step would go past today’s limit\._$/);
     assert.equal(row.input_tokens, 2500);
-    assert.ok(r.done.quota.used >= 2600);
+    assert.ok(r.done.quota.pct >= 65 && !('used' in r.done.quota), 'the bar hears about it as a percentage of the 4,000 limit');
   });
 
   await t.test('accounts without page actions, restricted accounts and the OpenRouter model get no page tools', async () => {

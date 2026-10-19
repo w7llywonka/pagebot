@@ -232,14 +232,15 @@ test('bans and terminations', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_UR
     let b = (await boot(token)).data;
     assert.equal(b.ban, undefined, 'a restriction isn’t a ban');
     assert.equal(b.restriction.reason, 'Too much Sonnet');
-    assert.deepEqual(b.restriction.limits, { noSonnet: true, noWeb: true, limitKind: 'tokens', limitValue: 5000 });
+    assert.deepEqual(b.restriction.limits, { noSonnet: true, noWeb: true, lowerLimit: true }, 'the person is told the limit is lower, not by how much');
     assert.equal(b.user.allowSonnet, false);
     assert.equal(b.user.allowWeb, false);
     assert.equal(b.models.find(m => m.key === 'sonnet').locked, true);
-    assert.equal(b.quota.limit, 5000);
+    assert.deepEqual(b.quota, { pct: 0 });
     assert.equal((await api('/api/prefs', { token, method: 'POST', body: { model: 'sonnet', web: true } })).data.prefs.model, 'haiku');
     const listed = (await api('/api/admin/users', { admin: true })).data.users.find(u => u.id === ids.frank);
     assert.equal(listed.restriction.state, 'restricted');
+    assert.deepEqual(listed.restriction.limits, { noSonnet: true, noWeb: true, limitKind: 'tokens', limitValue: 5000 }, '/admin still sees the numbers');
     assert.equal(listed.allowSonnet, true, 'their own settings are untouched');
 
     // a ban on top shows the ban; once lifted, the restriction is back
