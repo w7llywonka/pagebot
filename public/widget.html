@@ -833,10 +833,6 @@ body.standalone #sheet,body.standalone #wrap{max-width:780px;margin-inline:auto;
 .wl{display:grid;place-items:center;margin-bottom:2px}
 #wait:not(.in) .hg{display:none}
 #wait.in .wl{display:none}
-.thinking{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12.5px}
-.thinking .pbl{flex:none}
-.thinking .tl{display:flex;align-items:center;gap:8px}
-@media (max-width:359px){.thinking .tl{display:none}}
 </style>
 </head>
 <body class="booting" tabindex="-1">
@@ -2010,7 +2006,7 @@ function renderRst() {
   if (l.noWeb) lost.push('no web search');
   if (l.noActions) lost.push('no page actions');
   if (l.noPdf) lost.push('no PDF uploads');
-  if (l.limitKind) lost.push(`a daily limit of ${l.limitKind === 'usd' ? '$' + Number(l.limitValue).toFixed(2) : Number(l.limitValue).toLocaleString() + ' tokens'}`);
+  if (l.lowerLimit) lost.push('a lower daily limit'); // (how much lower is between you and the owner)
   $('#rstText').textContent = `Your account is restricted until ${RST_WHEN.format(new Date(r.endsAt))}: ${lost.join(', ')}.`;
   $('#rstMeta').textContent = `Reason: ${r.reason}` + (r.note ? `\n${r.note}` : '');
 }
@@ -2057,15 +2053,25 @@ function renderAccount() {
   $('#tokSeg').querySelectorAll('button').forEach(b => { b.hidden = +b.dataset.n > cap; });
   renderQuota(); renderPasscode();
 }
+// Usage today. Accounts get { pct } only (a share of their limit, never an amount); the full { kind, limit, used, left }
+// only ever comes for the owner. 80% turns the bar amber, 100% red.
+function pctText(p) { return p > 0 && p < 1 ? '<1%' : Math.round(p) + '%'; }
 function renderQuota() {
-  const q = isUser() ? cfg.quota : null;
+  const q = cfg?.quota;
   $('#quotaSec').hidden = !q;
   if (!q) return;
-  const pct = q.limit ? Math.min(100, q.used / q.limit * 100) : 0;
-  const f = $('#quotaFill'); f.style.width = pct + '%'; f.className = pct >= 100 ? 'full' : pct >= 80 ? 'warn' : '';
-  $('#quotaText').textContent = q.kind === 'usd' ? `$${q.used.toFixed(2)} of $${q.limit.toFixed(2)} used`
-    : `${fmt(Math.round(q.used))} of ${fmt(q.limit)} tokens used`;
-  $('#quotaSub').textContent = q.left <= 0 ? '· limit reached, resets at midnight' : '· resets at midnight';
+  const full = q.limit != null, pct = full ? (q.limit ? Math.min(100, q.used / q.limit * 100) : 0) : Math.max(0, Math.min(100, +q.pct || 0));
+  const out = full ? q.left <= 0 : pct >= 100;
+  const f = $('#quotaFill'); f.style.width = Math.max(pct, pct > 0 ? 1 : 0) + '%'; f.className = pct >= 100 ? 'full' : pct >= 80 ? 'warn' : '';
+  $('#quotaText').textContent = !full ? (out ? 'Today’s limit used up' : `${pctText(pct)} of today’s limit used`)
+    : q.kind === 'usd' ? `$${q.used.toFixed(2)} of $${q.limit.toFixed(2)} used` : `${fmt(Math.round(q.used))} of ${fmt(q.limit)} tokens used`;
+  $('#quotaSub').textContent = out ? '· limit reached, resets at midnight' : '· resets at midnight';
+}
+// the line under an answer: the share of the limit it used for accounts, the tokens and cost for the owner
+function usageLine(ev) {
+  const u = ev.usage || {};
+  if (u.pct != null) return u.pct > 0 ? `used ${u.pct < 0.1 ? '<0.1' : +u.pct.toFixed(1)}% of today’s limit` : '';
+  return u.in != null ? `${fmt(u.in)} in · ${fmt(u.out)} out` : '';
 }
 const leftToday = q => q.kind === 'usd' ? `$${q.left.toFixed(2)} left today` : `${fmt(Math.round(q.left))} left today`;
 $('#pwChange').onclick = () => { $('#pwForm').hidden = false; $('#pwChange').hidden = true; $('#pwMsg').textContent = ''; $('#pwCur').focus(); };
@@ -2484,6 +2490,7 @@ $('#histList').addEventListener('scroll', () => {
 
 // ---- settings: theme, model, web search, answer limit ----
 const TOK = [[512, '512'], [1024, '1k'], [2048, '2k'], [4096, '4k'], [8000, '8k']]; // presets; /admin can set anything up to 100,000
+const TOK_NAME = { 512: 'Brief', 1024: 'Short', 2048: 'Standard', 4096: 'Long', 8000: 'Very long' }; // what accounts see instead
 for (const [n, label] of TOK) {
   const b = el('button', '', label); b.type = 'button'; b.dataset.n = n;
   b.onclick = () => savePrefs({ maxTokens: n });
@@ -2511,10 +2518,13 @@ function renderPrefs() {
     b.onclick = () => { closeMenus(); if (x.key !== prefs.model) savePrefs({ model: x.key }); q.focus(); };
     menu.appendChild(b);
   }
-  $('#tokSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.n === limits.maxTokens));
+  // answer length: accounts see names (the tokens behind them stay the same), the owner the numbers
+  $('#tokSeg').querySelectorAll('button').forEach(b => { b.classList.toggle('on', +b.dataset.n === limits.maxTokens); b.textContent = isUser() ? TOK_NAME[b.dataset.n] : TOK.find(t => t[0] === +b.dataset.n)[1]; });
   const preset = TOK.some(([n]) => n === limits.maxTokens);
   $('#tokNote').hidden = preset;
-  if (!preset) $('#tokNote').textContent = `Right now it’s ${limits.maxTokens.toLocaleString()} tokens${isUser() ? '' : ' (set in /admin)'}. Pick a size above to change it.`;
+  if (!preset) $('#tokNote').textContent = isUser() ? 'Right now it’s set to a custom length. Pick a size above to change it.' : `Right now it’s ${limits.maxTokens.toLocaleString()} tokens (set in /admin). Pick a size above to change it.`;
+  const tokHelp = $('#tokSec .fine:not(#tokNote)'); // (the owner's wording talks about tokens)
+  if (tokHelp) tokHelp.textContent = isUser() ? 'How long replies can be. Longer answers use more of your daily limit.' : 'Maximum tokens per reply. Higher limits allow longer answers and use more of your allowance.';
   document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t === prefs.theme));
   $('#glassNote').hidden = !(embedded && (prefs.theme === 'glass' && !hostV5 || prefs.theme === 'clear' && !hostV6));
   $('#glassName').textContent = prefs.theme === 'clear' ? 'Clear' : 'Glass';
@@ -3356,8 +3366,8 @@ function finish(bot, out, ev, text) {
   }
   const m = el('div', 'meta');
   if (ev.quota && cfg) { cfg.quota = ev.quota; renderQuota(); }
-  m.textContent = [ev.model + (ev.fallback ? ' (fallback)' : ''), `${fmt(ev.usage.in)} in · ${fmt(ev.usage.out)} out`,
-    ev.searches ? `${ev.searches} search${ev.searches === 1 ? '' : 'es'}` : '', ev.quota ? leftToday(ev.quota) : ''].filter(Boolean).join(' · ');
+  m.textContent = [ev.model + (ev.fallback ? ' (fallback)' : ''), usageLine(ev),
+    ev.searches ? `${ev.searches} search${ev.searches === 1 ? '' : 'es'}` : '', ev.quota && ev.usage?.pct == null ? leftToday(ev.quota) : ''].filter(Boolean).join(' · ');
   if (ev.stop === 'max_tokens') {
     m.append(' · cut off · ');
     const b = el('button', 'mini', 'raise limit'); b.type = 'button'; b.onclick = () => openSheet(true); m.appendChild(b);
@@ -3434,9 +3444,8 @@ async function send() {
     pdfBack();
   };
 
-  const bot = addMsg('bot', thinking());
+  const bot = addMsg('bot', '<span class="typing"><i></i><i></i><i></i></span>');
   const out = bot.querySelector('.body');
-  thinkingMount(out); // the pixel loader, until the first words arrive
   const mine = ctrl = new AbortController();
   const renderer = answerRenderer(out, () => !stale());
   const run = acting ? actRun = { bot, stale: () => stale() || run.over, all: false, asks: new Set(), over: false } : null; // page actions
@@ -3954,15 +3963,13 @@ function loaderSprite(canvas, opts = {}) {
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) loaders.forEach(l => l.start()); }); // a hidden panel pauses its loaders; they pick up again when it shows
 
-// where the loader appears: the first-load splash, the waiting screen, and an answer that hasn't started (see thinking())
+// where the loader appears: the first-load splash and the waiting screen
 // the splash canvas is as tall as the panel, so the strings come down from its top edge to the animal above the wordmark
 const bigPanel = Math.max(innerWidth, (screen.availWidth || 0) / 2) >= 600; // an older bookmark opens small and grows once we tell it the size, so look at the screen too
 const bootScale = bigPanel ? 4 : 3, bootH = Math.ceil(Math.max(innerHeight, screen.availHeight || 0) / bootScale) + 8;
 const bootLoader = loaderSprite($('#bootPbl'), { w: 72, h: bootH, scale: bootScale, drop: bootH - 40 });
 bootLoader.start();
 let waitLoader = null;
-function thinking() { return '<div class="thinking"><canvas></canvas><span class="tl">Thinking<span class="typing"><i></i><i></i><i></i></span></span></div>'; }
-function thinkingMount(out) { const c = out.querySelector('.thinking canvas'); if (c) loaderSprite(c, { w: 60, h: 48, scale: 2 }).start(); }
 
 // ---- first-load animation; an already loaded panel reopens immediately ----
 const CAP = calm ? 600 : 2150; // don't keep a slow network request behind the intro indefinitely

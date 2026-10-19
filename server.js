@@ -452,7 +452,19 @@ function quota(u, used) {
   const spent = u.limitKind === 'usd' ? used.usd : used.tokens;
   return { kind: u.limitKind, limit: u.limitValue, used: spent, left: Math.max(0, u.limitValue - spent) };
 }
-const fmtLimit = (kind, v) => kind === 'usd' ? `$${Number(v).toFixed(2)}` : `${v >= 1000 ? Math.round(v / 100) / 10 + 'K' : v} tokens`;
+// What gets SENT: accounts only ever see a percentage of their limit (never tokens or dollars, nor the limit itself);
+// the exact numbers above still drive the checks. Whole numbers, 0.01-0.99 for "under 1%", 99 until the limit is really
+// reached, and 100 once it is.
+const round2 = f => Math.round(f * 100) / 100;
+function pctUsed(spent, limit) {
+  if (!(limit > 0) || !(spent > 0)) return 0;
+  if (spent >= limit) return 100;
+  const f = spent / limit * 100;
+  return f < 1 ? Math.max(0.01, round2(f)) : Math.min(99, Math.round(f));
+}
+// the share of today's limit one answer used (to two decimals, at most 100)
+const pctOfAnswer = (spent, limit) => !(limit > 0) || !(spent > 0) ? 0 : Math.min(100, Math.max(0.01, round2(spent / limit * 100)));
+const quotaOut = (u, q) => !q ? null : u ? { pct: pctUsed(q.used, q.limit) } : q; // u is null for the owner, who sees the amounts
 
 // ---------- bans ----------
 // active: banned until ends_at (or for good); ended: the time is up but they haven't re-activated yet;
@@ -475,10 +487,12 @@ const publicAppeal = a => a && { id: Number(a.id), body: a.body, at: a.created_a
 const publicBan = b => ({
   id: Number(b.id), kind: b.kind, state: banState(b), name: b.username, reason: b.reason, note: b.note || '',
   hours: b.hours == null ? null : Number(b.hours), at: b.created_at, endsAt: b.ends_at, key: b.notice_key,
-  ...(b.kind === 'restrict' ? { limits: parseJSON(b.limits) } : { appeal: publicAppeal(b.appeal) || null }),
+  ...(b.kind === 'restrict' ? { limits: publicLimits(parseJSON(b.limits)) } : { appeal: publicAppeal(b.appeal) || null }),
 });
+// a restriction that lowers the daily limit tells the person so, not by how much (the owner's reason text is the owner's words)
+const publicLimits = ({ limitKind, limitValue, ...rest }) => ({ ...rest, ...(limitKind && { lowerLimit: true }) });
 const adminBan = b => ({
-  ...publicBan(b), userId: b.user_id == null ? null : Number(b.user_id),
+  ...publicBan(b), ...(b.kind === 'restrict' && { limits: parseJSON(b.limits) }), userId: b.user_id == null ? null : Number(b.user_id),
   seenAt: b.seen_at, liftedAt: b.lifted_at, reactivatedAt: b.reactivated_at, deletedAt: b.deleted_at,
 });
 const banMsg = b => banState(b) === 'terminated' ? 'This account has been terminated.'
@@ -758,7 +772,7 @@ app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
   if (u.status === 'trusted') {
     const a = await currentAnnouncement();
     Object.assign(out, {
-      prefs: prefsFor(cfg, u), limits: limitsFor(cfg, u), models: modelsFor(u), quota: quota(u, await usageToday(u.id)),
+      prefs: prefsFor(cfg, u), limits: limitsFor(cfg, u), models: modelsFor(u), quota: quotaOut(u, quota(u, await usageToday(u.id))),
       announcement: a && a.id > u.annSeen ? a : null, restriction: u.restriction ? publicBan(u.restriction) : null,
       commands: await listCommands(u.id), commandLimits: COMMAND_LIMITS, // slash commands
     });
@@ -1398,7 +1412,7 @@ async function chat(req, res) {
   const used = u?.limitKind ? await usageToday(u.id) : null;
   const q0 = used && quota(u, used);
   if (q0 && q0.left <= 0)
-    return res.status(429).json({ error: `You’ve used today’s limit of ${fmtLimit(q0.kind, q0.limit)}. It resets at midnight.`, quota: q0 });
+    return res.status(429).json({ error: 'You’ve used today’s limit. It resets at midnight.', quota: quotaOut(u, q0) });
 
   // PostgreSQL text can't hold a NUL, and the rows are only saved once the answer is in: one in a question would lose its usage
   const str = v => String(v || '').replaceAll('\0', '');
@@ -1498,7 +1512,7 @@ async function chat(req, res) {
       room = (q0.left - estIn * p.in / 1e6 - (web ? limits.maxSearches * SEARCH_USD : 0)) / (p.out / 1e6);
     }
     if (room < 256) {
-      return res.status(429).json({ quota: q0, error: `That’s more than what’s left of today’s limit (${q0.kind === 'usd' ? '$' + q0.left.toFixed(2) : fmtLimit('tokens', Math.floor(q0.left))} left). ` +
+      return res.status(429).json({ quota: quotaOut(u, q0), error: 'That’s more than what’s left of today. ' +
         (pdf.tokens > estIn / 2 ? pdfLimitHint(pdf, history.length > 0) : history.length ? 'Start a new chat (+ at the top), or ask something shorter.' : 'Try a shorter question, or leave out the page or web search.') });
     }
     maxTokens = Math.min(maxTokens, Math.floor(room));
@@ -1624,7 +1638,7 @@ async function chat(req, res) {
   // sent won't be sent again, so keep the question in the chat with an empty, stopped answer.
   if (closed && !failed && (!final || acts?.cut)) failed = new Anthropic.APIUserAbortError(); // (or while page actions waited)
   if (!final && !tot.in && !closed) { // nothing reached the model
-    if (failed) out({ t: 'err', v: friendly(failed, m.id) });
+    if (failed) out({ t: 'err', v: friendly(failed, m.id, u) });
     return void res.end();
   }
 
@@ -1643,22 +1657,23 @@ async function chat(req, res) {
   // pdf uploads: the PDF belongs to this chat from now on (one that never reached the model stays free to send again)
   if (pdf.cur) await pool.query('UPDATE attachments SET conversation_id = $1 WHERE id = $2 AND conversation_id IS NULL', [convId, pdf.cur.id]);
   const left = used && quota(u, { tokens: used.tokens + tot.in + tot.out, usd: used.usd + tot.usd }); // the bar, after this answer
+  const spentNow = q0?.kind === 'usd' ? tot.usd : tot.in + tot.out; // what this answer used, in the limit's own kind
   if (failed) {
-    out({ t: 'err', v: friendly(failed, m.id), conversationId: convId, ...(left && { quota: left }) }); // (a broken-off answer was billed too)
+    out({ t: 'err', v: friendly(failed, m.id, u), conversationId: convId, ...(left && { quota: quotaOut(u, left) }) }); // (a broken-off answer was billed too)
     return void res.end();
   }
   out({
-    t: 'done', conversationId: convId, usage: { in: tot.in, out: tot.out, usd: tot.usd }, stop: final.stop_reason,
+    t: 'done', conversationId: convId, usage: u ? (q0 ? { pct: pctOfAnswer(spentNow, q0.limit) } : {}) : { in: tot.in, out: tot.out, usd: tot.usd }, stop: final.stop_reason,
     model: modelLabel(final.model || m.id), fallback: !!final.model && final.model !== m.id,
     searches: tot.searches, sources: [...sources].slice(0, 8).map(([url, title]) => ({ url, title })),
     ...(cites.length && !refused && { quotes, cites, ...(pdfPages.length && { pdfPages: Array.from(quotes, (_, i) => pdfPages[i] || null) }) }),
     ...(refused && { refusal: final.stop_details?.category || null }),
-    ...(left && { quota: left }),
+    ...(left && { quota: quotaOut(u, left) }),
   });
   res.end();
 }
 
-function friendly(e, model) {
+function friendly(e, model, u) { // u: the account asking (null = the owner, who sees the API's own wording)
   const s = e?.status;
   if (e?.router && s === 401) return 'OpenRouter API key is invalid (check OPENROUTER_API_KEY).';
   if (e?.router && s === 402) return 'Your OpenRouter account is out of credits.';
@@ -1667,7 +1682,10 @@ function friendly(e, model) {
   if (s === 404) return `Model "${model}" not found (check HAIKU_MODEL / SONNET_MODEL).`;
   if (s === 429) return 'Rate limited by the API — try again in a moment.';
   if (s === 529 || s === 503) return 'The API is overloaded — try again in a moment.';
-  return (e?.error?.error?.message || e?.message || 'Something went wrong').slice(0, 300);
+  const msg = (e?.error?.error?.message || e?.message || 'Something went wrong').slice(0, 300);
+  // accounts never see amounts, and the API's own errors carry token counts ("prompt is too long: 250000 tokens > 200000 maximum")
+  if (u && /\d[\d,.]*\s*[kKmM]?\s*tokens?\b|\$\s*\d/.test(msg)) return /too long|too large|exceed/i.test(msg) ? 'That’s too long for the model. Try a shorter question, or start a new chat.' : 'Something went wrong. Try again in a moment.';
+  return msg;
 }
 
 // ---------- chat history: your past chats, to reopen, keep going, or remove from your history ----------
@@ -1730,7 +1748,7 @@ const publicChat = c => ({
   pageTitle: c.page_title || null, createdAt: c.created_at, updatedAt: c.updated_at,
 });
 // one stored message as the panel draws it; page text never leaves the server
-function pastMessage(m) {
+function pastMessage(m, u) {
   const at = m.created_at, x = parseJSON(m.meta);
   if (m.role === 'user') {
     const q = splitQuestion(m.content);
@@ -1740,13 +1758,16 @@ function pastMessage(m) {
   }
   const blank = m.content === (m.refused ? '[declined]' : m.incomplete ? '(stopped)' : '(no answer)'); // the stand-ins chat() saves
   return {
-    role: 'assistant', text: blank ? '' : m.content, model: m.model ? modelLabel(m.model) : null, usage: { in: m.input_tokens, out: m.output_tokens },
+    role: 'assistant', text: blank ? '' : m.content, model: m.model ? modelLabel(m.model) : null, usage: pastUsage(m, u),
     searches: m.web_searches, stopped: m.incomplete, sources: Array.isArray(x.sources) ? x.sources : [], at,
     ...(Array.isArray(x.quotes) && Array.isArray(x.cites) && { quotes: x.quotes, cites: x.cites, ...(Array.isArray(x.pdfPages) && { pdfPages: x.pdfPages }) }),
     ...pastSteps(m.steps),
     ...(x.stop && { stop: x.stop }), ...(x.fallback && { fallback: true }), ...(m.refused && { refusal: x.refusal ?? null }),
   };
 }
+// an account sees the share of today's limit an answer used (against the limit it has now), the owner the tokens
+const pastUsage = (m, u) => !u ? { in: m.input_tokens, out: m.output_tokens }
+  : u.limitKind ? { pct: pctOfAnswer(u.limitKind === 'usd' ? Number(m.cost_usd) || 0 : m.input_tokens + m.output_tokens, u.limitValue) } : {};
 // page actions: the steps an answer took, as lines to show again (read-only)
 function pastSteps(json) {
   const s = json && parseJSON(json);
@@ -1804,13 +1825,13 @@ app.get('/api/chats/:id', limit(120, 'chats-read'), auth, trusted, async (req, r
   const id = chatId(req.params.id);
   const c = id && (await pool.query(`${chatSql()} WHERE c.id = $1 AND COALESCE(c.user_id, 0) = $2 AND c.hidden_at IS NULL`, [id, req.user?.id ?? 0])).rows[0];
   if (!c) return res.status(404).json(GONE); // someone else's chat looks the same as one that isn't there
-  const r = await pool.query(`SELECT * FROM (SELECT id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, incomplete, meta, steps,
+  const r = await pool.query(`SELECT * FROM (SELECT id, role, content, had_image, input_tokens, output_tokens, cost_usd, model, web_searches, refused, incomplete, meta, steps,
       created_at, page_doc IS NOT NULL AS has_doc, attachment_id,
       (SELECT f.name FROM attachments f WHERE f.id = messages.attachment_id) AS pdf_name, (SELECT f.pages FROM attachments f WHERE f.id = messages.attachment_id) AS pdf_pages,
       (SELECT f.bytes IS NOT NULL FROM attachments f WHERE f.id = messages.attachment_id) AS pdf_stored FROM messages WHERE conversation_id = $1 ORDER BY id DESC LIMIT ${MAX_PAST + 1}) x ORDER BY id`, [id]);
   const rows = r.rows.slice(-MAX_PAST);
   while (rows[0]?.role === 'assistant') rows.shift(); // start on a question
-  const chat = publicChat(c), messages = rows.map(pastMessage);
+  const chat = publicChat(c), messages = rows.map(m => pastMessage(m, req.user));
   chat.url = messages.findLast(m => m.url)?.url || chat.url;
   res.json({ chat, messages, earlier: r.rows.length > rows.length });
 });
@@ -1914,7 +1935,7 @@ async function pdfTurn(pdfId, uid, u, convId, history, m) {
 }
 // what a question that's too big for today's limit says when PDFs are a big part of it
 const pdfLimitHint = (pdf, followUp) => (pdf.n === 1 ? 'The PDF in this chat is' : `The ${pdf.n} PDFs in this chat are`) +
-  ` about ${fmtLimit('tokens', pdf.tokens)} on ${pdf.n === 1 ? 'its' : 'their'} own. Try a smaller PDF (fewer pages)` + (followUp ? ', or start a new chat (+ at the top).' : '.');
+  ` a big part of that on ${pdf.n === 1 ? 'its' : 'their'} own. Try a smaller PDF (fewer pages)` + (followUp ? ', or start a new chat (+ at the top).' : '.');
 
 // The upload itself: the raw file, read only after the login checks out. Only real PDFs get in: the first bytes have
 // to be "%PDF-", whatever the browser says the file is.
@@ -1947,7 +1968,7 @@ app.post('/api/pdf', limit(20, 'pdf'), limit(120, 'pdf-hour', 3600_000), auth, t
   } catch (e) { await db.query('ROLLBACK').catch(() => {}); throw e; } finally { db.release(); }
   await pool.query(`DELETE FROM attachments WHERE id IN (SELECT id FROM attachments WHERE user_id IS NOT DISTINCT FROM $1 AND conversation_id IS NULL
     ORDER BY id DESC OFFSET $2)`, [uid, MAX_UNUSED_PDFS]);
-  res.json({ id: Number(r.rows[0].id), name, size: buf.length, pages, tokens });
+  res.json({ id: Number(r.rows[0].id), name, size: buf.length, pages, ...(!req.user && { tokens }) }); // (a PDF's size in tokens is the owner's to see)
 });
 
 // Your stored PDFs (newest first) and how much of the cap they use, and deleting one: its file goes (bytes NULL, the same state the

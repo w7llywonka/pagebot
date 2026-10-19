@@ -278,7 +278,7 @@ test('chat history integration', { skip: !database && 'Set PAGEBOT_TEST_DATABASE
     const snapshot = () => db.query(`SELECT id, role, content, page_doc, meta, input_tokens, output_tokens, cost_usd FROM messages WHERE conversation_id=$1 ORDER BY id`, [first]);
     const rowsBefore = (await snapshot()).rows;
     const conv = (await db.query('SELECT page_url, page_title, memory_site FROM conversations WHERE id=$1', [first])).rows[0];
-    const used = (await api('/api/boot', { token: alice })).data.quota.used;
+    const used = (await api('/api/boot', { token: alice })).data.quota, usedRows = (await db.query('SELECT COALESCE(SUM(input_tokens + output_tokens), 0)::int AS n FROM messages WHERE user_id=$1', [aliceId])).rows[0].n;
     const wrapped = (await api('/api/wrapped?tz=UTC', { token: alice })).data;
     const overview = (await api(`/api/admin/overview?days=30&user=${aliceId}`, { token: null, admin: true })).data.totals;
 
@@ -287,7 +287,8 @@ test('chat history integration', { skip: !database && 'Set PAGEBOT_TEST_DATABASE
     const after = (await db.query('SELECT page_url, page_title, memory_site, hidden_at FROM conversations WHERE id=$1', [first])).rows[0];
     assert.ok(after.hidden_at);
     assert.deepEqual({ page_url: after.page_url, page_title: after.page_title, memory_site: after.memory_site }, conv);
-    assert.equal((await api('/api/boot', { token: alice })).data.quota.used, used, 'removing gives back none of today’s limit');
+    assert.deepEqual((await api('/api/boot', { token: alice })).data.quota, used, 'removing gives back none of today’s limit');
+    assert.equal((await db.query('SELECT COALESCE(SUM(input_tokens + output_tokens), 0)::int AS n FROM messages WHERE user_id=$1', [aliceId])).rows[0].n, usedRows);
     const wrappedAfter = (await api('/api/wrapped?tz=UTC', { token: alice })).data;
     assert.deepEqual([wrappedAfter.questions, wrappedAfter.sites], [wrapped.questions, wrapped.sites]);
     assert.deepEqual((await api(`/api/admin/overview?days=30&user=${aliceId}`, { token: null, admin: true })).data.totals, overview);
