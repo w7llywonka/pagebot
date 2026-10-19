@@ -151,12 +151,12 @@ after(async () => {
 test('page actions integration', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL to run PostgreSQL integration tests.' }, async t => {
   t.afterEach(() => { script = null; });
 
-  await t.test('the version is 9 and the homepage bookmark carries the page action handlers', async () => {
-    assert.equal((await api('/health')).data.version, 9);
+  await t.test('the version is 10 and the homepage bookmark carries the page action handlers', async () => {
+    assert.equal((await api('/health')).data.version, 10);
     const html = await (await fetch(origin + '/')).text();
     const href = /id="bm" href="([^"]+)"/.exec(html)[1].replaceAll('&amp;', '&').replaceAll('&#39;', "'").replaceAll('&quot;', '"');
     const code = decodeURIComponent(href.slice('javascript:'.length));
-    assert.match(code, /v:9\}/);
+    assert.match(code, /v:10\}/);
     assert.match(code, /P\.act=function/);
     assert.match(code, /t==="act"/);
     assert.doesNotMatch(code, /\n/);
