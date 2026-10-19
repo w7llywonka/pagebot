@@ -15,10 +15,10 @@ const ADMIN = 'test-admin-token-' + randomBytes(8).toString('hex');
 let db, adminDb, app, origin, logs = '';
 const ids = {};
 
-async function api(route, { token, admin, method = 'GET', body } = {}) {
+async function api(route, { token, admin, method = 'GET', body, device } = {}) {
   const r = await fetch(origin + route, {
     method,
-    headers: { ...(token && { Authorization: `Bearer ${token}` }), ...(admin && { 'x-admin-token': ADMIN }), ...(body && { 'Content-Type': 'application/json' }) },
+    headers: { ...(device && { 'X-Pagebot-Device': device }), ...(token && { Authorization: `Bearer ${token}` }), ...(admin && { 'x-admin-token': ADMIN }), ...(body && { 'Content-Type': 'application/json' }) },
     ...(body && { body: JSON.stringify(body) }),
   });
   return { status: r.status, data: await r.json().catch(() => null) };
@@ -61,7 +61,7 @@ before(async () => {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   assert.ok(ready, `Server failed to start: ${logs}`);
-  for (const name of ['alice', 'bob', 'carol', 'dave']) {
+  for (const name of ['alice', 'bob', 'carol', 'dave', 'eve', 'frank', 'gina', 'hank']) {
     ids[name] = Number((await db.query("INSERT INTO users(username,password_hash,status) VALUES ($1,$2,'trusted') RETURNING id", [name, hash(name + '-pass')])).rows[0].id);
   }
 });
@@ -185,5 +185,96 @@ test('bans and terminations', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_UR
     assert.equal((await boot(token)).data.ban, undefined);
     await db.query("UPDATE bans SET ends_at = now() - interval '1 minute' WHERE user_id = $1", [ids.dave]);
     assert.equal((await login('dave', 'dave-pass')).status, 200, 'a reversed termination never deletes');
+  });
+
+  await t.test('an appeal goes to the owner once per ban; accepting it lifts the ban', async () => {
+    const token = await session(ids.eve);
+    await ban(ids.eve, { kind: 'ban', hours: 168, reason: 'Spamming' });
+    let b = (await boot(token)).data.ban;
+    assert.equal(b.appeal, null);
+    const appeal = body => api('/api/ban-notice/appeal', { method: 'POST', body: { key: b.key, body } });
+    assert.equal((await appeal('   ')).status, 400);
+    assert.equal((await appeal('x'.repeat(1001))).status, 400);
+    assert.equal((await api('/api/ban-notice/appeal', { method: 'POST', body: { key: 'x'.repeat(32), body: 'Hi' } })).status, 404);
+    assert.equal((await appeal('It was my little brother.')).status, 200);
+    assert.equal((await appeal('Again!')).status, 409, 'one appeal per ban');
+    b = (await boot(token)).data.ban;
+    assert.equal(b.appeal.body, 'It was my little brother.');
+    assert.equal(b.appeal.decision, null);
+    let waiting = (await api('/api/admin/users', { admin: true })).data.appeals;
+    assert.equal(waiting.length, 1);
+    assert.equal(waiting[0].ban.name, 'eve');
+    assert.equal((await api(`/api/admin/appeals/${waiting[0].id}`, { admin: true, method: 'POST', body: { decision: 'deny', reply: 'Keep an eye on him.' } })).status, 200);
+    assert.equal((await api(`/api/admin/appeals/${waiting[0].id}`, { admin: true, method: 'POST', body: { decision: 'accept' } })).status, 404, 'answered once');
+    b = (await boot(token)).data.ban;
+    assert.equal(b.state, 'active');
+    assert.equal(b.appeal.decision, 'denied');
+    assert.equal(b.appeal.reply, 'Keep an eye on him.');
+    assert.equal((await api('/api/admin/users', { admin: true })).data.appeals.length, 0);
+
+    await ban(ids.eve, { kind: 'terminate', reason: 'Did it again' });
+    b = (await boot(token)).data.ban;
+    assert.equal((await api('/api/ban-notice/appeal', { method: 'POST', body: { key: b.key, body: 'Please.' } })).status, 200, 'a new ban gets its own appeal');
+    waiting = (await api('/api/admin/users', { admin: true })).data.appeals;
+    assert.equal((await api(`/api/admin/appeals/${waiting[0].id}`, { admin: true, method: 'POST', body: { decision: 'accept', reply: 'Okay, last chance.' } })).status, 200);
+    assert.equal((await boot(token)).data.ban, undefined);
+    assert.equal((await api('/api/site-memory', { token })).status, 200);
+    assert.equal((await api('/api/ban-notice/appeal', { method: 'POST', body: { key: b.key, body: 'Thanks' } })).status, 409, 'a lifted ban can’t be appealed');
+  });
+
+  await t.test('a restriction takes away what it says until it ends, then the account is back to normal', async () => {
+    const token = await session(ids.frank);
+    assert.equal((await ban(ids.frank, { kind: 'restrict', hours: 0, noSonnet: true, reason: 'x' })).status, 400, 'restrictions end');
+    assert.equal((await ban(ids.frank, { kind: 'restrict', hours: 24, reason: 'x' })).status, 400, 'something has to be taken away');
+    assert.equal((await ban(ids.frank, { kind: 'restrict', hours: 24, limitKind: 'tokens', limitValue: 'lots', reason: 'x' })).status, 400);
+    const r = await ban(ids.frank, { kind: 'restrict', hours: 72, noSonnet: true, noWeb: true, limitKind: 'tokens', limitValue: 5000, reason: 'Too much Sonnet' });
+    assert.equal(r.status, 200);
+    let b = (await boot(token)).data;
+    assert.equal(b.ban, undefined, 'a restriction isn’t a ban');
+    assert.equal(b.restriction.reason, 'Too much Sonnet');
+    assert.deepEqual(b.restriction.limits, { noSonnet: true, noWeb: true, limitKind: 'tokens', limitValue: 5000 });
+    assert.equal(b.user.allowSonnet, false);
+    assert.equal(b.user.allowWeb, false);
+    assert.equal(b.models.find(m => m.key === 'sonnet').locked, true);
+    assert.equal(b.quota.limit, 5000);
+    assert.equal((await api('/api/prefs', { token, method: 'POST', body: { model: 'sonnet', web: true } })).data.prefs.model, 'haiku');
+    const listed = (await api('/api/admin/users', { admin: true })).data.users.find(u => u.id === ids.frank);
+    assert.equal(listed.restriction.state, 'restricted');
+    assert.equal(listed.allowSonnet, true, 'their own settings are untouched');
+
+    // a ban on top shows the ban; once lifted, the restriction is back
+    await ban(ids.frank, { kind: 'ban', hours: 1, reason: 'And spam' });
+    assert.equal((await boot(token)).data.ban.reason, 'And spam');
+    await unban(ids.frank);
+    assert.equal((await boot(token)).data.restriction.reason, 'Too much Sonnet');
+
+    assert.equal((await api(`/api/admin/users/${ids.frank}/ban?kind=restrict`, { admin: true, method: 'DELETE' })).status, 200);
+    b = (await boot(token)).data;
+    assert.equal(b.restriction, null);
+    assert.equal(b.user.allowSonnet, true);
+    assert.equal(b.quota, null);
+
+    await ban(ids.frank, { kind: 'restrict', hours: 1, noWeb: true, reason: 'Short one' });
+    await db.query("UPDATE bans SET ends_at = now() - interval '1 second' WHERE user_id = $1 AND kind = 'restrict' AND lifted_at IS NULL", [ids.frank]);
+    b = (await boot(token)).data;
+    assert.equal(b.restriction, null, 'it ends by itself');
+    assert.equal(b.user.allowWeb, true);
+  });
+
+  await t.test('a terminated account’s username and browser can’t sign up again', async () => {
+    const signup = (username, device) => api('/api/signup', { method: 'POST', device, body: { username, password: 'new-pass-1' } });
+    assert.equal((await signup('Carol', 'fresh-browser-0000001')).status, 409, 'deleted after termination, still reserved');
+    const gina = 'gina-browser-000000001', other = 'other-browser-00000001';
+    assert.equal((await boot(await session(ids.gina))).status, 200);
+    await api('/api/boot', { token: await session(ids.gina), device: gina });
+    await api('/api/boot', { token: await session(ids.hank), device: gina }); // hank uses the same browser
+    assert.equal((await ban(ids.gina, { kind: 'terminate', reason: 'Threats' })).status, 200);
+    assert.equal((await signup('gina2', gina)).status, 403);
+    assert.match((await signup('gina3', gina)).data.error, /terminated/);
+    assert.equal((await signup('ivy', other)).status, 200, 'other browsers are fine');
+    const hank = (await api('/api/admin/users', { admin: true })).data.users.find(u => u.id === ids.hank);
+    assert.deepEqual(hank.linked, ['gina']);
+    await unban(ids.gina);
+    assert.equal((await signup('gina4', gina)).status, 200, 'a reversed termination stops blocking');
   });
 });

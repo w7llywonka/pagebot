@@ -66,7 +66,7 @@ body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition:background-color .3
 /* pop-ups sit over the chat, so they get a plain backing (no blur) to stay legible; the settings sheet hides the chat behind it instead */
 :root[data-theme=clear] .menu,:root[data-theme=clear] .rbar,:root[data-theme=clear] #jump,:root[data-theme=clear] .cc{background:var(--pop);text-shadow:none}
 :root[data-theme=clear] .menu svg,:root[data-theme=clear] .rbar svg,:root[data-theme=clear] #jump svg{filter:none}
-:root[data-theme=clear] body.sheet>#log,:root[data-theme=clear] body.sheet>#composer,:root[data-theme=clear] body.sheet>#ann,:root[data-theme=clear] body.sheet>#upd{visibility:hidden}
+:root[data-theme=clear] body.sheet>#log,:root[data-theme=clear] body.sheet>#composer,:root[data-theme=clear] body.sheet>#ann,:root[data-theme=clear] body.sheet>#rst,:root[data-theme=clear] body.sheet>#upd{visibility:hidden}
 :root[data-theme=clear] #wrap{background:var(--pop);text-shadow:none}
 /* on /chat and in the pop-up window there's no page behind, so glass and clear sit on a colorful backdrop */
 :root.nohost[data-theme=glass],:root.nohost[data-theme=clear]{background:radial-gradient(60% 50% at 15% 20%,#5b7cff 0,transparent 70%),radial-gradient(50% 45% at 85% 25%,#c35bff 0,transparent 70%),radial-gradient(55% 50% at 70% 85%,#ff7a9c 0,transparent 70%),radial-gradient(50% 50% at 20% 85%,#2ec5b6 0,transparent 70%),#1a1d2e;background-attachment:fixed}
@@ -231,6 +231,33 @@ textarea:focus,input:focus{border-color:var(--focus)}
 #memoryStatus{min-height:1.45em;overflow-wrap:anywhere}
 #memoryStatus.error{color:var(--err)}
 
+/* slash commands: the list above the message box (it's a .menu, so glass and clear give it their backing) */
+.menu.slash{right:10px;min-width:0;display:flex;flex-direction:column;padding:4px}
+body.standalone #composer .menu.slash{right:14px}
+:root:is([data-theme=glass],[data-theme=clear]) .menu.slash{background-image:linear-gradient(var(--pop),var(--pop))} /* a second layer: the list is long and sits over the chat's own text */
+.slash .sl{position:relative;max-height:min(264px,calc(100vh - 170px));overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.slash .mh{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:650;padding:6px 9px 2px}
+.slash .sl button{padding:5px 9px;gap:9px}
+.menu.slash .sl button:hover{background:none} /* the pointer moves the highlight, so only one row is ever lit */
+.menu.slash .sl button[aria-selected=true]{background:var(--chip-on)}
+.slash .sl button[aria-disabled=true]{cursor:default}
+.slash .sl button[aria-disabled=true] :is(.mi,b){opacity:.5}
+.slash .mt b{font-weight:600}
+.slash .ar{color:var(--muted);font-style:italic;margin-left:5px;font-size:12px}
+.slash .md{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slash .none{padding:7px 9px;font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.slash .none.err{color:var(--err)}
+.slash .tip{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center;margin-top:3px}
+.menu.slash .tip .mini{display:inline;width:auto;margin-left:auto;padding:0;border-radius:0;font-size:11.5px;background:none} /* not a .menu row */
+@media (pointer:coarse){.slash .sl button{min-height:40px}.slash .keys{display:none}}
+.msg .ctag{display:inline-block;padding:0 5px;margin-right:1px;border-radius:5px;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);font-weight:650;font-family:var(--mono);font-size:10.5px}
+.starters button.mine{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));font-family:var(--mono);font-size:12px}
+#cmdStatus{min-height:1.45em;overflow-wrap:anywhere}
+#cmdStatus.error{color:var(--err)}
+.memory-form label.cmdst{font-weight:400;max-width:none;align-items:center}
+.memory-form .cmdst input{width:auto;min-width:0;padding:0;margin:0;border:0}
+#cmdStarterNote{margin:0}
+
 /* lock screen */
 #login{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px 24px;text-align:center;overflow-y:auto;outline:none}
 #login.leave{animation:fadeOut .2s ease forwards}
@@ -277,7 +304,8 @@ textarea:focus,input:focus{border-color:var(--focus)}
 #wait.in .hg::after{opacity:0}
 
 /* banned or terminated: the notice, like a game's */
-#ban{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:22px 26px;text-align:center;overflow:auto}
+#ban{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:10px;padding:22px 26px;text-align:center;overflow:auto}
+#ban>*{flex-shrink:0} /* a long notice scrolls instead of squashing */
 #ban h2{margin:6px 0 0;font-size:18px}
 #ban p{margin:0;color:var(--muted);font-size:13px;max-width:310px}
 #ban .bk{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--err)}
@@ -298,6 +326,11 @@ textarea:focus,input:focus{border-color:var(--focus)}
 #banReact:disabled{opacity:.45;cursor:default}
 #banErr{color:var(--err)!important;min-height:0}
 #banFine{font-size:11.5px}
+#banAppeal{width:100%;max-width:310px;display:flex;flex-direction:column;gap:8px;align-items:center}
+#banAppealForm{width:100%;display:flex;flex-direction:column;gap:8px}
+#banAppealText{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px;outline:none;resize:vertical;min-height:70px;font:inherit;font-size:13px;color:var(--text)}
+#banAppealState{width:100%;text-align:left;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:8px 11px;font-size:12.5px!important;color:var(--text)!important;white-space:pre-wrap;overflow-wrap:anywhere}
+#banAppealState b{font-weight:650}
 
 /* settings: today's usage and the account */
 .qbar{height:8px;border-radius:99px;background:color-mix(in srgb,var(--accent) 16%,var(--panel));overflow:hidden}
@@ -410,6 +443,12 @@ body.docked:not(.min) header{cursor:default}
 #ann .ab{flex:1;min-width:0}
 #annText{font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:110px;overflow-y:auto}
 #annMeta{font-size:11px;color:var(--muted);margin-top:3px}
+/* restricted: what's taken away, until when, and why */
+#rst{flex:none;display:flex;gap:10px;align-items:flex-start;margin:10px 10px 0;padding:9px 9px 9px 11px;border-radius:12px;background:color-mix(in srgb,#e0a030 12%,var(--panel));border:1px solid color-mix(in srgb,#e0a030 45%,var(--line))}
+#rst .ai{flex:none;font-size:15px;line-height:1.35}
+#rst .ab{flex:1;min-width:0;font-size:13px;overflow-wrap:anywhere}
+#rstMeta{font-size:11px;color:var(--muted);margin-top:3px;white-space:pre-wrap}
+#rstX{flex:none;background:none;border:0;color:var(--muted);font-size:16px;line-height:1;padding:2px 4px;cursor:pointer}
 #annX{flex:none;align-self:center;background:var(--accent);color:var(--on-accent);border:0;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer}
 /* a newer pagebot is out than the bookmark that opened this panel */
 #upd{flex:none;display:flex;align-items:center;gap:8px;margin:10px 10px 0;padding:5px 5px 5px 11px;border-radius:10px;background:var(--chip-on);border:1px solid var(--line);font-size:12.5px;animation:annIn .4s cubic-bezier(.2,.8,.2,1) both}
@@ -482,6 +521,69 @@ body.docked:not(.min) header{cursor:default}
 .wload{margin:auto;display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);font-size:13px;text-align:center;padding:20px;cursor:default}
 .wload p{margin:0}
 
+/* chat history: a sheet over the chat, like settings */
+#hist{position:absolute;left:0;right:0;top:var(--hd);bottom:0;z-index:2;background:var(--bg);display:flex;flex-direction:column;animation:sheetIn .2s cubic-bezier(.2,.8,.2,1)}
+:root[data-theme=glass] #hist{background:var(--pop);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+:root[data-theme=clear] body.hist>#log,:root[data-theme=clear] body.hist>#composer,:root[data-theme=clear] body.hist>#ann,:root[data-theme=clear] body.hist>#rst,:root[data-theme=clear] body.hist>#upd{visibility:hidden}
+body.hist #jump{display:none}
+.title .name{min-width:0;overflow:hidden;text-overflow:ellipsis} /* gives way to the header buttons in a narrow panel */
+.hsearch{flex:none;padding:10px 10px 4px}
+#histQ{width:100%;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 11px;outline:none}
+#histList{flex:1;min-height:0;overflow-y:auto;padding:0 6px 14px;scrollbar-width:thin}
+.hday{padding:12px 8px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:650}
+.hrow{display:flex;align-items:center;gap:2px;border-radius:10px;padding-right:3px}
+.hrow:hover,.hrow:focus-within{background:var(--chip-on)}
+.hrow.wait{opacity:.55;pointer-events:none}
+.hrow.err .hsub{color:var(--err)}
+.hopen{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;background:none;border:0;padding:7px 8px;text-align:left;cursor:pointer;border-radius:10px}
+.htitle,.hsub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.htitle{font-size:13px;font-weight:600}
+.hrow.on .htitle::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin:0 6px 1px 0;vertical-align:middle}
+.hsub{font-size:11.5px;color:var(--muted)}
+.hsnip{font-size:12px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.hsnip mark{background:color-mix(in srgb,var(--accent) 30%,transparent);color:var(--text);border-radius:3px;padding:0 1px}
+.hdel{opacity:0}
+.hrow:hover .hdel,.hrow:focus-within .hdel{opacity:1}
+@media (hover:none){.hdel{opacity:1}}
+.hask{flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:8px}
+.hask p{flex:1 1 160px;margin:0;font-size:12.5px;overflow-wrap:anywhere}
+.hask p span{display:block;margin-top:1px;font-size:11.5px;color:var(--muted)}
+.hask .ghost{padding:4px 10px;font-size:12.5px}
+.ghost.bad{border-color:color-mix(in srgb,var(--err) 55%,var(--line));color:var(--err)}
+#hist .ghost:disabled{opacity:.5;cursor:default}
+.hstate{margin:28px auto 0;max-width:272px;text-align:center;color:var(--muted);font-size:13px}
+.hstate b{display:block;margin-bottom:4px;color:var(--text);font-size:14px}
+.hstate .typing{display:flex;justify-content:center;margin-bottom:8px}
+.hmore{display:block;margin:10px auto 0}
+.hfoot{margin:18px 8px 0;padding-top:12px;border-top:1px solid var(--line)}
+.hfoot .fine{margin:4px 0 0}
+.hfoot .hask{padding:0}
+.hbusy{margin:8px 8px 0}
+/* a reopened question: what was highlighted goes above it, and quotes from a page you're not on only show on hover */
+.msg .hq{font-size:11.5px;color:var(--muted);border-left:2px solid color-mix(in srgb,var(--accent) 55%,var(--line));padding:1px 0 1px 7px;margin:1px 0 5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.cite.away{opacity:.6;cursor:help}
+.cite.away:hover{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+/* pdf uploads: the pill while it uploads and once it's attached, the drop overlay, the chip in your message, and the
+   box a PDF quote's marker opens (it shows the page instead of finding the passage on the page) */
+.pill.pdf{flex:0 1 auto;min-width:0;max-width:230px}
+.pill.pdf .pl,.pills.tight .pill.pdf .pl{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.pill .spn{flex:none;width:11px;height:11px;border-radius:50%;border:2px solid color-mix(in srgb,var(--text) 22%,transparent);border-top-color:var(--accent);animation:pbSpin .8s linear infinite}
+@keyframes pbSpin{to{transform:rotate(360deg)}}
+.fchip{display:flex;align-items:center;gap:5px;max-width:100%;width:max-content;margin-top:6px;padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 60%,transparent);font-size:12px;font-weight:400;color:var(--text)}
+.fchip .fn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fchip .fpg{flex:none;color:var(--muted)}
+.fchip.gone{opacity:.7}
+#drop{position:fixed;inset:6px;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:16px;border:2px dashed var(--accent);border-radius:14px;background:var(--pop,color-mix(in srgb,var(--bg) 92%,transparent));color:var(--text);text-align:center;pointer-events:none;text-shadow:none;animation:fadeIn .12s ease both}
+#drop b{font-size:15px}
+#drop span{font-size:12.5px;color:var(--muted)}
+:root[data-theme=glass] #drop{background:rgba(26,28,38,.94)} /* no blur here: a second backdrop filter over the panel's own tears in Chrome */
+:root[data-theme=glass][data-page=light] #drop{background:rgba(250,251,255,.95)}
+.cite.pg{border-radius:5px}
+.cpop{position:fixed;z-index:30;max-width:min(320px,calc(100vw - 16px));max-height:45vh;overflow-y:auto;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--pop,var(--panel));color:var(--text);font-size:12.5px;line-height:1.45;box-shadow:0 10px 28px rgba(0,0,0,.3);animation:menuIn .12s ease both;overflow-wrap:anywhere}
+.cpop .cw{margin-top:6px;font-size:11.5px;color:var(--muted);font-weight:600}
+:root[data-theme=glass] .cpop{-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+:root[data-theme=clear] .cpop{text-shadow:none}
+
 /* full-page chat at /chat */
 body.standalone{--hd:54px;max-width:780px;margin:0 auto;border-left:1px solid var(--line);border-right:1px solid var(--line)}
 body.standalone header{padding:0 12px 0 18px}
@@ -491,6 +593,38 @@ body.standalone #composer .menu{left:14px}
 body.standalone #composer .menu.right{left:auto;right:14px}
 body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 @media (max-width:780px){body.standalone{border:0}}
+/* page actions: the 🖱 Actions pill, step lines and approval cards in answers, and the permission setting */
+:root{--warn:#e0a030}
+:root:is([data-theme=paper],[data-theme=sakura],[data-page=light]){--warn:#9a5a00}
+.pill .au{font-size:10px;font-weight:750;letter-spacing:.4px;text-transform:uppercase;color:var(--warn)}
+.pill.auto{border-color:color-mix(in srgb,var(--warn) 70%,var(--line))}
+.astep{display:flex;gap:5px;align-items:baseline}
+.astep .ai{flex:none;width:16px;text-align:center}
+.astep .at{min-width:0;overflow-wrap:anywhere}
+.astep.live .at{animation:breathe 1.2s ease-in-out infinite}
+.astep.fail .at{color:var(--err)}
+.acard{margin:3px 0 5px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--code);color:var(--text);font-size:12.5px;animation:msgIn .18s ease both}
+.acard.nav{border-color:color-mix(in srgb,var(--warn) 65%,var(--line))}
+.acard .aq{display:flex;gap:5px;font-weight:600;overflow-wrap:anywhere}
+.acard .aq span:first-child{flex:none;width:16px;text-align:center}
+.acard .aw{margin-top:5px;color:var(--warn);font-size:12px}
+.acard .ab{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.acard button{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer}
+.acard button:hover{border-color:var(--focus)}
+.acard .aok{background:var(--accent);border-color:transparent;color:var(--on-accent);font-weight:600}
+:root[data-theme=clear] .acard{background:var(--pop);text-shadow:none}
+:root[data-theme=glass] .acard{background:var(--pop)}
+.aopts{display:flex;flex-direction:column;gap:6px}
+.aopt{display:flex;flex-direction:column;gap:1px;width:100%;text-align:left;background:none;border:1px solid var(--line);border-radius:10px;padding:8px 11px;cursor:pointer;color:var(--muted);font-size:12px}
+.aopt b{color:var(--text);font-size:13px;font-weight:600}
+.aopt:hover{border-color:var(--focus)}
+.aopt.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);background:var(--chip-on)}
+#actSkip.on{border-color:var(--warn);box-shadow:0 0 0 1px var(--warn)}
+#actSkip.on b::after{content:" · on";color:var(--warn)}
+.awarn{margin-top:8px;padding:9px 11px;border-radius:10px;border:1px solid color-mix(in srgb,var(--warn) 60%,var(--line));background:color-mix(in srgb,var(--warn) 12%,var(--panel));font-size:12.5px}
+.awarn p{margin:0 0 8px}
+.awarn .warnb{border-color:color-mix(in srgb,var(--warn) 70%,var(--line));color:var(--text);font-weight:600}
+:root[data-theme=clear] .awarn{background:var(--pop);text-shadow:none}
 </style>
 </head>
 <body class="booting" tabindex="-1">
@@ -514,6 +648,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 <header>
   <div class="title"><span class="dot"></span><span class="name">pagebot</span><span class="mstat" id="mstat"><span class="typing"><i></i><i></i><i></i></span></span></div>
   <button class="ib hide-min" id="newBtn" title="New chat" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="ib hide-min" id="histBtn" title="Chat history" aria-label="Chat history" aria-controls="hist" aria-expanded="false" hidden><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></button>
   <button class="ib hide-min" id="setBtn" title="Settings" hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <button class="ib hide-min" id="lockBtn" title="Lock" hidden><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button>
   <button class="ib hide-min" id="dockBtn" title="Dock to the side" hidden><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
@@ -523,6 +658,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 <div class="grip gl" data-g="l" aria-hidden="true"></div><div class="grip gt" data-g="t" aria-hidden="true"></div><div class="grip gc" data-g="c" aria-hidden="true"></div>
 
 <div id="upd" role="status" hidden><span>✨ A new version of pagebot is out.</span><a id="updGo" href="/?update" target="_blank" rel="noopener">Get it ↗</a><button id="updX" type="button" title="Not now" aria-label="Not now">×</button></div>
+<div id="rst" role="status" hidden><span class="ai" aria-hidden="true">⚠️</span><div class="ab"><div id="rstText"></div><div id="rstMeta"></div></div><button id="rstX" type="button" title="Hide" aria-label="Hide">×</button></div>
 <div id="ann" role="status" hidden><span class="ai" aria-hidden="true">📣</span><div class="ab"><div id="annText"></div><div id="annMeta"></div></div><button id="annX" type="button">Got it</button></div>
 
 <form id="login" autocomplete="off" tabindex="-1">
@@ -569,6 +705,14 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
   <label class="bagree" id="banAgreeRow" hidden><input type="checkbox" id="banAgree"> I agree to follow pagebot’s rules from now on.</label>
   <button class="send" id="banReact" type="button" disabled hidden>Re-activate my account</button>
   <p id="banErr" role="alert"></p>
+  <div id="banAppeal" hidden>
+    <button class="link" id="banAppealOpen" type="button">Think this is wrong? Appeal it</button>
+    <form id="banAppealForm" hidden>
+      <textarea id="banAppealText" maxlength="1000" rows="3" placeholder="Tell the owner why they should take another look." aria-label="Your appeal"></textarea>
+      <button class="send" type="submit" id="banAppealSend">Send appeal</button>
+    </form>
+    <p id="banAppealState" hidden></p>
+  </div>
   <p class="fine" id="banFine"></p>
   <div class="links"><button class="link" id="banOut" type="button">Sign out</button></div>
 </div>
@@ -598,6 +742,23 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
       <p class="fine" id="memoryStatus" role="status" aria-live="polite"></p>
     </form>
   </section>
+  <section id="cmdSec" aria-labelledby="cmdTitle">
+    <h3 id="cmdTitle">Slash commands</h3>
+    <p class="fine">Type / in the message box for a list of commands. Save your own for prompts you send a lot. Put {input} where the words you type after the command should go; without it, they go at the end.</p>
+    <form class="memory-form" id="cmdForm" autocomplete="off">
+      <label for="cmdList">Your commands</label>
+      <select id="cmdList"><option value="">New command…</option></select>
+      <label for="cmdName">Name</label>
+      <input id="cmdName" type="text" maxlength="25" placeholder="tldr" autocapitalize="off" autocomplete="off" spellcheck="false" aria-describedby="cmdNameHint">
+      <p class="fine" id="cmdNameHint">Letters, numbers, - and _, starting with a letter (up to 24).</p>
+      <label for="cmdPrompt">Prompt</label>
+      <textarea id="cmdPrompt" rows="4" maxlength="2000" placeholder="For example: Translate the highlighted text into {input}." aria-describedby="cmdCount"></textarea>
+      <p class="fine" id="cmdCount">0 / 2,000 characters</p>
+      <label class="bagree cmdst"><input type="checkbox" id="cmdStarter"> Show on new chats <span class="fine" id="cmdStarterNote"></span></label>
+      <div class="acct"><button class="ghost" id="cmdSave" type="submit" disabled>Save command</button><button class="ghost" id="cmdDelete" type="button" disabled>Delete command</button></div>
+      <p class="fine" id="cmdStatus" role="status" aria-live="polite"></p>
+    </form>
+  </section>
   <section id="wrapSec"><button class="wcta" id="wrapBtn" type="button"><b>✨ Your pagebot Wrapped</b><span>Your year in questions, sites, hours and streaks</span></button></section>
   <section><h3>Appearance</h3><div class="themes" id="themes"></div>
     <p class="fine" id="glassNote" hidden>To make <span id="glassName">Glass</span> see-through on every site, including dark-mode ones, drag the button from the pagebot homepage to your bookmarks bar again.</p></section>
@@ -606,6 +767,18 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
     <div class="seg" id="tokSeg"></div>
     <p class="fine">Maximum tokens per reply. Higher limits allow longer answers and use more of your allowance.</p>
     <p class="fine" id="tokNote" hidden></p>
+  </section>
+  <section id="actSec">
+    <h3>Page actions</h3>
+    <div class="aopts" role="radiogroup" aria-label="Page actions permissions">
+      <button class="aopt" id="actAsk" type="button" role="radio"><b>Ask before each click or edit</b>pagebot shows what it’s about to do and waits for you. Reading and highlighting the page don’t ask.</button>
+      <button class="aopt" id="actSkip" type="button" role="radio"><b>Skip all permissions</b>Clicks, typing and choices run without asking, on every site.</button>
+    </div>
+    <div class="awarn" id="actWarn" role="alertdialog" aria-labelledby="actWarnText" hidden>
+      <p id="actWarnText"><b>⚠ Only if you trust the pages you use it on.</b> A web page can hide instructions meant to steer pagebot. With permissions skipped, pagebot clicks, types and picks options on any page without checking with you first.</p>
+      <div class="acct"><button class="ghost warnb" id="actYes" type="button">Skip permissions</button><button class="ghost" id="actNo" type="button">Cancel</button></div>
+    </div>
+    <p class="fine">Turn page actions on in the + menu. Always, even when skipping: pagebot never reads or types into password, payment card or file fields, takes at most 15 steps per question, and asks before a click that leaves the page.</p>
   </section>
   <section>
     <h3>Account</h3>
@@ -633,6 +806,11 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 
 <div id="wrap" hidden></div>
 
+<div id="hist" role="region" aria-label="Chat history" hidden>
+  <div class="hsearch"><input id="histQ" type="search" placeholder="Search your chats" aria-label="Search your chats" maxlength="100" autocomplete="off" spellcheck="false"></div>
+  <div id="histList"></div>
+</div>
+
 <div id="composer" hidden>
   <button id="jump" type="button" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>Jump to latest</button>
   <div class="box">
@@ -641,10 +819,12 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
     <div class="bar">
       <button class="tb" id="addBtn" type="button" title="Screenshot, page text, web search" aria-label="Add" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
       <div class="pills">
+        <button class="pill pdf" id="pdfPill" type="button" hidden><span class="pi">📄</span><span class="pl"></span><i>×</i></button>
         <button class="pill" id="pagePill" type="button" title="This page's text goes with your next message. Click to leave it out." hidden>📄<span class="pl">Page</span><i>×</i></button>
         <button class="pill sel" id="selPill" type="button" hidden><span></span><i>×</i></button>
         <button class="pill" id="areaPill" type="button" title="Every message sends a new screenshot of the area you picked. Click to turn it off." hidden><span class="pi">⛶</span><span class="pl">Region</span><i>×</i></button>
         <button class="pill" id="webPill" type="button" title="Web search is on. Click to turn it off." hidden>🌐<span class="pl">Web</span><i>×</i></button>
+        <button class="pill" id="actPill" type="button" hidden>🖱<span class="pl">Actions</span><b class="au" id="actTag" hidden>auto</b><i>×</i></button>
       </div>
       <button class="tb model" id="modelBtn" type="button" aria-haspopup="menu" aria-expanded="false"><span id="modelName">Haiku 5.5</span><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
       <button class="go" id="sendBtn" type="button" title="Send (Enter)" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
@@ -653,13 +833,19 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
   <div class="menu" id="addMenu" role="menu" hidden>
     <button type="button" role="menuitem" id="shotBtn"><span class="mi">📷</span><span class="mt">Screenshot this tab<span class="md" id="shotNote" hidden>On for every message</span></span></button>
     <button type="button" role="menuitem" id="areaBtn"><span class="mi">⛶</span><span class="mt">Screenshot a region<span class="md" id="areaNote" hidden>On for every message · pick again to change it</span></span></button>
+    <button type="button" role="menuitem" id="pdfBtn"><span class="mi">📎</span><span class="mt">Upload a PDF<span class="md" id="pdfNote">Up to 10 MB and 100 pages</span></span></button>
     <button type="button" role="menuitemcheckbox" id="pageBtn" aria-checked="false"><span class="mi">📄</span><span class="mt">Page text</span><span class="ck">✓</span></button>
     <button type="button" role="menuitemcheckbox" id="webBtn" aria-checked="false"><span class="mi">🌐</span><span class="mt">Web search<span class="md" id="webNote" hidden>Not turned on for your account</span></span><span class="ck">✓</span></button>
+    <button type="button" role="menuitemcheckbox" id="actBtn" aria-checked="false"><span class="mi">🖱</span><span class="mt">Page actions<span class="md" id="actNote"></span></span><span class="ck">✓</span></button>
     <button type="button" role="menuitem" id="stopBtn" hidden><span class="mi">⏹</span><span class="mt">Stop sharing this tab</span></button>
-    <div class="tip">You can also paste an image.</div>
+    <div class="tip">You can also paste an image, or drop a PDF on the panel.</div>
   </div>
+  <input type="file" id="pdfFile" accept="application/pdf,.pdf" hidden>
   <div class="menu right" id="modelMenu" role="menu" hidden></div>
+  <div class="menu slash" id="slashMenu" hidden></div>
 </div>
+
+<div id="drop" hidden aria-hidden="true"><b>📄 Drop a PDF to add it</b><span>Up to 10 MB and 100 pages</span></div>
 
 <script>
 (() => {
@@ -679,6 +865,7 @@ const hostV6 = hostV >= 6; // ...and can drop the panel's shadow for the clear t
 const hostV7 = hostV >= 7; // ...and can resize the panel and dock it to the side
 // v7 pages (also behind the pop-up window) send highlights as you make them and can find a quoted passage
 const pageV7 = hostV7 || (popup && ver >= 7);
+const pageV9 = hostV >= 9 || (popup && ver >= 9); // ...and can run page actions (find, fill, click and the rest)
 const standalone = !embedded && !popup;
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const body = document.body;
@@ -690,6 +877,9 @@ const store = {
 };
 
 let token = store.get('pb_token');
+// a random id for this browser, so the owner can keep a terminated account's browser from signing up again
+let device = store.get('pb_dev');
+if (!/^[A-Za-z0-9_-]{16,64}$/.test(device || '')) { device = Array.from(crypto.getRandomValues(new Uint8Array(18)), x => x.toString(16).padStart(2, '0')).join(''); store.set('pb_dev', device); }
 let cfg = null; // /api/boot
 let prefs = { theme: store.get('pb_theme') || 'ember', model: 'haiku', web: false };
 let limits = { maxTokens: 2048, pageTokens: 5000, maxSearches: 3 };
@@ -704,7 +894,7 @@ let ctrl = null, chatGen = 0; // stops the answer being streamed; which chat an 
 // a lock or an approval never pulls your typing out of the page or out of another tab.
 const shown = e => !!e && e.getClientRects().length > 0;
 function viewTarget() {
-  if (view === 'chat') return sheetOpen || wrap ? null : $('#q');
+  if (view === 'chat') return histOpen ? $('#histQ') : sheetOpen || wrap ? null : $('#q');
   if (view === 'lock') return pinMode() ? $('#login') : lockTarget || $('#uName'); // renderLock picks the box
   return null;
 }
@@ -741,7 +931,7 @@ addEventListener('message', e => {
   const d = e.data || {};
   if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); }
   else if (d.type === 'restore') { setMin(false); claim(); }
-  else if (d.type === 'open') { claim(); refreshOnOpen(); }
+  else if (d.type === 'open') { claim(); refreshOnOpen(); if (histOpen) loadHist(); } // history left open while the panel was hidden gets fresh
   else if (d.type === 'hidden') release();
   else if (d.type === 'sel') setSel(String(d.text || ''));
 });
@@ -971,6 +1161,8 @@ function markQuotes(out, text, ev) {
   out.querySelectorAll('.cite').forEach(b => {
     const quote = ev.quotes[+b.dataset.q - 1] || '';
     const short = quote.length > 280 ? quote.slice(0, 280) + '…' : quote;
+    const pg = ev.pdfPages?.[+b.dataset.q - 1];
+    if (pg) return pdfCite(b, quote, short, pg); // pdf uploads: shows the quote and its page instead
     b.title = `“${short}”\nShow it on the page`;
     b.setAttribute('aria-label', `Show quote ${b.dataset.q} on the page`);
     b.onclick = async () => {
@@ -981,17 +1173,43 @@ function markQuotes(out, text, ev) {
     };
   });
 }
-// one click to ask the usual first questions about a page
-const STARTERS = [
-  ['Summarize this page', 'Summarize this page.'],
-  ['Key points', 'What are the key points of this page?'],
-  ['Explain it simply', 'Explain this page simply, as if I’m new to the topic.'],
+// ---- slash commands: the built-ins ----
+// What you can type after "/" besides your own commands. Each one is { name, icon, hint } plus one of:
+//   prompt(what): sends that text, like your own commands do (`what` is "this page", "the highlighted text", …)
+//   run(arg):     does something in the panel and sends nothing. `arg` is the text typed after the command, which stays
+//                 in the message box unless `takes` is set. `mod` ones (/web, /page) with text after them apply to
+//                 just that message instead. With `alone`, it's only a command when nothing follows it.
+// Optional: why() says why it can't run right now (the list greys it out with that reason), and hide() leaves it out of
+// the list where it can never work. No command ever changes a permission setting. Other features add theirs with one
+// line here, as /history, /pdf and /actions do below; the name must also go in BUILTIN_COMMANDS in server.js.
+const canShoot = !!navigator.mediaDevices?.getDisplayMedia;
+const noShot = () => canShoot ? '' : 'Screenshots aren’t supported in this browser — paste one instead.';
+const BUILTINS = [
+  { name: 'summarize', icon: '📝', hint: standalone ? 'Summarize what you add or paste' : 'Summarize this page', starter: 'Summarize this page', prompt: w => `Summarize ${w}.` },
+  { name: 'keypoints', icon: '🔑', hint: 'The key points', starter: 'Key points', prompt: w => `What are the key points of ${w}?` },
+  { name: 'simple', icon: '💡', hint: 'Explain it simply', starter: 'Explain it simply', prompt: w => `Explain ${w} simply, as if I’m new to the topic.` },
+  { name: 'new', icon: '➕', hint: 'Start a new chat', run: () => startNewChat() },
+  { name: 'history', icon: '🕘', hint: 'Your past chats', takes: true, run: arg => openHistory(arg) },
+  { name: 'web', icon: '🌐', hint: 'Search the web for one message, or turn web search on or off', mod: 'web', run: () => $('#webBtn').click(),
+    why: () => !isUser() || cfg?.user?.allowWeb ? '' : cfg?.restriction?.limits?.noWeb ? 'Web search is off while your account is restricted.' : 'Web search isn’t turned on for your account.' },
+  { name: 'page', icon: '📄', hint: 'Send the page text with one message, or turn it on or off', mod: 'page', run: () => $('#pageBtn').click(),
+    why: () => standalone ? 'Needs the bookmark: open pagebot on a page to send its text.' : '' },
+  { name: 'screenshot', icon: '📷', hint: standalone ? 'Screenshot a tab or window' : 'Screenshot this tab', run: () => $('#shotBtn').click(), why: noShot },
+  { name: 'region', icon: '⛶', hint: 'Screenshot a region', run: () => $('#areaBtn').click(), why: noShot },
+  { name: 'pdf', icon: '📎', hint: 'Attach a PDF', run: () => pickPdf(),
+    why: () => view !== 'chat' ? 'PDFs go with a message in a chat.' : pdfOk() ? '' : cfg?.restriction?.limits?.noPdf ? 'PDF uploads are off while your account is restricted.' : 'PDF uploads aren’t turned on for your account.' }, // ◆ isn't a reason: picking one switches the chat to Haiku, as the + menu does
+  { name: 'actions', icon: '🖱', hint: 'Turn page actions on or off', takes: true, run: a => toggleActions(a === 'on' ? true : a === 'off' ? false : undefined),
+    why: () => { const w = actWhy(); return w ? `Page actions: ${w.charAt(0).toLowerCase() + w.slice(1)}.` : ''; } },
+  { name: 'settings', icon: '⚙', hint: 'Open settings', run: () => { openSheet(); $('#setBtn').focus(); } }, // like clicking ⚙, so typing doesn't go to the hidden box
+  { name: 'help', icon: '❔', hint: 'Show every command', alone: true, takes: true, run: () => slashHelp() }, // "/help me with…" is a question
 ];
+// one click to ask the usual first questions about a page (the same text as /summarize, /keypoints and /simple)
+const STARTERS = BUILTINS.filter(c => c.starter).map(c => [c.starter, c.prompt('this page')]);
 function empty() {
   stick = true; jump.hidden = true;
   if (standalone)
-    return void (log.innerHTML = '<div class="empty"><b>Ask anything.</b>Use + to screenshot a tab or turn on web search, or paste an image.</div>');
-  log.innerHTML = '<div class="empty"><b>Ask about this page.</b>The page text goes with your first message, and anything you highlight is included. Use + for a screenshot or web search.' +
+    return void (log.innerHTML = '<div class="empty"><b>Ask anything.</b>Use + to add a PDF, screenshot a tab or turn on web search. You can also drop in a PDF or paste an image. Type / for commands.</div>', slashStarters());
+  log.innerHTML = '<div class="empty"><b>Ask about this page.</b>The page text goes with your first message, and anything you highlight is included. Use + for a PDF, a screenshot or web search, or type / for commands.' +
     '</div>';
   const box = el('div', 'starters');
   for (const [label, text] of STARTERS) {
@@ -1000,30 +1218,31 @@ function empty() {
     box.appendChild(b);
   }
   log.querySelector('.empty').appendChild(box);
+  slashStarters(box); // slash commands: yours that you chose to show on new chats
 }
 
 // ---- views: the chat, the lock screen (owner passcode/password, account sign-in or sign-up), and waiting for approval ----
 const isUser = () => cfg?.who === 'user';
 function setHeader(chat) {
-  $('#newBtn').hidden = $('#setBtn').hidden = !chat;
+  $('#newBtn').hidden = $('#setBtn').hidden = $('#histBtn').hidden = !chat;
   // anyone with a passcode (the owner or an account) can lock right away
   const canLock = chat && (cfg?.who === 'owner' ? cfg?.lock === 'passcode' : !!cfg?.user?.passcode);
   $('#lockBtn').hidden = $('#lockNow').hidden = !canLock;
 }
 function hideViews() {
   $('#login').style.display = 'none'; $('#login').classList.remove('leave');
-  $('#wait').hidden = true; $('#ban').hidden = true; log.hidden = true; $('#composer').hidden = true; $('#ann').hidden = true; $('#upd').hidden = true;
-  stopWaitPoll(); closeWrap();
+  $('#wait').hidden = true; $('#ban').hidden = true; log.hidden = true; $('#composer').hidden = true; $('#ann').hidden = true; $('#rst').hidden = true; $('#upd').hidden = true;
+  stopWaitPoll(); closeWrap(); closeSlash(); closeHistory(); // lock, logout, an account switch or a ban: history closes and late answers are dropped
 }
 let chatWho = null; // whose chat is in the log
 const whoKey = () => cfg?.who === 'user' ? 'u:' + (cfg.user?.name || '').toLowerCase() : cfg?.who || null;
 function showChat(enter) {
   hideViews(); view = 'chat';
   const k = whoKey();
-  if (chatWho && k !== chatWho) { leaveChat(); resetSiteMemory(); log.replaceChildren(); clearImg(); setPage(true); stopStream(); setArea(null); annGone = 0; }
+  if (chatWho && k !== chatWho) { leaveChat(); resetSiteMemory(); log.replaceChildren(); clearImg(); clearPdf(); setPage(true); stopStream(); setArea(null); annGone = 0; }
   chatWho = k;
   log.hidden = false; $('#composer').hidden = false;
-  setHeader(true); renderAccount(); renderAnn(); renderUpd();
+  setHeader(true); renderAccount(); renderAnn(); renderRst(); renderUpd();
   if (!log.children.length) empty();
   if (enter) { body.classList.add('enter'); setTimeout(() => body.classList.remove('enter'), 600); }
   lastActive = Date.now();
@@ -1080,7 +1299,7 @@ function renderLock(msg) {
   $('#lockTitle').textContent = usePin || owner ? 'Locked' : signup ? 'Request access' : 'Sign in';
   $('#lockSub').textContent = usePin ? (who.name ? `Enter your passcode, ${who.name}.` : 'Enter your 5-digit passcode.')
     : owner ? (lock === 'none' ? 'No password is set yet — set one in /admin.' : 'Enter your pagebot password.')
-    : signup ? 'Pick a username and password. You can start once the owner accepts you.' : 'Sign in to your pagebot account.';
+    : signup ? 'Pick a username and password. You can start once the owner accepts you. The owner can see your questions and usage.' : 'Sign in to your pagebot account.';
   $('#pin').hidden = $('#pad').hidden = !usePin;
   $('#pwRow').hidden = !owner || lock === 'none';
   $('#acct').hidden = usePin || owner;
@@ -1187,7 +1406,7 @@ $('#login').addEventListener('submit', async e => {
 });
 async function login(path, data) {
   try {
-    const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(data) });
+    const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Pagebot-Device': device, ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(data) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) return { error: j.error || 'That didn’t work — try again.', status: r.status, usePassword: !!j.usePassword };
     resetSiteMemory(); token = j.token; store.set('pb_token', token); pwMode = false;
@@ -1249,6 +1468,7 @@ function showBan() {
   setHeader(false);
   $('#ban').hidden = false;
   $('#banAgree').checked = false; $('#banErr').textContent = '';
+  $('#banAppealForm').hidden = true;
   renderBan();
   waitTimer = setInterval(checkBan, 30000);
 }
@@ -1271,6 +1491,7 @@ function renderBan() {
   if (b.endsAt) { $('#banEndL').textContent = term ? 'Deleted on' : 'Ends'; $('#banEnd').textContent = banWhen.format(new Date(b.endsAt)); }
   $('#banAgreeRow').hidden = $('#banReact').hidden = !over;
   $('#banReact').disabled = !$('#banAgree').checked;
+  renderAppeal(b);
   $('#banFine').textContent = `Notice #${b.id} · If you think this is a mistake, contact the person who runs this pagebot.`;
   clearInterval(banTick); banLeft();
   if (b.endsAt && !over) banTick = setInterval(banLeft, 1000);
@@ -1290,6 +1511,37 @@ async function checkBan() {
   if (!token) return showLogin(cfg?.ban ? '' : 'This account isn’t available anymore.', 'signin');
   if (cfg?.ban) renderBan(); else { stopWaitPoll(); clearInterval(banTick); route(true); }
 }
+// one appeal per ban: the form, then "sent", then the owner's answer (an accepted one lifts the ban, so the chat comes back)
+function renderAppeal(b) {
+  const a = b.appeal, can = ['active', 'terminated'].includes(b.state);
+  $('#banAppeal').hidden = !a && !can;
+  $('#banAppealOpen').hidden = !!a || !$('#banAppealForm').hidden;
+  if (a) $('#banAppealForm').hidden = true;
+  const st = $('#banAppealState');
+  st.hidden = !a;
+  if (!a) return;
+  st.replaceChildren();
+  const head = el('b'); head.textContent = a.decision === 'denied' ? 'Your appeal was denied.' : a.decision === 'accepted' ? 'Your appeal was accepted.' : 'Appeal sent.';
+  st.append(head, ' ' + (a.decision ? '' : `The owner will look at it. This screen updates by itself.`));
+  if (a.reply) st.append(`\nThe owner: “${a.reply}”`);
+  st.append(`\nYou wrote: “${a.body}”`);
+}
+$('#banAppealOpen').onclick = () => { $('#banAppealForm').hidden = false; $('#banAppealOpen').hidden = true; $('#banAppealText').focus(); };
+$('#banAppealForm').onsubmit = async e => {
+  e.preventDefault();
+  const b = cfg?.ban, text = $('#banAppealText').value.trim();
+  if (!b) return;
+  if (!text) return void ($('#banErr').textContent = 'Write why the owner should take another look.');
+  $('#banErr').textContent = ''; $('#banAppealSend').disabled = true;
+  try {
+    const r = await fetch('/api/ban-notice/appeal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: b.key, body: text }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) $('#banErr').textContent = j.error || 'That didn’t work — try again.';
+    else { $('#banAppealText').value = ''; b.appeal = j.appeal; }
+  } catch { $('#banErr').textContent = 'Network error'; }
+  $('#banAppealSend').disabled = false;
+  await checkBan();
+};
 $('#banAgree').onchange = () => { $('#banReact').disabled = !$('#banAgree').checked; };
 $('#banReact').onclick = async () => {
   const b = cfg?.ban; if (!b) return;
@@ -1308,18 +1560,23 @@ const onBanned = () => loadBoot().then(() => route()).catch(() => {});
 
 function lock(msg) {
   if (token) fetch('/api/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }).catch(() => {});
-  token = null; store.set('pb_token', null); resetSiteMemory(); chatGen++; ctrl?.abort();
+  token = null; store.set('pb_token', null); resetSiteMemory(); resetCommands(); chatGen++; ctrl?.abort();
   showLogin(msg);
 }
-function logout(msg) { leaveChat(); chatWho = null; annGone = 0; log.innerHTML = ''; clearImg(); setPage(true); stopStream(); setArea(null); lock(msg); }
+function logout(msg) { leaveChat(); chatWho = null; annGone = 0; log.innerHTML = ''; clearImg(); clearPdf(); setPage(true); stopStream(); setArea(null); lock(msg); }
 $('#outBtn').onclick = () => logout();
 $('#lockBtn').onclick = $('#lockNow').onclick = () => lock();
 // stops an answer that's still coming in, so it can't land in (or take over) the next chat
-function leaveChat() { chatGen++; ctrl?.abort(); convId = null; }
-$('#newBtn').onclick = () => { leaveChat(); setPage(true); clearImg(); closeSheet(); closeWrap(); empty(); $('#q').focus(); };
+function leaveChat() { chatGen++; ctrl?.abort(); convId = null; setChatPdf(false); }
+// a new, empty chat; it doesn't move the keyboard or close anything, so history can use it with its sheet still open
+function newChat() { leaveChat(); setPage(true); clearImg(); empty(); }
+// the + button at the top and /new
+function startNewChat() { closeSheet(); closeWrap(); closeHistory(); newChat(); $('#q').focus(); }
+$('#newBtn').onclick = startNewChat;
 // Screen sharing stays on when the panel closes, so the next screenshot doesn't ask again. It ends when you stop it
 // (+ menu or Chrome's own bar), log out, or leave the page.
 function closePanel() {
+  if (actRun) ctrl?.abort(); // an answer acting on the page stops when you close the panel
   if (embedded) { release(); tell('close'); } // the bookmarklet answers with "hidden" once it has faded out
   else if (popup) window.close();
 }
@@ -1348,8 +1605,8 @@ async function apiGet(path) {
   return j;
 }
 async function loadBoot() {
-  const session = token;
-  const r = await fetch('/api/boot', { headers: session ? { Authorization: 'Bearer ' + session } : {} });
+  const session = token, cmdSeen = cmdWrites; // slash commands: a save made meanwhile is newer than this boot's list
+  const r = await fetch('/api/boot', { headers: { 'X-Pagebot-Device': device, ...(session ? { Authorization: 'Bearer ' + session } : {}) } });
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const next = await r.json();
   if (session !== token) return cfg; // a refresh from the previous login must not replace the current account
@@ -1361,7 +1618,8 @@ async function loadBoot() {
   if (cfg.authed && cfg.user) { store.set('pb_user', cfg.user.name); store.set('pb_pin', cfg.user.passcode ? '1' : null); }
   if (cfg.authed && cfg.prefs) { Object.assign(prefs, cfg.prefs); limits = cfg.limits; models = cfg.models || models; }
   else if (!cfg.authed && token) { token = null; store.set('pb_token', null); resetSiteMemory(); }
-  renderPrefs(); renderAccount(); renderAnn(); renderUpd();
+  if (cmdSeen === cmdWrites || !cfg.authed) setCommands(cfg.commands, cfg.commandLimits); // slash commands (none until signed in and accepted)
+  renderPrefs(); renderAccount(); renderAnn(); renderRst(); renderUpd();
   return cfg;
 }
 const lockedMsg = () => pinWho() ? 'Locked — enter your passcode to pick up where you left off.'
@@ -1499,6 +1757,24 @@ if (standalone) $('#memoryHint').textContent = 'Manage instructions for your web
 
 // ---- the owner's announcement, until it's closed ----
 let annGone = 0;
+// a restriction shows above the chat while it runs (× hides it until the panel reloads)
+let rstGone = 0;
+const RST_WHEN = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+function renderRst() {
+  const r = view === 'chat' && cfg?.restriction?.id !== rstGone ? cfg?.restriction : null;
+  $('#rst').hidden = !r;
+  if (!r) return;
+  const l = r.limits || {}, lost = [];
+  if (l.noSonnet) lost.push('no Sonnet');
+  if (l.noWeb) lost.push('no web search');
+  if (l.noActions) lost.push('no page actions');
+  if (l.noPdf) lost.push('no PDF uploads');
+  if (l.limitKind) lost.push(`a daily limit of ${l.limitKind === 'usd' ? '$' + Number(l.limitValue).toFixed(2) : Number(l.limitValue).toLocaleString() + ' tokens'}`);
+  $('#rstText').textContent = `Your account is restricted until ${RST_WHEN.format(new Date(r.endsAt))}: ${lost.join(', ')}.`;
+  $('#rstMeta').textContent = `Reason: ${r.reason}` + (r.note ? `\n${r.note}` : '');
+}
+$('#rstX').onclick = () => { rstGone = cfg?.restriction?.id || 0; renderRst(); $('#q').focus(); };
+
 function renderAnn() {
   const a = view === 'chat' && cfg?.announcement?.id > annGone ? cfg.announcement : null;
   $('#ann').hidden = !a;
@@ -1713,6 +1989,255 @@ $('#wrap').addEventListener('click', e => {
 });
 $('#wrapBtn').onclick = openWrap;
 
+// ---- chat history: your past chats, newest first. Open one to keep going, or remove it from your history. ----
+// Removing only hides a chat from you: what it used still counts, and the owner still sees it in /admin.
+// Nothing about history is kept in the browser; each open asks the server again.
+let histOpen = false, histReq = 0, openReq = 0, histNext = null, histQ = '', histTimer = 0, histBusy = false, histLast = null;
+const ICON_REMOVE = '<svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+const oneLine = s => String(s || '').replace(/\s+/g, ' ').trim();
+const dayStart = t => { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+const daysAgo = t => Math.round((dayStart(Date.now()) - dayStart(t)) / 86400000); // rounds over daylight-saving days
+const histDay = t => { const n = daysAgo(t); return n <= 0 ? 'Today' : n === 1 ? 'Yesterday' : n < 7 ? 'Previous 7 days' : 'Older'; };
+function histWhen(t) {
+  const n = daysAgo(t), d = new Date(t);
+  return n <= 0 ? ago(t) : n < 7 ? `${n}d ago` : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(d.getFullYear() !== new Date().getFullYear() && { year: 'numeric' }) });
+}
+// the same page, give or take the #part
+const sameDoc = (a, b) => { try { const x = new URL(a), y = new URL(b); x.hash = y.hash = ''; return x.href === y.href; } catch { return false; } };
+function markHit(text, q) { // every piece is escaped
+  const i = q ? text.toLowerCase().indexOf(q.toLowerCase()) : -1;
+  return i < 0 ? esc(text) : esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length));
+}
+async function histApi(path, method = 'GET') {
+  const r = await fetch(path, { method, headers: { Authorization: 'Bearer ' + token } });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 403) j.banned ? onBanned() : loadBoot().then(() => route()).catch(() => {}); // banned, or not accepted anymore
+  if (!r.ok) throw Object.assign(new Error(j.error || 'HTTP ' + r.status), { status: r.status });
+  return j;
+}
+function histState(bold, text, retry) {
+  const p = el('p', 'hstate');
+  if (bold === null) p.appendChild(el('span', 'typing', '<i></i><i></i><i></i>'));
+  else if (bold) p.appendChild(el('b')).textContent = bold;
+  p.append(text);
+  if (retry) { const b = el('button', 'link', 'Try again'); b.type = 'button'; b.onclick = () => loadHist(); p.append(' ', b); }
+  return p;
+}
+const noChats = () => histState('No chats yet.', 'Your chats show up here, so you can pick one back up later.');
+// Opens history, searching for q if given. The slash-command registry calls this for /history.
+function openHistory(q = '') {
+  if (view !== 'chat') return;
+  closeSheet(); closeWrap(); closeMenus();
+  histOpen = true; $('#hist').hidden = false; body.classList.add('hist');
+  $('#histBtn').classList.add('on'); $('#histBtn').setAttribute('aria-expanded', 'true');
+  $('#histQ').value = q; histQ = searchText(q);
+  loadHist();
+  if (document.hasFocus()) $('#histQ').focus();
+}
+function closeHistory(back) {
+  if (!histOpen) return;
+  histOpen = false; histReq++; openReq++; histBusy = false; clearTimeout(histTimer); // whatever is still loading is dropped
+  $('#hist').hidden = true; body.classList.remove('hist');
+  $('#histBtn').classList.remove('on'); $('#histBtn').setAttribute('aria-expanded', 'false');
+  $('#histList').replaceChildren(); histNext = histLast = null;
+  if (back) focusView();
+}
+async function loadHist(more) {
+  if (more && (!histNext || histBusy)) return;
+  const session = token, req = ++histReq, q = histQ, list = $('#histList');
+  histBusy = true;
+  if (!more) { histNext = histLast = null; list.replaceChildren(histState(null, 'Loading your chats…')); }
+  else { const b = list.querySelector('.hmore'); if (b) { b.disabled = true; b.textContent = 'Loading…'; } }
+  try {
+    const data = await histApi('/api/chats?' + new URLSearchParams({ ...(q && { q }), ...(more && { before: histNext }) }));
+    if (req !== histReq || session !== token || !histOpen) return;
+    if (more) list.querySelectorAll('.hmore,.hfoot').forEach(e => e.remove());
+    else {
+      list.replaceChildren();
+      // the chat being answered right now isn't saved until its answer ends
+      if (ctrl) list.appendChild(el('p', 'fine hbusy', 'An answer is still coming in. Opening another chat stops it.'));
+    }
+    histNext = data.next || null;
+    for (const c of data.chats) if (!list.querySelector(`.hrow[data-id="${c.id}"]`)) addHistRow(c, q); // a chat that moved up between pages
+    if (!list.querySelector('.hrow')) list.replaceChildren(q ? histState('', `No chats match “${q}”.`) : noChats());
+    histFoot();
+  } catch (e) {
+    if (req !== histReq || session !== token || !histOpen) return;
+    if (e.status === 401) return lock(lockedMsg());
+    if (!more) return void list.replaceChildren(histState('', `Couldn’t load your chats: ${e.message}`, true));
+    histFoot();
+    const b = list.querySelector('.hmore'); if (b) b.textContent = 'Couldn’t load more · Try again';
+  } finally { if (req === histReq) histBusy = false; }
+}
+function addHistRow(c, q) {
+  const list = $('#histList'), day = histDay(c.updatedAt);
+  if (histLast !== day) list.appendChild(el('div', 'hday')).textContent = histLast = day;
+  const row = el('div', 'hrow' + (c.id === convId ? ' on' : '')), open = el('button', 'hopen');
+  row.dataset.id = c.id; open.type = 'button';
+  open.appendChild(el('span', 'htitle')).textContent = c.title;
+  open.appendChild(el('span', 'hsub')).textContent = [c.site, histWhen(c.updatedAt)].filter(Boolean).join(' · ');
+  if (c.snippet) open.appendChild(el('span', 'hsnip', markHit(c.snippet, q)));
+  open.title = [c.title, c.pageTitle && c.pageTitle !== c.title && c.pageTitle, banWhen.format(new Date(c.updatedAt))].filter(Boolean).join('\n');
+  open.onclick = () => openChat(c.id, row);
+  const del = el('button', 'ib hdel', ICON_REMOVE);
+  del.type = 'button'; del.title = 'Remove from history'; del.setAttribute('aria-label', `Remove “${c.title}” from history`);
+  del.onclick = () => confirmIn(row, 'Remove this chat from your history?', isUser() ? 'It’s hidden from you only. The owner of this pagebot can still see it.'
+    : 'It still shows in Activity in /admin.', 'Remove', () => histApi('/api/chats/' + c.id, 'DELETE'), () => { if (c.id === convId) newChat(); dropRow(row); });
+  row.append(open, del);
+  list.appendChild(row);
+}
+function histFoot() {
+  const list = $('#histList');
+  list.querySelectorAll('.hmore,.hfoot').forEach(e => e.remove());
+  if (histNext) { const b = el('button', 'ghost hmore', 'Load more'); b.type = 'button'; b.onclick = () => loadHist(true); list.appendChild(b); }
+  if (histQ || !list.querySelector('.hrow')) return;
+  const f = el('div', 'hfoot'), all = el('button', 'link', 'Remove all from history'), fine = el('p', 'fine');
+  all.type = 'button';
+  fine.textContent = isUser() ? 'Removing a chat hides it from you only. The owner can still see it, and what it used still counts toward your daily limit.'
+    : 'Removed chats still show in Activity in /admin.';
+  all.onclick = () => confirmIn(f, 'Remove every chat from your history?', isUser() ? 'They’re hidden from you only. The owner of this pagebot can still see them.'
+    : 'They still show in Activity in /admin.', 'Remove all', () => histApi('/api/chats?all=1', 'DELETE'), () => {
+    if (convId) newChat();
+    histNext = histLast = null;
+    $('#histList').replaceChildren(noChats());
+    if (document.hasFocus()) $('#histQ').focus();
+  });
+  f.append(all, fine);
+  list.appendChild(f);
+}
+// an inline "are you sure", in place of the row (dialogs in cross-origin frames aren't reliable)
+function confirmIn(holder, ask, fine, yesLabel, run, done) {
+  const keep = [...holder.childNodes], box = el('div', 'hask'), p = el('p'), msg = document.createTextNode(ask);
+  const yes = el('button', 'ghost bad'), no = el('button', 'ghost hno');
+  yes.type = no.type = 'button'; yes.textContent = yesLabel; no.textContent = 'Cancel';
+  p.append(msg, el('span')); p.lastChild.textContent = fine;
+  box.append(p, yes, no); holder.replaceChildren(box);
+  if (document.hasFocus()) yes.focus();
+  no.onclick = () => { holder.replaceChildren(...keep); if (document.hasFocus()) holder.querySelector('button')?.focus(); };
+  yes.onclick = async () => {
+    const session = token;
+    yes.disabled = no.disabled = true; msg.textContent = 'Removing…';
+    try { await run(); }
+    catch (e) {
+      if (session !== token || !histOpen) return;
+      if (e.status === 401) return lock(lockedMsg());
+      if (e.status !== 404) { msg.textContent = `Couldn’t remove it: ${e.message}`; yes.disabled = no.disabled = false; return; } // 404: already gone
+    }
+    if (session === token && histOpen) done();
+  };
+}
+function dropRow(row) {
+  const list = $('#histList'), prev = row.previousElementSibling, next = row.nextElementSibling;
+  if (document.hasFocus() && row.contains(document.activeElement)) (next?.classList.contains('hrow') ? next.querySelector('.hopen') : $('#histQ')).focus();
+  row.remove();
+  if (prev?.classList.contains('hday') && !next?.classList.contains('hrow')) prev.remove();
+  histLast = [...list.querySelectorAll('.hday')].at(-1)?.textContent || null;
+  if (!list.querySelector('.hrow')) loadHist(); // the next page, or the empty state
+}
+async function openChat(id, row) {
+  if (id === convId) return closeHistory(true);
+  const session = token, req = ++openReq;
+  row.classList.add('wait'); row.setAttribute('aria-busy', 'true');
+  // a page that doesn't answer quickly (a pop-up whose page moved on) counts as a different page
+  const [data, info] = await Promise.all([histApi('/api/chats/' + id).catch(e => e), ask('page', { max: 1 }, 800)]);
+  if (req !== openReq || session !== token || !histOpen || view !== 'chat') return;
+  row.classList.remove('wait'); row.removeAttribute('aria-busy');
+  if (data instanceof Error) {
+    if (data.status === 401) return lock(lockedMsg());
+    if (data.status === 404) return dropRow(row);
+    row.classList.add('err'); row.querySelector('.hsub').textContent = `Couldn’t open it: ${data.message}`;
+    return;
+  }
+  // The chat's own pages are resent from the server on follow-ups, so Page text starts off; the note says how to add this one.
+  closeHistory(); leaveChat(); clearImg(); setPage(false);
+  updateSiteContext(info);
+  showPast(data, info?.page?.url || '');
+  convId = data.chat.id;
+  focusView();
+}
+// like addMsg, but into a fragment, so a long chat is drawn (and scrolled) once
+function pastMsg(box, role, html, tags) {
+  const m = el('div', 'msg ' + role);
+  if (tags) m.appendChild(el('div', 'tags')).textContent = tags;
+  m.appendChild(el('div', 'body', html));
+  box.appendChild(m); return m;
+}
+// a reopened chat, drawn the way it looked; `here` is the page the panel is on now
+function showPast({ chat, messages, earlier }, here) {
+  const box = document.createDocumentFragment(), last = chat.url, same = !!here && !!last && sameDoc(last, here), top = el('div', 'note');
+  top.append(`Chat from ${banWhen.format(new Date(chat.createdAt))}${same ? ' on this page' : chat.site ? ' on ' + chat.site : ''}.`);
+  if (!same && /^https?:\/\//i.test(last || '')) {
+    const a = el('a'); a.href = last; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = 'Open that page ↗';
+    top.append(' ', a);
+  }
+  if (target) top.append(el('br'), same ? 'This page is already part of it.' : 'The page you’re on isn’t part of it. Turn on Page text in + to add it.');
+  if (earlier) top.append(el('br'), 'Earlier messages aren’t shown here, but pagebot still has them.');
+  box.appendChild(top);
+  let doc = null, anyPdf = false; // doc: the page an answer's quotes came from, the last one sent with a question
+  for (const m of messages) {
+    if (m.role === 'user') {
+      if (m.url) doc = m.url;
+      const u = pastMsg(box, 'user', m.text ? esc(m.text).replace(/\n/g, '<br>') : '<i>(no text)</i>', [m.page && '📄 page', m.image && '📷 screenshot', m.web && '🌐 web'].filter(Boolean).join(' · '));
+      if (m.highlight) {
+        const h = el('div', 'hq'), flat = oneLine(m.highlight);
+        h.textContent = `✂️ “${flat.length > 200 ? flat.slice(0, 200).trimEnd() + '…' : flat}”`; h.title = flat.length > 600 ? flat.slice(0, 600) + '…' : flat;
+        u.querySelector('.body').before(h);
+      }
+      if (m.pdf) { u.appendChild(pdfChip(m.pdf)); anyPdf = true; } // pdf uploads
+      continue;
+    }
+    const bot = pastMsg(box, 'bot', m.text ? md(m.text) : m.stopped ? '<span class="stp">Stopped</span>' : '<i>(empty reply)</i>'), out = bot.querySelector('.body');
+    finish(bot, out, { model: m.model || 'Claude', fallback: !!m.fallback, usage: m.usage, searches: m.searches, sources: m.sources, stop: m.stop,
+      ...('refusal' in m && { refusal: m.refusal }) }, m.text);
+    if (m.steps?.length) { // page actions: what it did on the page, as read-only lines
+      const sl = el('div', 'steps');
+      for (const s of m.steps) {
+        const line = el('div', 'astep' + (s.outcome === 'failed' ? ' fail' : s.outcome === 'denied' ? ' skip' : '')), ic = el('span', 'ai'), tx = el('span', 'at');
+        ic.textContent = ACT_ICON[s.tool] || '•';
+        tx.textContent = s.outcome === 'denied' ? `${s.text} — skipped` : s.outcome === 'failed' ? `${s.text} — didn’t work` : s.text;
+        line.append(ic, tx); sl.appendChild(line);
+      }
+      bot.prepend(sl);
+    }
+    if (m.text && m.cites?.length && m.quotes?.length && !('refusal' in m)) {
+      markQuotes(out, m.text, m);
+      // "show me where" only works on the page the quotes came from; elsewhere a marker just shows its quote on hover
+      if (!(pageV7 && doc && sameDoc(doc, here))) out.querySelectorAll('.cite:not(.pg)').forEach(b => { // PDF quotes open their page instead, anywhere
+        const quote = m.quotes[+b.dataset.q - 1] || '', short = quote.length > 280 ? quote.slice(0, 280) + '…' : quote;
+        b.classList.add('away'); b.onclick = null; b.setAttribute('aria-label', `Quote ${b.dataset.q}: ${short}`);
+        b.title = `“${short}”\nFrom ${doc ? host(doc) : 'the page'}. Open that page to find it.`;
+      });
+    }
+    if (m.stopped) bot.querySelector('.meta')?.append(' · stopped early');
+  }
+  log.replaceChildren(box);
+  if (anyPdf) setChatPdf(true); // pdf uploads: the chat has a PDF, so ◆ models are out for it
+  scroll(true);
+}
+// a follow-up to a chat that was removed from history (on another device, say) started a new chat on the server
+function historyGone(u) { const n = el('div', 'note'); n.textContent = 'That chat was removed from your history, so this question started a new chat.'; u.before(n); }
+const searchText = v => { const q = oneLine(v); return q.length < 2 ? '' : q; }; // one letter would match nearly everything
+function searchHist() { clearTimeout(histTimer); const q = searchText($('#histQ').value); if (q !== histQ) { histQ = q; loadHist(); } }
+$('#histBtn').onclick = () => histOpen ? closeHistory(true) : openHistory();
+$('#histQ').addEventListener('input', () => { clearTimeout(histTimer); histTimer = setTimeout(searchHist, 250); });
+$('#histQ').addEventListener('keydown', e => {
+  if (e.isComposing) return;
+  if (e.key === 'Enter') { e.preventDefault(); searchHist(); }
+  else if (e.key === 'Escape' && $('#histQ').value) { e.preventDefault(); e.stopPropagation(); $('#histQ').value = ''; searchHist(); } // an empty box: Esc closes history
+  else if (e.key === 'ArrowDown' && $('#histList .hopen')) { e.preventDefault(); $('#histList .hopen').focus(); }
+});
+$('#histList').addEventListener('keydown', e => {
+  if (e.key === 'Escape' && e.target.closest('.hask')) { e.preventDefault(); e.stopPropagation(); return void e.target.closest('.hask').querySelector('.hno').click(); } // Esc cancels the "are you sure"
+  if ((e.key !== 'ArrowDown' && e.key !== 'ArrowUp') || !e.target.matches('.hopen')) return;
+  const rows = [...$('#histList').querySelectorAll('.hopen')], i = rows.indexOf(e.target);
+  e.preventDefault();
+  (e.key === 'ArrowUp' && i === 0 ? $('#histQ') : rows[Math.max(0, Math.min(rows.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))]).focus();
+});
+$('#histList').addEventListener('scroll', () => {
+  const l = $('#histList');
+  if (histNext && !histBusy && l.scrollHeight - l.scrollTop - l.clientHeight < 120) loadHist(true);
+});
+
 // ---- settings: theme, model, web search, answer limit ----
 const TOK = [[512, '512'], [1024, '1k'], [2048, '2k'], [4096, '4k'], [8000, '8k']]; // presets; /admin can set anything up to 100,000
 for (const [n, label] of TOK) {
@@ -1736,8 +2261,9 @@ function renderPrefs() {
     const b = el('button', '', `<span class="mi">${icon}</span><span class="mt"></span><span class="ck">✓</span>`);
     b.type = 'button'; b.setAttribute('role', 'menuitemradio'); b.setAttribute('aria-checked', String(x.key === m.key));
     b.querySelector('.mt').textContent = x.label;
-    b.querySelector('.mt').appendChild(el('span', 'md')).textContent = x.locked ? 'Not turned on for your account' : desc;
-    b.disabled = !!x.locked;
+    const noPdf = x.key === 'openrouter' && pdfInChat(); // pdf uploads: it can't read PDFs
+    b.querySelector('.mt').appendChild(el('span', 'md')).textContent = x.locked ? 'Not turned on for your account' : noPdf ? 'Can’t read PDFs. Use Haiku or Sonnet in this chat' : desc;
+    b.disabled = !!x.locked || noPdf;
     b.onclick = () => { closeMenus(); if (x.key !== prefs.model) savePrefs({ model: x.key }); q.focus(); };
     menu.appendChild(b);
   }
@@ -1748,7 +2274,8 @@ function renderPrefs() {
   document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t === prefs.theme));
   $('#glassNote').hidden = !(embedded && (prefs.theme === 'glass' && !hostV5 || prefs.theme === 'clear' && !hostV6));
   $('#glassName').textContent = prefs.theme === 'clear' ? 'Clear' : 'Glass';
-  fitPills();
+  renderActs();
+  renderPdf(); // pdf uploads (it fits the pills too)
 }
 async function savePrefs(patch) {
   if ('maxTokens' in patch) limits.maxTokens = patch.maxTokens; else Object.assign(prefs, patch);
@@ -1763,6 +2290,173 @@ async function savePrefs(patch) {
 }
 $('#webBtn').onclick = () => { closeMenus(); savePrefs({ web: !prefs.web }); q.focus(); };
 $('#webPill').onclick = () => { savePrefs({ web: false }); q.focus(); };
+
+// ---- page actions (bookmarklet v9): the model reads and changes the page through tools the bookmarklet runs ----
+// Reading, highlighting and scrolling run right away as step lines. Clicks and edits ask first with a card in the answer,
+// unless Skip all permissions is on (or you chose Allow all for this answer); a click that leaves the page always asks.
+// The bookmarklet refuses password, payment card and file fields by itself.
+let actRun = null; // the answer that's acting on the page right now
+function actWhy() { // why page actions can't be used here ('' when they can)
+  if (standalone) return 'They need a web page: open pagebot with the bookmark on a site';
+  if (isUser() && cfg.user?.allowActions === false) return 'Not turned on for your account';
+  if (!pageV9) return 'Drag the new bookmark from the homepage to use them';
+  if (prefs.model === 'openrouter') return 'They work with the Claude models only';
+  return '';
+}
+const actsOn = () => !!prefs.actions && !actWhy();
+function renderActs() {
+  const why = actWhy(), b = $('#actBtn'), p = $('#actPill'), auto = !!prefs.actionsAuto;
+  b.hidden = standalone; b.disabled = !!why;
+  $('#actNote').textContent = why || (auto ? 'Skip all permissions is on' : 'Asks before each click or edit');
+  b.setAttribute('aria-checked', String(actsOn()));
+  p.hidden = !actsOn(); p.classList.toggle('auto', auto); $('#actTag').hidden = !auto;
+  p.title = `Page actions are on: pagebot can click and type on this page${auto ? ' without asking (Skip all permissions)' : ', asking you first'}. Click to turn them off.`;
+  $('#actSec').hidden = isUser() && cfg.user?.allowActions === false;
+  for (const [id, on] of [['#actAsk', !auto], ['#actSkip', auto]]) { $(id).classList.toggle('on', on); $(id).setAttribute('aria-checked', String(on)); }
+  if (auto) $('#actWarn').hidden = true;
+}
+// for the slash commands: toggleActions() flips page actions, toggleActions(true / false) sets them
+function toggleActions(on = !prefs.actions) {
+  const why = on && actWhy();
+  if (why) return void note(`Page actions: ${why.charAt(0).toLowerCase() + why.slice(1)}.`);
+  savePrefs({ actions: on });
+}
+$('#actBtn').onclick = () => { closeMenus(); toggleActions(); q.focus(); };
+$('#actPill').onclick = () => { toggleActions(false); q.focus(); };
+// skipping permissions takes a second, deliberate click past the warning
+$('#actAsk').onclick = () => { $('#actWarn').hidden = true; if (prefs.actionsAuto) savePrefs({ actionsAuto: false }); };
+$('#actSkip').onclick = () => { if (prefs.actionsAuto) return; $('#actWarn').hidden = false; $('#actWarn').scrollIntoView({ block: 'nearest' }); };
+$('#actYes').onclick = () => { $('#actWarn').hidden = true; savePrefs({ actionsAuto: true }); };
+$('#actNo').onclick = () => { $('#actWarn').hidden = true; $('#actSkip').focus(); };
+
+const ACT_ICON = { read_page: '📄', find_elements: '🔎', highlight: '🖍', scroll_to: '↕', fill: '⌨', select: '☰', check: '☑', click: '🖱' };
+const ACT_BM = { find_elements: 'els', highlight: 'hl', scroll_to: 'scroll', fill: 'fill', select: 'select', check: 'check', click: 'click' }; // the bookmarklet's names
+const ACT_WRITE = new Set(['fill', 'select', 'check', 'click']); // these ask first
+// the bookmarklet's refusals, in words for the model (the first sentence shows in the step line)
+const ACT_NO = {
+  gone: 'That element isn’t on the page anymore. Use find_elements again.',
+  password: 'pagebot never reads or types into password fields. Ask the user to fill it in themselves.',
+  payment: 'pagebot never reads or types into payment card fields. Ask the user to fill it in themselves.',
+  file: 'pagebot never opens file pickers. Ask the user to choose the file themselves.',
+  off: 'It’s disabled or read-only right now.',
+  radio: 'A radio button can’t be unticked. Pick another option instead.',
+  nav: 'This click leaves the page, so it needs the user’s approval.',
+};
+const actNo = r => r.no === 'kind' ? `That’s a ${r.role || 'different element'}, not the kind of element this tool works on.`
+  : r.no === 'option' ? `There’s no option like that. It has: ${(r.opts || []).join(', ')}.` : r.no === 'err' ? `It went wrong on the page. ${r.why || ''}` : ACT_NO[r.no] || 'It couldn’t be done.';
+const clip = (v, n) => { const s = String(v ?? '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s; };
+const ACT_KIND = { textbox: 'box', select: 'list', checkbox: 'checkbox', radio: 'option', switch: 'switch', button: 'button', link: 'link' };
+const actWhat = (input, info) => { const k = ACT_KIND[info?.role] || 'element'; return info?.label ? `the “${clip(info.label, 50)}” ${k}` : `${k} ${input.ref}`; };
+// a click or edit in words, as it's about to happen and once it has: ['Type “hi” into the “Search” box', 'Typed …']
+function actSay(name, input, info) {
+  const w = actWhat(input, info), t = `“${clip(input.text, 60)}”`, o = `“${clip(info?.option || input.option, 50)}”`;
+  if (name === 'fill') return input.text ? [`Type ${t} into ${w}`, `Typed ${t} into ${w}`] : [`Clear ${w}`, `Cleared ${w}`];
+  if (name === 'select') return [`Choose ${o} in ${w}`, `Chose ${o} in ${w}`];
+  if (name === 'check') return info?.role === 'radio' ? [`Pick ${w}`, `Picked ${w}`] : input.checked === false ? [`Untick ${w}`, `Unticked ${w}`] : [`Tick ${w}`, `Ticked ${w}`];
+  return [`Click ${w}`, `Clicked ${w}`];
+}
+// reading steps in words: [while it runs, once it's done (or null when it found nothing)]
+function actRead(name, input, r) {
+  if (name === 'find_elements') {
+    const n = (r?.els?.length || 0) + (r?.more || 0);
+    return [input.query ? `Looking for “${clip(input.query, 40)}” on the page…` : 'Looking at the page’s buttons and fields…',
+      input.query ? `Looked for “${clip(input.query, 40)}” on the page (${n} found)` : `Looked at the page’s buttons and fields (${n})`];
+  }
+  if (name === 'highlight') {
+    const f = (r?.found || []).filter(Boolean).length, n = input.quotes?.length || 0;
+    return ['Highlighting on the page…', !f ? null : n === 1 ? `Highlighted “${clip(input.quotes[0], 50)}”` : `Highlighted ${f === n ? n : `${f} of ${n}`} passages`];
+  }
+  if (input.quote) return [`Scrolling to “${clip(input.quote, 50)}”…`, r?.found === 0 ? null : `Scrolled to “${clip(input.quote, 50)}”`];
+  return ['Scrolling the page…', `Scrolled to ${actWhat(input, r)}`];
+}
+function actLine(bot, name) {
+  let steps = bot.querySelector('.steps');
+  if (!steps) { steps = el('div', 'steps'); bot.prepend(steps); }
+  const s = el('div', 'astep live'); s.append(el('span', 'ai'), el('span', 'at'));
+  s.firstChild.textContent = ACT_ICON[name] || '•';
+  steps.appendChild(s); scroll(); return s;
+}
+function actSet(line, text, how) { line.className = 'astep ' + (how || 'live'); line.querySelector('.at').textContent = text; scroll(); }
+// the approval card stands in for the step line until you choose. It never takes the keyboard (see focus, above).
+function actAsk(run, line, now, info, wait) {
+  return new Promise(resolve => {
+    const card = el('div', 'acard' + (info.nav ? ' nav' : '')), q = el('div', 'aq'), ab = el('div', 'ab');
+    q.append(el('span'), el('span')); q.firstChild.textContent = line.firstChild.textContent; q.lastChild.textContent = now;
+    card.appendChild(q);
+    if (info.nav) {
+      let to = ''; try { const u = new URL(info.nav); to = u.hostname.replace(/^www\./, '') + clip(u.pathname.length > 1 ? u.pathname : '', 40); } catch {}
+      card.appendChild(el('div', 'aw')).textContent = `⚠ This leaves the page${to ? ` (for ${to})` : ''}. ${popup ? 'pagebot can’t follow it there.' : 'pagebot closes with it.'}`;
+    }
+    const done = v => { if (!run.asks.delete(done)) return; clearTimeout(late); card.remove(); line.hidden = false; resolve(v); };
+    for (const [label, cls, v] of [['Allow', 'aok', 'allow'], ['Skip', 'ano', 'skip'], ...(info.nav ? [] : [['Allow all for this answer', 'aall', 'all']])]) {
+      const b = el('button', cls); b.type = 'button'; b.textContent = label; b.onclick = () => done(v); ab.appendChild(b);
+    }
+    card.appendChild(ab);
+    run.asks.add(done);
+    const late = setTimeout(() => done('late'), Math.max(3000, (wait || 300000) - 5000)); // give up just before the server does
+    line.hidden = true; line.after(card); scroll();
+  });
+}
+// one {t:'act'} from the server: show it, ask if needed, run it in the page, and send back what happened
+async function pageAct(run, ev) {
+  const name = String(ev.name || ''), input = ev.input && typeof ev.input === 'object' ? ev.input : {}, bm = ACT_BM[name];
+  const line = actLine(run.bot, name);
+  const post = body => api('/api/chat/act', { id: ev.id, ...body }).catch(() => {});
+  const fail = (text, why) => { actSet(line, `${text} — ${why.replace(/\. .*$/, '').replace(/\.$/, '')}`, 'fail'); return post({ result: { error: why }, note: text }); };
+  const page = (extra, ms = 8000) => ask(name === 'read_page' ? 'page' : 'act', name === 'read_page' ? extra : { name: bm, input, ...extra }, ms);
+  if (name === 'read_page') {
+    actSet(line, 'Reading the page again…');
+    const r = await page({ max: limits.pageTokens * 4 });
+    if (run.stale()) return;
+    if (!r?.page) return fail('Read the page', 'The page didn’t answer.');
+    actSet(line, 'Read the page again', 'done');
+    return post({ result: r.page, note: 'Read the page again' });
+  }
+  if (!bm) return fail(clip(name, 40) || 'Page action', 'pagebot doesn’t know this tool.');
+  if (!ACT_WRITE.has(name)) { // reading, highlighting and scrolling don't ask
+    actSet(line, actRead(name, input)[0]);
+    const r = await page({});
+    if (run.stale()) return;
+    const [now, done] = actRead(name, input, r);
+    if (!r) return fail(now.replace(/…$/, ''), 'The page didn’t answer.');
+    if (r.no) return fail(now.replace(/…$/, ''), actNo(r));
+    if (!done) return fail(now.replace(/…$/, ''), 'Couldn’t find that on the page.');
+    actSet(line, done, 'done');
+    return post({ result: r, note: done });
+  }
+  // a click or edit: the bookmarklet checks it first (the element, protected fields, whether it leaves the page)
+  actSet(line, 'Checking the page…');
+  const info = await page({ dry: 1 });
+  if (run.stale()) return;
+  const [now, done] = actSay(name, input, info);
+  if (!info) return fail(now, 'The page didn’t answer.');
+  if (info.no) return fail(['password', 'payment', 'file'].includes(info.no) ? 'Tried a protected field' : now, actNo(info)); // (what it tried to type isn't kept)
+  if (info.nav || !(prefs.actionsAuto || run.all)) {
+    const v = await actAsk(run, line, now, info, ev.wait);
+    if (v === 'stop' || run.stale()) return actSet(line, `${now} — stopped`, 'skip');
+    if (v !== 'allow' && v !== 'all') { actSet(line, `${now} — ${v === 'late' ? 'no answer, so not done' : 'skipped'}`, 'skip'); return post({ denied: true, note: now }); }
+    if (v === 'all') run.all = true;
+  }
+  actSet(line, now + '…');
+  if (info.nav) { // the page (and the panel with it) goes away on this click, so its result goes first
+    await post({ result: { ...info, ok: 1 }, note: done });
+    actSet(line, done, 'done');
+    return void page({ sure: 1 });
+  }
+  const r = await page({});
+  if (run.stale()) return;
+  if (!r) return fail(now, 'The page didn’t answer.');
+  if (r.no) return fail(now, actNo(r));
+  actSet(line, done, 'done');
+  return post({ result: r, note: done });
+}
+// the answer ended (or you stopped it): cards still waiting give up, and steps still running say they stopped
+function actEnd(run) {
+  run.over = true;
+  for (const done of [...run.asks]) done('stop');
+  run.bot.querySelectorAll('.astep.live').forEach(l => actSet(l, l.querySelector('.at').textContent.replace(/…$/, '') + ' — stopped', 'skip'));
+  if (actRun === run) actRun = null;
+}
 
 // the + menu and the model picker
 let openMenu = null;
@@ -1784,6 +2478,7 @@ document.addEventListener('pointerdown', e => { if (openMenu && !e.target.closes
 let sheetOpen = false;
 function openSheet(focusTokens) {
   if (view !== 'chat') return;
+  closeHistory();
   sheetOpen = true; $('#sheet').hidden = false; $('#setBtn').classList.add('on'); body.classList.add('sheet');
   refreshSiteContext(); loadSiteMemories();
   if (focusTokens) { $('#tokSec').scrollIntoView({ block: 'center' }); ($('#tokSeg button.on:not([hidden])') || $('#tokSeg button:not([hidden])'))?.focus(); }
@@ -1801,7 +2496,7 @@ function setMin(on) {
   if (!hostV2 || minimized === on) return;
   minimized = on; body.classList.toggle('min', on);
   $('#minBtn').title = on ? 'Expand' : 'Minimize';
-  if (on) { closeSheet(); closeMenus(); release(); } else unseen = false;
+  if (on) { closeSheet(); closeHistory(); closeMenus(); release(); } else unseen = false;
   tell('min', { on, w: 200, h: 46 });
   setStatus();
   if (!on) setTimeout(focusView, 220);
@@ -2075,11 +2770,152 @@ function pickRegion(canvas) {
 
 $('#q').addEventListener('paste', async e => {
   const it = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
-  if (!it) return;
+  if (!it || [...(e.clipboardData?.files || [])].some(isPdfFile)) return; // pdf uploads take a pasted PDF
   e.preventDefault();
   try { const bmp = await createImageBitmap(it.getAsFile()); setImg(toJpeg(bmp, bmp.width, bmp.height), 'paste'); }
   catch { note('Couldn’t read that image.'); }
 });
+
+// ---- pdf uploads ----
+// A PDF (only a PDF) uploads on its own as soon as you pick, drop or paste it, then goes with your next message as a
+// 📄 pill. Once sent it's part of the chat: the server sends it again with every follow-up, so the pill clears.
+const PDF_MAX = 10 * 1024 * 1024, PDF_LIMITS = 'Up to 10 MB and 100 pages';
+let pdfAtt = null; // the uploaded PDF going with the next message: { id, name, size, pages, tokens }
+let pdfUp = null; // the upload in progress: { name, pct, xhr, done }, where done resolves to whether it worked
+let chatPdf = false; // this chat has a PDF, so models that can't read one are out
+const pdfOk = () => !isUser() || cfg?.user?.allowPdf !== false;
+const isPdfFile = f => !!f && (f.type === 'application/pdf' || /\.pdf$/i.test(f.name || ''));
+const fmtMB = n => `${(n / 1048576).toFixed(n < 1048576 ? 2 : 1)} MB`;
+const pdfInChat = () => chatPdf || !!pdfAtt || !!pdfUp;
+const pdfWhere = pg => pg.to > pg.from ? `pp. ${pg.from}–${pg.to}` : `p. ${pg.from}`;
+function renderPdf() {
+  const ok = pdfOk(), p = $('#pdfPill');
+  $('#pdfBtn').disabled = !ok; $('#pdfNote').textContent = ok ? PDF_LIMITS : 'Not turned on for your account';
+  p.hidden = !pdfAtt && !pdfUp;
+  const pi = p.firstElementChild, pl = p.querySelector('.pl'); // the icon turns into a spinner while it uploads
+  if (pdfUp) {
+    pi.className = 'spn'; pi.textContent = '';
+    pl.textContent = `${pdfUp.name} · ${pdfUp.pct}%`;
+    p.title = `Uploading “${pdfUp.name}”… Click to cancel.`;
+  } else if (pdfAtt) {
+    pi.className = 'pi'; pi.textContent = '📄';
+    pl.textContent = pdfAtt.name + (pdfAtt.pages ? ` · ${pdfAtt.pages} p.` : '');
+    p.title = `“${pdfAtt.name}” (${pdfAtt.pages ? `${pdfAtt.pages} page${pdfAtt.pages === 1 ? '' : 's'}, ` : ''}${fmtMB(pdfAtt.size)}) goes with your next message, and stays in the chat after that. Click to remove it.`;
+  }
+  fitPills();
+}
+function setPdf(a) { pdfAtt = a; renderPrefs(); }
+function clearPdf() { if (pdfUp) { const x = pdfUp.xhr; pdfUp = null; x.abort(); } setPdf(null); }
+function setChatPdf(on) { if (chatPdf !== !!on) { chatPdf = !!on; renderPrefs(); } } // also for reopening a chat from history
+$('#pdfPill').onclick = () => { clearPdf(); $('#q').focus(); };
+// the + menu's "Upload a PDF", and /pdf in the slash-command registry
+function pickPdf() {
+  if (view !== 'chat') return;
+  if (!pdfOk()) return void note('PDF uploads aren’t turned on for your account.');
+  closeMenus(); $('#pdfFile').click();
+}
+$('#pdfBtn').onclick = pickPdf;
+$('#pdfFile').onchange = () => { const f = $('#pdfFile').files[0]; $('#pdfFile').value = ''; if (f) addPdf(f); };
+async function addPdf(file) {
+  if (view !== 'chat' || !file) return;
+  const name = file.name || 'document.pdf';
+  if (!pdfOk()) return void note('PDF uploads aren’t turned on for your account.');
+  if (!isPdfFile(file)) return void note(`Only PDFs can be added here, and “${name}” isn’t one.`);
+  if (file.size > PDF_MAX) return void note(`“${name}” is ${fmtMB(file.size)}. PDFs can be up to 10 MB.`);
+  let head = '';
+  try { head = await file.slice(0, 5).text(); } catch {}
+  if (head !== '%PDF-') return void note(`“${name}” isn’t really a PDF (or it’s damaged), so it can’t be added.`);
+  if (view !== 'chat') return;
+  if (prefs.model === 'openrouter') { // ◆ can't read PDFs
+    const h = models.find(x => x.key === 'haiku');
+    savePrefs({ model: 'haiku' });
+    note(`${models.find(x => x.key === 'openrouter')?.label || 'That model'} can’t read PDFs, so this chat uses ${h?.label || 'Haiku'}.`);
+  }
+  clearPdf(); // one PDF per message: a new one replaces the last
+  const session = token, x = new XMLHttpRequest(), up = pdfUp = { name, pct: 0, xhr: x };
+  up.done = new Promise(resolve => {
+    const fail = msg => { if (pdfUp === up) { pdfUp = null; renderPrefs(); if (msg) note(msg); } resolve(false); };
+    x.open('POST', '/api/pdf?name=' + encodeURIComponent(name));
+    x.setRequestHeader('Authorization', 'Bearer ' + session);
+    x.setRequestHeader('Content-Type', 'application/pdf');
+    x.upload.onprogress = e => { if (pdfUp === up && e.lengthComputable) { up.pct = Math.min(99, Math.round(e.loaded / e.total * 100)); renderPdf(); } };
+    x.onload = () => {
+      let j = {}; try { j = JSON.parse(x.responseText); } catch {}
+      if (pdfUp !== up || session !== token) return resolve(false); // cancelled, replaced, or someone else signed in
+      if (x.status === 200 && j.id) { pdfUp = null; setPdf({ id: j.id, name: j.name || name, size: j.size ?? file.size, pages: j.pages ?? null, tokens: j.tokens ?? null }); return resolve(true); }
+      if (x.status === 401) { fail(); lock(lockedMsg()); return; }
+      if (x.status === 403 && j.banned) { fail(); onBanned(); return; }
+      fail(`Couldn’t add “${name}”: ${j.error || 'HTTP ' + x.status}`);
+    };
+    x.onerror = () => fail(`Couldn’t upload “${name}”. Check your connection and try again.`);
+    x.onabort = () => fail();
+    x.send(file);
+  });
+  renderPrefs();
+}
+// drag a PDF onto the panel (anything else gets a note). Files dropped here never open in place of the panel.
+let dropT = 0;
+const dragsFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
+const hideDrop = () => { clearTimeout(dropT); $('#drop').hidden = true; };
+for (const type of ['dragenter', 'dragover']) addEventListener(type, e => {
+  if (!dragsFiles(e)) return;
+  e.preventDefault();
+  const ok = view === 'chat' && !minimized;
+  e.dataTransfer.dropEffect = ok ? 'copy' : 'none';
+  if (!ok) return;
+  $('#drop').hidden = false;
+  clearTimeout(dropT); dropT = setTimeout(hideDrop, 1000); // in case the drag ends somewhere we don't hear about
+});
+addEventListener('dragleave', e => { if (!e.relatedTarget) hideDrop(); }); // left the panel
+addEventListener('drop', e => {
+  if (!dragsFiles(e)) return;
+  e.preventDefault(); hideDrop();
+  if (view !== 'chat' || minimized) return;
+  const files = [...e.dataTransfer.files], pdfs = files.filter(isPdfFile);
+  if (pdfs.length > 1) note(`One PDF per message: adding “${pdfs[0].name}”.`);
+  addPdf(pdfs[0] || files[0]);
+});
+// a PDF file pasted into the message box (images are handled with screenshots; other files get a note)
+$('#q').addEventListener('paste', e => {
+  const files = [...(e.clipboardData?.items || [])].filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
+  const f = files.find(isPdfFile) || (files.length && !files.some(x => x.type.startsWith('image/')) ? files[0] : null);
+  if (f) { e.preventDefault(); addPdf(f); }
+});
+// 📄 name in your message (chat history can use it too: { name, pages, gone })
+function pdfChip(p) {
+  const c = el('div', 'fchip' + (p.gone ? ' gone' : '')), n = el('span', 'fn');
+  n.textContent = p.name;
+  c.append('📄', n);
+  if (p.pages || p.gone) { const g = el('span', 'fpg'); g.textContent = p.gone ? '· no longer available' : `· ${p.pages} p.`; c.appendChild(g); }
+  c.title = p.gone ? `“${p.name}” is no longer stored.` : `“${p.name}” went with this message. Follow-ups in this chat send it again.`;
+  return c;
+}
+// a numbered marker for a quote from a PDF: hover shows the quote, click opens it with its page
+let cpop = null;
+function pdfCite(b, quote, short, pg) {
+  const where = `${pdfWhere(pg)} · ${pg.name}`;
+  b.classList.add('pg');
+  b.title = `“${short}”\n${where}`;
+  b.setAttribute('aria-label', `Quote ${b.dataset.q} from ${pg.name}, ${pdfWhere(pg)}`);
+  b.onclick = () => { if (cpop?.btn === b) return closeCpop(); openCpop(b, quote, where); };
+}
+function openCpop(b, quote, where) {
+  closeCpop();
+  const box = el('div', 'cpop'), q1 = el('div', 'cq'), w = el('div', 'cw');
+  box.setAttribute('role', 'note');
+  q1.textContent = `“${quote}”`; w.textContent = where;
+  box.append(q1, w); body.appendChild(box);
+  const r = b.getBoundingClientRect(), bw = box.offsetWidth, bh = box.offsetHeight;
+  box.style.left = Math.max(8, Math.min(innerWidth - bw - 8, r.left + r.width / 2 - bw / 2)) + 'px';
+  box.style.top = (r.bottom + 6 + bh <= innerHeight - 8 ? r.bottom + 6 : Math.max(8, r.top - 6 - bh)) + 'px';
+  log.querySelectorAll('.cite.on').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); cpop = { box, btn: b };
+}
+function closeCpop() { if (!cpop) return; cpop.box.remove(); cpop.btn.classList.remove('on'); cpop = null; }
+addEventListener('pointerdown', e => { if (cpop && !e.target.closest?.('.cpop') && e.target !== cpop.btn) closeCpop(); }, true);
+addEventListener('keydown', e => { if (cpop && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeCpop(); } }, true);
+log.addEventListener('scroll', () => closeCpop(), { passive: true });
+addEventListener('resize', () => closeCpop());
 
 // ---- keyboard ----
 addEventListener('keydown', e => {
@@ -2099,7 +2935,7 @@ addEventListener('keydown', e => {
     if (e.key === 'Backspace') { e.preventDefault(); return pinKey('del'); }
   }
   // a held-down Esc, or one that just cancels typing in an input method, doesn't close the panel
-  if (e.key === 'Escape' && !e.isComposing) { if (openMenu) closeMenus(); else if (sheetOpen) closeSheet(); else if (!e.repeat) closePanel(); }
+  if (e.key === 'Escape' && !e.isComposing) { if (openMenu) closeMenus(); else if (histOpen) closeHistory(true); else if (sheetOpen) closeSheet(); else if (!e.repeat) closePanel(); }
 });
 
 // ---- auto-lock after the passcode timeout, and keep the session alive while you're active ----
@@ -2123,7 +2959,7 @@ setInterval(() => {
 const q = $('#q');
 function autosize() { q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight, 140) + 'px'; }
 q.addEventListener('input', autosize);
-q.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
+q.addEventListener('keydown', e => { if (slashKey(e)) return; if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } }); // the open slash list takes ↑↓ Enter Tab Esc first
 // while an answer is coming in, the send button stops it; what arrived so far stays in the chat
 const ICON_SEND = '<svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
 const ICON_STOP = '<svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" stroke="none"/></svg>';
@@ -2151,7 +2987,7 @@ function finish(bot, out, ev, text) {
   if ('refusal' in ev) {
     bot.classList.add('err');
     out.innerHTML = '<p>⚠ The model declined to answer this' + (ev.refusal ? ` (${esc(String(ev.refusal))})` : '') + '. Try rephrasing it.</p>';
-  } else if (pageV7 && ev.cites?.length && ev.quotes?.length) markQuotes(out, text, ev);
+  } else if ((pageV7 || ev.pdfPages) && ev.cites?.length && ev.quotes?.length) markQuotes(out, text, ev); // PDF quotes work everywhere
   const srcs = (ev.sources || []).filter(s => /^https?:\/\//.test(s.url));
   if (srcs.length) {
     const box = el('div', 'src'); box.appendChild(el('span', '', 'Sources'));
@@ -2174,21 +3010,33 @@ function finish(bot, out, ev, text) {
 }
 
 async function send() {
-  if (busy || view !== 'chat') return;
+  if (view !== 'chat') return;
+  // slash commands: read the box before any await, so /screenshot and /region keep the key press their picker needs.
+  // Panel actions (/new, /settings, …) and hints work even while an answer is coming in, like the buttons do.
+  let plan = slashPlan(q.value);
+  closeSlash();
+  if (plan.run || plan.hint) return void slashAct(plan);
+  if (busy) return;
   busy = true; // a second Enter waits while the page text and any region shot come in
   const gen = chatGen, session = token, pageRequest = ++contextRequest;
   const stale = () => gen !== chatGen || session !== token || view !== 'chat';
   const cancelPreparing = () => { busy = false; $('#sendBtn').disabled = false; setStatus(); };
-  const info = await ask('page', { max: pageOn ? limits.pageTokens * 4 : 1 });
+  const withPage = pageOn || !!plan.page || (!!plan.forcePage && !img && !area && !pdfInChat()); // slash commands: "/page …", and built-in prompts on a new chat (not over a screenshot or a PDF)
+  if (pdfUp && !(await pdfUp.done) || stale()) return cancelPreparing(); // pdf uploads: wait for a PDF still uploading
+  const info = await ask('page', { max: withPage ? limits.pageTokens * 4 : 1 });
   if (stale()) return cancelPreparing();
   if (pageRequest === contextRequest) updateSiteContext(info);
-  const page = pageOn && info?.page ? info.page : null;
+  const page = withPage && info?.page ? info.page : null;
   let selection = info?.selection?.trim() || '';
   if (pageV7) {
     if (selection !== hostSel) { hostSel = selection; selOff = false; } // highlighted a moment ago
     if (selOff) selection = '';
   }
-  if (!q.value.trim() && !img && !area && !page && !selection) { busy = false; return; }
+  if (q.value.trim() !== plan.typed) { // typed more while the page came in
+    plan = slashPlan(q.value);
+    if (plan.run || plan.hint) { cancelPreparing(); return void slashAct(plan); }
+  }
+  if (!plan.cmd && !plan.text && !img && !area && !page && !selection && !pdfAtt) { busy = false; return; }
 
   $('#sendBtn').disabled = true; setStatus();
   if (area && !img) { // screenshots are on: a new shot of the same area (or the whole tab) goes with this message
@@ -2201,27 +3049,39 @@ async function send() {
       return shotFailed(e);
     }
   }
-  const text = q.value.trim();
-  const tags = [page && '📄 page', selection && '✂️ highlighted', img && (imgKind === 'region' ? '📷 region' : imgKind === 'paste' ? '🖼 image' : '📷 screenshot'), prefs.web && '🌐 web'].filter(Boolean).join(' · ');
+  // slash commands: a command's prompt is what gets sent (and shown, with a small /name tag); "/web …" searches this once
+  const what = selection ? 'the highlighted text' : img ? (imgKind === 'paste' ? 'this image' : 'this screenshot') : !standalone ? 'this page' : 'this';
+  const text = plan.cmd ? expandCommand(plan.cmd, plan.input, what) : plan.text;
+  if (plan.cmd && text.length > 8000) { cancelPreparing(); return void slashHint(`That’s too long once /${plan.cmd.name} is filled in (8,000 characters at most).`); }
+  const acting = actsOn();
+  const webNow = !!prefs.web || !!plan.web;
+  const tags = [page && '📄 page', selection && '✂️ highlighted', img && (imgKind === 'region' ? '📷 region' : imgKind === 'paste' ? '🖼 image' : '📷 screenshot'), webNow && '🌐 web', acting && '🖱 actions'].filter(Boolean).join(' · ');
   const u = addMsg('user', text ? esc(text).replace(/\n/g, '<br>') : '<i>(no text)</i>', tags);
+  if (plan.cmd) cmdTag(u, plan.cmd.name);
   if (img) { const im = el('img', 'thumb'); im.src = img; u.appendChild(im); }
+  const sentPdf = pdfAtt, hadPdf = chatPdf; // pdf uploads: put back if the server didn't keep the message
+  if (sentPdf) u.appendChild(pdfChip(sentPdf));
+  const pdfBack = () => { if (sentPdf && !pdfAtt && !pdfUp) { setPdf(sentPdf); setChatPdf(hadPdf); } };
 
-  const sent = { text, img, imgKind, pageOn, sel: !!selection };
+  const sent = { text: plan.typed, img, imgKind, pageOn, sel: !!selection }; // unsend puts back what was typed, command and all
   // cite: this page can find quoted passages, so ask for numbered quotes
-  const reqBody = { conversationId: convId, message: text, page, site: normalizeMemorySite(info?.page?.url) || null, selection, image: img, model: prefs.model, web: !!prefs.web, cite: pageV7 };
+  const reqBody = { conversationId: convId, message: text, page, site: normalizeMemorySite(info?.page?.url) || null, selection, image: img, model: prefs.model, web: webNow, cite: pageV7, actions: acting, pdf: sentPdf?.id };
   q.value = ''; autosize(); clearImg(); setPage(false);
+  if (sentPdf) { setPdf(null); setChatPdf(true); }
   if (selection) selOff = true; // it's in the chat now; a new highlight brings the pill back
   renderSel();
   const unsend = () => {
     u.remove(); bot.remove(); if (!log.querySelector('.msg')) empty();
     q.value = sent.text; autosize(); if (sent.img) setImg(sent.img, sent.imgKind); setPage(sent.pageOn);
     if (sent.sel) { selOff = false; renderSel(); }
+    pdfBack();
   };
 
   const bot = addMsg('bot', '<span class="typing"><i></i><i></i><i></i></span>');
   const out = bot.querySelector('.body');
   const mine = ctrl = new AbortController();
   const renderer = answerRenderer(out, () => !stale());
+  const run = acting ? actRun = { bot, stale: () => stale() || run.over, all: false, asks: new Set(), over: false } : null; // page actions
   $('#sendBtn').disabled = false; stopMode(true);
   let acc = '', refused = false, named = false; // named: the server has the question (it sent the chat id)
   try {
@@ -2234,6 +3094,7 @@ async function send() {
     if (!r.ok || !r.body) {
       const j = await r.json().catch(() => ({}));
       if (j.quota && cfg) { cfg.quota = j.quota; renderQuota(); }
+      pdfBack();
       throw new Error(j.error || 'HTTP ' + r.status);
     }
     const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '';
@@ -2248,11 +3109,13 @@ async function send() {
         const ev = JSON.parse(line);
         // the server names the chat as soon as the answer starts, so one you stop (or that breaks off) stays part of it
         if (ev.conversationId) named = true;
+        if (ev.t === 'id' && reqBody.conversationId && ev.conversationId !== reqBody.conversationId && gen === chatGen) historyGone(u); // chat history
         if (ev.conversationId && gen === chatGen) convId = ev.conversationId;
         if (ev.t === 'd') { acc += ev.v; renderer.queue(acc); }
         else if (ev.t === 's') searchStep(bot, ev.q);
+        else if (ev.t === 'act' && run) pageAct(run, ev);
         else if (ev.t === 'done') { renderer.flush(); refused = 'refusal' in ev; if (ctrl === mine) { ctrl = null; stopMode(false); } finish(bot, out, ev, acc); }
-        else if (ev.t === 'err') throw new Error(ev.v); // a broken-off answer stays in the chat
+        else if (ev.t === 'err') { if (!ev.conversationId) pdfBack(); throw new Error(ev.v); } // a broken-off answer stays in the chat
       }
     }
     renderer.flush();
@@ -2271,6 +3134,7 @@ async function send() {
     }
   } finally {
     renderer.cancel();
+    if (run) actEnd(run);
     if (ctrl === mine) ctrl = null;
     stopMode(false);
     busy = false; $('#sendBtn').disabled = false;
@@ -2283,6 +3147,308 @@ async function send() {
     setStatus();
   }
 }
+
+// ---- slash commands ----
+// Your own commands come with /api/boot, so the list works on the first frame, and are edited in Settings. Commands are
+// only read from what you type in the message box (or a list row or starter chip you click): never from the page, a
+// highlight or an answer. A prompt is expanded here, and the server gets (and stores) the expanded text like any message.
+let commands = []; // your saved commands { name, prompt, starter, updatedAt }, sorted by name
+let cmdLimits = { maxCommands: 50, maxPrompt: 2000, maxStarters: 3, reserved: [] };
+const isBuiltin = name => BUILTINS.some(c => c.name === name);
+const takesInput = p => p.includes('{input}');
+// a saved command, in the same shape as a built-in
+const ownCommand = c => ({ name: c.name, icon: '/', hint: c.prompt.replace(/\s+/g, ' ').slice(0, 160), prompt: c.prompt, own: true, needsInput: takesInput(c.prompt) });
+// built-ins win over a saved command with the same name (only possible once a built-in is added later)
+function findCommand(name) {
+  const b = BUILTINS.find(c => c.name === name);
+  if (b) return b;
+  const c = commands.find(c => c.name === name);
+  return c ? ownCommand(c) : null;
+}
+// What the message box asks for: { run, rest } (a panel action), { hint } (nothing to send yet), { cmd, input } (a prompt),
+// or { text } (a plain message). "/web …" and "/page …" turn that on for this message and the rest is read again.
+// A name only counts when a space, a line break or the end follows it and it is a command, so "/usr/bin" or
+// "/etc hosts" go as typed, and "//new" sends "/new".
+const CMD_RE = /^\/([a-z][\w-]{0,23})(?=\s|$)\s*/i;
+function slashPlan(raw) {
+  const typed = raw.trim();
+  if (typed.startsWith('//')) return { typed, text: typed.slice(1) };
+  let s = typed, web = false, page = false, lead = false;
+  for (let m; (m = CMD_RE.exec(s));) {
+    const c = findCommand(m[1].toLowerCase()), rest = s.slice(m[0].length);
+    if (!c || (c.alone && rest)) break;
+    const why = c.why?.() || (c.hide?.() && `/${c.name} isn’t available here.`);
+    if (why) return { typed, hint: why };
+    if (c.mod && rest && !(c.mod === 'web' ? web : page)) { if (c.mod === 'web') web = true; else page = true; lead = true; s = rest; continue; }
+    if (c.run) return lead ? { typed, hint: `Put /${c.name} at the start of the message.` } : { typed, run: c, rest };
+    if (c.needsInput && !rest) return { typed, fill: c, hint: `Type what goes in {input} after /${c.name}, then press Enter.` };
+    if (!c.own && standalone && !rest && !img && !area) return { typed, hint: `Add a screenshot, or type or paste some text after /${c.name}.` };
+    // built-ins send the page on a new chat, like the starters (send() leaves it out when there's a screenshot to work on)
+    return { typed, cmd: c, input: rest, web, page, forcePage: !c.own && !standalone && !convId };
+  }
+  return { typed, text: s, web, page };
+}
+// {input} takes the text after the command (a function replacement, so a "$&" you type stays as typed); without
+// {input}, that text goes at the end after a blank line. The result isn't read again for commands.
+function expandCommand(c, input, what) {
+  const t = c.own ? c.prompt : c.prompt(what);
+  return c.needsInput ? t.replaceAll('{input}', () => input) : input ? `${t}\n\n${input}` : t;
+}
+function setBox(v, at = v.length) { q.value = v; autosize(); q.setSelectionRange(at, at); }
+// a panel action, or a hint in place of sending
+function slashAct(plan) {
+  if (plan.fill) setBox(`/${plan.fill.name} `);
+  if (plan.hint) return slashHint(plan.hint);
+  setBox(plan.run.takes ? '' : plan.rest);
+  plan.run.run(plan.rest);
+}
+// the small "/name" tag on your message, before the usual 📄 page · ✂️ highlighted line
+function cmdTag(m, name) {
+  let t = m.querySelector('.tags');
+  if (!t) m.prepend(t = el('div', 'tags'));
+  const s = el('span', 'ctag'); s.textContent = '/' + name;
+  t.prepend(s, t.textContent ? ' · ' : '');
+}
+// up to 3 of yours, as chips after the starters on an empty chat (in /chat, on their own)
+function slashStarters(box) {
+  const mine = commands.filter(c => c.starter && !isBuiltin(c.name)).slice(0, cmdLimits.maxStarters);
+  if (!mine.length) return;
+  if (!box) log.querySelector('.empty')?.appendChild(box = el('div', 'starters'));
+  for (const c of mine) {
+    const b = el('button', 'mine'); b.type = 'button'; b.textContent = '/' + c.name; b.title = c.prompt.slice(0, 300);
+    b.onclick = () => { if (busy) return; const fill = takesInput(c.prompt); setBox('/' + c.name + (fill ? ' ' : '')); if (fill) q.focus(); else send(); };
+    box?.appendChild(b);
+  }
+}
+
+// the list above the message box, while the box starts with "/" and the caret is still in that first word
+const slashBox = $('#slashMenu');
+let slash = null, slashGone = null; // the open list { items, i, qry, hint }; the "/word" Esc closed it on, so it stays shut until that changes
+function slashWord() {
+  if (document.activeElement !== q || q.selectionStart !== q.selectionEnd) return null;
+  return /^\/[\w-]*$/.exec(q.value.slice(0, q.selectionStart))?.[0] ?? null;
+}
+// yours first, then the built-ins; names starting with what you typed come first (an exact match on top), then names containing it
+function slashItems(qry) {
+  const all = [...commands.filter(c => !isBuiltin(c.name)).map(ownCommand), ...BUILTINS.filter(c => !c.hide?.())];
+  if (!qry) return all;
+  const pre = all.filter(c => c.name.startsWith(qry)).sort((a, b) => (b.name === qry) - (a.name === qry));
+  return qry.length < 2 ? pre : [...pre, ...all.filter(c => !c.name.startsWith(qry) && c.name.includes(qry))];
+}
+// Filtering also runs while an input method is composing (phone keyboards compose every word); only its keys are left alone.
+function slashSync() {
+  const w = view === 'chat' && !sheetOpen && !wrap && !minimized ? slashWord() : null;
+  if (w !== slashGone) slashGone = null;
+  if (w == null || slashGone != null) return void closeSlash();
+  const qry = w.slice(1).toLowerCase(), items = slashItems(qry);
+  slash = { items, qry, i: items.findIndex(c => !c.why?.()), hint: '' };
+  closeMenus(); renderSlash();
+}
+function slashHint(text) { slash = { items: [], qry: '', i: -1, hint: text }; closeMenus(); renderSlash(); focusView(); }
+function slashHelp() { slashGone = null; setBox('/'); q.focus(); slashSync(); }
+function closeSlash(dismiss) {
+  if (dismiss) slashGone = slashWord(); // slashSync forgets it once the word changes
+  slash = null; slashBox.hidden = true; slashBox.replaceChildren(); q.removeAttribute('aria-activedescendant');
+}
+// The listbox holds only options (in a group per heading when nothing's typed yet); the hint and the footer sit outside it.
+function renderSlash() {
+  const { items, qry, hint } = slash, list = el('div', 'sl');
+  list.id = 'slashList'; list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', 'Commands');
+  let group = '', box = list;
+  items.forEach((c, k) => {
+    const g = c.own ? 'Your commands' : 'Built in', why = c.why?.() || '';
+    if (!qry && g !== group) {
+      group = g; box = el('div'); box.setAttribute('role', 'group'); box.setAttribute('aria-label', g);
+      const h = el('div', 'mh'); h.textContent = g; h.setAttribute('aria-hidden', 'true');
+      box.appendChild(h); list.appendChild(box);
+    }
+    const b = el('button', '', '<span class="mi"></span><span class="mt"><b></b><span class="ar">text</span><span class="md"></span></span>');
+    b.type = 'button'; b.id = 'slash-' + k; b.tabIndex = -1; b.setAttribute('role', 'option');
+    if (why) b.setAttribute('aria-disabled', 'true');
+    b.querySelector('.mi').textContent = c.icon;
+    b.querySelector('b').textContent = '/' + c.name;
+    b.querySelector('.ar').hidden = !c.needsInput;
+    b.querySelector('.md').textContent = why || c.hint;
+    if (c.own) b.title = c.prompt.slice(0, 300);
+    b.onclick = () => slashPick(c, false);
+    b.onmousemove = () => { if (slash && slash.i !== k && !why) { slash.i = k; markSlash(); } };
+    box.appendChild(b);
+  });
+  const parts = items.length ? [list] : [];
+  if (hint || !items.length) { // only a hint is announced; "no command called …" would read out on every key
+    const n = el('div', 'none' + (hint ? ' err' : '')); if (hint) n.setAttribute('role', 'status');
+    n.textContent = hint || `No command called /${qry}. Enter sends it as a message.`;
+    parts.push(n);
+  }
+  if (!hint) {
+    const tip = el('div', 'tip', '<span class="keys">↑↓ choose · Enter runs · Tab fills in · Esc closes</span>'), edit = el('button', 'mini');
+    edit.type = 'button'; edit.id = 'slashEdit'; edit.textContent = commands.length ? 'Edit your commands' : 'Make your own';
+    edit.onclick = () => { closeSlash(); openSheet(); cmdFocus(); };
+    tip.appendChild(edit); parts.push(tip);
+  }
+  slashBox.replaceChildren(...parts);
+  slashBox.hidden = false;
+  markSlash();
+}
+function markSlash() {
+  const list = $('#slashList'), a = $('#slash-' + slash.i);
+  slashBox.querySelectorAll('[role=option]').forEach(b => b.setAttribute('aria-selected', String(b === a)));
+  if (!a) return void q.removeAttribute('aria-activedescendant');
+  q.setAttribute('aria-activedescendant', a.id);
+  // scrolled by hand: scrollIntoView could scroll the page around the panel too
+  if (a.offsetTop < list.scrollTop) list.scrollTop = a.offsetTop - 4;
+  else if (a.offsetTop + a.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = a.offsetTop + a.offsetHeight - list.clientHeight + 4;
+}
+// ↑↓ wrap around and skip commands that can't run
+function slashMove(d) {
+  const n = slash.items.length; let j = slash.i < 0 ? (d > 0 ? -1 : n) : slash.i;
+  for (let k = 0; k < n; k++) { j = (j + d + n) % n; if (!slash.items[j].why?.()) { slash.i = j; return markSlash(); } }
+}
+// Enter, a click or a tap runs the command; Tab, or a command still waiting for its {input}, only fills it in.
+// Only the first word is replaced, so whatever follows it stays.
+function slashPick(c, fill) {
+  if (c.why?.()) return;
+  const v = q.value, rest = v.slice(v.search(/\s|$/)).replace(/^\s+/, '');
+  closeSlash();
+  if (fill || (c.needsInput && !rest)) {
+    setBox(`/${c.name} ${rest}`, c.name.length + 2);
+    if (!fill) slashHint(`Type what goes in {input} after /${c.name}, then press Enter.`);
+    return;
+  }
+  setBox(`/${c.name}` + (rest ? ' ' + rest : ''));
+  send();
+}
+// The open list takes ↑↓, Enter, Tab and Esc (Esc closes just the list, not the panel). An input method keeps them while
+// it composes, and Shift+Enter still makes a new line.
+function slashKey(e) {
+  if (!slash || e.isComposing || e.keyCode === 229 || e.altKey || e.ctrlKey || e.metaKey) return false;
+  if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeSlash(true); return true; }
+  const c = slash.items[slash.i];
+  if (e.shiftKey || !c) return false; // nothing to pick: Enter sends the text as typed, Tab moves on
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') slashMove(e.key === 'ArrowDown' ? 1 : -1);
+  else if (e.key === 'Enter' || e.key === 'Tab') slashPick(c, e.key === 'Tab');
+  else return false;
+  e.preventDefault(); return true;
+}
+q.setAttribute('aria-autocomplete', 'list'); q.setAttribute('aria-controls', 'slashList');
+q.addEventListener('input', e => /^insertFrom(Paste|Drop)/.test(e.inputType || '') ? closeSlash() : slashSync()); // pasted "/…" text isn't a command list
+q.addEventListener('compositionend', () => slashSync());
+q.addEventListener('click', () => slashSync());
+q.addEventListener('keyup', e => { if (/^(ArrowLeft|ArrowRight|Home|End)$/.test(e.key) || (!slash && /^Arrow(Up|Down)$/.test(e.key))) slashSync(); });
+q.addEventListener('blur', () => closeSlash());
+// keeps the caret (and a phone's keyboard) in the message box; the click still comes
+for (const ev of ['pointerdown', 'mousedown']) slashBox.addEventListener(ev, e => e.preventDefault());
+document.addEventListener('pointerdown', e => { if (slash && !e.target.closest('#slashMenu,#q')) closeSlash(); });
+
+// Settings → Slash commands, built like Website memory: pick one to edit or "New command…"; drafts stay until saved
+let cmdSlot = '', cmdSaving = false, cmdEpoch = 0, cmdWrites = 0, starterKey = ''; // cmdSlot: the saved command being edited ('' = a new one)
+const cmdDrafts = new Map();
+const cleanCmdName = v => String(v || '').trim().replace(/^\//, '').toLowerCase();
+const CMD_NAME = /^[a-z][a-z0-9_-]{0,23}$/;
+const cmdFields = () => ({ name: cleanCmdName($('#cmdName').value), prompt: $('#cmdPrompt').value, starter: $('#cmdStarter').checked });
+function cmdMessage(text, error = false) { $('#cmdStatus').textContent = text; $('#cmdStatus').classList.toggle('error', error); }
+function setCommands(list, lim) {
+  commands = Array.isArray(list) ? [...list].sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0) : [];
+  if (lim) cmdLimits = { ...cmdLimits, ...lim };
+  $('#cmdPrompt').maxLength = cmdLimits.maxPrompt;
+  renderCmdList();
+  // the chips on an empty chat follow right away (the log is filled in even while another view shows)
+  const key = JSON.stringify(commands.filter(c => c.starter).map(c => [c.name, c.prompt]));
+  if (key !== starterKey) { starterKey = key; if (log.querySelector('.empty')) empty(); }
+  if (slash && !slash.hint) slashSync();
+}
+function resetCommands() {
+  cmdEpoch++; cmdSaving = false; cmdSlot = ''; cmdDrafts.clear();
+  $('#cmdName').value = $('#cmdPrompt').value = ''; $('#cmdStarter').checked = false; cmdMessage('');
+  setCommands([]); closeSlash();
+}
+// what's wrong with the form, or what saving it will do
+function cmdProblem() {
+  const { name, prompt } = cmdFields(), saved = commands.some(c => c.name === name), no = error => ({ error, block: true });
+  if (!name) return { block: true, info: 'Name your command and write the prompt it sends.' };
+  if (!CMD_NAME.test(name)) return no('Start the name with a letter, then use letters, numbers, - or _ (up to 24).');
+  if (isBuiltin(name) || cmdLimits.reserved?.includes(name)) return no(`/${name} is a built-in command. Pick another name.`);
+  if (cmdSlot && name !== cmdSlot && saved) return no(`You already have /${name}. Pick another name.`);
+  if (!cmdSlot && !saved && commands.length >= cmdLimits.maxCommands) return no(`You have ${cmdLimits.maxCommands} commands, the most you can save. Delete one to add another.`);
+  if (!prompt.trim()) return { block: true, info: 'Write the prompt this command sends.' };
+  return { info: !cmdSlot && saved ? `You already have /${name}. Saving replaces it.` : cmdSlot && name !== cmdSlot ? `Saving renames /${cmdSlot} to /${name}.` : 'Unsaved changes.' };
+}
+function renderCmdForm() {
+  const p = cmdProblem(), { name } = cmdFields();
+  $('#cmdSave').disabled = cmdSaving || !!p.block;
+  $('#cmdDelete').disabled = cmdSaving || !cmdSlot;
+  for (const id of ['cmdList', 'cmdName', 'cmdPrompt']) $('#' + id).disabled = cmdSaving;
+  const full = commands.filter(c => c.starter && c.name !== cmdSlot && c.name !== name).length >= cmdLimits.maxStarters;
+  $('#cmdStarter').disabled = cmdSaving || (full && !$('#cmdStarter').checked);
+  $('#cmdStarterNote').textContent = full ? `(${cmdLimits.maxStarters} already shown)` : '';
+  $('#cmdNameHint').textContent = (CMD_NAME.test(name) && !p.error ? `You’ll type it as /${name}. ` : '') + 'Letters, numbers, - and _, starting with a letter (up to 24).';
+  $('#cmdCount').textContent = `${$('#cmdPrompt').value.length.toLocaleString()} / ${cmdLimits.maxPrompt.toLocaleString()} characters`;
+}
+function cmdCheck() { const p = cmdProblem(); cmdMessage(p.error || p.info || '', !!p.error); renderCmdForm(); }
+function renderCmdList() {
+  const list = $('#cmdList');
+  if (cmdSlot && !commands.some(c => c.name === cmdSlot)) cmdSlot = ''; // deleted on another device: the form becomes a new one
+  list.replaceChildren(new Option(commands.length ? 'New command…' : 'New command… (none saved yet)', ''));
+  for (const c of commands) list.add(new Option('/' + c.name + (c.starter ? ' · on new chats' : '') + (isBuiltin(c.name) ? ' · hidden by a built-in' : ''), c.name));
+  list.value = cmdSlot;
+  renderCmdForm();
+}
+function rememberCmdDraft() {
+  const f = cmdFields(), s = commands.find(c => c.name === cmdSlot);
+  const same = s ? f.name === s.name && f.prompt === s.prompt && f.starter === s.starter : !f.name && !f.prompt && !f.starter;
+  if (same) cmdDrafts.delete(cmdSlot); else cmdDrafts.set(cmdSlot, { ...f, name: $('#cmdName').value });
+}
+function selectCmd(slot) {
+  rememberCmdDraft();
+  cmdSlot = slot;
+  const d = cmdDrafts.get(slot), s = commands.find(c => c.name === slot);
+  $('#cmdName').value = d ? d.name : s?.name || '';
+  $('#cmdPrompt').value = d ? d.prompt : s?.prompt || '';
+  $('#cmdStarter').checked = d ? d.starter : !!s?.starter;
+  cmdMessage(d ? 'Unsaved changes.' : !s ? 'Name your command and write the prompt it sends.'
+    : isBuiltin(s.name) ? `A built-in command now uses /${s.name}. Rename this one to keep using it.` : `Editing /${s.name}. Changes apply after saving.`);
+  renderCmdList();
+}
+// "Edit your commands" in the list: Settings, scrolled to this section
+function cmdFocus() {
+  if (!sheetOpen) return;
+  $('#sheet').scrollTop = $('#cmdSec').offsetTop - 10;
+  (cmdSlot || $('#cmdName').value ? $('#cmdList') : $('#cmdName')).focus({ preventScroll: true });
+}
+async function writeCommand(remove) {
+  if (cmdSaving || !token || (remove ? !cmdSlot : cmdProblem().block)) return;
+  const session = token, epoch = cmdEpoch, slot = cmdSlot, f = cmdFields();
+  cmdSaving = true; renderCmdForm(); cmdMessage(remove ? 'Deleting…' : 'Saving…');
+  try {
+    const r = await fetch('/api/commands' + (remove ? '?name=' + encodeURIComponent(slot) : ''), {
+      method: remove ? 'DELETE' : 'PUT', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session },
+      ...(!remove && { body: JSON.stringify({ name: f.name, prompt: f.prompt, starter: f.starter, ...(slot && slot !== f.name && { from: slot }) }) }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (session !== token || epoch !== cmdEpoch) return;
+    if (r.status === 403 && data.banned) onBanned();
+    if (!r.ok) throw Object.assign(new Error(data.error || 'HTTP ' + r.status), { status: r.status });
+    const c = remove ? null : data.command;
+    cmdWrites++; cmdDrafts.delete(slot); cmdSlot = c?.name || ''; cmdDrafts.delete(cmdSlot);
+    setCommands(data.commands); // the server sends the whole list back
+    $('#cmdName').value = c?.name || ''; $('#cmdPrompt').value = c?.prompt || ''; $('#cmdStarter').checked = !!c?.starter;
+    cmdMessage(c ? `Saved. Type /${c.name} in the message box to use it.` : `Deleted /${slot}.`);
+  } catch (e) {
+    if (session !== token || epoch !== cmdEpoch) return;
+    if (e.status === 401) return lock(lockedMsg());
+    cmdMessage((remove ? 'Couldn’t delete that command: ' : 'Couldn’t save that command: ') + e.message, true);
+  } finally {
+    if (session === token && epoch === cmdEpoch) { cmdSaving = false; renderCmdForm(); }
+  }
+}
+$('#cmdForm').addEventListener('submit', e => { e.preventDefault(); writeCommand(false); });
+$('#cmdDelete').onclick = () => writeCommand(true);
+$('#cmdList').onchange = () => selectCmd($('#cmdList').value);
+$('#cmdName').addEventListener('input', () => { rememberCmdDraft(); cmdCheck(); });
+$('#cmdName').addEventListener('change', () => { $('#cmdName').value = cleanCmdName($('#cmdName').value); rememberCmdDraft(); cmdCheck(); });
+$('#cmdPrompt').addEventListener('input', () => { rememberCmdDraft(); cmdCheck(); });
+$('#cmdStarter').addEventListener('change', () => { rememberCmdDraft(); cmdCheck(); });
+renderCmdList();
 
 // ---- first-load animation; an already loaded panel reopens immediately ----
 const CAP = calm ? 600 : 2150; // don't keep a slow network request behind the intro indefinitely
