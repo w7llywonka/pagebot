@@ -833,10 +833,6 @@ body.standalone #sheet,body.standalone #wrap{max-width:780px;margin-inline:auto;
 .wl{display:grid;place-items:center;margin-bottom:2px}
 #wait:not(.in) .hg{display:none}
 #wait.in .wl{display:none}
-.thinking{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12.5px}
-.thinking .pbl{flex:none}
-.thinking .tl{display:flex;align-items:center;gap:8px}
-@media (max-width:359px){.thinking .tl{display:none}}
 </style>
 </head>
 <body class="booting" tabindex="-1">
@@ -3434,9 +3430,8 @@ async function send() {
     pdfBack();
   };
 
-  const bot = addMsg('bot', thinking());
+  const bot = addMsg('bot', '<span class="typing"><i></i><i></i><i></i></span>');
   const out = bot.querySelector('.body');
-  thinkingMount(out); // the pixel loader, until the first words arrive
   const mine = ctrl = new AbortController();
   const renderer = answerRenderer(out, () => !stale());
   const run = acting ? actRun = { bot, stale: () => stale() || run.over, all: false, asks: new Set(), over: false } : null; // page actions
@@ -3954,15 +3949,13 @@ function loaderSprite(canvas, opts = {}) {
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) loaders.forEach(l => l.start()); }); // a hidden panel pauses its loaders; they pick up again when it shows
 
-// where the loader appears: the first-load splash, the waiting screen, and an answer that hasn't started (see thinking())
+// where the loader appears: the first-load splash and the waiting screen
 // the splash canvas is as tall as the panel, so the strings come down from its top edge to the animal above the wordmark
 const bigPanel = Math.max(innerWidth, (screen.availWidth || 0) / 2) >= 600; // an older bookmark opens small and grows once we tell it the size, so look at the screen too
 const bootScale = bigPanel ? 4 : 3, bootH = Math.ceil(Math.max(innerHeight, screen.availHeight || 0) / bootScale) + 8;
 const bootLoader = loaderSprite($('#bootPbl'), { w: 72, h: bootH, scale: bootScale, drop: bootH - 40 });
 bootLoader.start();
 let waitLoader = null;
-function thinking() { return '<div class="thinking"><canvas></canvas><span class="tl">Thinking<span class="typing"><i></i><i></i><i></i></span></span></div>'; }
-function thinkingMount(out) { const c = out.querySelector('.thinking canvas'); if (c) loaderSprite(c, { w: 60, h: 48, scale: 2 }).start(); }
 
 // ---- first-load animation; an already loaded panel reopens immediately ----
 const CAP = calm ? 600 : 2150; // don't keep a slow network request behind the intro indefinitely

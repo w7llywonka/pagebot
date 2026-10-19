@@ -263,30 +263,20 @@ browserTest('the pixel loader plays on the splash, never blocks, and is gone wit
   assert.equal(hit, 'q', 'nothing from the splash sits over the message box');
 });
 
-browserTest('an animal dangles over the first token: the loader shows while an answer is awaited, then is replaced by the answer', async t => {
+browserTest('the Thinking bubble is plain dots, not the loader, and never blocks the message box', async t => {
   const chatGate = deferred();
   const f = await fixture(t, { chatGate });
   await f.ready();
   await f.frame.locator('#q').fill('Summarize this page.');
   await f.frame.locator('#sendBtn').click();
-  const canvas = f.frame.locator('.msg.bot .thinking canvas');
-  await canvas.waitFor({ state: 'visible' });
-  assert.equal(await canvas.getAttribute('data-anim'), 'on');
-  assert.match(await f.frame.locator('.msg.bot .thinking').innerText(), /Thinking/);
-  // not blocking: the stop button is live and the message box takes text meanwhile
+  await f.frame.locator('.msg.bot .typing').waitFor({ state: 'visible' });
+  assert.equal(await f.frame.locator('.msg.bot canvas').count(), 0, 'no pet in the answer bubble');
   assert.equal(await f.frame.locator('#sendBtn').isDisabled(), false);
   await f.frame.locator('#q').fill('next question');
   assert.equal(await f.frame.locator('#q').inputValue(), 'next question');
-  const frames = Number(await canvas.getAttribute('data-frames'));
-  await f.page.waitForTimeout(400);
-  assert.ok(Number(await canvas.getAttribute('data-frames')) > frames + 1);
-  await canvas.evaluate(c => { window.__thinkCanvas = c; });
   chatGate.resolve();
   await f.frame.locator('.msg.bot .meta').waitFor();
-  assert.equal(await f.frame.locator('.msg.bot .thinking').count(), 0, 'the loader goes when the words arrive');
-  const stopped = await f.frame.evaluate(() => window.__thinkCanvas.dataset.frames);
-  await f.page.waitForTimeout(350);
-  assert.equal(await f.frame.evaluate(() => window.__thinkCanvas.dataset.frames), stopped, 'its loop stops once it is off the page');
+  assert.equal(await f.frame.locator('.msg.bot .typing').count(), 0, 'the dots go when the words arrive');
 });
 
 browserTest('with reduced motion the loader draws one still frame and never runs a loop', async t => {
@@ -298,16 +288,7 @@ browserTest('with reduced motion the loader draws one still frame and never runs
   assert.equal(await canvas.getAttribute('data-frames'), null, 'no animation frames were ever scheduled');
   assert.ok(await canvas.evaluate(c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 200) n++; return n > 200; }), 'the still frame is drawn');
   gate.resolve();
-  await f.ready();
-  await f.frame.locator('#q').fill('hi');
-  await f.frame.locator('#sendBtn').click();
-  const thinking = f.frame.locator('.msg.bot .thinking canvas');
-  await thinking.waitFor({ state: 'visible' });
-  await f.page.waitForTimeout(300);
-  assert.equal(await thinking.getAttribute('data-anim'), 'off');
-  assert.equal(await thinking.getAttribute('data-frames'), null);
   chatGate.resolve();
-  await f.frame.locator('.msg.bot .meta').waitFor();
 });
 
 browserTest('the loader follows the theme: drawn in the accent colour, and redrawn when the theme changes', async t => {
