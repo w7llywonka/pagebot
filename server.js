@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import fs from 'node:fs';
+import zlib from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -71,7 +72,7 @@ const COMMAND_NAME = /^[a-z][a-z0-9_-]{0,23}$/;
 const BUILTIN_COMMANDS = new Set(['summarize', 'keypoints', 'simple', 'new', 'web', 'page', 'screenshot', 'region', 'settings', 'help', 'history', 'pdf', 'actions']);
 
 // other people's accounts: they sign up, wait for approval, then use pagebot within a daily limit
-const DEFAULT_ACCOUNT = { limitKind: 'tokens', limitValue: 100_000, allowSonnet: true, allowWeb: true, allowActions: true };
+const DEFAULT_ACCOUNT = { limitKind: 'tokens', limitValue: 100_000, allowSonnet: true, allowWeb: true, allowPdf: true, allowActions: true };
 const DAILY_RANGES = { tokens: [1_000, 100_000_000], usd: [0.01, 1000] };
 const RESERVED_NAMES = new Set(['owner', 'admin', 'root', 'pagebot', 'system', 'support']);
 const MAX_PENDING = 200;
@@ -149,7 +150,7 @@ CREATE TABLE IF NOT EXISTS bans (
 );
 CREATE INDEX IF NOT EXISTS bans_user_idx ON bans (user_id, id);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_id BIGINT; -- the ban or termination in force
--- restrictions live in bans too (kind 'restrict'), with what they take away as JSON {noSonnet, noWeb, noActions, limitKind, limitValue}
+-- restrictions live in bans too (kind 'restrict'), with what they take away as JSON {noSonnet, noWeb, noPdf, noActions, limitKind, limitValue}
 ALTER TABLE bans ADD COLUMN IF NOT EXISTS limits TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS restrict_id BIGINT; -- the restriction in force
 -- one appeal per ban, from the banned person's panel; the owner accepts (which lifts the ban) or denies it
@@ -239,6 +240,22 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS meta TEXT;
 -- page actions: whether an account may use them, and the steps an answer took on the page, as JSON [{tool, text, outcome}]
 ALTER TABLE users ADD COLUMN IF NOT EXISTS allow_actions BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS steps TEXT;
+-- pdf uploads: the files, the chat each went into, and the question it came with (follow-ups resend it)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS allow_pdf BOOLEAN NOT NULL DEFAULT true;
+CREATE TABLE IF NOT EXISTS attachments (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT, -- NULL = the owner; no foreign key, so the name outlives a deleted account (the sweep clears its bytes)
+  conversation_id BIGINT REFERENCES conversations(id) ON DELETE CASCADE, -- NULL until it's first sent with a question
+  name TEXT NOT NULL,
+  bytes BYTEA, -- NULL once the retention sweep has deleted the file
+  size INT NOT NULL,
+  pages INT, -- NULL when they couldn't be counted
+  tokens INT NOT NULL, -- prompt tokens it adds to every question that sends it
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS attachments_user_idx ON attachments (user_id, id);
+CREATE INDEX IF NOT EXISTS attachments_conv_idx ON attachments (conversation_id);
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_id BIGINT REFERENCES attachments(id) ON DELETE SET NULL;
 -- rough cost for rows saved before costs were tracked (cache reads were counted as plain input then)
 UPDATE messages SET cost_usd = CASE WHEN COALESCE(model, '') LIKE '%sonnet%'
     THEN (input_tokens * 2 + output_tokens * 10) / 1e6 ELSE (input_tokens * 0.10 + output_tokens * 0.50) / 1e6 END
@@ -362,6 +379,7 @@ function cleanAccountDefaults(d = {}) {
   if (typeof d.allowSonnet === 'boolean') o.allowSonnet = d.allowSonnet;
   if (typeof d.allowWeb === 'boolean') o.allowWeb = d.allowWeb;
   if (typeof d.allowActions === 'boolean') o.allowActions = d.allowActions;
+  if (typeof d.allowPdf === 'boolean') o.allowPdf = d.allowPdf;
   return o;
 }
 // stored as "count:first wrong guess (ms)"; once the cap is hit it stays until a password login
@@ -393,7 +411,7 @@ function toUser(r) {
   return {
     id: Number(r.id), name: r.username, status: r.status, note: r.note || '', adminNote: r.admin_note || '',
     limitKind: r.limit_kind || null, limitValue: r.limit_value == null ? null : Number(r.limit_value),
-    allowSonnet: r.allow_sonnet, allowWeb: r.allow_web, allowActions: r.allow_actions !== false, prefs: parseJSON(r.prefs),
+    allowSonnet: r.allow_sonnet, allowWeb: r.allow_web, allowPdf: r.allow_pdf !== false, allowActions: r.allow_actions !== false, prefs: parseJSON(r.prefs),
     createdAt: r.created_at, approvedAt: r.approved_at, lastSeen: r.last_seen,
     passcode: !!r.passcode_hash, lockMinutes: LOCK_CHOICES.includes(Number(r.lock_minutes)) ? Number(r.lock_minutes) : 15,
     annSeen: Number(r.ann_seen) || 0, banId: r.ban_id == null ? null : Number(r.ban_id),
@@ -401,7 +419,7 @@ function toUser(r) {
   };
 }
 // what the panel shows for an account (never the owner's private note)
-const publicUser = u => ({ name: u.name, status: u.status, allowSonnet: u.allowSonnet, allowWeb: u.allowWeb, allowActions: u.allowActions, passcode: u.passcode, lockMinutes: u.lockMinutes });
+const publicUser = u => ({ name: u.name, status: u.status, allowSonnet: u.allowSonnet, allowWeb: u.allowWeb, allowPdf: u.allowPdf, allowActions: u.allowActions, passcode: u.passcode, lockMinutes: u.lockMinutes });
 // an account with a passcode locks after its own idle time, like the owner's panel
 const userLockMinutes = u => u?.passcode ? u.lockMinutes : 0;
 // accounts get their own theme/model/web/answer length; their answer length can't go past the owner's limit
@@ -481,6 +499,7 @@ function restrictUser(u, r) {
   if (l.noSonnet) u.allowSonnet = false;
   if (l.noWeb) u.allowWeb = false;
   if (l.noActions) u.allowActions = false;
+  if (l.noPdf) u.allowPdf = false;
   if (l.limitKind) { u.limitKind = l.limitKind; u.limitValue = l.limitValue; }
 }
 function cleanRestriction(b) {
@@ -488,6 +507,7 @@ function cleanRestriction(b) {
   if (b.noSonnet === true) l.noSonnet = true;
   if (b.noWeb === true) l.noWeb = true;
   if (b.noActions === true) l.noActions = true;
+  if (b.noPdf === true) l.noPdf = true;
   if (b.limitKind != null && b.limitKind !== '' && b.limitKind !== 'none') {
     const d = cleanDaily(b.limitKind, b.limitValue);
     if (!d) return null;
@@ -652,10 +672,11 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) res.set('Cache-Control', 'no-store');
   next();
 });
-// small bodies everywhere; a question with a screenshot can be big, so /api/chat reads its body only after checking the login
+// small bodies everywhere; a question with a screenshot can be big, so /api/chat reads its body only after checking the login,
+// and so does /api/pdf (a raw PDF, not JSON)
 // (a page action's result can carry the page's text, so /api/chat/act reads its own body after the login check too)
 const chatJson = express.json({ limit: '12mb' }), smallJson = express.json({ limit: '64kb' }), actJson = express.json({ limit: '1mb' });
-app.use((req, res, next) => req.path === '/api/chat' || req.path === '/api/chat/act' ? next() : smallJson(req, res, next));
+app.use((req, res, next) => req.path === '/api/chat' || req.path === '/api/chat/act' || req.path === '/api/pdf' ? next() : smallJson(req, res, next));
 
 // The bookmarklet points back at the address you opened the homepage from, which always reaches this server.
 // Only a plain host name is accepted, and the page isn't stored by caches, so a forged header only affects its own response.
@@ -1395,7 +1416,9 @@ async function chat(req, res) {
     if (mt[2].length > 8_000_000) return res.status(413).json({ error: 'Screenshot too large' });
     image = { media_type: mt[1], data: mt[2] };
   }
-  if (!message && !image && !page && !selection) return res.status(400).json({ error: 'Empty message' });
+  const pdfId = Number.isSafeInteger(b.pdf) && b.pdf > 0 ? b.pdf : null; // pdf uploads: the id from /api/pdf
+  if (b.pdf != null && !pdfId) return res.status(400).json({ error: 'Bad PDF id' });
+  if (!message && !image && !page && !selection && !pdfId) return res.status(400).json({ error: 'Empty message' });
 
   // load the conversation (only your own)
   const uid = u?.id ?? null; // null = the owner
@@ -1407,39 +1430,46 @@ async function chat(req, res) {
     if (c.rowCount) {
       if (!hasSite && !page) site = c.rows[0].memory_site ?? memorySite(c.rows[0].page_url);
       history = (await pool.query(
-        'SELECT role, content, had_image, page_doc, steps FROM messages WHERE conversation_id=$1 AND NOT refused ORDER BY id', [convId])).rows;
+        'SELECT role, content, had_image, page_doc, steps, attachment_id FROM messages WHERE conversation_id=$1 AND NOT refused ORDER BY id', [convId])).rows;
     } else convId = null;
   }
+  const pdf = await pdfTurn(pdfId, uid, u, convId, history, m); // pdf uploads: this question's PDF and the chat's earlier ones
+  if (pdf.error) return res.status(pdf.error[0]).json({ error: pdf.error[1] });
 
   // The page goes in as a document so answers can quote it. With `cite` (bookmarklets that can find text on the
   // page), the API marks which passages back each part of the answer, and the panel can point at them.
   const cite = b.cite === true;
+  const citeDocs = cite || pdf.n > 0; // the API wants citations on all documents or none, and PDFs always have them
   const doc = page?.text.trim() ? page : null;
   const attr = s => s.replace(/"/g, '&quot;');
   // OpenRouter models take the page as plain text in <page> tags instead (no citations there)
   const docBlock = d => m.openrouter ? { type: 'text', text: `<page url="${attr(d.url || '')}" title="${attr(d.title || '')}">\n${fence(d.text)}\n</page>` } : {
     type: 'document', source: { type: 'text', media_type: 'text/plain', data: d.text },
     title: (d.title || d.url || 'Web page').slice(0, 300), ...(d.url && { context: `URL: ${d.url}` }),
-    citations: { enabled: cite },
+    citations: { enabled: citeDocs },
   };
 
   // build this turn's text
   const parts = [];
   if (page && !doc) parts.push(`<page url="${attr(page.url)}" title="${attr(page.title)}"></page>`);
   if (selection) parts.push(`<highlighted_text>\n${selection}\n</highlighted_text>`);
-  parts.push(message || (image ? 'Help me with what is in this screenshot.' : selection ? 'Explain the highlighted text.' : 'Summarize this page.'));
+  parts.push(message || (image ? 'Help me with what is in this screenshot.' : pdfId ? 'Summarize this PDF.' : selection ? 'Explain the highlighted text.' : 'Summarize this page.'));
   const userText = parts.join('\n\n');
 
-  // old screenshots are not resent (saves tokens) — a note stands in for them. Pages are resent as documents.
+  // old screenshots are not resent (saves tokens) — a note stands in for them. Pages are resent as documents, and so
+  // are PDFs (pdf uploads), unless the retention sweep has deleted the file: then a note stands in for it too.
   const messages = history.map(h => {
-    const text = (h.steps ? stepsNote(h.steps) : '') + (h.had_image ? `[A screenshot was attached to this message; it is no longer available.]\n\n${h.content}` : h.content);
-    const d = h.page_doc && parseJSON(h.page_doc);
-    return { role: h.role, content: d?.text ? [docBlock(d), { type: 'text', text }] : text };
+    let text = (h.steps ? stepsNote(h.steps) : '') + (h.had_image ? `[A screenshot was attached to this message; it is no longer available.]\n\n${h.content}` : h.content);
+    const d = h.page_doc && parseJSON(h.page_doc), p = h.attachment_id != null ? pdf.prior.get(String(h.attachment_id)) : null;
+    if (p && !p.bytes) text = pdfGone(p) + text;
+    const docs = [...(d?.text ? [docBlock(d)] : []), ...(p?.bytes ? [pdfBlock(p)] : [])];
+    return { role: h.role, content: docs.length ? [...docs, { type: 'text', text }] : text };
   });
   const cur = [];
   if (image) cur.push(m.openrouter ? { type: 'image_url', image_url: { url: `data:${image.media_type};base64,${image.data}` } }
     : { type: 'image', source: { type: 'base64', media_type: image.media_type, data: image.data } });
   if (doc) cur.push(docBlock(doc));
+  if (pdf.cur) cur.push(pdfBlock(pdf.cur));
   cur.push({ type: 'text', text: userText, ...(!m.openrouter && { cache_control: { type: 'ephemeral' } }) });
   messages.push({ role: 'user', content: cur });
 
@@ -1450,7 +1480,7 @@ async function chat(req, res) {
   // the prompt's size, estimated on the high side at 3 characters a token, plus the screenshot
   const chars = system.length + userText.length + (doc ? doc.text.length : 0) +
     history.reduce((n, h) => n + h.content.length + (h.page_doc ? h.page_doc.length : 0) + (h.steps ? h.steps.length : 0), 0) + (acting ? ACT_TOOLS_CHARS : 0);
-  const promptEst = Math.ceil(chars / 3) + (image ? 1600 : 0);
+  const promptEst = Math.ceil(chars / 3) + (image ? 1600 : 0) + pdf.tokens; // and the chat's PDFs, counted when uploaded
   if (q0) {
     // Make sure the whole question fits in what's left today: the prompt and any search results, plus the answer,
     // whose length gets capped to fit.
@@ -1463,7 +1493,7 @@ async function chat(req, res) {
     }
     if (room < 256) {
       return res.status(429).json({ quota: q0, error: `That’s more than what’s left of today’s limit (${q0.kind === 'usd' ? '$' + q0.left.toFixed(2) : fmtLimit('tokens', Math.floor(q0.left))} left). ` +
-        (history.length ? 'Start a new chat (+ at the top), or ask something shorter.' : 'Try a shorter question, or leave out the page or web search.') });
+        (pdf.tokens > estIn / 2 ? pdfLimitHint(pdf, history.length > 0) : history.length ? 'Start a new chat (+ at the top), or ask something shorter.' : 'Try a shorter question, or leave out the page or web search.') });
     }
     maxTokens = Math.min(maxTokens, Math.floor(room));
   }
@@ -1506,7 +1536,7 @@ async function chat(req, res) {
   const tot = { in: 0, out: 0, usd: 0, searches: 0 };
   const sources = new Map();
   // quoted passages of the page, and where in the reply each group of them backs up what was just said
-  const quotes = [], quoteIdx = new Map(), cites = [];
+  const quotes = [], quoteIdx = new Map(), cites = [], pdfPages = []; // pdfPages[i]: the PDF pages quote i is from
   let reply = '', final = null, failed = null, cut = null, gap = false; // gap: the next words start after page actions
   const rs = m.openrouter ? { started: false, usage: null, sources: [] } : null;
   try {
@@ -1541,10 +1571,13 @@ async function chat(req, res) {
           // the block's text has all streamed by now, so reply.length is where its marker goes
           const qs = [];
           for (const c of blk.citations) {
-            const text = c.type === 'char_location' ? String(c.cited_text || '').trim() : '';
+            // page quotes only for panels that can find them on the page; PDF quotes (pdf uploads) say which page they're on
+            const pg = c.type === 'page_location';
+            const text = (c.type === 'char_location' && cite) || pg ? String(c.cited_text || '').trim() : '';
             if (!text) continue;
-            if (!quoteIdx.has(text) && quotes.length < 30) { quoteIdx.set(text, quotes.length); quotes.push(text.slice(0, 2000)); }
-            const i = quoteIdx.get(text);
+            const key = pg ? `${c.document_index}:${c.start_page_number}:${text}` : text;
+            if (!quoteIdx.has(key) && quotes.length < 30) { quoteIdx.set(key, quotes.length); if (pg) pdfPages[quotes.length] = pdfPage(c); quotes.push(text.slice(0, 2000)); }
+            const i = quoteIdx.get(key);
             if (i != null && !qs.includes(i)) qs.push(i);
           }
           if (qs.length) cites.push({ at: reply.length, q: qs });
@@ -1586,13 +1619,15 @@ async function chat(req, res) {
   const replyText = reply.trim() ? reply : refused ? '[declined]' : failed ? '(stopped)' : '(no answer)';
   // an answer that broke off still counts toward usage, and stays in the chat as far as it got, for follow-ups
   await pool.query(
-    `INSERT INTO messages(conversation_id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, user_id, cost_usd, incomplete, page_doc, theme, meta, steps)
-     VALUES ($1,'user',$2,$3,0,0,NULL,0,$4,$10,0,$12,$13,$14,$15,NULL), ($1,'assistant',$5,false,$6,$7,$8,$9,$4,$10,$11,$12,NULL,NULL,$16,$17)`,
+    `INSERT INTO messages(conversation_id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, user_id, cost_usd, incomplete, page_doc, theme, meta, steps, attachment_id)
+     VALUES ($1,'user',$2,$3,0,0,NULL,0,$4,$10,0,$12,$13,$14,$15,NULL,$18), ($1,'assistant',$5,false,$6,$7,$8,$9,$4,$10,$11,$12,NULL,NULL,$16,$17,NULL)`,
     [convId, userText, !!image, refused, replyText, tot.in, tot.out, (cut || final)?.model || m.id, tot.searches, uid, tot.usd, !!failed,
       doc ? JSON.stringify({ url: doc.url, title: doc.title, text: doc.text }) : null, prefs.theme,
-      questionMeta({ doc, web }), answerMeta({ sources, quotes, cites, refused, end: failed ? cut : final, requested: m.id }),
-      acts?.steps.length ? JSON.stringify(acts.steps) : null]);
+      questionMeta({ doc, web }), answerMeta({ sources, quotes, cites, pdfPages, refused, end: failed ? cut : final, requested: m.id }),
+      acts?.steps.length ? JSON.stringify(acts.steps) : null, pdf.cur?.id ?? null]);
   await pool.query('UPDATE conversations SET updated_at = now() WHERE id = $1', [convId]); // chat history lists it first now
+  // pdf uploads: the PDF belongs to this chat from now on (one that never reached the model stays free to send again)
+  if (pdf.cur) await pool.query('UPDATE attachments SET conversation_id = $1 WHERE id = $2 AND conversation_id IS NULL', [convId, pdf.cur.id]);
   if (failed) {
     out({ t: 'err', v: friendly(failed, m.id), conversationId: convId });
     return void res.end();
@@ -1601,7 +1636,7 @@ async function chat(req, res) {
     t: 'done', conversationId: convId, usage: { in: tot.in, out: tot.out, usd: tot.usd }, stop: final.stop_reason,
     model: modelLabel(final.model || m.id), fallback: !!final.model && final.model !== m.id,
     searches: tot.searches, sources: [...sources].slice(0, 8).map(([url, title]) => ({ url, title })),
-    ...(cites.length && !refused && { quotes, cites }),
+    ...(cites.length && !refused && { quotes, cites, ...(pdfPages.length && { pdfPages: Array.from(quotes, (_, i) => pdfPages[i] || null) }) }),
     ...(refused && { refusal: final.stop_details?.category || null }),
     ...(used && { quota: quota(u, { tokens: used.tokens + tot.in + tot.out, usd: used.usd + tot.usd }) }),
   });
@@ -1628,10 +1663,10 @@ const CHATS_PAGE = 30, MAX_CHAT_SEARCH = 100;
 const STOCK_QUESTIONS = new Set(['Summarize this page.', 'What are the key points of this page?', 'Explain this page simply, as if I’m new to the topic.',
   'Help me with what is in this screenshot.', 'Explain the highlighted text.']);
 // what the done event carries, minus what the message row already has (model, tokens, searches)
-function answerMeta({ sources, quotes, cites, refused, end, requested }) {
+function answerMeta({ sources, quotes, cites, pdfPages = [], refused, end, requested }) {
   const o = {}, src = [...sources].slice(0, 8).map(([url, title]) => ({ url, title }));
   if (src.length) o.sources = src;
-  if (cites.length && !refused) Object.assign(o, { quotes, cites }); // cites[].at are offsets into the stored answer
+  if (cites.length && !refused) Object.assign(o, { quotes, cites, ...(pdfPages.length && { pdfPages: Array.from(quotes, (_, i) => pdfPages[i] || null) }) }); // cites[].at are offsets into the stored answer
   if (end?.stop_reason && !['end_turn', 'refusal'].includes(end.stop_reason)) o.stop = end.stop_reason;
   if (end?.model && end.model !== requested) o.fallback = true;
   if (refused) o.refusal = end?.stop_details?.category || null;
@@ -1685,15 +1720,23 @@ function pastMessage(m) {
   if (m.role === 'user') {
     const q = splitQuestion(m.content);
     return { role: 'user', text: q.text, highlight: q.highlight.slice(0, 2000), page: m.has_doc || !!q.page, url: x.url || q.page?.url || null,
-      image: m.had_image, web: !!x.web, at };
+      image: m.had_image, web: !!x.web, at,
+      ...(m.pdf_name != null && { pdf: { name: m.pdf_name, pages: m.pdf_pages, gone: !m.pdf_stored } }) }; // pdf uploads: a chip, greyed once the file's been cleared
   }
   const blank = m.content === (m.refused ? '[declined]' : m.incomplete ? '(stopped)' : '(no answer)'); // the stand-ins chat() saves
   return {
     role: 'assistant', text: blank ? '' : m.content, model: m.model ? modelLabel(m.model) : null, usage: { in: m.input_tokens, out: m.output_tokens },
     searches: m.web_searches, stopped: m.incomplete, sources: Array.isArray(x.sources) ? x.sources : [], at,
-    ...(Array.isArray(x.quotes) && Array.isArray(x.cites) && { quotes: x.quotes, cites: x.cites }),
+    ...(Array.isArray(x.quotes) && Array.isArray(x.cites) && { quotes: x.quotes, cites: x.cites, ...(Array.isArray(x.pdfPages) && { pdfPages: x.pdfPages }) }),
+    ...pastSteps(m.steps),
     ...(x.stop && { stop: x.stop }), ...(x.fallback && { fallback: true }), ...(m.refused && { refusal: x.refusal ?? null }),
   };
+}
+// page actions: the steps an answer took, as lines to show again (read-only)
+function pastSteps(json) {
+  const s = json && parseJSON(json);
+  return Array.isArray(s) && s.length ? { steps: s.slice(0, ACT_MAX).map(x => ({ tool: String(x?.tool || '').slice(0, 30), text: clip(x?.text, 200),
+    outcome: ['done', 'denied', 'failed'].includes(x?.outcome) ? x.outcome : 'failed' })) } : {};
 }
 const GONE = { error: 'That chat isn’t in your history anymore.' };
 
@@ -1746,8 +1789,10 @@ app.get('/api/chats/:id', limit(120, 'chats-read'), auth, trusted, async (req, r
   const id = chatId(req.params.id);
   const c = id && (await pool.query(`${chatSql()} WHERE c.id = $1 AND COALESCE(c.user_id, 0) = $2 AND c.hidden_at IS NULL`, [id, req.user?.id ?? 0])).rows[0];
   if (!c) return res.status(404).json(GONE); // someone else's chat looks the same as one that isn't there
-  const r = await pool.query(`SELECT * FROM (SELECT id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, incomplete, meta,
-      created_at, page_doc IS NOT NULL AS has_doc FROM messages WHERE conversation_id = $1 ORDER BY id DESC LIMIT ${MAX_PAST + 1}) x ORDER BY id`, [id]);
+  const r = await pool.query(`SELECT * FROM (SELECT id, role, content, had_image, input_tokens, output_tokens, model, web_searches, refused, incomplete, meta, steps,
+      created_at, page_doc IS NOT NULL AS has_doc,
+      (SELECT f.name FROM attachments f WHERE f.id = messages.attachment_id) AS pdf_name, (SELECT f.pages FROM attachments f WHERE f.id = messages.attachment_id) AS pdf_pages,
+      (SELECT f.bytes IS NOT NULL FROM attachments f WHERE f.id = messages.attachment_id) AS pdf_stored FROM messages WHERE conversation_id = $1 ORDER BY id DESC LIMIT ${MAX_PAST + 1}) x ORDER BY id`, [id]);
   const rows = r.rows.slice(-MAX_PAST);
   while (rows[0]?.role === 'assistant') rows.shift(); // start on a question
   const chat = publicChat(c), messages = rows.map(pastMessage);
@@ -1767,6 +1812,111 @@ app.delete('/api/chats', limit(30, 'chats-write'), auth, trusted, async (req, re
   const r = await pool.query('UPDATE conversations SET hidden_at = now() WHERE COALESCE(user_id, 0) = $1 AND hidden_at IS NULL', [req.user?.id ?? 0]);
   res.json({ ok: true, removed: r.rowCount });
 });
+
+// ---------- pdf uploads ----------
+// People upload a PDF (and only a PDF) on its own, then send its id with a question. It goes to Claude as a citable
+// document, and since it's part of the chat, every follow-up in that chat sends it again (cached, so that's cheap).
+const MAX_PDF_BYTES = 10 * 1024 * 1024, MAX_PDF_PAGES = 100;
+const PDF_PAGE_TOKENS = 2500; // rough prompt tokens per page (its text plus the page as an image), when the API can't count them
+// every question resends all of a chat's PDFs, and a request holds 32 MB; three also keeps us within 4 cache breakpoints
+const MAX_CHAT_PDFS = 3, MAX_CHAT_PDF_BYTES = 20 * 1024 * 1024;
+const MAX_UNUSED_PDFS = 10; // uploads not sent with a question yet; older ones make way for new ones
+const UNUSED_PDF_HOURS = 24, PDF_KEEP_DAYS = 30;
+const MB = n => `${Math.round(n / 1024 / 1024 * 10) / 10} MB`;
+// a file name to show, never a path
+const pdfName = v => (typeof v === 'string' ? v : '').normalize('NFC').replace(/[\u0000-\u001f\u007f\\/]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) || 'document.pdf';
+
+// Pages, counted from the file itself: page objects are "/Type /Page" (the page tree nodes are "/Type /Pages").
+// Newer PDFs can pack those objects into compressed object streams, so those get unpacked and counted too.
+function pdfPageCount(buf) {
+  const s = buf.toString('latin1'), count = t => (t.match(/\/Type\s*\/Page(?![A-Za-z])/g) || []).length;
+  let n = count(s), budget = 64 * 1024 * 1024; // a cap on what unpacking may produce, against zip bombs
+  for (const m of s.matchAll(/\/Type\s*\/ObjStm\b[^]*?>>\s*stream\r?\n/g)) {
+    const start = m.index + m[0].length, end = s.indexOf('endstream', start);
+    if (end < 0 || budget <= 0) break;
+    try {
+      const out = zlib.inflateSync(buf.subarray(start, end), { maxOutputLength: budget, finishFlush: zlib.constants.Z_SYNC_FLUSH });
+      budget -= out.length; n += count(out.toString('latin1'));
+    } catch { /* not deflated, or damaged: skip it */ }
+  }
+  return n || null;
+}
+// The prompt tokens a PDF adds to each question, from the API's own count when it can give one
+async function pdfTokens(buf, pages) {
+  try {
+    const r = await anthropic.messages.countTokens({ model: MODELS.haiku.id, messages: [{ role: 'user', content: [
+      { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: buf.toString('base64') } },
+      { type: 'text', text: '?' }] }] }, { timeout: 30_000, maxRetries: 1 });
+    if (Number.isFinite(r?.input_tokens) && r.input_tokens > 0) return Math.ceil(r.input_tokens);
+  } catch (e) { console.warn('PDF token count failed, estimating from its pages:', e?.status || '', e?.message || e); }
+  return (pages || Math.max(1, Math.ceil(buf.length / 100_000))) * PDF_PAGE_TOKENS;
+}
+const pdfBlock = p => ({
+  type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: p.bytes.toString('base64') },
+  title: p.name, citations: { enabled: true }, cache_control: { type: 'ephemeral' },
+});
+const pdfGone = p => `[A PDF ("${p.name.replace(/"/g, "'")}") was attached to this message; it is no longer available.]\n\n`;
+// where a PDF quote is, for the panel's numbered markers: page numbers start at 1, and the end page is exclusive
+const pdfPage = c => {
+  const from = Math.max(1, Math.round(Number(c.start_page_number)) || 1);
+  return { name: String(c.document_title || 'PDF').slice(0, 200), from, to: Math.max(from, (Math.round(Number(c.end_page_number)) || from + 1) - 1) };
+};
+
+// The PDFs for one question: the one sent with it (an unused upload of yours, or one already in this chat) and the
+// ones earlier in the chat, which go again. Returns { error: [status, message] } when the question can't go ahead.
+async function pdfTurn(pdfId, uid, u, convId, history, m) {
+  const ids = [...new Set(history.filter(h => h.attachment_id != null).map(h => String(h.attachment_id)))];
+  const prior = new Map((ids.length ? (await pool.query('SELECT id, name, size, pages, tokens, bytes FROM attachments WHERE id = ANY($1::bigint[]) AND user_id IS NOT DISTINCT FROM $2',
+    [ids, uid])).rows : []).map(r => [String(r.id), r]));
+  let cur = null;
+  if (pdfId && !prior.has(String(pdfId))) { // one that's already in this chat goes along anyway
+    cur = (await pool.query('SELECT id, name, size, pages, tokens, bytes, conversation_id FROM attachments WHERE id = $1 AND user_id IS NOT DISTINCT FROM $2', [pdfId, uid])).rows[0];
+    if (!cur) return { error: [404, 'That PDF isn’t here anymore. Upload it again.'] };
+    if (cur.conversation_id != null && Number(cur.conversation_id) !== convId) return { error: [409, 'That PDF went with a different chat. Upload it again to use it here.'] };
+    if (!cur.bytes) return { error: [410, 'That PDF is no longer stored. Upload it again.'] };
+    if (u && !u.allowPdf) return { error: [400, 'PDF uploads aren’t turned on for your account.'] };
+  }
+  const live = [...prior.values(), ...(cur ? [cur] : [])].filter(p => p.bytes);
+  if (m.openrouter && live.length) return { error: [400, `${m.label} can’t read PDFs. Pick Haiku or Sonnet for a chat with a PDF.`] };
+  if (cur && (live.length > MAX_CHAT_PDFS || live.reduce((n, p) => n + p.size, 0) > MAX_CHAT_PDF_BYTES))
+    return { error: [400, `A chat can hold ${MAX_CHAT_PDFS} PDFs, ${MB(MAX_CHAT_PDF_BYTES)} in all. Start a new chat (+ at the top) for this one.`] };
+  return { cur, prior, n: live.length, tokens: live.reduce((n, p) => n + p.tokens, 0) };
+}
+// what a question that's too big for today's limit says when PDFs are a big part of it
+const pdfLimitHint = (pdf, followUp) => (pdf.n === 1 ? 'The PDF in this chat is' : `The ${pdf.n} PDFs in this chat are`) +
+  ` about ${fmtLimit('tokens', pdf.tokens)} on ${pdf.n === 1 ? 'its' : 'their'} own. Try a smaller PDF (fewer pages)` + (followUp ? ', or start a new chat (+ at the top).' : '.');
+
+// The upload itself: the raw file, read only after the login checks out. Only real PDFs get in: the first bytes have
+// to be "%PDF-", whatever the browser says the file is.
+const pdfRaw = express.raw({ type: 'application/pdf', limit: MAX_PDF_BYTES });
+app.post('/api/pdf', limit(20, 'pdf'), limit(120, 'pdf-hour', 3600_000), auth, trusted, (req, res, next) => {
+  if (req.user && !req.user.allowPdf) return res.status(403).json({ error: 'PDF uploads aren’t turned on for your account.' });
+  pdfRaw(req, res, e => e?.type === 'entity.too.large'
+    ? res.status(413).json({ error: `That PDF is too big. PDFs can be up to ${MB(MAX_PDF_BYTES)}.` }) : next(e));
+}, async (req, res) => {
+  const buf = req.body, uid = req.user?.id ?? null;
+  if (!Buffer.isBuffer(buf) || buf.subarray(0, 5).toString('latin1') !== '%PDF-')
+    return res.status(415).json({ error: 'Only PDF files can be uploaded, and that isn’t one.' });
+  const pages = pdfPageCount(buf);
+  if (pages > MAX_PDF_PAGES) return res.status(413).json({ error: `That PDF has ${pages} pages. PDFs can have up to ${MAX_PDF_PAGES} pages, so split it or save just the part you need.` });
+  const tokens = await pdfTokens(buf, pages), name = pdfName(req.query.name);
+  const r = await pool.query('INSERT INTO attachments(user_id, name, bytes, size, pages, tokens) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+    [uid, name, buf, buf.length, pages, tokens]);
+  await pool.query(`DELETE FROM attachments WHERE id IN (SELECT id FROM attachments WHERE user_id IS NOT DISTINCT FROM $1 AND conversation_id IS NULL
+    ORDER BY id DESC OFFSET $2)`, [uid, MAX_UNUSED_PDFS]);
+  res.json({ id: Number(r.rows[0].id), name, size: buf.length, pages, tokens });
+});
+
+// Retention: uploads never sent with a question go after a day, and every PDF's file after 30 days (or once its account
+// is gone). The rows stay, so chats and /admin can still name the PDF, and follow-ups send a note in its place.
+// A chat removed from someone's history keeps its PDF until then, like the rest of the chat.
+async function sweepPdfs() {
+  const gone = await pool.query(`DELETE FROM attachments WHERE conversation_id IS NULL AND created_at < now() - make_interval(hours => $1)`, [UNUSED_PDF_HOURS]);
+  const old = await pool.query(`UPDATE attachments a SET bytes = NULL WHERE bytes IS NOT NULL AND (created_at < now() - make_interval(days => $1)
+    OR (user_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = a.user_id)))`, [PDF_KEEP_DAYS]);
+  if (gone.rowCount || old.rowCount) console.log(`PDF cleanup: ${gone.rowCount} unused upload(s) deleted, ${old.rowCount} old file(s) cleared.`);
+}
+setInterval(() => sweepPdfs().catch(e => console.error('PDF cleanup error:', e.message)), 3600_000).unref();
 
 // ---------- wrapped: a year of your questions ----------
 // The panel sends its own timezone so hours and streaks follow the viewer's clock.
@@ -1997,12 +2147,13 @@ app.get('/api/admin/activity', limit(300, 'admin'), admin, async (req, res) => {
     SELECT m.id, m.created_at, m.user_id, u.username, m.had_image, m.conversation_id,
       left(regexp_replace(m.content, $4, ''), 300) AS question,
       (m.page_doc IS NOT NULL OR m.content LIKE '<page %') AS has_page, strpos(m.content, '<highlighted_text>') > 0 AS has_sel,
+      (SELECT f.name FROM attachments f WHERE f.id = m.attachment_id) AS pdf_name,
       c.page_url, c.page_title, c.hidden_at IS NOT NULL AS removed,
-      a.model, a.input_tokens, a.output_tokens, a.cost_usd, a.web_searches, a.refused, a.incomplete
+      a.model, a.input_tokens, a.output_tokens, a.cost_usd, a.web_searches, a.refused, a.incomplete, a.steps IS NOT NULL AS acted
     FROM messages m CROSS JOIN b
     JOIN conversations c ON c.id = m.conversation_id
     LEFT JOIN users u ON u.id = m.user_id
-    LEFT JOIN LATERAL (SELECT x.model, x.input_tokens, x.output_tokens, x.cost_usd, x.web_searches, x.refused, x.incomplete
+    LEFT JOIN LATERAL (SELECT x.model, x.input_tokens, x.output_tokens, x.cost_usd, x.web_searches, x.refused, x.incomplete, x.steps
       FROM messages x WHERE x.conversation_id = m.conversation_id AND x.id > m.id AND x.role = 'assistant' ORDER BY x.id LIMIT 1) a ON true
     WHERE m.role = 'user' AND m.created_at >= b.s AND ${WHO('m')}
       AND ($5::bigint IS NULL OR m.id < $5::bigint)
@@ -2016,10 +2167,11 @@ app.get('/api/admin/activity', limit(300, 'admin'), admin, async (req, res) => {
     more: r.rows.length > n,
     rows: r.rows.slice(0, n).map(x => ({
       id: Number(x.id), at: x.created_at, user: userRef(x.user_id, x.username), question: x.question,
-      page: x.has_page, highlight: x.has_sel, image: x.had_image, url: x.page_url, title: x.page_title, host: hostOf(x.page_url),
+      page: x.has_page, highlight: x.has_sel, image: x.had_image, pdf: x.pdf_name || null, url: x.page_url, title: x.page_title, host: hostOf(x.page_url),
       conversationId: Number(x.conversation_id), model: x.model, modelLabel: x.model ? modelLabel(x.model) : null, family: modelFamily(x.model),
       in: x.input_tokens || 0, out: x.output_tokens || 0, usd: Number(x.cost_usd) || 0, searches: x.web_searches || 0,
       refused: !!x.refused, stopped: !!x.incomplete, fallback: !!x.model && !ids.includes(x.model), answered: x.model != null,
+      acted: x.acted, // it took page actions
       removed: x.removed, // its person removed the chat from their history (chat history)
     })),
   });
@@ -2030,9 +2182,10 @@ app.get('/api/admin/activity/:id', limit(300, 'admin'), admin, async (req, res) 
   if (!/^\d{1,18}$/.test(req.params.id)) return res.status(400).json({ error: 'Bad id.' });
   const m = (await pool.query(`SELECT m.*, u.username FROM messages m LEFT JOIN users u ON u.id = m.user_id WHERE m.id = $1 AND m.role = 'user'`, [req.params.id])).rows[0];
   if (!m) return res.status(404).json({ error: 'Not found.' });
-  const [a, t] = await Promise.all([
+  const [a, t, f] = await Promise.all([
     pool.query(`SELECT * FROM messages WHERE conversation_id = $1 AND id > $2 AND role = 'assistant' ORDER BY id LIMIT 1`, [m.conversation_id, m.id]),
     pool.query(`SELECT COUNT(*) FILTER (WHERE id <= $2)::int AS n, COUNT(*)::int AS total FROM messages WHERE conversation_id = $1 AND role = 'user'`, [m.conversation_id, m.id]),
+    pool.query('SELECT name, size, pages, bytes IS NOT NULL AS stored FROM attachments WHERE id = $1', [m.attachment_id]), // pdf uploads
   ]);
   const c = m.content, x = a.rows[0], ids = Object.values(MODELS).map(v => v.id);
   const unq = s => s.replace(/&quot;/g, '"');
@@ -2045,10 +2198,11 @@ app.get('/api/admin/activity/:id', limit(300, 'admin'), admin, async (req, res) 
     question: c.replace(/^(<page [\s\S]*<\/page>\n\n)?(<highlighted_text>\n[\s\S]*<\/highlighted_text>\n\n)?/, '').slice(0, 8000),
     page: doc?.url != null || doc?.text ? { url: doc.url || '', title: doc.title || '', chars: (doc.text || '').length }
       : pm ? { url: unq(pm[1]), title: unq(pm[2]), chars: pageEnd > 0 ? Math.max(0, pageEnd - pm[0].length - 2) : null } : null,
-    highlight: hm ? hm[1].slice(0, 2000) : null, image: m.had_image,
+    highlight: hm ? hm[1].slice(0, 2000) : null, image: m.had_image, pdf: f.rows[0] || null,
     answer: x ? x.content.slice(0, 20000) : null, model: x?.model || null, modelLabel: x?.model ? modelLabel(x.model) : null, family: modelFamily(x?.model),
     in: x?.input_tokens || 0, out: x?.output_tokens || 0, usd: Number(x?.cost_usd) || 0, searches: x?.web_searches || 0,
     refused: !!x?.refused, stopped: !!x?.incomplete, fallback: !!x?.model && !ids.includes(x.model),
+    steps: pastSteps(x?.steps).steps || null, // page actions: what the answer did on the page
   });
 });
 
@@ -2182,7 +2336,7 @@ app.post('/api/admin/users/:id', limit(300, 'admin'), admin, async (req, res) =>
     if (b.status === 'trusted' && cur.status === 'pending') {
       // first approval: start from the defaults for new accounts
       const d = cfg.accountDefaults;
-      Object.assign(set, { approved_at: new Date(), limit_kind: d.limitKind, limit_value: d.limitValue, allow_sonnet: d.allowSonnet, allow_web: d.allowWeb, allow_actions: d.allowActions });
+      Object.assign(set, { approved_at: new Date(), limit_kind: d.limitKind, limit_value: d.limitValue, allow_sonnet: d.allowSonnet, allow_web: d.allowWeb, allow_pdf: d.allowPdf, allow_actions: d.allowActions });
     }
     if (b.status === 'blocked') signOut = true;
   }
@@ -2194,6 +2348,7 @@ app.post('/api/admin/users/:id', limit(300, 'admin'), admin, async (req, res) =>
   if (typeof b.allowSonnet === 'boolean') set.allow_sonnet = b.allowSonnet;
   if (typeof b.allowWeb === 'boolean') set.allow_web = b.allowWeb;
   if (typeof b.allowActions === 'boolean') set.allow_actions = b.allowActions;
+  if (typeof b.allowPdf === 'boolean') set.allow_pdf = b.allowPdf;
   if (typeof b.adminNote === 'string') set.admin_note = b.adminNote.trim().slice(0, 300) || null;
   if (b.password != null) {
     const pw = String(b.password);
@@ -2379,4 +2534,5 @@ app.use((err, req, res, next) => {
 
 await initDb();
 await purgeTerminated();
+await sweepPdfs(); // pdf uploads
 app.listen(PORT, () => console.log(`pagebot listening on :${PORT} (${Object.values(MODELS).map(m => m.id).join(', ')}, effort ${EFFORT})`));

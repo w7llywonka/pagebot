@@ -383,6 +383,8 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
       <button class="btn ghost sm" type="button" data-b="sonnet-off">No Sonnet</button>
       <button class="btn ghost sm" type="button" data-b="web-on">Allow web</button>
       <button class="btn ghost sm" type="button" data-b="web-off">No web</button>
+      <button class="btn ghost sm" type="button" data-b="pdf-on">Allow PDF</button>
+      <button class="btn ghost sm" type="button" data-b="pdf-off">No PDF</button>
       <button class="btn ghost sm" type="button" data-b="actions-on">Allow page actions</button>
       <button class="btn ghost sm" type="button" data-b="actions-off">No page actions</button>
       <button class="btn ghost sm" type="button" data-b="signout">Sign out</button>
@@ -424,7 +426,7 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
         <div class="inl"><div class="seg" id="dKind"><button type="button" data-k="tokens">Tokens</button><button type="button" data-k="usd">Dollars</button><button type="button" data-k="none">No limit</button></div>
         <input id="dValue" type="number" min="0" step="any" aria-label="Daily limit for new people"><span class="unit" id="dUnit"></span></div>
       </div>
-      <div class="field"><span class="fl">Can use</span><label class="ck"><input type="checkbox" id="dSonnet"> Sonnet 5.5</label><label class="ck"><input type="checkbox" id="dWeb"> Web search</label><label class="ck"><input type="checkbox" id="dActions"> Page actions</label></div>
+      <div class="field"><span class="fl">Can use</span><label class="ck"><input type="checkbox" id="dSonnet"> Sonnet 5.5</label><label class="ck"><input type="checkbox" id="dWeb"> Web search</label><label class="ck"><input type="checkbox" id="dPdf"> PDF uploads</label><label class="ck"><input type="checkbox" id="dActions"> Page actions</label></div>
       <div class="btns" style="margin-top:14px"><button class="btn" type="button" id="dSave">Save defaults</button></div>
       <div class="msg" id="dMsg"></div>
     </div>
@@ -1017,7 +1019,7 @@ const until = t => { const s = (new Date(t) - Date.now()) / 1000; return s <= 60
 const banWhat = b => b.kind === 'terminate' ? 'Terminated' : b.kind === 'restrict' ? `Restricted for ${banDur(b.hours)}`
   : `Banned ${b.hours == null ? 'permanently' : 'for ' + banDur(b.hours)}`;
 // what a restriction takes away, in a few words
-const lostText = l => [l?.noSonnet && 'no Sonnet', l?.noWeb && 'no web search', l?.noActions && 'no page actions', l?.limitKind && `daily limit ${limitText(l.limitKind, l.limitValue)}`].filter(Boolean).join(', ');
+const lostText = l => [l?.noSonnet && 'no Sonnet', l?.noWeb && 'no web search', l?.noPdf && 'no PDF uploads', l?.noActions && 'no page actions', l?.limitKind && `daily limit ${limitText(l.limitKind, l.limitValue)}`].filter(Boolean).join(', ');
 const BAN_STATES = {
   active: b => b.endsAt ? `${until(b.endsAt)} left` : 'in force',
   ended: () => 'over, not re-activated yet',
@@ -1042,9 +1044,10 @@ const statusChip = u => u.ban ? banChip(u.ban) : u.status === 'blocked' ? chip('
   : u.restriction ? banChip(u.restriction) : chip('Active', 'ok');
 // what an account works with right now: its own settings with the restriction in force on top, as the server applies it
 function eff(u) {
-  const l = u.restriction?.limits || {}, e = { limitKind: u.limitKind, limitValue: u.limitValue, allowSonnet: u.allowSonnet, allowWeb: u.allowWeb, allowActions: u.allowActions };
+  const l = u.restriction?.limits || {}, e = { limitKind: u.limitKind, limitValue: u.limitValue, allowSonnet: u.allowSonnet, allowWeb: u.allowWeb, allowPdf: u.allowPdf, allowActions: u.allowActions };
   if (l.noSonnet) e.allowSonnet = false;
   if (l.noWeb) e.allowWeb = false;
+  if (l.noPdf) e.allowPdf = false;
   if (l.noActions) e.allowActions = false;
   if (l.limitKind) { e.limitKind = l.limitKind; e.limitValue = l.limitValue; }
   return e;
@@ -1145,8 +1148,8 @@ function moderationBox(u) {
     len.setAttribute('aria-label', 'Length');
     // what a restriction takes away
     const rbox = mk('div', 'rform'), cks = mk('div'), cb = label => { const l = mk('label', 'ck'), c = mk('input'); c.type = 'checkbox'; l.append(c, label); return [l, c]; };
-    const [ls, cs] = cb('Take away Sonnet'), [lw, cw] = cb('Take away web search'), [la, ca] = cb('Take away page actions');
-    cks.append(ls, lw, la);
+    const [ls, cs] = cb('Take away Sonnet'), [lw, cw] = cb('Take away web search'), [lpd, cpd] = cb('Take away PDF uploads'), [la, ca] = cb('Take away page actions');
+    cks.append(ls, lw, lpd, la);
     const lim = mk('div', 'inl'), lseg = mk('div', 'seg'), lval = mk('input'), lunit = mk('span', 'unit');
     let lkind = 'none';
     lval.type = 'number'; lval.min = '0'; lval.step = 'any'; lval.setAttribute('aria-label', 'Daily limit while restricted');
@@ -1173,12 +1176,12 @@ function moderationBox(u) {
     for (const [k, label] of [['ban', 'Ban'], ['restrict', 'Restrict'], ['terminate', 'Terminate']]) { const x = button(label); x.dataset.k = k; x.onclick = () => setK(k); seg.appendChild(x); }
     inl.append(seg, len); setK('ban');
     go.onclick = async () => {
-      if (kind === 'restrict' && !cs.checked && !cw.checked && !ca.checked && lkind === 'none') return say(msg, false, 'Pick at least one thing to take away.');
+      if (kind === 'restrict' && !cs.checked && !cw.checked && !cpd.checked && !ca.checked && lkind === 'none') return say(msg, false, 'Pick at least one thing to take away.');
       if (kind === 'restrict' && lkind !== 'none' && !(+lval.value > 0)) { lval.focus(); return say(msg, false, 'Enter a number above zero for the daily limit.'); }
       if (!reason.value.trim()) { reason.focus(); return say(msg, false, 'Give a reason. They see it.'); }
       if (kind === 'terminate' && !confirm(`Terminate ${u.name}? They’ll see the termination notice every time they sign in, and the account is deleted in ${S.users.terminateDays} days.`)) return;
       const body = { kind, reason: reason.value, note: note.value, ...(kind !== 'terminate' && { hours: +len.value }),
-        ...(kind === 'restrict' && { noSonnet: cs.checked, noWeb: cw.checked, noActions: ca.checked, limitKind: lkind, limitValue: +lval.value }) };
+        ...(kind === 'restrict' && { noSonnet: cs.checked, noWeb: cw.checked, noPdf: cpd.checked, noActions: ca.checked, limitKind: lkind, limitValue: +lval.value }) };
       try {
         await send(`/api/admin/users/${u.id}/ban`, body);
         await loadUsers(); renderPeople(); renderDrawer();
@@ -1237,12 +1240,12 @@ const PCOLS = [
   { key: 'q7', label: 'Questions, 7 days', num: 1, v: u => u.week.questions },
   { key: 'c7', label: 'Cost, 7 days', num: 1, v: u => u.week.usd },
   { key: 'ct', label: 'Cost, all time', num: 1, v: u => u.total.usd },
-  { key: 'access', label: 'Can use', v: u => { const e = eff(u); return (e.allowSonnet ? 4 : 0) + (e.allowWeb ? 2 : 0) + (e.allowActions ? 1 : 0); } },
+  { key: 'access', label: 'Can use', v: u => { const e = eff(u); return (e.allowSonnet ? 8 : 0) + (e.allowWeb ? 4 : 0) + (e.allowPdf ? 2 : 0) + (e.allowActions ? 1 : 0); } },
   { key: 'dev', label: 'Devices', num: 1, v: u => u.devices },
   { key: 'last', label: 'Last active', v: u => u.lastSeen ? +new Date(u.lastSeen) : 0 },
   { key: 'joined', label: 'Joined', v: u => +new Date(u.createdAt) },
 ];
-const accessText = u => (u.allowSonnet ? 'Sonnet' : 'Haiku only') + (u.allowWeb ? ', web' : '') + (u.allowActions ? ', actions' : '');
+const accessText = u => (u.allowSonnet ? 'Sonnet' : 'Haiku only') + (u.allowWeb ? ', web' : '') + (u.allowPdf ? ', PDF' : '') + (u.allowActions ? ', actions' : '');
 // marks a value a restriction is overriding; their own setting comes back when it ends
 function rTag(u, own) { const t = mk('span', 'tag warn', 'restricted'); t.title = `Restricted until ${fullFmt.format(new Date(u.restriction.endsAt))}. Their own setting: ${own}`; return t; }
 function todayCell(u) {
@@ -1298,7 +1301,7 @@ function personRow(tb, u) {
   if (rl.limitKind) lc.appendChild(rTag(u, limitText(u.limitKind, u.limitValue)));
   td(tr, todayCell(u));
   td(tr, nf.format(u.week.questions), 'num'); td(tr, money(u.week.usd), 'num'); td(tr, money(u.total.usd), 'num');
-  const ac = td(tr, accessText(e)); if (rl.noSonnet || rl.noWeb || rl.noActions) ac.appendChild(rTag(u, accessText(u)));
+  const ac = td(tr, accessText(e)); if (rl.noSonnet || rl.noWeb || rl.noPdf || rl.noActions) ac.appendChild(rTag(u, accessText(u)));
   td(tr, nf.format(u.devices), 'num');
   const la = td(tr, ago(u.lastSeen)); if (u.lastSeen) la.title = fullFmt.format(new Date(u.lastSeen));
   td(tr, dayYFmt.format(new Date(u.createdAt)));
@@ -1314,9 +1317,9 @@ $('#pExport').onclick = () => {
   const d = S.users; if (!d) return;
   download('pagebot-people', [
     ['Name', 'Status', 'Daily limit type', 'Daily limit', 'Today tokens', 'Today cost (USD)', 'Questions 7d', 'Tokens 7d', 'Cost 7d (USD)', 'Questions all time', 'Tokens all time', 'Cost all time (USD)',
-      'Sonnet', 'Web search', 'Page actions', 'Passcode', 'Ban', 'Ban reason', 'Restriction', 'Restriction ends', 'Restriction reason', 'Shared a browser with', 'Devices', 'Last active', 'Last question', 'Joined', 'Accepted', 'Their note', 'Private note'],
+      'Sonnet', 'Web search', 'PDF uploads', 'Page actions', 'Passcode', 'Ban', 'Ban reason', 'Restriction', 'Restriction ends', 'Restriction reason', 'Shared a browser with', 'Devices', 'Last active', 'Last question', 'Joined', 'Accepted', 'Their note', 'Private note'],
     ...d.users.map(u => [u.name, u.status, u.limitKind || 'none', u.limitValue ?? '', u.today.tokens, u.today.usd.toFixed(4), u.week.questions, u.week.tokens, u.week.usd.toFixed(4),
-      u.total.questions, u.total.tokens, u.total.usd.toFixed(4), u.allowSonnet ? 'yes' : 'no', u.allowWeb ? 'yes' : 'no', u.allowActions ? 'yes' : 'no', u.passcode ? 'yes' : 'no',
+      u.total.questions, u.total.tokens, u.total.usd.toFixed(4), u.allowSonnet ? 'yes' : 'no', u.allowWeb ? 'yes' : 'no', u.allowPdf ? 'yes' : 'no', u.allowActions ? 'yes' : 'no', u.passcode ? 'yes' : 'no',
       u.ban ? banWhat(u.ban) + ` (${banStatus(u.ban)})` : '', u.ban?.reason || '',
       u.restriction ? lostText(u.restriction.limits) : '', u.restriction?.endsAt || '', u.restriction?.reason || '', (u.linked || []).join(' '), u.devices,
       u.lastSeen || '', u.lastQuestion || '', u.createdAt, u.approvedAt || '', u.note, u.adminNote]),
@@ -1367,7 +1370,7 @@ async function bulk(body, label) {
   const ids = [...ppl.sel], m = $('#bulkMsg');
   // a restriction in force keeps overriding what it covers, so say when a change waits for one to end
   const held = ids.map(id => S.users.users.find(u => u.id === id)).filter(u => { const l = u?.restriction?.limits || {};
-    return ('limitKind' in body && l.limitKind) || (body.allowSonnet && l.noSonnet) || (body.allowWeb && l.noWeb) || (body.allowActions && l.noActions); });
+    return ('limitKind' in body && l.limitKind) || (body.allowSonnet && l.noSonnet) || (body.allowWeb && l.noWeb) || (body.allowPdf && l.noPdf) || (body.allowActions && l.noActions); });
   let done = 0, failed = 0;
   for (const id of ids) {
     try { await send('/api/admin/users/' + id, body); done++; } catch { failed++; }
@@ -1382,7 +1385,7 @@ $('#bulk').addEventListener('click', async e => {
   const a = b.dataset.b;
   if (a === 'clear') { ppl.sel.clear(); $('#bulkMsg').textContent = ''; renderPeople(); return; }
   if (a === 'limit') { $('#bulkLimit').hidden = !$('#bulkLimit').hidden; if (!$('#bulkLimit').hidden) $('#bValue').focus(); return; }
-  const bodies = { 'sonnet-on': { allowSonnet: true }, 'sonnet-off': { allowSonnet: false }, 'web-on': { allowWeb: true }, 'web-off': { allowWeb: false }, 'actions-on': { allowActions: true }, 'actions-off': { allowActions: false }, signout: { signout: true }, block: { status: 'blocked' }, unblock: { status: 'trusted' } };
+  const bodies = { 'sonnet-on': { allowSonnet: true }, 'sonnet-off': { allowSonnet: false }, 'web-on': { allowWeb: true }, 'web-off': { allowWeb: false }, 'pdf-on': { allowPdf: true }, 'pdf-off': { allowPdf: false }, 'actions-on': { allowActions: true }, 'actions-off': { allowActions: false }, signout: { signout: true }, block: { status: 'blocked' }, unblock: { status: 'trusted' } };
   if (a === 'block' && !confirm(`Block ${plural(ppl.sel.size, 'person', 'people')}? They're signed out right away.`)) return;
   await bulk(bodies[a], b.textContent);
 });
@@ -1397,7 +1400,7 @@ let dKind = 'tokens';
 function renderDefaults(d) {
   if ($('#defaults').contains(document.activeElement)) return;
   setDKind(d.limitKind || 'none', d.limitValue);
-  $('#dSonnet').checked = d.allowSonnet; $('#dWeb').checked = d.allowWeb; $('#dActions').checked = d.allowActions;
+  $('#dSonnet').checked = d.allowSonnet; $('#dWeb').checked = d.allowWeb; $('#dPdf').checked = d.allowPdf; $('#dActions').checked = d.allowActions;
 }
 function setDKind(k, v) {
   dKind = k; setSeg($('#dKind'), 'k', k);
@@ -1408,7 +1411,7 @@ function setDKind(k, v) {
 $('#dKind').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setDKind(b.dataset.k); });
 $('#dSave').onclick = async () => {
   try {
-    await send('/api/admin/accounts', { defaults: { limitKind: dKind, limitValue: +$('#dValue').value, allowSonnet: $('#dSonnet').checked, allowWeb: $('#dWeb').checked, allowActions: $('#dActions').checked } });
+    await send('/api/admin/accounts', { defaults: { limitKind: dKind, limitValue: +$('#dValue').value, allowSonnet: $('#dSonnet').checked, allowWeb: $('#dWeb').checked, allowPdf: $('#dPdf').checked, allowActions: $('#dActions').checked } });
     say($('#dMsg'), true, 'Saved. People you accept from now on start with these.');
   } catch (err) { say($('#dMsg'), false, err.message); }
 };
@@ -1523,8 +1526,8 @@ function editor(u) {
   inl.append(seg, input, unitL); setKind(kind);
   const f2 = mk('div', 'field'); f2.appendChild(mk('span', 'fl', 'Can use'));
   const cb = (label, on) => { const l = mk('label', 'ck'), c = mk('input'); c.type = 'checkbox'; c.checked = on; l.append(c, label); return [l, c]; };
-  const [ls, cs] = cb('Sonnet 5.5', u.allowSonnet), [lw, cw] = cb('Web search', u.allowWeb), [la, ca] = cb('Page actions', u.allowActions);
-  f2.append(ls, lw, la);
+  const [ls, cs] = cb('Sonnet 5.5', u.allowSonnet), [lw, cw] = cb('Web search', u.allowWeb), [lpd, cpd] = cb('PDF uploads', u.allowPdf), [la, ca] = cb('Page actions', u.allowActions);
+  f2.append(ls, lw, lpd, la);
   const f3 = mk('div', 'field'), nl = mk('label', '', 'Private note (only you see it)'), note = mk('input');
   note.maxLength = 300; note.value = u.adminNote; note.placeholder = 'e.g. Sam from class'; note.style.width = '100%';
   f3.append(nl, note);
@@ -1532,7 +1535,7 @@ function editor(u) {
   save.onclick = async () => {
     const v = +input.value;
     if (kind !== 'none' && !(v > 0)) return say(msg, false, 'Enter a number above zero.');
-    try { await send('/api/admin/users/' + u.id, { limitKind: kind, limitValue: v, allowSonnet: cs.checked, allowWeb: cw.checked, allowActions: ca.checked, adminNote: note.value }); await loadUsers(); renderPeople(); renderDrawer(); say($('#dwFlash') || msg, true, 'Saved.'); }
+    try { await send('/api/admin/users/' + u.id, { limitKind: kind, limitValue: v, allowSonnet: cs.checked, allowWeb: cw.checked, allowPdf: cpd.checked, allowActions: ca.checked, adminNote: note.value }); await loadUsers(); renderPeople(); renderDrawer(); say($('#dwFlash') || msg, true, 'Saved.'); }
     catch (err) { say(msg, false, err.message); }
   };
   [input, note].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save.click(); } }));
@@ -1604,13 +1607,15 @@ function tags(r) {
   if (r.page) t.push(['Page']);
   if (r.highlight) t.push(['Highlight']);
   if (r.image) t.push(['Screenshot']);
+  if (r.pdf) t.push(['📄 ' + (r.pdf.length > 40 ? r.pdf.slice(0, 40) + '…' : r.pdf), '', r.pdf]); // pdf uploads
   if (r.searches) t.push([`Web ×${r.searches}`]);
+  if (r.acted) t.push(['🖱 Page actions']); // page actions
   if (r.fallback) t.push(['Fallback']);
   if (r.refused) t.push(['Declined', 'warn']);
   if (r.stopped) t.push(['Stopped', 'warn']);
   if (!r.answered) t.push(['No answer', 'warn']);
   if (r.removed) t.push(['Removed from history']); // they removed the chat from their history; it's kept here
-  return t.map(([text, cls]) => mk('span', 'tag' + (cls ? ' ' + cls : ''), text));
+  return t.map(([text, cls, title]) => { const e = mk('span', 'tag' + (cls ? ' ' + cls : ''), text); if (title) e.title = title; return e; });
 }
 function renderActivity() {
   const cols = [{ label: 'When' }, { label: 'Person' }, { label: 'Model' }, { label: 'Site' }, { label: 'Question' }, { label: 'In', num: 1, title: 'Tokens in' }, { label: 'Out', num: 1, title: 'Tokens out' }, { label: 'Cost', num: 1, title: 'Estimated cost' }];
@@ -1652,6 +1657,13 @@ function detailRow(tb, r, span) {
     qcol.appendChild(p);
   }
   if (x.image) qcol.appendChild(mk('p', 'sub', 'A screenshot was attached (screenshots aren’t stored).'));
+  if (x.pdf) qcol.appendChild(mk('p', 'sub', `📄 PDF: ${x.pdf.name} · ${x.pdf.pages ? plural(x.pdf.pages, 'page') + ' · ' : ''}${x.pdf.size < 1048576 ? Math.max(1, Math.round(x.pdf.size / 1024)) + ' KB' : (x.pdf.size / 1048576).toFixed(1) + ' MB'}` +
+    (x.pdf.stored ? '' : ' · no longer stored'))); // pdf uploads
+  if (x.steps?.length) { // page actions: what the answer did on the page
+    const sl = mk('div', 'sub'); sl.style.margin = '10px 0 0'; sl.appendChild(mk('div', '', 'Page actions:'));
+    for (const s of x.steps) sl.appendChild(mk('div', '', `${s.outcome === 'done' ? '✓' : s.outcome === 'denied' ? '–' : '✗'} ${s.text}${s.outcome === 'denied' ? ' (skipped)' : s.outcome === 'failed' ? ' (didn’t work)' : ''}`));
+    qcol.appendChild(sl);
+  }
   acol.append(mk('h5', '', 'Answer'), mk('p', 'pre', x.answer ?? '(no answer was saved)'));
   g.append(qcol, acol);
   const meta = mk('div', 'dmeta');
@@ -1677,9 +1689,9 @@ $('#aExport').onclick = async () => {
       before = r.rows[r.rows.length - 1].id;
     }
     download('pagebot-activity', [
-      ['Time', 'Person', 'Model', 'Site', 'Page title', 'Question', 'Tokens in', 'Tokens out', 'Estimated cost (USD)', 'Web searches', 'Page text', 'Highlight', 'Screenshot', 'Declined', 'Stopped', 'Fallback', 'Chat'],
+      ['Time', 'Person', 'Model', 'Site', 'Page title', 'Question', 'Tokens in', 'Tokens out', 'Estimated cost (USD)', 'Web searches', 'Page text', 'Highlight', 'Screenshot', 'PDF', 'Declined', 'Stopped', 'Fallback', 'Chat'],
       ...rows.map(r => [new Date(r.at).toISOString(), r.user ? r.user.name : 'owner', r.modelLabel || '', r.host || '', r.title || '', r.question, r.in, r.out, r.usd.toFixed(6), r.searches,
-        r.page ? 'yes' : '', r.highlight ? 'yes' : '', r.image ? 'yes' : '', r.refused ? 'yes' : '', r.stopped ? 'yes' : '', r.fallback ? 'yes' : '', r.conversationId]),
+        r.page ? 'yes' : '', r.highlight ? 'yes' : '', r.image ? 'yes' : '', r.pdf || '', r.refused ? 'yes' : '', r.stopped ? 'yes' : '', r.fallback ? 'yes' : '', r.conversationId]),
     ]);
   } catch (err) { alert(err.message); }
   finally { b.disabled = false; b.textContent = 'Export CSV'; }
