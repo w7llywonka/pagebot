@@ -55,7 +55,7 @@ const SEARCH_TOKENS = 3000; // rough prompt tokens one search's results add, for
 const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', 'pond', 'orbit', 'void', 'arcade', 'glass', 'clear'];
 const DEFAULT_PREFS = { theme: 'ember', model: 'haiku', web: false, actions: false, actionsAuto: false }; // actionsAuto: page actions skip permissions
 const LIMIT_RANGES = { maxTokens: [256, 100000], pageTokens: [500, 50000], maxSearches: [1, 10] }; // no answer may exceed 100,000 tokens
-const DEFAULT_LIMITS = { maxTokens: clampInt(process.env.MAX_TOKENS || 2048, ...LIMIT_RANGES.maxTokens), pageTokens: 5000, maxSearches: 3 };
+const DEFAULT_LIMITS = { maxTokens: clampInt(process.env.MAX_TOKENS || 100000, ...LIMIT_RANGES.maxTokens), pageTokens: 5000, maxSearches: 3 };
 const LOCK_CHOICES = [0, 1, 5, 15, 30, 60, 240, 1440]; // passcode auto-lock after N idle minutes (0 = never)
 const MAX_PASSCODE_FAILS = 10; // wrong passcodes within PASSCODE_WINDOW; then only the full password can unlock (the owner's and each account's count separately)
 const PASSCODE_WINDOW = 24 * 3600_000; // a right passcode doesn't wipe earlier wrong ones; they expire after a day
@@ -293,6 +293,12 @@ async function initDb() {
       console.log(`Database not ready (${e.message}), retrying…`);
       await new Promise(r => setTimeout(r, 2000));
     }
+  }
+  // October 2026: the owner raised the answer limit to 100,000 tokens. Lift a lower saved one once; /admin can lower it again.
+  if (!(await getSetting('limits_100k'))) {
+    const l = parseJSON(await getSetting('limits')) || {};
+    if (!(l.maxTokens >= 100000)) await setSetting('limits', JSON.stringify({ ...l, maxTokens: 100000 }));
+    await setSetting('limits_100k', '1');
   }
   if (process.env.INITIAL_PASSWORD && !(await getSetting('password_hash'))) {
     await setSetting('password_hash', await hashPw(process.env.INITIAL_PASSWORD));

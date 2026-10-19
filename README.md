@@ -36,7 +36,7 @@ Optional variables:
 | `EFFORT` | `low` | How hard the models think before answering (`low`, `medium`, `high`, `xhigh`, `max`). Thinking counts toward each answer's token limit. |
 | `OPENROUTER_MODEL` | `meta/muse-spark-1.3-contributor` | Model for the ◆ setting, as an OpenRouter model id. Only used when `OPENROUTER_API_KEY` is set. |
 | `SONNET_FALLBACK` | on | If Sonnet declines a request, the API retries it on the model Anthropic recommends. Set to `off` to turn that off. |
-| `MAX_TOKENS` | `2048` | Starting value for "max tokens per answer" (100,000 at most). After that, change it in `/admin` or the panel's settings. |
+| `MAX_TOKENS` | `100000` | Starting value for "max tokens per answer" (100,000 at most). After that, change it in `/admin` or the panel's settings. Installs that saved a lower limit before October 2026 were raised to 100,000 once on update; lower it again in `/admin` if you want. |
 | `PDF_STORAGE_MB` | `100` | How much uploaded-PDF storage each person (the owner counts as a person) can keep at once, in MB. Fractions work (`0.5`). Going over it turns the upload down with a note to delete a PDF. See **PDFs**. |
 | `SYSTEM_PROMPT` | built in | Replaces the default instructions. |
 | `SESSION_DAYS` | `30` | How long a login lasts without use. Applies to accounts, and to you when no passcode is set. |
@@ -149,7 +149,7 @@ What people ask (and the answers) is stored and shows up under Activity, along w
 - Each answer has a copy button next to its details, and code blocks get their own **Copy** button when you hover them.
 - The panel opens as soon as its settings load. Reopening an existing panel goes straight back to the chat while refreshing your session.
 - **⚙ Settings** is organised into nine categories, so everything has a place:
-  - **General**: the default model (Haiku or Sonnet, whichever your account can use), whether web search is on by default, and the longest reply, from presets between 512 and 8k tokens (anything up to 100,000 can be set in `/admin`). Accounts see those presets as Brief, Short, Standard, Long and Very long instead of token counts.
+  - **General**: the default model (Haiku or Sonnet, whichever your account can use), whether web search is on by default, and the longest reply, from presets between 512 and 100k tokens (anything up to 100,000 can be set in `/admin`). Accounts see those presets as Brief, Short, Standard, Long, Very long, Extra long and Maximum instead of token counts.
   - **Appearance**: a theme gallery with a preview of each theme's colours and a line saying what it is (Auto, Ember, Paper, Midnight, Forest, Dusk, Sakura, Terminal, Pond, Orbit, Void, Arcade, Glass, Clear); **Animations** (System, Less or Full, to override your device's reduce-motion setting; it's kept in this browser only and also calms the pixel loader and the Wrapped counters); and, when pagebot is on a page through a bookmark that can move and resize, **Panel**: dock to the side, and **Reset** to put the size and position back where they started.
   - **Memory & commands**: website memory and slash commands, as described below.
   - **Page actions**: how much pagebot asks before it clicks or types (see **Skip all permissions**), what it never does whatever you choose, and, if page actions can't be used right now, why. An old bookmark, `/chat`, or an account without page actions sees the same reason the **+** menu gives, and the choices are greyed out.

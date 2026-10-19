@@ -164,7 +164,7 @@ browserTest('answer lengths are named for accounts and numbered for the owner', 
   const names = f => f.page.locator('#tokSeg button').allInnerTexts();
   const f = await fixture(t);
   await f.openSettings('general');
-  assert.deepEqual(await names(f), ['Brief', 'Short', 'Standard', 'Long', 'Very long']);
+  assert.deepEqual(await names(f), ['Brief', 'Short', 'Standard', 'Long', 'Very long', 'Extra long', 'Maximum']);
   assert.equal(await f.page.locator('#tokSeg button.on').innerText(), 'Standard');
   assert.doesNotMatch(await f.page.locator('#tokSec').innerText(), /\d+\s*(k|tokens)\b/i);
   const custom = await fixture(t, { boot: { ...account, limits: { ...account.limits, maxTokens: 3000 } } });
@@ -174,6 +174,6 @@ browserTest('answer lengths are named for accounts and numbered for the owner', 
   assert.doesNotMatch(note, /\d/);
   const o = await fixture(t, { boot: owner });
   await o.openSettings('general');
-  assert.deepEqual(await names(o), ['512', '1k', '2k', '4k', '8k']);
+  assert.deepEqual(await names(o), ['512', '1k', '2k', '4k', '8k', '16k', '100k']);
   assert.match(await o.page.locator('#tokSec').innerText(), /Maximum tokens per reply/);
 });
