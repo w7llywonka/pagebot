@@ -283,7 +283,7 @@ body.standalone #composer .menu.slash{right:14px}
 .pwrow{display:flex;gap:8px;width:100%;max-width:290px;margin-top:6px}
 .pwrow input{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;outline:none}
 #loginErr{color:var(--err);font-size:13px;min-height:18px}
-.link{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:12.5px;padding:2px}
+.link,.plink{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:12.5px;padding:2px}
 .links{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:2px 4px;font-size:12.5px;color:var(--muted)}
 .fields{display:flex;flex-direction:column;gap:8px;width:100%;max-width:290px;margin-top:6px}
 .fields input,.fields textarea{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;outline:none;resize:none;min-width:0}
@@ -522,14 +522,14 @@ body.docked:not(.min) header{cursor:default}
 .wload p{margin:0}
 
 /* chat history: a sheet over the chat, like settings */
-#hist{position:absolute;left:0;right:0;top:var(--hd);bottom:0;z-index:2;background:var(--bg);display:flex;flex-direction:column;animation:sheetIn .2s cubic-bezier(.2,.8,.2,1)}
-:root[data-theme=glass] #hist{background:var(--pop);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
-:root[data-theme=clear] body.hist>#log,:root[data-theme=clear] body.hist>#composer,:root[data-theme=clear] body.hist>#ann,:root[data-theme=clear] body.hist>#rst,:root[data-theme=clear] body.hist>#upd{visibility:hidden}
-body.hist #jump{display:none}
+#hist,#pdfs{position:absolute;left:0;right:0;top:var(--hd);bottom:0;z-index:2;background:var(--bg);display:flex;flex-direction:column;animation:sheetIn .2s cubic-bezier(.2,.8,.2,1)}
+:root[data-theme=glass] #hist,:root[data-theme=glass] #pdfs{background:var(--pop);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+:root[data-theme=clear] body.hist>#log,:root[data-theme=clear] body.hist>#composer,:root[data-theme=clear] body.hist>#ann,:root[data-theme=clear] body.hist>#rst,:root[data-theme=clear] body.hist>#upd,:root[data-theme=clear] body.pdfs>#log,:root[data-theme=clear] body.pdfs>#composer,:root[data-theme=clear] body.pdfs>#ann,:root[data-theme=clear] body.pdfs>#rst,:root[data-theme=clear] body.pdfs>#upd{visibility:hidden}
+body.hist #jump,body.pdfs #jump{display:none}
 .title .name{min-width:0;overflow:hidden;text-overflow:ellipsis} /* gives way to the header buttons in a narrow panel */
 .hsearch{flex:none;padding:10px 10px 4px}
 #histQ{width:100%;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 11px;outline:none}
-#histList{flex:1;min-height:0;overflow-y:auto;padding:0 6px 14px;scrollbar-width:thin}
+#histList,#pdfList{flex:1;min-height:0;overflow-y:auto;padding:0 6px 14px;scrollbar-width:thin}
 .hday{padding:12px 8px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:650}
 .hrow{display:flex;align-items:center;gap:2px;border-radius:10px;padding-right:3px}
 .hrow:hover,.hrow:focus-within{background:var(--chip-on)}
@@ -550,15 +550,25 @@ body.hist #jump{display:none}
 .hask p span{display:block;margin-top:1px;font-size:11.5px;color:var(--muted)}
 .hask .ghost{padding:4px 10px;font-size:12.5px}
 .ghost.bad{border-color:color-mix(in srgb,var(--err) 55%,var(--line));color:var(--err)}
-#hist .ghost:disabled{opacity:.5;cursor:default}
+#hist .ghost:disabled,#pdfs .ghost:disabled{opacity:.5;cursor:default}
 .hstate{margin:28px auto 0;max-width:272px;text-align:center;color:var(--muted);font-size:13px}
 .hstate b{display:block;margin-bottom:4px;color:var(--text);font-size:14px}
 .hstate .typing{display:flex;justify-content:center;margin-bottom:8px}
 .hmore{display:block;margin:10px auto 0}
 .hfoot{margin:18px 8px 0;padding-top:12px;border-top:1px solid var(--line)}
 .hfoot .fine{margin:4px 0 0}
+.hfoot .plink{display:block;margin-top:10px;padding:0}
 .hfoot .hask{padding:0}
 .hbusy{margin:8px 8px 0}
+/* your PDFs: the same sheet as history; a heading with Done, the storage bar, then rows that read like history's */
+.phead{flex:none;display:flex;align-items:center;gap:8px;padding:10px 14px 2px}
+.phead b{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pstore{flex:none;padding:6px 14px 8px;font-size:11.5px;color:var(--muted)}
+.pstore .qbar{margin-bottom:5px}
+.menu .tip .link{display:inline;width:auto;padding:0;border-radius:0;background:none;font-size:11.5px} /* not a .menu row */
+.prow .hopen{cursor:default}
+.prow .ghost{flex:none;padding:4px 10px;font-size:12.5px}
+.prow .hsub.chat{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 /* a reopened question: what was highlighted goes above it, and quotes from a page you're not on only show on hover */
 .msg .hq{font-size:11.5px;color:var(--muted);border-left:2px solid color-mix(in srgb,var(--accent) 55%,var(--line));padding:1px 0 1px 7px;margin:1px 0 5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .cite.away{opacity:.6;cursor:help}
@@ -812,6 +822,12 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
   <div id="histList"></div>
 </div>
 
+<div id="pdfs" role="region" aria-label="Your PDFs" hidden>
+  <div class="phead"><b>Your PDFs</b><button class="link" id="pdfsDone" type="button">Done</button></div>
+  <div class="pstore" id="pdfStore"></div>
+  <div id="pdfList"></div>
+</div>
+
 <div id="composer" hidden>
   <button id="jump" type="button" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>Jump to latest</button>
   <div class="box">
@@ -839,7 +855,7 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
     <button type="button" role="menuitemcheckbox" id="webBtn" aria-checked="false"><span class="mi">🌐</span><span class="mt">Web search<span class="md" id="webNote" hidden>Not turned on for your account</span></span><span class="ck">✓</span></button>
     <button type="button" role="menuitemcheckbox" id="actBtn" aria-checked="false"><span class="mi">🖱</span><span class="mt">Page actions<span class="md" id="actNote"></span></span><span class="ck">✓</span></button>
     <button type="button" role="menuitem" id="stopBtn" hidden><span class="mi">⏹</span><span class="mt">Stop sharing this tab</span></button>
-    <div class="tip">You can also paste an image, or drop a PDF on the panel.</div>
+    <div class="tip">You can also paste an image, or drop a PDF on the panel. <button type="button" class="link" id="pdfManage">Manage PDFs</button></div>
   </div>
   <input type="file" id="pdfFile" accept="application/pdf,.pdf" hidden>
   <div class="menu right" id="modelMenu" role="menu" hidden></div>
@@ -895,7 +911,7 @@ let ctrl = null, chatGen = 0; // stops the answer being streamed; which chat an 
 // a lock or an approval never pulls your typing out of the page or out of another tab.
 const shown = e => !!e && e.getClientRects().length > 0;
 function viewTarget() {
-  if (view === 'chat') return histOpen ? $('#histQ') : sheetOpen || wrap ? null : $('#q');
+  if (view === 'chat') return pdfsOpen ? $('#pdfsDone') : histOpen ? $('#histQ') : sheetOpen || wrap ? null : $('#q');
   if (view === 'lock') return pinMode() ? $('#login') : lockTarget || $('#uName'); // renderLock picks the box
   return null;
 }
@@ -1994,6 +2010,7 @@ $('#wrapBtn').onclick = openWrap;
 // Removing only hides a chat from you: what it used still counts, and the owner still sees it in /admin.
 // Nothing about history is kept in the browser; each open asks the server again.
 let histOpen = false, histReq = 0, openReq = 0, histNext = null, histQ = '', histTimer = 0, histBusy = false, histLast = null;
+let pdfsOpen = false, pdfsReq = 0, pdfData = null; // the PDFs sheet (below, with the other PDF code)
 const ICON_REMOVE = '<svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>';
 const oneLine = s => String(s || '').replace(/\s+/g, ' ').trim();
 const dayStart = t => { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
@@ -2028,7 +2045,7 @@ const noChats = () => histState('No chats yet.', 'Your chats show up here, so yo
 // Opens history, searching for q if given. The slash-command registry calls this for /history.
 function openHistory(q = '') {
   if (view !== 'chat') return;
-  closeSheet(); closeWrap(); closeMenus();
+  closeSheet(); closeWrap(); closeMenus(); closePdfs();
   histOpen = true; $('#hist').hidden = false; body.classList.add('hist');
   $('#histBtn').classList.add('on'); $('#histBtn').setAttribute('aria-expanded', 'true');
   $('#histQ').value = q; histQ = searchText(q);
@@ -2036,6 +2053,7 @@ function openHistory(q = '') {
   if (document.hasFocus()) $('#histQ').focus();
 }
 function closeHistory(back) {
+  closePdfs(); // the PDFs sheet is the same kind of sheet, so everything that closes history closes it too
   if (!histOpen) return;
   histOpen = false; histReq++; openReq++; histBusy = false; clearTimeout(histTimer); // whatever is still loading is dropped
   $('#hist').hidden = true; body.classList.remove('hist');
@@ -2103,7 +2121,8 @@ function histFoot() {
     $('#histList').replaceChildren(noChats());
     if (document.hasFocus()) $('#histQ').focus();
   });
-  f.append(all, fine);
+  const mp = el('button', 'plink', 'Manage your PDFs'); mp.type = 'button'; mp.onclick = openPdfs; // pdf storage
+  f.append(all, fine, mp);
   list.appendChild(f);
 }
 // an inline "are you sure", in place of the row (dialogs in cross-origin frames aren't reliable)
@@ -2184,7 +2203,7 @@ function showPast({ chat, messages, earlier }, here) {
         h.textContent = `✂️ “${flat.length > 200 ? flat.slice(0, 200).trimEnd() + '…' : flat}”`; h.title = flat.length > 600 ? flat.slice(0, 600) + '…' : flat;
         u.querySelector('.body').before(h);
       }
-      if (m.pdf) { u.appendChild(pdfChip(m.pdf)); anyPdf = true; } // pdf uploads
+      if (m.pdf) { u.appendChild(pdfChip(m.pdf)); if (!m.pdf.gone) anyPdf = true; } // pdf uploads
       continue;
     }
     const bot = pastMsg(box, 'bot', m.text ? md(m.text) : m.stopped ? '<span class="stp">Stopped</span>' : '<i>(empty reply)</i>'), out = bot.querySelector('.body');
@@ -2851,6 +2870,7 @@ async function addPdf(file) {
       if (x.status === 200 && j.id) { pdfUp = null; setPdf({ id: j.id, name: j.name || name, size: j.size ?? file.size, pages: j.pages ?? null, tokens: j.tokens ?? null }); return resolve(true); }
       if (x.status === 401) { fail(); lock(lockedMsg()); return; }
       if (x.status === 403 && j.banned) { fail(); onBanned(); return; }
+      if (x.status === 413 && j.storage) { fail(); return void pdfFull(`Couldn’t add “${name}”: ${j.error}`); } // pdf storage: the cap, with a way to free room
       fail(`Couldn’t add “${name}”: ${j.error || 'HTTP ' + x.status}`);
     };
     x.onerror = () => fail(`Couldn’t upload “${name}”. Check your connection and try again.`);
@@ -2892,10 +2912,115 @@ function pdfChip(p) {
   const c = el('div', 'fchip' + (p.gone ? ' gone' : '')), n = el('span', 'fn');
   n.textContent = p.name;
   c.append('📄', n);
+  if (p.id) c.dataset.pdf = p.id; // so deleting the file from "Your PDFs" can grey this chip
   if (p.pages || p.gone) { const g = el('span', 'fpg'); g.textContent = p.gone ? '· no longer available' : `· ${p.pages} p.`; c.appendChild(g); }
   c.title = p.gone ? `“${p.name}” is no longer stored.` : `“${p.name}” went with this message. Follow-ups in this chat send it again.`;
   return c;
 }
+function pdfChipGone(c) {
+  const name = c.querySelector('.fn').textContent;
+  c.classList.add('gone'); c.title = `“${name}” is no longer stored.`;
+  let g = c.querySelector('.fpg'); if (!g) c.appendChild(g = el('span', 'fpg'));
+  g.textContent = '· no longer available';
+}
+// ---- your PDFs: what's stored, against the cap, and deleting a file (its chats keep the chip, greyed out) ----
+$('#pdfManage').onclick = openPdfs; $('#pdfsDone').onclick = () => closePdfs(true);
+function pdfFull(text) { // the upload note when the cap is reached, with a button that opens the list
+  const n = el('div', 'note'), b = el('button', 'link', 'Manage PDFs');
+  n.append(text, ' '); b.type = 'button'; b.onclick = openPdfs; n.appendChild(b);
+  clearEmpty(); log.appendChild(n); scroll(true);
+}
+function openPdfs() {
+  if (view !== 'chat') return;
+  closeHistory(); closeSheet(); closeWrap(); closeMenus();
+  pdfsOpen = true; $('#pdfs').hidden = false; body.classList.add('pdfs');
+  loadPdfs();
+  if (document.hasFocus()) $('#pdfsDone').focus();
+}
+function closePdfs(back) {
+  if (!pdfsOpen) return;
+  pdfsOpen = false; pdfsReq++; pdfData = null;
+  $('#pdfs').hidden = true; body.classList.remove('pdfs');
+  $('#pdfList').replaceChildren(); $('#pdfStore').replaceChildren();
+  if (back) focusView();
+}
+async function loadPdfs() {
+  const session = token, req = ++pdfsReq, list = $('#pdfList');
+  list.replaceChildren(histState(null, 'Loading your PDFs…')); $('#pdfStore').replaceChildren();
+  try {
+    const d = await histApi('/api/pdf');
+    if (req !== pdfsReq || session !== token || !pdfsOpen) return;
+    pdfData = d; renderPdfList();
+  } catch (e) {
+    if (req !== pdfsReq || session !== token || !pdfsOpen) return;
+    if (e.status === 401) return lock(lockedMsg());
+    const p = histState('', `Couldn’t load your PDFs: ${e.message}`, true); p.querySelector('.link').onclick = loadPdfs;
+    list.replaceChildren(p);
+  }
+}
+function renderPdfList() {
+  const { used, cap, pdfs } = pdfData, list = $('#pdfList'), st = $('#pdfStore'), f = Math.min(1, used / cap);
+  const bar = el('div', 'qbar', '<i></i>'), fill = bar.firstChild;
+  fill.style.width = (f * 100) + '%'; if (f >= 1) fill.className = 'full'; else if (f >= .8) fill.className = 'warn';
+  bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-label', 'PDF storage used');
+  bar.setAttribute('aria-valuemin', 0); bar.setAttribute('aria-valuemax', 100); bar.setAttribute('aria-valuenow', Math.round(f * 100));
+  const t = el('div'); t.id = 'pdfUsed'; t.textContent = `${fmtMB(used)} of ${fmtMB(cap)} used`;
+  st.replaceChildren(bar, t);
+  list.replaceChildren();
+  if (!pdfs.length) return void list.appendChild(histState('No PDFs stored.', 'PDFs you upload show up here, so you can delete the ones you’re done with.'));
+  for (const p of pdfs) list.appendChild(pdfRow(p));
+  list.appendChild(el('p', 'fine hbusy', 'Deleting a PDF removes the file. Chats it was in keep their messages, and show it as “no longer available”. PDFs are also deleted on their own 30 days after you upload them.'));
+}
+function pdfRow(p) {
+  const row = el('div', 'hrow prow'), box = el('div', 'hopen');
+  row.dataset.id = p.id;
+  box.appendChild(el('span', 'htitle')).textContent = p.name;
+  const d = new Date(p.createdAt);
+  box.appendChild(el('span', 'hsub')).textContent = [p.pages && `${p.pages} p.`, fmtMB(p.size), d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(d.getFullYear() !== new Date().getFullYear() && { year: 'numeric' }) })].filter(Boolean).join(' · ');
+  box.appendChild(el('span', 'hsub chat')).textContent = p.inChat ? `In chat: ${p.chatTitle || 'Chat'}` : 'Not sent in a chat yet';
+  box.title = p.name;
+  const del = el('button', 'ghost bad', 'Delete'); del.type = 'button'; del.setAttribute('aria-label', `Delete “${p.name}”`);
+  del.onclick = () => confirmPdf(row, p);
+  row.append(box, del);
+  return row;
+}
+// an inline "are you sure" in place of the row, like history's
+function confirmPdf(row, p) {
+  const keep = [...row.childNodes], box = el('div', 'hask'), q = el('p'), msg = document.createTextNode('Delete this PDF?');
+  const yes = el('button', 'ghost bad', 'Delete'), no = el('button', 'ghost hno', 'Cancel');
+  yes.type = no.type = 'button';
+  q.append(msg, el('span')); q.lastChild.textContent = p.inChat ? 'The chat keeps its messages, but can’t use the file anymore.' : 'This can’t be undone.';
+  box.append(q, yes, no); row.replaceChildren(box);
+  if (document.hasFocus()) yes.focus();
+  no.onclick = () => { row.replaceChildren(...keep); if (document.hasFocus()) row.querySelector('button')?.focus(); };
+  yes.onclick = async () => {
+    const session = token;
+    yes.disabled = no.disabled = true; msg.textContent = 'Deleting…';
+    let used;
+    try { used = (await histApi('/api/pdf/' + p.id, 'DELETE')).used; }
+    catch (e) {
+      if (session !== token || !pdfsOpen) return;
+      if (e.status === 401) return lock(lockedMsg());
+      if (e.status !== 404) { msg.textContent = `Couldn’t delete it: ${e.message}`; yes.disabled = no.disabled = false; return; } // 404: already gone
+    }
+    if (session === token) pdfDeleted(p, used);
+  };
+}
+// the file is gone: update the list, and whatever the panel is holding that pointed at it
+function pdfDeleted(p, used) {
+  if (pdfAtt?.id === p.id) setPdf(null); // the pill for this PDF
+  log.querySelectorAll(`.fchip[data-pdf="${p.id}"]`).forEach(pdfChipGone);
+  if (pdfData) pdfData.pdfs = pdfData.pdfs.filter(x => x.id !== p.id);
+  if (convId && pdfData && !pdfData.pdfs.some(x => x.chatId === convId)) setChatPdf(false); // no file left in this chat: ◆ can answer it again
+  if (!pdfsOpen || !pdfData) return;
+  pdfData.used = Number.isFinite(used) ? used : Math.max(0, pdfData.used - p.size);
+  const row = $('#pdfList').querySelector(`.prow[data-id="${p.id}"]`), next = row?.nextElementSibling;
+  if (document.hasFocus() && row?.contains(document.activeElement)) (next?.classList.contains('prow') ? next.querySelector('button') : $('#pdfsDone')).focus();
+  renderPdfList();
+}
+$('#pdfList').addEventListener('keydown', e => {
+  if (e.key === 'Escape' && e.target.closest('.hask')) { e.preventDefault(); e.stopPropagation(); e.target.closest('.hask').querySelector('.hno').click(); } // Esc cancels the "are you sure"
+});
 // a numbered marker for a quote from a PDF: hover shows the quote, click opens it with its page
 let cpop = null;
 function pdfCite(b, quote, short, pg) {
@@ -2941,7 +3066,7 @@ addEventListener('keydown', e => {
     if (e.key === 'Backspace') { e.preventDefault(); return pinKey('del'); }
   }
   // a held-down Esc, or one that just cancels typing in an input method, doesn't close the panel
-  if (e.key === 'Escape' && !e.isComposing) { if (openMenu) closeMenus(); else if (histOpen) closeHistory(true); else if (sheetOpen) closeSheet(); else if (!e.repeat) closePanel(); }
+  if (e.key === 'Escape' && !e.isComposing) { if (openMenu) closeMenus(); else if (pdfsOpen) closePdfs(true); else if (histOpen) closeHistory(true); else if (sheetOpen) closeSheet(); else if (!e.repeat) closePanel(); }
 });
 
 // ---- auto-lock after the passcode timeout, and keep the session alive while you're active ----
