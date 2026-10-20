@@ -12,6 +12,7 @@
   if (t === 'auto') t = matchMedia('(prefers-color-scheme: light)').matches ? 'paper' : 'ember';
   document.documentElement.setAttribute('data-theme', t);
   try { var m = localStorage.getItem('pb_motion'); if (m === 'less') document.documentElement.classList.add('calm'); else if (m === 'full') document.documentElement.classList.add('motion-full'); } catch (e) {}
+  try { var q = /[?&]density=(compact|comfortable)/.exec(location.search); if (q) localStorage.setItem('pb_density', q[1]); if (localStorage.getItem('pb_density') === 'compact') document.documentElement.classList.add('dense'); } catch (e) {} // Settings > Appearance > Density (?density= is for tests and debugging)
   if (window.parent === window) document.documentElement.classList.add('nohost');
 })();
 </script>
@@ -1006,6 +1007,175 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
 #wait:not(.in) .hg{display:none}
 #wait.in .wl{display:none}
 </style>
+<style id="density">
+/* =====================================================================================================
+   DENSITY: Settings > Appearance > Density. "Compact" is the class .dense on <html> (the head script sets it before the first
+   paint, so there is no flash); Comfortable is no class at all, so none of this applies and nothing above changes.
+   Everything for Compact lives in this one block, after all the styles above, so each rule only overrides one above. It works in two ways:
+   1. the variables the big-panel block already reads (--hd, --grow, --gut) and the root type size, which the chat's em units follow;
+   2. a few overrides for spacing. They set only padding, margin, gap and font size, never radii, colours or sizes of the controls
+      (the themes style those), and the clear theme's own side padding is put back. Buttons keep the heights they have: a touch
+      target never gets smaller (only the little pills do, and not on touch screens).
+   Two tiers like the rest of the panel: under 560px wide, then 560px and up (the big tier), where the reading column keeps its width.
+   ===================================================================================================== */
+:root.dense{--hd:40px;--grow:calc(clamp(0px,.6vw - 3px,2.5px)*.7);--gut:max(clamp(10px,2.6vw,22px),calc((100vw - var(--col))/2));font-size:13px;line-height:1.4}
+:root.dense[data-theme=terminal]{font-size:12px}
+:root.dense body.standalone{--hd:46px}
+
+/* the chat */
+:root.dense #log{padding-block:8px;gap:6px}
+:root.dense .empty{font-size:calc(12.5px + var(--grow))}
+:root.dense .empty b{font-size:calc(13.5px + var(--grow)*1.6)}
+:root.dense .starters{gap:5px;margin-top:10px}
+:root.dense .starters button{padding:4px 10px;font-size:calc(12px + var(--grow)*.5)}
+:root.dense .msg{padding-block:6px;padding-inline:10px}
+:root.dense[data-theme=clear] .msg{padding-inline:2px}
+:root.dense .msg p{margin-bottom:5px}
+:root.dense .msg .h{margin-top:7px}
+:root.dense .msg ul,:root.dense .msg ol{margin:3px 0 5px;padding-left:18px}
+:root.dense .msg blockquote{margin:3px 0 5px}
+:root.dense .msg hr{margin:6px 0}
+:root.dense .msg pre{padding:6px 8px;margin:4px 0}
+:root.dense .cb{margin:4px 0}
+:root.dense .cb pre{margin:0}
+:root.dense .msg code,:root.dense .msg table{font-size:calc(12px + var(--grow)*.8)}
+:root.dense .msg .tw{margin:4px 0 6px}
+:root.dense .msg th,:root.dense .msg td{padding:3px 7px}
+:root.dense .tags{margin-bottom:2px}
+:root.dense .meta{margin-top:3px}
+:root.dense .steps{gap:1px;margin-bottom:4px;font-size:11.5px}
+:root.dense .src{margin-top:5px;gap:4px}
+:root.dense .thumb{max-height:96px;margin-top:4px}
+:root.dense .anote{font-size:11px}
+:root.dense .athumb{margin:1px 0 3px 21px}
+:root.dense .acard{margin:2px 0 4px;padding:6px 9px;font-size:12px}
+:root.dense .acard .aw,:root.dense .acard .ad{margin-top:3px}
+:root.dense .acard .ab{margin-top:6px;gap:5px}
+:root.dense .note{font-size:11.5px}
+:root.dense #ann,:root.dense #upd,:root.dense #rst{margin:6px 8px 0}
+:root.dense #ann{padding:6px 7px 6px 9px}
+
+/* the message box and its menus */
+:root.dense #composer{padding-bottom:8px}
+:root.dense #att{margin:6px 0 0 8px}
+:root.dense #att img{height:40px}
+:root.dense #q{padding:7px 11px 1px;min-height:32px;max-height:130px}
+:root.dense .bar{padding:2px 5px 4px;gap:4px}
+:root.dense .bar.stack{row-gap:3px}
+:root.dense .pills{gap:4px}
+:root.dense .pill{height:22px;font-size:11.5px}
+:root.dense .menu button{padding:5px 8px;font-size:12.5px}
+:root.dense .menu .md,:root.dense .menu .tip{font-size:11px}
+:root.dense .menu .tip{padding:4px 8px 2px;margin-top:3px}
+:root.dense .slash .sl button{padding:4px 9px}
+:root.dense .slash .mh{padding:4px 9px 1px}
+:root.dense .rbar{padding:4px 5px 4px 10px}
+
+/* settings, history, your PDFs */
+:root.dense #sheet{--sg:12px;--fs:calc(12.5px + var(--grow)*.5);--fh:calc(11px + var(--grow)*.4)}
+:root.dense[data-theme=terminal] #sheet{--fs:12px}
+:root.dense .shin{height:42px}
+:root.dense .sec{margin-bottom:16px}
+:root.dense .sec>h3{margin-bottom:6px}
+:root.dense .chead{margin-bottom:12px}
+:root.dense .chead h2{margin-bottom:2px}
+:root.dense .row{padding:8px 12px;min-height:44px;gap:6px 14px}
+:root.dense .rt{gap:1px}
+:root.dense .card.pd{padding:11px}
+:root.dense #sheet .card.pd>.rh{margin-bottom:8px}
+:root.dense #quotaSec{padding:11px;margin-bottom:16px}
+:root.dense .callout{margin-bottom:14px;padding:8px 12px}
+:root.dense #sheet .aopts{gap:6px}
+:root.dense #sheet .aopt{padding:8px 12px 8px 40px}
+:root.dense .aopt::before{left:13px;top:11px}
+:root.dense .kh{padding:9px 12px 3px}
+:root.dense .krow{padding:5px 12px}
+:root.dense .krow:last-child{padding-bottom:9px}
+:root.dense .stab{padding-block:8px}
+:root.dense #sheet :is(input[type=text],input[type=password],textarea,select){padding:7px 10px}
+:root.dense .memory-form{gap:6px}
+:root.dense .themes{gap:8px}
+:root.dense .pv{height:54px}
+:root.dense .sw{padding:5px 5px 6px;gap:4px}
+:root.dense .hsearch{padding:7px 8px 3px}
+:root.dense #histQ{padding:6px 10px}
+:root.dense #histList,:root.dense #pdfList{padding-bottom:10px}
+:root.dense .hday{padding:8px 8px 3px}
+:root.dense .hopen{padding-block:5px}
+:root.dense .htitle{font-size:12.5px}
+:root.dense .hsub{font-size:11px}
+:root.dense .hsnip{font-size:11.5px}
+:root.dense .hask{padding:6px 8px}
+:root.dense .hstate{margin-top:18px;font-size:12.5px}
+:root.dense .hfoot{margin-top:12px;padding-top:9px}
+:root.dense .phead{padding:7px 12px 0}
+:root.dense .pstore{padding:4px 12px 6px}
+
+/* Wrapped, the lock screen, waiting and the notices */
+:root.dense .wslide{padding:8px 20px 10px;gap:6px}
+:root.dense .wbig{font-size:54px}
+:root.dense .wh{font-size:21px}
+:root.dense .wicon{font-size:38px}
+:root.dense .wsub{font-size:13px}
+:root.dense .wsites{gap:5px;margin:4px 0}
+:root.dense .whours{height:80px}
+:root.dense .wgrid{gap:6px;margin:4px 0}
+:root.dense .wgrid div{padding:9px}
+:root.dense .wsw{width:130px;height:82px}
+:root.dense #login{gap:5px;padding:12px 20px}
+:root.dense .lk{width:38px;height:38px}
+:root.dense .dots{margin:8px 0 6px}
+:root.dense .pad{grid-template-columns:repeat(3,50px);gap:8px 16px}
+:root.dense .pad button{width:50px;height:50px;font-size:18px}
+:root.dense #wait{gap:8px;padding:18px 26px}
+:root.dense #ban{gap:7px;padding:16px 22px}
+:root.dense #ban h2,:root.dense #wait h2{font-size:16px}
+:root.dense .hg{width:56px;height:56px}
+
+/* the big tier: 560px and up. The reading column is as wide as ever, with smaller steps */
+@media (min-width:560px){
+  :root.dense{--hd:44px}
+  :root.dense #log{padding-block:14px;gap:10px}
+  :root.dense .msg{padding-block:8px;padding-inline:13px;line-height:1.5}
+  :root.dense[data-theme=clear] .msg{padding-inline:2px}
+  :root.dense .msg p{margin-bottom:6px}
+  :root.dense .msg .h{margin-top:10px}
+  :root.dense .msg pre{padding:8px 11px}
+  :root.dense .msg th,:root.dense .msg td{padding:4px 9px}
+  :root.dense .starters{gap:6px;margin-top:14px}
+  :root.dense .starters button{padding:5px 12px}
+  :root.dense .note{font-size:12px}
+  :root.dense .tags,:root.dense .meta{font-size:11px}
+  :root.dense #composer{padding-bottom:12px}
+  :root.dense #q{padding:10px 14px 2px;min-height:42px;max-height:180px}
+  :root.dense .bar{padding:3px 8px 7px;gap:5px}
+  :root.dense .pill{height:24px;font-size:12px}
+  :root.dense .menu button{padding:7px 10px;font-size:13px}
+  :root.dense .slash .sl button{padding:6px 12px}
+  :root.dense #sheet{--sg:20px}
+  :root.dense .shin{height:46px}
+  :root.dense .sec{margin-bottom:22px}
+  :root.dense .row{padding:10px 14px}
+  :root.dense .card.pd{padding:13px}
+  :root.dense .stab{padding:8px 12px}
+  :root.dense .themes{gap:10px}
+  :root.dense .pv{height:62px}
+  :root.dense #hist .hsearch{padding:12px var(--gut) 4px}
+  :root.dense #histQ{padding:8px 12px;font-size:calc(13px + var(--grow))}
+  :root.dense #histList{padding:0 var(--gut) 14px;gap:6px 8px}
+  :root.dense #hist #histList{gap:6px 8px}
+  :root.dense .hopen{padding:8px 11px;gap:2px}
+  :root.dense .htitle{font-size:calc(12.5px + var(--grow))}
+  :root.dense .hday{padding-top:12px}
+  :root.dense .wload{font-size:13px}
+}
+/* a touch screen keeps its small targets as big as they were */
+@media (pointer:coarse){
+  :root.dense .stab{padding-block:12px}
+  :root.dense .pill{height:24px}
+}
+@media (pointer:coarse) and (min-width:560px){:root.dense .pill{height:26px}}
+</style>
 </head>
 <body class="booting" tabindex="-1">
 <div id="boot" aria-hidden="true">
@@ -1136,6 +1306,8 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
             <p class="fine" id="glassNote" hidden>To make <span id="glassName">Glass</span> see-through on every site, including dark-mode ones, drag the button from the pagebot homepage to your bookmarks bar again.</p></section>
           <section class="sec"><h3>Motion</h3>
             <div class="card"><div class="row s"><div class="rt"><b class="rl" id="motLbl">Animations</b><span class="rh">Less turns off the fades, slides and the loader’s movement. System follows your device’s setting.</span></div><div class="rc"><div class="seg" id="motionSeg" role="radiogroup" aria-labelledby="motLbl"></div></div></div></div></section>
+          <section class="sec"><h3>Spacing</h3>
+            <div class="card"><div class="row s"><div class="rt"><b class="rl" id="denLbl">Density</b><span class="rh">Compact fits more on screen: tighter spacing and slightly smaller text.</span></div><div class="rc"><div class="seg" id="densitySeg" role="radiogroup" aria-labelledby="denLbl"></div></div></div></div></section>
           <section class="sec" id="panelSec" hidden><h3>Panel</h3>
             <div class="card">
               <div class="row" id="dockRow"><div class="rt"><b class="rl" id="dockLbl">Dock to the side</b><span class="rh">Pins pagebot to the right edge of the window, full height. It opens that way next time too.</span></div><div class="rc"><button class="tg" id="dockTog" type="button" role="switch" aria-checked="false" aria-labelledby="dockLbl"></button></div></div>
@@ -1400,6 +1572,20 @@ function applyMotion() {
   root.classList.toggle('calm', m === 'less'); root.classList.toggle('motion-full', m === 'full');
 }
 applyMotion(); sysCalm.addEventListener?.('change', applyMotion);
+
+// ---- density: Comfortable (the default) or Compact, set in Settings > Appearance > Density. The head script puts the class on <html> before the first paint; the CSS is the "density" block ----
+function densityPref() { return store.get('pb_density') === 'compact' ? 'compact' : 'comfortable'; }
+function applyDensity(refit) {
+  document.documentElement.classList.toggle('dense', densityPref() === 'compact');
+  for (const b of document.querySelectorAll('#densitySeg button')) { const on = b.dataset.d === densityPref(); b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); }
+  if (refit) fitPills(); // the pills changed size, so the toolbar re-checks whether they fit
+}
+for (const [key, label] of [['comfortable', 'Comfortable'], ['compact', 'Compact']]) {
+  const b = el('button', '', label); b.type = 'button'; b.dataset.d = key; b.setAttribute('role', 'radio');
+  b.onclick = () => { store.set('pb_density', key === 'compact' ? 'compact' : null); applyDensity(true); };
+  $('#densitySeg').appendChild(b);
+}
+applyDensity(); addEventListener('storage', e => { if (e.key === 'pb_density') applyDensity(true); }); // another tab changed it
 
 let token = store.get('pb_token');
 // a random id for this browser, so the owner can keep a terminated account's browser from signing up again
