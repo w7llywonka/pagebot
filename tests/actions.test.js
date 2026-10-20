@@ -216,26 +216,26 @@ test('page actions integration', { skip: !database && 'Set PAGEBOT_TEST_DATABASE
     assert.deepEqual(r.done.usage.in, 60);
   });
 
-  // (the panel answers these itself in part A; TODO(part B): the approval card. The server side is the same either way.)
+  // (the panel shows the approval card and runs these through the bookmarklet; the server side is checked here)
   await t.test('clicks and typing wait for the person, a skipped one tells the model, a failure halts the batch, and only the asking session can answer', async () => {
     const base = calls.length;
     script = (body, n) => n === base ? { tools: [
-      { name: 'type', input: { text: 'hello' } },
+      { name: 'form_input', input: { target: ref('ref_1'), value: 'hello' } },
       { name: 'left_click', input: { target: { type: 'ref', ref: 'nope' } } },
       { name: 'left_click', input: { target: ref('ref_3') } },
     ] } : n === base + 1 ? { tools: [{ name: 'left_click', input: { target: ref('ref_3') } }] } : { text: 'Typed it, and left the button alone.' };
     const r = await chat({}, { token: alice, onAct: async ev => {
       assert.equal((await act(ev.id, { result: { ok: 1 } }, bob)).status, 404, 'another account cannot answer');
       assert.equal((await act(ev.id, { result: { ok: 1 } }, await session(ids.alice))).status, 404, 'another session of the same account cannot either');
-      if (ev.name === 'type') await act(ev.id, { note: 'Typed “hello” into the “Search” box', result: { role: 'textbox', label: 'Search', value: 'hello' } }, alice);
+      if (ev.name === 'form_input') await act(ev.id, { note: 'Typed “hello” into the “Search” box', result: { role: 'textbox', label: 'Search', value: 'hello' } }, alice);
       else assert.equal((await act(ev.id, { denied: true, note: 'Click the “Go” button' }, alice)).status, 200);
     } });
     assert.ok(r.done);
-    assert.deepEqual(r.acts.map(a => [a.name, a.wait, a.input, a.ask]), [['type', 30000, { text: 'hello' }, true], ['left_click', 30000, { target: ref('ref_3') }, true]]);
+    assert.deepEqual(r.acts.map(a => [a.name, a.wait, a.input, a.ask]), [['form_input', 30000, { target: ref('ref_1'), value: 'hello' }, true], ['left_click', 30000, { target: ref('ref_3') }, true]]);
     const [typed, invalid, halted] = toolResults(calls[base + 1].body);
     assert.equal(typed.is_error, undefined);
     assert.equal(typed.toolset_name, 'browser');
-    assert.match(said(typed), /It now holds "hello"/);
+    assert.match(said(typed), /Set element ref_1 \(textbox "Search"\) to "hello"/);
     assert.equal(invalid.is_error, true);
     assert.match(said(invalid), /A ref looks like "ref_12"/);
     assert.equal(halted.is_error, true);
@@ -245,7 +245,7 @@ test('page actions integration', { skip: !database && 'Set PAGEBOT_TEST_DATABASE
     assert.equal(skipped.is_error, true);
     assert.match(said(skipped), /skipped this, so it wasn’t done/);
     const conv = r.done.conversationId, row = await lastAnswer(conv);
-    assert.deepEqual(JSON.parse(row.steps).map(s => [s.tool, s.outcome]), [['type', 'done'], ['left_click', 'failed'], ['left_click', 'denied']]);
+    assert.deepEqual(JSON.parse(row.steps).map(s => [s.tool, s.outcome]), [['form_input', 'done'], ['left_click', 'failed'], ['left_click', 'denied']]);
     assert.equal(JSON.parse(row.steps)[2].text, 'Click the “Go” button');
     assert.equal((await act(r.acts[0].id, { result: { ok: 1 } }, alice)).status, 404, 'an answered step stops waiting');
     // follow-ups get the steps as words, not tool calls

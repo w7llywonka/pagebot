@@ -2865,8 +2865,8 @@ $('#webPill').onclick = () => { savePrefs({ web: false }); q.focus(); };
 // ---- page actions (bookmarklet v12): Claude's browser toolset, run in the page you're on ----
 // Seeing and reading run right away as step lines: screenshots and zoom come from sharing the tab (the first one asks you
 // with a card, since the browser needs that click), the rest from the bookmarklet, whose page tree reaches into open shadow
-// roots and same-origin frames. Clicks, typing and keys will ask first with a card (part B; for now they're refused),
-// unless Skip all permissions is on; anything that leaves the page always asks. The bookmarklet refuses password,
+// roots and same-origin frames. Clicks and fields (left_click and form_input on a ref) ask first with a card unless Skip all
+// permissions is on, and run through the bookmarklet's click and fill; anything that leaves the page always asks. The bookmarklet refuses password,
 // payment card and file fields by itself.
 let actRun = null; // the answer that's acting on the page right now
 function actWhy() { // why page actions can't be used here ('' when they can)
@@ -2914,12 +2914,10 @@ $('#actNo').onclick = () => { $('#actWarn').hidden = true; $('#actSkip').focus()
 const ACT_ICON = { screenshot: '📸', zoom: '🔍', read_page: '📄', find: '🔎', get_page_text: '📃', scroll: '↕', scroll_to: '↧', hover: '👆', mouse_move: '➜', wait: '⏳', highlight: '🖍',
   left_click: '🖱', right_click: '🖱', middle_click: '🖱', double_click: '🖱', triple_click: '🖱', left_click_drag: '✋', left_mouse_down: '🖱', left_mouse_up: '🖱',
   type: '⌨', key: '⌨', hold_key: '⌨', form_input: '☑', find_elements: '🔎', fill: '⌨', select: '☰', check: '☑', click: '🖱' };
-// clicks, typing and keys (the members that ask first). TODO(part B): run these through the bookmarklet (P.at turns a point
-// into an element), behind actAsk's approval card. Until then each answers straight away that it can't be done.
-const ACT_HANDS = { left_click: 'Click on the page', right_click: 'Right-click on the page', middle_click: 'Middle-click on the page', double_click: 'Double-click on the page',
-  triple_click: 'Triple-click on the page', left_click_drag: 'Drag on the page', left_mouse_down: 'Press the mouse button', left_mouse_up: 'Release the mouse button',
-  type: 'Type on the page', key: 'Press keys', hold_key: 'Hold a key', form_input: 'Set a field' };
-const ACT_LATER = 'Not available yet: pagebot can’t click, type or press keys on the page in this version. Tell the user what to do on the page instead, or carry on with what you can see and read.';
+// the members that ask first: left_click and form_input on a ref, run by the bookmarklet's click/fill/select/check (its 'act'),
+// which refuses protected fields and holds anything that leaves the page to an approval of where it goes
+const actRef = t => { const m = /^ref_(\d{1,9})$/.exec(t?.ref || ''); return m ? +m[1] : 0; };
+const truthy = v => v === true || v === 1 || /^(true|yes|on|1|checked)$/i.test(String(v));
 const SHOT_MAX = 1568; // a screenshot's long edge in pixels, the most the model takes in without shrinking it
 const SHOT_NO = 'Screenshots aren’t available: the user didn’t share the tab this time. Use read_page, find or get_page_text instead, and don’t ask for another screenshot in this answer.';
 // the bookmarklet's browser tools (bookmarklet v12): read_page, find, get_page_text, scroll, scroll_to, hover, mouse_move, and view (the viewport's size)
@@ -2976,7 +2974,6 @@ function actLine(bot, name) {
 function actNote(bot, v) { const n = el('div', 'anote'); n.textContent = clip(v, 400); actSteps(bot).appendChild(n); scroll(); }
 function actSet(line, text, how) { line.className = 'astep ' + (how || 'live'); line.querySelector('.at').textContent = text; scroll(); }
 // the approval card stands in for the step line until you choose. It never takes the keyboard (see focus, above).
-// TODO(part B): clicks, typing and keys come back through here; nothing calls it in part A.
 function actAsk(run, line, now, info, wait) {
   return new Promise(resolve => {
     const go = info.nav || info.tab, card = el('div', 'acard' + (go ? ' nav' : '')), q = el('div', 'aq'), ab = el('div', 'ab');
@@ -3076,7 +3073,7 @@ async function pageAct(run, ev) {
   const line = actLine(run.bot, name);
   const post = body => api('/api/chat/act', { id: ev.id, ...body }).catch(() => {});
   const fail = (text, why) => { actSet(line, `${text} — ${why.replace(/\. .*$/s, '').replace(/\.$/, '')}`, 'fail'); return post({ result: { error: why }, note: text }); };
-  if (ev.ask || ACT_HANDS[name]) return fail(ACT_HANDS[name] || clip(name, 40) || 'Page action', ACT_LATER); // TODO(part B)
+  if (ev.ask) return actHand(run, ev, name, input, line, post, fail);
   const words = actRead(name, input);
   if (!words) return fail(clip(name, 40) || 'Page action', 'pagebot doesn’t know this tool.');
   const now = words[0].replace(/…$/, '');
@@ -3094,6 +3091,53 @@ async function pageAct(run, ev) {
   actSet(line, done, 'done');
   if (r.image) actThumb(line, r.image);
   const { id, ...result } = r; // (id: which message the page was answering)
+  return post({ result, note: done });
+}
+// a click or a field: the bookmarklet checks it first (the element, protected fields, whether it leaves the page), then the card asks
+async function actHand(run, ev, name, input, line, post, fail) {
+  const ref = actRef(input.target);
+  if (!ref || (name !== 'left_click' && name !== 'form_input')) return fail('Page action', 'That isn’t available here. Click or fill an element by its ref from read_page or find.');
+  let op = 'click', x = { ref };
+  actSet(line, 'Checking the page…');
+  if (name === 'form_input') { // what kind of field decides how it's set
+    const peek = await ask('act', { name: 'click', input: x, dry: 1 }, 8000);
+    if (run.stale()) return;
+    if (!peek) return fail('Set a field', 'The page didn’t answer.');
+    if (peek.no) return fail('Set a field', actNo(peek));
+    const v = input.value;
+    if (peek.role === 'select') { op = 'select'; x = { ref, option: String(v) }; }
+    else if (/^(checkbox|radio|switch)$/.test(peek.role)) { op = 'check'; x = { ref, checked: truthy(v) }; }
+    else { op = 'fill'; x = { ref, text: String(v) }; }
+  }
+  const page = extra => ask('act', { name: op, input: x, ...extra }, 8000);
+  const info = await page({ dry: 1 });
+  if (run.stale()) return;
+  const what = actWhat({ ref: 'ref_' + ref }, info);
+  const [now, done] = op === 'click' ? [`Click ${what}`, `Clicked ${what}`]
+    : op === 'fill' ? [`Type “${clip(x.text, 40)}” into ${what}`, `Typed “${clip(x.text, 40)}” into ${what}`]
+    : op === 'select' ? [`Pick “${clip(x.option, 40)}” in ${what}`, `Picked “${clip(info?.option || x.option, 40)}” in ${what}`]
+    : [`${x.checked ? 'Tick' : 'Untick'} ${what}`, `${x.checked ? 'Ticked' : 'Unticked'} ${what}`];
+  if (!info) return fail(now, 'The page didn’t answer.');
+  if (info.no) return fail(['password', 'payment', 'file'].includes(info.no) ? 'Tried a protected field' : now, actNo(info)); // (what it tried to type isn't kept)
+  const go = info.nav || info.tab; // leaving the page, or another site in a new tab: asks even with permissions skipped
+  if (go || !(prefs.actionsAuto || run.all)) {
+    const v = await actAsk(run, line, now, info, ev.wait);
+    if (v === 'stop' || run.stale()) return actSet(line, `${now} — stopped`, 'skip');
+    if (v !== 'allow' && v !== 'all') { actSet(line, `${now} — ${v === 'late' ? 'no answer, so not done' : 'skipped'}`, 'skip'); return post({ denied: true, note: now }); }
+    if (v === 'all') run.all = true;
+  }
+  actSet(line, now + '…');
+  if (info.nav) { // the page (and the panel with it) goes away on this click, so its result goes first
+    await post({ result: { role: info.role, label: info.label, ok: 1 }, note: done });
+    actSet(line, done, 'done');
+    return void page({ sure: info.nav }); // (the address that was approved, so a link that changed since asks again)
+  }
+  const r = await page(go ? { sure: go } : {});
+  if (run.stale()) return;
+  if (!r) return fail(now, 'The page didn’t answer.');
+  if (r.no) return fail(now, actNo(r));
+  actSet(line, done, 'done');
+  const { id, ...result } = r;
   return post({ result, note: done });
 }
 // the answer ended (or you stopped it): cards still waiting give up, and steps still running say they stopped

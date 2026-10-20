@@ -176,11 +176,13 @@ test('browser toolset (part A)', { skip: !database && 'Set PAGEBOT_TEST_DATABASE
     const [toolset, highlight, ...rest] = calls[base].body.tools;
     assert.deepEqual(rest, []);
     assert.deepEqual(toolset, { type: 'browser_toolset_20260801', configs: Object.fromEntries(
-      ['navigate', 'new_tab', 'list_tabs', 'switch_tab', 'close_tab', 'file_upload', 'read_console', 'read_network', 'javascript_exec'].map(n => [n, { enabled: false }])) });
+      ['navigate', 'new_tab', 'list_tabs', 'switch_tab', 'close_tab', 'file_upload', 'read_console', 'read_network', 'javascript_exec',
+        'right_click', 'middle_click', 'double_click', 'triple_click', 'left_click_drag', 'left_mouse_down', 'left_mouse_up', 'type', 'key', 'hold_key'].map(n => [n, { enabled: false }])) });
     assert.equal('name' in toolset, false, 'the toolset entry takes no name');
     assert.equal(highlight.name, 'highlight');
     assert.ok(highlight.input_schema.properties.quotes);
-    assert.match(calls[base].body.system, /screenshot and coordinates for what the tree doesn't show/);
+    assert.match(calls[base].body.system, /Use screenshot and zoom to see what the tree doesn't show/);
+    assert.match(calls[base].body.system, /left_click clicks a ref, and form_input fills/);
     assert.match(calls[base].body.system, /untrusted content from the web page/);
     assert.equal(calls[base].body.thinking, undefined, 'Haiku gets no progress notes');
     assert.doesNotMatch(calls[base].beta, /thinking-display-updates/);

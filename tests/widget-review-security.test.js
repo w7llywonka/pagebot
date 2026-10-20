@@ -141,14 +141,14 @@ async function panel(t, prefs = {}) {
       if (r.type === 'page') return send({ page: { url: 'https://news.example.test/a', title: 'A', text: 'x' }, selection: '' });
       if (r.type === 'act') send(info[r.input && r.input.ref] || { no: 'gone' });
     });
-  </script><iframe title="Pagebot" src="https://pagebot.example.test/widget?v=10" style="width:440px;height:840px;border:0"></iframe></body></html>`;
+  </script><iframe title="Pagebot" src="https://pagebot.example.test/widget?v=12" style="width:440px;height:840px;border:0"></iframe></body></html>`;
   await context.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url());
     const json = value => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(value) });
     if (url.hostname === 'news.example.test') return route.fulfill({ contentType: 'text/html', body: hostPage });
     if (url.pathname === '/widget') return route.fulfill({ contentType: 'text/html', body: widget });
     state.requests.push({ path: url.pathname, body: request.postDataJSON() });
-    if (url.pathname === '/api/boot') return json({ ...boot, prefs: { ...boot.prefs, ...prefs }, version: 10 });
+    if (url.pathname === '/api/boot') return json({ ...boot, prefs: { ...boot.prefs, ...prefs }, version: 12 });
     if (url.pathname === '/api/chat/act' || url.pathname === '/api/ping') return json({ ok: true });
     if (url.pathname === '/api/site-memory') return json({ memories: [], maxSites: 100, maxInstructions: 4000 });
     state.errors.push(`Unexpected request: ${request.method()} ${url.pathname}`);
@@ -163,12 +163,12 @@ async function panel(t, prefs = {}) {
   await frame.locator('#q').fill('Cancel my order');
   await frame.locator('#sendBtn').click();
   await frame.waitForFunction(() => !!window.__push);
-  const click = ref => frame.evaluate(r => window.__push(r), { t: 'act', id: 'c' + ref, name: 'click', input: { ref }, wait: 300000 });
+  const click = ref => frame.evaluate(r => window.__push(r), { t: 'act', id: 'c' + ref, name: 'left_click', input: { target: { type: 'ref', ref: 'ref_' + ref } }, wait: 300000, ask: true });
   const sent = () => page.evaluate(() => window.hostRequests.filter(r => r.type === 'act' && !r.dry));
   return { frame, click, sent, requests: state.requests };
 }
 
-browserTest('the approval card shows the control’s own words next to the label the model was shown', { skip: 'TODO(part B): the approval card comes back with clicks (the bookmarklet checks above still run)' }, async t => {
+browserTest('the approval card shows the control’s own words next to the label the model was shown', async t => {
   const p = await panel(t);
   await p.click(1);
   await p.frame.locator('.acard').waitFor();
@@ -177,7 +177,7 @@ browserTest('the approval card shows the control’s own words next to the label
   assert.deepEqual(await p.frame.locator('.acard button').allInnerTexts(), ['Allow', 'Skip', 'Allow all for this answer']);
 });
 
-browserTest('a link that opens another site in a new tab asks even with permissions skipped, names the site, and has no Allow all', { skip: 'TODO(part B): the approval card comes back with clicks (the bookmarklet checks above still run)' }, async t => {
+browserTest('a link that opens another site in a new tab asks even with permissions skipped, names the site, and has no Allow all', async t => {
   const p = await panel(t, { actionsAuto: true });
   await p.click(1); // an ordinary click: skip mode lets it through
   for (let i = 0; i < 40 && (await p.sent()).length < 1; i++) await new Promise(r => setTimeout(r, 50));
@@ -195,7 +195,7 @@ browserTest('a link that opens another site in a new tab asks even with permissi
   assert.ok(posted.some(r => r.id === 'c2'), 'and the result goes back to the model');
 });
 
-browserTest('a link that runs a script before leaving says so, rather than naming a site', { skip: 'TODO(part B): the approval card comes back with clicks (the bookmarklet checks above still run)' }, async t => {
+browserTest('a link that runs a script before leaving says so, rather than naming a site', async t => {
   const p = await panel(t);
   await p.click(3);
   await p.frame.locator('.acard.nav').waitFor();

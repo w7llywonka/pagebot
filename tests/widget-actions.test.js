@@ -4,8 +4,8 @@ import { createRequire } from 'node:module';
 import { after, before, test } from 'node:test';
 
 // Page actions in the panel: step lines, skip mode, and when the toggle is unavailable (v12: the browser toolset; the
-// real bookmarklet, screenshots and the Share this tab card are in widget-browser.test.js). Clicks and typing are part B's:
-// until then the panel refuses them at once, and the approval-card tests below wait for part B (TODO(part B)).
+// real bookmarklet, screenshots and the Share this tab card are in widget-browser.test.js). left_click and form_input act on
+// refs through the bookmarklet's click and fill (its 'act'), behind the approval card; anything else that would change the page is refused.
 // Playwright with a local Chromium; every HTTP response is a fixture and the "bookmarklet" is a small fake in the host page.
 // /api/chat is a stream the test feeds by hand (window.__push), so an answer can stay open while a card waits.
 const require = createRequire(import.meta.url);
@@ -102,9 +102,10 @@ async function fixture(t, { standalone = false, hostV = 12, prefs = {}, user = {
   };
   return { page, frame, state, acts, hostActs, push, ask, waitActs };
 }
-const fill = (id, text = 'a@b.test') => ({ t: 'act', id, name: 'fill', input: { ref: 1, text }, wait: 300000 });
+const fill = (id, text = 'a@b.test') => ({ t: 'act', id, name: 'form_input', input: { target: { type: 'ref', ref: 'ref_1' }, value: text }, wait: 300000, ask: true });
+const click = (id, ref) => ({ t: 'act', id, name: 'left_click', input: { target: { type: 'ref', ref } }, wait: 300000, ask: true });
 
-browserTest('reading runs by itself as a step, notes show as progress lines, and clicks and typing are refused for now without reaching the page', async t => {
+browserTest('reading runs by itself as a step, notes show as progress lines, and typing or keys are refused without reaching the page', async t => {
   const f = await fixture(t);
   assert.equal(await f.frame.locator('#actPill').isVisible(), true);
   await f.ask();
@@ -119,28 +120,27 @@ browserTest('reading runs by itself as a step, notes show as progress lines, and
   assert.deepEqual(f.acts()[1].result, { text: 'button "Save" [ref_3]', n: 1 });
   assert.deepEqual(await f.frame.locator('.steps > *').evaluateAll(els => els.map(e => [e.className, e.innerText.replace(/\s+/g, ' ').trim()])), [
     ['anote', 'Looking at the form first.'], ['astep done', '📄 Read the page'], ['astep done', '🔎 Looked for “save button” (1 found)']]);
-  // TODO(part B): these run, behind the approval card; until then the model hears at once that they aren't available
-  for (const [id, name, input] of [['c1', 'left_click', { target: { type: 'ref', ref: 'ref_3' } }], ['c2', 'type', { text: 'a@b.test' }], ['c3', 'key', { text: 'Enter', repeat: 1 }]]) {
+  // the server turns these members off; if one came anyway, the model hears at once that it isn't available
+  for (const [id, name, input] of [['c2', 'type', { text: 'a@b.test' }], ['c3', 'key', { text: 'Enter', repeat: 1 }], ['c4', 'left_click', { target: { type: 'coordinate', x: 5, y: 5 } }]]) {
     await f.push({ t: 'act', id, name, input, wait: 300000, ask: true });
   }
   await f.waitActs(5);
-  for (const r of f.acts().slice(2)) assert.match(r.result.error, /^Not available yet: pagebot can’t click, type or press keys/);
-  assert.deepEqual(f.acts().slice(2).map(r => r.note), ['Click on the page', 'Type on the page', 'Press keys']);
+  for (const r of f.acts().slice(2)) assert.match(r.result.error, /^That isn’t available here/);
   assert.equal(await f.frame.locator('.acard').count(), 0, 'no approval card for something that can’t happen');
-  assert.match(await f.frame.locator('.astep.fail .at').first().innerText(), /^Click on the page — Not available yet/);
+  assert.match(await f.frame.locator('.astep.fail .at').first().innerText(), /^Page action — That isn’t available here/);
   assert.deepEqual((await f.hostActs()).map(r => r.type + ':' + r.name), ['tool:read_page', 'tool:find'], 'nothing but the reading reached the page');
   await f.push({ t: 'd', v: 'Tell me when you have saved.' }); await f.push(done);
   await f.frame.locator('.msg.bot .meta').waitFor();
 });
 
-browserTest('reading runs by itself as a step; edits wait for Allow or Skip, and Allow all covers the rest of the answer', { skip: 'TODO(part B): approval cards for clicks and typing' }, async t => {
+browserTest('reading runs by itself as a step; edits wait for Allow or Skip, and Allow all covers the rest of the answer', async t => {
   const f = await fixture(t);
   assert.equal(await f.frame.locator('#actPill').isVisible(), true);
   await f.ask();
-  await f.push({ t: 'act', id: 'r1', name: 'find_elements', input: {}, wait: 20000 });
+  await f.push({ t: 'act', id: 'r1', name: 'read_page', input: { filter: 'interactive', depth: 15 }, wait: 20000, ask: false });
   await f.waitActs(1);
   assert.equal(f.acts()[0].id, 'r1');
-  assert.equal(f.acts()[0].result.els[0].label, 'Email');
+  assert.match(f.acts()[0].result.text, /textbox "Email" \[ref_1\]/);
   assert.equal(await f.frame.locator('.acard').count(), 0, 'reading does not ask');
   assert.match(await f.frame.locator('.astep .at').first().innerText(), /Looked at the page’s buttons and fields/);
 
@@ -180,14 +180,14 @@ browserTest('reading runs by itself as a step; edits wait for Allow or Skip, and
   assert.match(await f.frame.locator('.msg.bot .body').innerText(), /All filled in/);
 });
 
-browserTest('a click that leaves the page always asks, even with permissions skipped, and has no Allow all', { skip: 'TODO(part B): approval cards for clicks and typing' }, async t => {
+browserTest('a click that leaves the page always asks, even with permissions skipped, and has no Allow all', async t => {
   const f = await fixture(t, { prefs: { actionsAuto: true } });
   assert.equal(await f.frame.locator('#actTag').isVisible(), true, 'the pill says auto');
   await f.ask();
-  await f.push({ t: 'act', id: 'c1', name: 'click', input: { ref: 3 }, wait: 300000 }); // Save: stays on the page
+  await f.push(click('c1', 'ref_3')); // Save: stays on the page
   await f.waitActs(1);
   assert.equal(await f.frame.locator('.acard').count(), 0, 'skip mode runs a click that stays on the page');
-  await f.push({ t: 'act', id: 'c2', name: 'click', input: { ref: 2 }, wait: 300000 }); // Next: another page
+  await f.push(click('c2', 'ref_2')); // Next: another page
   await f.frame.locator('.acard.nav').waitFor();
   assert.match(await f.frame.locator('.acard .aw').innerText(), /leaves the page.*other\.example\.test.*closes with it/s);
   assert.deepEqual(await f.frame.locator('.acard button').allInnerTexts(), ['Allow', 'Skip']);
