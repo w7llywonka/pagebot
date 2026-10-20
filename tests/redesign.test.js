@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
 // The redesign on the server's side: the four new themes are accepted and saved (for the owner and for accounts), anything else is
-// not, the bookmark carries the half-window default, and the version is 12.
+// not, the bookmark carries the half-window default, and the version is 13.
 const database = process.env.PAGEBOT_TEST_DATABASE_URL;
 const schema = `pagebot_test_${randomBytes(8).toString('hex')}`;
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -61,12 +61,12 @@ after(async () => {
 });
 
 test('redesign integration', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL to run PostgreSQL integration tests.' }, async t => {
-  await t.test('the version is 12 and the homepage bookmark works out the half-window default', async () => {
-    assert.equal((await api('/health')).data.version, 12);
+  await t.test('the version is 13 and the homepage bookmark works out the half-window default', async () => {
+    assert.equal((await api('/health')).data.version, 13);
     const html = (await api('/', { token: null })).data;
     const href = /id="bm" href="([^"]+)"/.exec(html)[1].replaceAll('&amp;', '&').replaceAll('&#39;', "'").replaceAll('&quot;', '"');
     const code = decodeURIComponent(href.slice('javascript:'.length));
-    assert.match(code, /v:12\}/);
+    assert.match(code, /v:13\}/);
     assert.match(code, /P\.def=function\(\)\{/);
     assert.match(code, /Math\.round\(vw\*\.5\),360\),vw-32/);
     assert.match(code, /Math\.round\(vh\*\.8\),420\),vh-32/);

@@ -258,6 +258,9 @@ browserTest('the pixel loader plays on the splash, never blocks, and is gone wit
   assert.ok(size[0] >= 60 && size[1] >= 60 && size[2], 'a real, sizeable canvas');
   // it paints something: the animal and strings are not transparent
   assert.ok(await canvas.evaluate(c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 200) n++; return n > 200; }));
+  // the panda dangles from three strings: they start at the top edge of the canvas, and the red panda's fur is on it
+  assert.ok(await canvas.evaluate(c => { const d = c.getContext('2d').getImageData(0, 0, c.width, 1).data; let runs = 0, on = false; for (let i = 3; i < d.length; i += 4) { const o = d[i] > 150; if (o && !on) runs++; on = o; } return runs >= 3; }), 'three strings come down from the top');
+  assert.ok(await canvas.evaluate(c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 0; i < d.length; i += 4) if (d[i + 3] === 255 && d[i] === 217 && d[i + 1] === 85 && d[i + 2] === 43) return true; return false; }), 'it is the red panda');
   const frames = Number(await canvas.getAttribute('data-frames'));
   await f.page.waitForTimeout(500);
   assert.ok(Number(await canvas.getAttribute('data-frames')) > frames + 2, 'it animates while the splash is up');
@@ -299,20 +302,27 @@ browserTest('with reduced motion the loader draws one still frame and never runs
   chatGate.resolve();
 });
 
-browserTest('the loader follows the theme: drawn in the accent colour, and redrawn when the theme changes', async t => {
+browserTest('the panda keeps its own colours on every theme; only the void behind it follows the theme', async t => {
   const f = await fixture(t, { bootGate: deferred() });
   const canvas = f.frame.locator('#bootPbl');
   await canvas.waitFor({ state: 'visible' });
-  const has = rgb => canvas.evaluate((c, rgb) => { // is the animal's fur (the accent, exactly) drawn
+  const has = rgb => canvas.evaluate((c, rgb) => { // is a colour drawn, exactly
     const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
     for (let i = 0; i < d.length; i += 4) if (d[i + 3] === 255 && `${d[i]},${d[i + 1]},${d[i + 2]}` === rgb) return true;
     return false;
   }, rgb);
-  assert.equal(await has('217,119,87'), true); // ember's #d97757
-  await f.frame.evaluate(() => document.querySelector('.sw[data-t=pond]').click()); // the picker's own code path
+  const dither = () => canvas.evaluate(c => { // the void's dots: translucent, in the theme's text colour
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 20 && d[i + 3] < 80) return `${d[i]},${d[i + 1]},${d[i + 2]}`;
+    return '';
+  });
+  assert.equal(await has('217,85,43'), true); // the red panda's fur, #d9552b
+  const ember = await dither();
+  assert.ok(ember);
+  await f.frame.evaluate(() => document.querySelector('.sw[data-t=paper]').click()); // the picker's own code path
   await f.page.waitForTimeout(300);
-  assert.equal(await has('79,214,184'), true); // pond's turquoise
-  assert.equal(await has('217,119,87'), false);
+  assert.equal(await has('217,85,43'), true, 'the fur does not take the theme\'s colour');
+  assert.notEqual(await dither(), ember, 'the void follows the theme');
 });
 
 browserTest('the big layout switches on with the panel: a centred reading column and bigger type at half-screen, the old compact one when narrow', async t => {

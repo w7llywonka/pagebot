@@ -15,7 +15,7 @@ const PUB = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
 // pagebot's version. It's written into the bookmark people drag from the homepage, so raise it by one to release an
 // update: panels opened from an older bookmark then send people to the homepage to drag the new one.
-const VERSION = 12; // 12: page actions use the browser toolset: screenshots, coordinates, keys, and a page tree that sees into shadow DOM and frames (see README, “Page actions”); 11: the panel opens half-screen sized, worked out from the window (see README, “Size”); 10: the bookmarklet's page-action checks got stricter (see README, “Page actions”)
+const VERSION = 13; // 13: Minimize turns the panel into a little red panda, a see-through 120 px frame (see README, “The panda”); 12: page actions use the browser toolset: screenshots, coordinates, keys, and a page tree that sees into shadow DOM and frames (see README, “Page actions”); 11: the panel opens half-screen sized, worked out from the window (see README, “Size”); 10: the bookmarklet's page-action checks got stricter (see README, “Page actions”)
 // the two models the panel can switch between; web search tool versions differ per model
 const MODELS = {
   haiku: { id: process.env.HAIKU_MODEL || process.env.MODEL || 'claude-haiku-5-5', label: 'Haiku 5.5', search: 'web_search_20250305' },

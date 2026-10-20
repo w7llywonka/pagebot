@@ -8,7 +8,7 @@ P=W.__pb={r:16,b:16,w:380,h:560,mw:200,mh:46,dw:420,v:__VERSION__};
 P.def=function(){var vw=W.innerWidth,vh=W.innerHeight;if(!(vw>0&&vh>0)){return;}P.w=Math.min(Math.max(Math.round(vw*.5),360),vw-32);P.h=Math.min(Math.max(Math.round(vh*.8),420),vh-32);P.dw=Math.min(Math.max(Math.round(vw*.4),420),vw-40);};P.def();
 P.lit=function(){var e=[D.body,D.documentElement],i,c,m;for(i=0;i<2;i++){if(e[i]){c=getComputedStyle(e[i]).backgroundColor;m=c.match(/[\d.]+/g);if(m&&(m.length<4||+m[3]>.5)){return .299*m[0]+.587*m[1]+.114*m[2]>140;}}}return true;};
 P.win=function(){var sc=W.screen||{},pw=sc.availWidth>0?Math.min(Math.max(Math.round(sc.availWidth*.5),420),sc.availWidth):420,ph=sc.availHeight>0?Math.min(Math.max(Math.round(sc.availHeight*.8),680),sc.availHeight):680;if(P.pop&&!P.pop.closed){P.pop.focus();}else{P.pop=W.open(O+"/widget?popup=1&v="+P.v,"pagebot","width="+pw+",height="+ph);}};
-P.bounds=function(){if(P.full||(P.dock&&!P.min)){return;}var w=P.min?P.mw:Math.min(P.w,W.innerWidth-32),h=P.min?P.mh:Math.min(P.h,W.innerHeight-32);P.r=Math.max(0,Math.min(P.r,W.innerWidth-w));P.b=Math.max(0,Math.min(P.b,W.innerHeight-h));};
+P.bounds=function(){if(P.full||(P.dock&&!P.min)){return;}var w=P.min?P.pet?P.pw:P.mw:Math.min(P.w,W.innerWidth-32),h=P.min?P.pet?P.ph:P.mh:Math.min(P.h,W.innerHeight-32);P.r=Math.max(0,Math.min(P.r,W.innerWidth-w));P.b=Math.max(0,Math.min(P.b,W.innerHeight-h));};
 /* Pointer events can arrive several times per frame. Keep their state current, then paint once. */
 P.schedulePlace=function(now){P.placeNow=P.placeNow||now;if(P.placeFrame){return;}P.placeFrame=requestAnimationFrame(function(){var n=P.placeNow;P.placeFrame=0;P.placeNow=0;P.place(n);});};
 P.place=function(now){
@@ -20,11 +20,13 @@ else if(dk){s.left=s.bottom="auto";s.top=s.right="0";s.width=Math.min(P.dw,vw-40
 else{
 w=P.min?P.mw:Math.min(P.w,vw-32);h=P.min?P.mh:Math.min(P.h,vh-32);
 P.bounds();
-s.left=s.top="auto";s.right=P.r+"px";s.bottom=P.b+"px";s.width=w+"px";s.height=h+"px";
-s.borderRadius=P.min?P.mh/2+"px":"14px";
+/* v13 pet: a see-through frame (no radius, shadow or blur) that may be bigger than the panda while its bubble shows; it keeps the panda put and only slides to stay on screen */
+var pt=P.min&&P.pet;
+s.left=s.top="auto";s.right=(pt?Math.min(P.r,vw-w):P.r)+"px";s.bottom=(pt?Math.min(P.b,vh-h):P.b)+"px";s.width=w+"px";s.height=h+"px";
+s.borderRadius=pt?"0":P.min?P.mh/2+"px":"14px";
 }
-s.boxShadow=P.full||P.clear?"none":dk?"-10px 0 36px rgba(0,0,0,.3)":P.glass?"0 12px 40px rgba(0,0,0,.25),inset 0 0 0 1px rgba(255,255,255,.4),inset 0 1px 0 rgba(255,255,255,.6)":"0 10px 40px rgba(0,0,0,.45)";
-s.backdropFilter=P.glass&&!P.full?"blur(10px) saturate(1.7)":"";s.setProperty("-webkit-backdrop-filter",s.backdropFilter);
+s.boxShadow=P.full||P.clear||P.min&&P.pet?"none":dk?"-10px 0 36px rgba(0,0,0,.3)":P.glass?"0 12px 40px rgba(0,0,0,.25),inset 0 0 0 1px rgba(255,255,255,.4),inset 0 1px 0 rgba(255,255,255,.6)":"0 10px 40px rgba(0,0,0,.45)";
+s.backdropFilter=P.glass&&!P.full&&!(P.min&&P.pet)?"blur(10px) saturate(1.7)":"";s.setProperty("-webkit-backdrop-filter",s.backdropFilter);
 if(now){void f.offsetWidth;s.transition=TR;}
 };
 P.show=function(){
@@ -328,7 +330,7 @@ else if(t==="show"){s.visibility="visible";}
 else if(t==="close"){P.hide();}
 else if(t==="drag"){P.r-=+d.dx||0;P.b-=+d.dy||0;P.bounds();P.schedulePlace();}
 else if(t==="where"){reply({pos:{r:P.r,b:P.b},size:{w:P.w,h:P.h},dw:P.dw});}
-else if(t==="min"){P.min=d.on?1:0;if(d.w>0&&d.h>0){P.mw=+d.w;P.mh=+d.h;}P.place();}
+else if(t==="min"){var pt=d.on&&d.pet?1:0,ok2=d.w>0&&d.h>0;if(pt&&ok2){P.pw=P.min&&P.pet?Math.min(P.pw,+d.w):+d.w;P.ph=P.min&&P.pet?Math.min(P.ph,+d.h):+d.h;}P.pet=pt;P.min=d.on?1:0;if(ok2){P.mw=+d.w;P.mh=+d.h;}if(pt&&d.pos&&d.pos.r>=0&&d.pos.b>=0){P.r=+d.pos.r;P.b=+d.pos.b;}P.place();}
 else if(t==="glass"){P.glass=d.on?1:0;P.place(1);reply({light:P.lit()});}
 else if(t==="clear"){P.clear=d.on?1:0;P.place(1);reply({light:P.lit()});}
 else if(t==="full"){P.full=d.on?1:0;if(!d.on){s.visibility="hidden";}P.place(1);reply({});}
