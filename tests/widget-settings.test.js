@@ -24,7 +24,7 @@ const done = { t: 'done', conversationId: 42, model: 'haiku', usage: { in: 50, o
 const cmd = (name, prompt, starter = false) => ({ name, prompt, starter, updatedAt: '2026-01-01T00:00:00.000Z' });
 
 // width: the panel's width (below 560 it drills in, from 560 it has two panes); hostV: the bookmark's version (the panel's ?v=)
-async function fixture(t, { width = 720, height = 760, standalone = false, who = 'user', hostV = 11, theme = 'ember', reduced = true, user = {}, prefs = {}, quota, commands = [],
+async function fixture(t, { width = 720, height = 760, standalone = false, who = 'user', hostV = 12, theme = 'ember', reduced = true, user = {}, prefs = {}, quota, commands = [],
   memories = [], version = 11, store = {}, pdfs = [], chats = 3, models = [{ key: 'haiku', label: 'Haiku' }, { key: 'sonnet', label: 'Sonnet' }], limits = { maxTokens: 2048, pageTokens: 5000, maxSearches: 3 } } = {}) {
   const context = await browser.newContext({ reducedMotion: reduced ? 'reduce' : 'no-preference', viewport: standalone ? { width, height } : { width: width + 40, height: height + 40 } });
   context.setDefaultTimeout(5000);

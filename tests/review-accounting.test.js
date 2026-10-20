@@ -38,7 +38,7 @@ async function sse(res, body, spec = {}) {
     i++;
   }
   for (const t of spec.tools || []) {
-    ev.push({ type: 'content_block_start', index: i, content_block: { type: 'tool_use', id: 'toolu_' + randomBytes(6).toString('hex'), name: t.name, input: {} } },
+    ev.push({ type: 'content_block_start', index: i, content_block: { type: 'tool_use', id: 'toolu_' + randomBytes(6).toString('hex'), name: t.name, input: {}, ...(t.name !== 'highlight' && { toolset_name: 'browser' }) } }, // browser toolset members name their toolset
       { type: 'content_block_delta', index: i, delta: { type: 'input_json_delta', partial_json: JSON.stringify(t.input || {}) } },
       { type: 'content_block_stop', index: i });
     i++;
@@ -277,7 +277,7 @@ test('accounting and request shape across features', { skip: !database && 'Set P
   await t.test('a closed panel while a page step waits still bills the finished round', async () => {
     const a = await account(1_000_000);
     const base = calls.length, ac = new AbortController();
-    script = (body, n) => ({ tools: [{ name: 'click', input: { ref: 1 } }], usage: { input_tokens: 900, output_tokens: 10 } });
+    script = (body, n) => ({ tools: [{ name: 'left_click', input: { target: { type: 'ref', ref: 'ref_1' } } }], usage: { input_tokens: 900, output_tokens: 10 } });
     const r = await chat({ message: 'Act', actions: true }, { token: a.token, signal: ac.signal, onAct: () => ac.abort() }).catch(() => null);
     for (let i = 0; i < 50 && !(await spent(a.id)); i++) await sleep(50);
     assert.equal(await spent(a.id), 910);
@@ -359,15 +359,15 @@ test('accounting and request shape across features', { skip: !database && 'Set P
   });
 
   await t.test('chaining page-action rounds stops before today’s limit, and the rounds are all billed', async () => {
-    const a = await account(5000);
+    const a = await account(14000); // (the browser toolset's schemas make the first prompt's estimate about 5,000 tokens)
     const base = calls.length;
-    script = () => ({ tools: [{ name: 'read_page' }], usage: { input_tokens: 800, output_tokens: 20 } });
+    script = () => ({ tools: [{ name: 'read_page' }], usage: { input_tokens: 2500, output_tokens: 20 } });
     const r = await chat({ message: 'Keep reading', actions: true }, { token: a.token,
       onAct: ev => api('/api/chat/act', { method: 'POST', token: a.token, body: { id: ev.id, result: { url: 'u', title: 't', text: 'x' } } }) });
     assert.ok(r.done, JSON.stringify(r.events));
     assert.ok(calls.length - base >= 2 && calls.length - base < 6, `${calls.length - base} rounds`);
-    assert.equal(await spent(a.id), 820 * (calls.length - base));
-    assert.ok(await spent(a.id) <= 5000);
+    assert.equal(await spent(a.id), 2520 * (calls.length - base));
+    assert.ok(await spent(a.id) <= 14000);
     assert.match(r.events.filter(e => e.t === 'd').map(e => e.v).join(''), /Stopped here/);
   });
 
@@ -428,7 +428,7 @@ test('accounting and request shape across features', { skip: !database && 'Set P
     const sent = calls[base];
     assert.equal(sent.router, true);
     assert.equal(breakpoints(sent.body), 0);
-    assert.ok(!sent.body.tools?.some(x => x.name === 'click' || x.name === 'read_page'), 'no page tools');
+    assert.ok(!sent.body.tools?.some(x => x.type === 'browser_toolset_20260801' || x.name === 'highlight'), 'no page tools');
     assert.doesNotMatch(JSON.stringify(sent.body.messages), /"type":"document"|"citations"/);
     assert.match(JSON.stringify(sent.body.messages), /Page actions I took in this answer/);
     assert.equal(await spent(a.id), 25 + 46, 'its prompt and answer tokens are billed like the others');
