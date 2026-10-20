@@ -783,6 +783,13 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 .astep .at{min-width:0;overflow-wrap:anywhere}
 .astep.live .at{animation:breathe 1.2s ease-in-out infinite}
 .astep.fail .at{color:var(--err)}
+.anote{padding-left:21px;font-size:11.5px;font-style:italic;color:var(--muted);opacity:.85;overflow-wrap:anywhere}
+.athumb{align-self:flex-start;margin:2px 0 4px 21px;padding:0;border:1px solid var(--line);border-radius:6px;background:var(--code);cursor:zoom-in;line-height:0;overflow:hidden}
+.athumb img{display:block;max-width:132px;max-height:84px}
+.athumb:hover,.athumb:focus-visible{border-color:var(--focus)}
+.aview{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:14px;border:0;margin:0;background:rgba(0,0,0,.8);cursor:zoom-out}
+.aview img{max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.acard.share{border-color:color-mix(in srgb,var(--accent) 55%,var(--line))}
 .acard{margin:3px 0 5px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--code);color:var(--text);font-size:12.5px;animation:msgIn .18s ease both}
 .acard.nav{border-color:color-mix(in srgb,var(--warn) 65%,var(--line))}
 .acard .aq{display:flex;gap:5px;font-weight:600;overflow-wrap:anywhere}
@@ -1181,7 +1188,7 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
           <section id="actSec" class="sec">
             <h3>Permissions</h3>
             <div class="aopts" role="radiogroup" aria-label="Page actions permissions">
-              <button class="aopt" id="actAsk" type="button" role="radio"><b>Ask before each click or edit</b>pagebot shows what it’s about to do and waits for you. Reading and highlighting the page don’t ask.</button>
+              <button class="aopt" id="actAsk" type="button" role="radio"><b>Ask before each click or edit</b>pagebot shows what it’s about to do and waits for you. Reading, scrolling and highlighting the page don’t ask.</button>
               <button class="aopt" id="actSkip" type="button" role="radio"><b>Skip all permissions</b>Clicks, typing and choices run without asking, on every site.</button>
             </div>
             <div class="awarn" id="actWarn" role="alertdialog" aria-labelledby="actWarnText" hidden>
@@ -1192,7 +1199,7 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
           <section class="sec"><h3>Always, even when skipping</h3>
             <div class="card">
               <div class="row"><div class="rt"><b class="rl">Protected fields</b><span class="rh">pagebot never reads or types into password, payment card or file fields.</span></div></div>
-              <div class="row"><div class="rt"><b class="rl">A step limit</b><span class="rh">A question takes at most 15 steps.</span></div></div>
+              <div class="row"><div class="rt"><b class="rl">A step limit</b><span class="rh">A question takes at most 40 steps.</span></div></div>
               <div class="row"><div class="rt"><b class="rl">Leaving the page</b><span class="rh">It asks before a click that leaves the page or opens another site.</span></div></div>
             </div>
             <p class="fine" id="actHow">Turn page actions on from the + menu, next to Web search.</p>
@@ -1373,7 +1380,7 @@ const hostV6 = hostV >= 6; // ...and can drop the panel's shadow for the clear t
 const hostV7 = hostV >= 7; // ...and can resize the panel and dock it to the side
 // v7 pages (also behind the pop-up window) send highlights as you make them and can find a quoted passage
 const pageV7 = hostV7 || (popup && ver >= 7);
-const pageV9 = hostV >= 9 || (popup && ver >= 9); // ...and can run page actions (find, fill, click and the rest)
+const pageV12 = hostV >= 12 || (popup && ver >= 12); // ...and can run page actions with the browser toolset (bookmarklet v12: the page tree, scrolling, hovering)
 const standalone = !embedded && !popup;
 const sysCalm = matchMedia('(prefers-reduced-motion: reduce)');
 let calm = sysCalm.matches; // Settings > Appearance > Animations can override it (see applyMotion)
@@ -2855,15 +2862,17 @@ async function savePrefs(patch) {
 $('#webBtn').onclick = () => { closeMenus(); savePrefs({ web: !prefs.web }); q.focus(); };
 $('#webPill').onclick = () => { savePrefs({ web: false }); q.focus(); };
 
-// ---- page actions (bookmarklet v9): the model reads and changes the page through tools the bookmarklet runs ----
-// Reading, highlighting and scrolling run right away as step lines. Clicks and edits ask first with a card in the answer,
-// unless Skip all permissions is on (or you chose Allow all for this answer); a click that leaves the page always asks.
-// The bookmarklet refuses password, payment card and file fields by itself.
+// ---- page actions (bookmarklet v12): Claude's browser toolset, run in the page you're on ----
+// Seeing and reading run right away as step lines: screenshots and zoom come from sharing the tab (the first one asks you
+// with a card, since the browser needs that click), the rest from the bookmarklet, whose page tree reaches into open shadow
+// roots and same-origin frames. Clicks and fields (left_click and form_input on a ref) ask first with a card unless Skip all
+// permissions is on, and run through the bookmarklet's click and fill; anything that leaves the page always asks. The bookmarklet refuses password,
+// payment card and file fields by itself.
 let actRun = null; // the answer that's acting on the page right now
 function actWhy() { // why page actions can't be used here ('' when they can)
   if (standalone) return 'They need a web page: open pagebot with the bookmark on a site';
   if (isUser() && cfg.user?.allowActions === false) return 'Not turned on for your account';
-  if (!pageV9) return 'Drag the new bookmark from the homepage to use them';
+  if (!pageV12) return 'Drag the new bookmark from the homepage to use them';
   if (prefs.model === 'openrouter') return 'They work with the Claude models only';
   return '';
 }
@@ -2877,12 +2886,12 @@ function renderActs() {
   p.title = `Page actions are on: pagebot can click and type on this page${auto ? ' without asking (Skip all permissions)' : ', asking you first'}. Click to turn them off.`;
   $('#actSec').hidden = isUser() && cfg.user?.allowActions === false;
   // Settings: the same reason the + menu gives, and no permission choices to make where they can't apply (an old bookmark, or /chat)
-  const gone = standalone || !pageV9, av = $('#actAvail');
+  const gone = standalone || !pageV12, av = $('#actAvail');
   av.hidden = !why; $('#actHow').hidden = !!why;
   $('#actAsk').disabled = $('#actSkip').disabled = gone;
   if (why) {
     av.replaceChildren(el('b', '', gone ? 'Not available here.' : 'Off for now.'), document.createTextNode(` ${why}.`));
-    if (!pageV9 && !standalone) { const a = el('a', '', 'Get the new bookmark ↗'); a.href = '/?update'; a.target = '_blank'; a.rel = 'noopener'; av.append(' ', a); }
+    if (!pageV12 && !standalone) { const a = el('a', '', 'Get the new bookmark ↗'); a.href = '/?update'; a.target = '_blank'; a.rel = 'noopener'; av.append(' ', a); }
   }
   for (const [id, on] of [['#actAsk', !auto], ['#actSkip', auto]]) { $(id).classList.toggle('on', on); $(id).setAttribute('aria-checked', String(on)); }
   if (auto) $('#actWarn').hidden = true;
@@ -2901,12 +2910,24 @@ $('#actSkip').onclick = () => { if (prefs.actionsAuto) return; $('#actWarn').hid
 $('#actYes').onclick = () => { $('#actWarn').hidden = true; savePrefs({ actionsAuto: true }); };
 $('#actNo').onclick = () => { $('#actWarn').hidden = true; $('#actSkip').focus(); };
 
-const ACT_ICON = { read_page: '📄', find_elements: '🔎', highlight: '🖍', scroll_to: '↕', fill: '⌨', select: '☰', check: '☑', click: '🖱' };
-const ACT_BM = { find_elements: 'els', highlight: 'hl', scroll_to: 'scroll', fill: 'fill', select: 'select', check: 'check', click: 'click' }; // the bookmarklet's names
-const ACT_WRITE = new Set(['fill', 'select', 'check', 'click']); // these ask first
+// the toolset's members (and, for older answers' steps, the names before it)
+const ACT_ICON = { screenshot: '📸', zoom: '🔍', read_page: '📄', find: '🔎', get_page_text: '📃', scroll: '↕', scroll_to: '↧', hover: '👆', mouse_move: '➜', wait: '⏳', highlight: '🖍',
+  left_click: '🖱', right_click: '🖱', middle_click: '🖱', double_click: '🖱', triple_click: '🖱', left_click_drag: '✋', left_mouse_down: '🖱', left_mouse_up: '🖱',
+  type: '⌨', key: '⌨', hold_key: '⌨', form_input: '☑', find_elements: '🔎', fill: '⌨', select: '☰', check: '☑', click: '🖱' };
+// the members that ask first: left_click and form_input on a ref, run by the bookmarklet's click/fill/select/check (its 'act'),
+// which refuses protected fields and holds anything that leaves the page to an approval of where it goes
+const actRef = t => { const m = /^ref_(\d{1,9})$/.exec(t?.ref || ''); return m ? +m[1] : 0; };
+const truthy = v => v === true || v === 1 || /^(true|yes|on|1|checked)$/i.test(String(v));
+const SHOT_MAX = 1568; // a screenshot's long edge in pixels, the most the model takes in without shrinking it
+const SHOT_NO = 'Screenshots aren’t available: the user didn’t share the tab this time. Use read_page, find or get_page_text instead, and don’t ask for another screenshot in this answer.';
+// the bookmarklet's browser tools (bookmarklet v12): read_page, find, get_page_text, scroll, scroll_to, hover, mouse_move, and view (the viewport's size)
+const tool = (name, input = {}, ms = 15000) => ask('tool', { name, input }, ms);
+// the model's points are pixels of its latest screenshot; the page works in CSS pixels of its viewport (k: screenshot pixels per CSS pixel)
+const toCss = (run, t) => t?.type === 'coordinate' ? { type: 'coordinate', x: t.x / (run.shot?.k || 1), y: t.y / (run.shot?.k || 1) } : t;
+const actFor = (run, ms) => new Promise(res => { const end = Date.now() + ms, tick = () => run.stale() || Date.now() >= end ? res() : setTimeout(tick, Math.min(200, end - Date.now())); tick(); });
 // the bookmarklet's refusals, in words for the model (the first sentence shows in the step line)
 const ACT_NO = {
-  gone: 'That element isn’t on the page anymore. Use find_elements again.',
+  gone: 'That element isn’t on the page anymore. Use read_page or find again.',
   password: 'pagebot never reads or types into password fields. Ask the user to fill it in themselves.',
   payment: 'pagebot never reads or types into payment card fields. Ask the user to fill it in themselves.',
   file: 'pagebot never opens file pickers. Ask the user to choose the file themselves.',
@@ -2918,37 +2939,39 @@ const ACT_NO = {
 const actNo = r => r.no === 'kind' ? `That’s a ${r.role || 'different element'}, not the kind of element this tool works on.`
   : r.no === 'option' ? `There’s no option like that. It has: ${(r.opts || []).join(', ')}.` : r.no === 'err' ? `It went wrong on the page. ${r.why || ''}` : ACT_NO[r.no] || 'It couldn’t be done.';
 const clip = (v, n) => { const s = String(v ?? '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s; };
-const ACT_KIND = { textbox: 'box', select: 'list', checkbox: 'checkbox', radio: 'option', switch: 'switch', button: 'button', link: 'link' };
-const actWhat = (input, info) => { const k = ACT_KIND[info?.role] || 'element'; return info?.label ? `the “${clip(info.label, 50)}” ${k}` : `${k} ${input.ref}`; };
-// a click or edit in words, as it's about to happen and once it has: ['Type “hi” into the “Search” box', 'Typed …']
-function actSay(name, input, info) {
-  const w = actWhat(input, info), t = `“${clip(input.text, 60)}”`, o = `“${clip(info?.option || input.option, 50)}”`;
-  if (name === 'fill') return input.text ? [`Type ${t} into ${w}`, `Typed ${t} into ${w}`] : [`Clear ${w}`, `Cleared ${w}`];
-  if (name === 'select') return [`Choose ${o} in ${w}`, `Chose ${o} in ${w}`];
-  if (name === 'check') return info?.role === 'radio' ? [`Pick ${w}`, `Picked ${w}`] : input.checked === false ? [`Untick ${w}`, `Unticked ${w}`] : [`Tick ${w}`, `Ticked ${w}`];
-  return [`Click ${w}`, `Clicked ${w}`];
-}
-// reading steps in words: [while it runs, once it's done (or null when it found nothing)]
+const ACT_KIND = { textbox: 'box', searchbox: 'box', combobox: 'list', listbox: 'list', select: 'list', checkbox: 'checkbox', radio: 'option', switch: 'switch', button: 'button', link: 'link',
+  heading: 'heading', tab: 'tab', menuitem: 'menu item', option: 'option', img: 'image', iframe: 'frame', canvas: 'drawing', slider: 'slider' };
+const actWhat = (input, info) => { const k = ACT_KIND[info?.role] || 'element'; return info?.label ? `the “${clip(info.label, 50)}” ${k}` : `${k} ${input.ref || ''}`.trim(); };
+// a step in words: [while it runs, once it's done]; r is what came back
 function actRead(name, input, r) {
-  if (name === 'find_elements') {
-    const n = (r?.els?.length || 0) + (r?.more || 0);
-    return [input.query ? `Looking for “${clip(input.query, 40)}” on the page…` : 'Looking at the page’s buttons and fields…',
-      input.query ? `Looked for “${clip(input.query, 40)}” on the page (${n} found)` : `Looked at the page’s buttons and fields (${n})`];
+  const what = r?.label || r?.role ? actWhat({}, r) : 'an element';
+  switch (name) {
+    case 'screenshot': return ['Taking a screenshot…', 'Took a screenshot'];
+    case 'zoom': return ['Zooming in…', 'Zoomed in on part of the page'];
+    case 'read_page': return [input.ref ? 'Reading part of the page…' : 'Reading the page…',
+      input.ref ? 'Read part of the page' : input.filter === 'interactive' ? 'Looked at the page’s buttons and fields' : input.filter === 'all' ? 'Read the whole page, hidden parts too' : 'Read the page'];
+    case 'find': return [`Looking for “${clip(input.query, 40)}”…`, `Looked for “${clip(input.query, 40)}” (${r?.n ?? 0} found)`];
+    case 'get_page_text': return ['Reading the page’s text…', 'Read the page’s text'];
+    case 'scroll': return [`Scrolling ${input.scroll_direction}…`, r?.moved === false ? `Tried to scroll ${input.scroll_direction}: that’s as far as it goes` : `Scrolled ${input.scroll_direction}`];
+    case 'scroll_to': return ['Scrolling…', `Scrolled to ${what}`];
+    case 'hover': return ['Pointing…', `Pointed at ${what}`];
+    case 'mouse_move': return ['Moving the mouse…', `Moved the mouse over ${what}`];
+    case 'wait': return [`Waiting ${input.duration} s…`, `Waited ${input.duration} second${input.duration === 1 ? '' : 's'}`];
+    case 'highlight': {
+      const f = (r?.found || []).filter(Boolean).length, n = input.quotes?.length || 0;
+      return ['Highlighting on the page…', n === 1 ? `Highlighted “${clip(input.quotes[0], 50)}”` : `Highlighted ${f === n ? n : `${f} of ${n}`} passages`];
+    }
   }
-  if (name === 'highlight') {
-    const f = (r?.found || []).filter(Boolean).length, n = input.quotes?.length || 0;
-    return ['Highlighting on the page…', !f ? null : n === 1 ? `Highlighted “${clip(input.quotes[0], 50)}”` : `Highlighted ${f === n ? n : `${f} of ${n}`} passages`];
-  }
-  if (input.quote) return [`Scrolling to “${clip(input.quote, 50)}”…`, r?.found === 0 ? null : `Scrolled to “${clip(input.quote, 50)}”`];
-  return ['Scrolling the page…', `Scrolled to ${actWhat(input, r)}`];
+  return null;
 }
+function actSteps(bot) { let s = bot.querySelector('.steps'); if (!s) { s = el('div', 'steps'); bot.prepend(s); } return s; }
 function actLine(bot, name) {
-  let steps = bot.querySelector('.steps');
-  if (!steps) { steps = el('div', 'steps'); bot.prepend(steps); }
   const s = el('div', 'astep live'); s.append(el('span', 'ai'), el('span', 'at'));
   s.firstChild.textContent = ACT_ICON[name] || '•';
-  steps.appendChild(s); scroll(); return s;
+  actSteps(bot).appendChild(s); scroll(); return s;
 }
+// Sonnet's short notes between page steps ({t:'note'}), as small progress lines among the steps
+function actNote(bot, v) { const n = el('div', 'anote'); n.textContent = clip(v, 400); actSteps(bot).appendChild(n); scroll(); }
 function actSet(line, text, how) { line.className = 'astep ' + (how || 'live'); line.querySelector('.at').textContent = text; scroll(); }
 // the approval card stands in for the step line until you choose. It never takes the keyboard (see focus, above).
 function actAsk(run, line, now, info, wait) {
@@ -2973,38 +2996,127 @@ function actAsk(run, line, now, info, wait) {
     line.hidden = true; line.after(card); scroll();
   });
 }
-// one {t:'act'} from the server: show it, ask if needed, run it in the page, and send back what happened
+// screenshot and zoom: a frame of the shared tab (the panel hides while it's taken), mapped onto the page's viewport.
+// The frame is scaled to the viewport's CSS pixels, then down so the long edge fits SHOT_MAX; that scale (run.shot.k) holds for
+// the whole answer, so every screenshot is the same size and the model's points turn back into CSS pixels (toCss).
+// zoom crops a fresh full-resolution frame. Browsers start sharing a tab only from a click, so the first time it's a card.
+async function actShot(run, line, region, wait) {
+  if (!navigator.mediaDevices?.getDisplayMedia) return { error: 'Screenshots aren’t available in this browser. Use read_page, find or get_page_text instead.' };
+  if (run.noShare) return { error: SHOT_NO };
+  const view = await tool('view', {}, 3000);
+  if (run.stale()) return null;
+  if (!(view?.w > 0 && view?.h > 0)) return { error: 'The page didn’t say how big it is, so a screenshot can’t be lined up with it.' };
+  let c = null, e = null;
+  if (stream?.active) { try { c = await grab(); } catch (x) { e = x; } }
+  else {
+    const v = await shareCard(run, line, wait);
+    if (v === 'stop' || run.stale()) return null;
+    if (v === 'no') { run.noShare = true; return { error: SHOT_NO }; }
+    if (v === 'late') return { error: 'The user didn’t answer in time, so there’s no screenshot. Use read_page or find instead.' };
+    ({ c = null, e = null } = v);
+  }
+  if (embedded) tell('show');
+  if (e?.name === 'NotAllowedError') { run.noShare = true; return { error: 'The tab wasn’t shared (the user or the browser said no), so screenshots aren’t available. Use read_page, find or get_page_text instead.' }; }
+  if (e || !c) return { error: `The screenshot didn’t work: ${clip(e?.message || e || 'no frame', 200)}` };
+  if (!run.shot) run.shot = { k: Math.min(1, SHOT_MAX / Math.max(view.w, view.h)) };
+  const k = run.shot.k, fx = c.width / view.w, fy = c.height / view.h; // frame pixels per CSS pixel (the device pixel ratio, near enough)
+  let sx = 0, sy = 0, sw = c.width, sh = c.height, w = Math.max(1, Math.round(view.w * k)), h = Math.max(1, Math.round(view.h * k));
+  if (region) {
+    const [x0, y0, x1, y1] = region;
+    sx = x0 / k * fx; sy = y0 / k * fy; sw = (x1 - x0) / k * fx; sh = (y1 - y0) / k * fy;
+    const s = Math.min(1, SHOT_MAX / Math.max(sw, sh));
+    w = Math.max(1, Math.round(sw * s)); h = Math.max(1, Math.round(sh * s));
+  }
+  const out = el('canvas'); out.width = w; out.height = h;
+  out.getContext('2d').drawImage(c, sx, sy, sw, sh, 0, 0, w, h);
+  return { image: out.toDataURL('image/jpeg', 0.8), w, h, scale: k };
+}
+// "pagebot wants to see this page": Share this tab starts sharing from that click; Not now means no screenshots this answer
+function shareCard(run, line, wait) {
+  return new Promise(resolve => {
+    const card = el('div', 'acard share'), q = el('div', 'aq'), ab = el('div', 'ab'), yes = el('button', 'aok'), no = el('button', 'ano');
+    q.append(el('span'), el('span')); q.firstChild.textContent = '📸'; q.lastChild.textContent = 'pagebot wants to see this page';
+    card.appendChild(q);
+    card.appendChild(el('div', 'ad')).textContent = (embedded ? 'Share this tab once and pagebot can take screenshots of it while you chat; the panel hides for each one.'
+      : 'Pick the tab you opened pagebot from, and pagebot can take screenshots of it while you chat.') + ' Stop sharing any time from the + menu.';
+    if (prefs.actionsAuto || run.all) card.appendChild(el('div', 'ad')).textContent = 'Skip all permissions is on, but your browser needs this one click from you before a tab can be shared.';
+    const done = v => { if (!run.asks.delete(done)) return; clearTimeout(late); card.remove(); line.hidden = false; resolve(v); };
+    yes.type = no.type = 'button'; yes.textContent = 'Share this tab'; no.textContent = 'Not now';
+    // getDisplayMedia straight from the click, while the browser still counts it as one
+    yes.onclick = () => { yes.disabled = no.disabled = true; grab().then(c => done({ c }), e => done({ e })); };
+    no.onclick = () => done('no');
+    ab.append(yes, no); card.appendChild(ab);
+    run.asks.add(done);
+    const late = setTimeout(() => done('late'), Math.max(3000, (wait || 300000) - 5000)); // give up just before the server does
+    line.hidden = true; line.after(card); scroll();
+  });
+}
+// a screenshot step's thumbnail; a click shows it over the panel
+let shotOv = null;
+function actThumb(line, src) {
+  const b = el('button', 'athumb'), im = el('img');
+  b.type = 'button'; b.title = 'Show what pagebot saw'; b.setAttribute('aria-label', 'Show the screenshot bigger');
+  im.src = src; im.alt = ''; b.appendChild(im); b.onclick = () => shotView(src);
+  line.after(b); scroll();
+}
+function shotView(src) {
+  shotClose();
+  const ov = shotOv = el('button', 'aview'), im = el('img');
+  ov.type = 'button'; ov.setAttribute('aria-label', 'Close the screenshot'); im.src = src; im.alt = 'What pagebot saw';
+  ov.appendChild(im); ov.onclick = shotClose; body.appendChild(ov); ov.focus();
+}
+function shotClose() { shotOv?.remove(); shotOv = null; }
+addEventListener('keydown', e => { if (shotOv && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); shotClose(); } }, true);
+// one {t:'act'} from the server: show it as a step, run it (the bookmarklet, or the tab capture for screenshots), and send back what happened
 async function pageAct(run, ev) {
-  const name = String(ev.name || ''), input = ev.input && typeof ev.input === 'object' ? ev.input : {}, bm = ACT_BM[name];
+  const name = String(ev.name || ''), input = ev.input && typeof ev.input === 'object' ? ev.input : {};
   const line = actLine(run.bot, name);
   const post = body => api('/api/chat/act', { id: ev.id, ...body }).catch(() => {});
-  const fail = (text, why) => { actSet(line, `${text} — ${why.replace(/\. .*$/, '').replace(/\.$/, '')}`, 'fail'); return post({ result: { error: why }, note: text }); };
-  const page = (extra, ms = 8000) => ask(name === 'read_page' ? 'page' : 'act', name === 'read_page' ? extra : { name: bm, input, ...extra }, ms);
-  if (name === 'read_page') {
-    actSet(line, 'Reading the page again…');
-    const r = await page({ max: limits.pageTokens * 4 });
-    if (run.stale()) return;
-    if (!r?.page) return fail('Read the page', 'The page didn’t answer.');
-    actSet(line, 'Read the page again', 'done');
-    return post({ result: r.page, note: 'Read the page again' });
-  }
-  if (!bm) return fail(clip(name, 40) || 'Page action', 'pagebot doesn’t know this tool.');
-  if (!ACT_WRITE.has(name)) { // reading, highlighting and scrolling don't ask
-    actSet(line, actRead(name, input)[0]);
-    const r = await page({});
-    if (run.stale()) return;
-    const [now, done] = actRead(name, input, r);
-    if (!r) return fail(now.replace(/…$/, ''), 'The page didn’t answer.');
-    if (r.no) return fail(now.replace(/…$/, ''), actNo(r));
-    if (!done) return fail(now.replace(/…$/, ''), 'Couldn’t find that on the page.');
-    actSet(line, done, 'done');
-    return post({ result: r, note: done });
-  }
-  // a click or edit: the bookmarklet checks it first (the element, protected fields, whether it leaves the page)
+  const fail = (text, why) => { actSet(line, `${text} — ${why.replace(/\. .*$/s, '').replace(/\.$/, '')}`, 'fail'); return post({ result: { error: why }, note: text }); };
+  if (ev.ask) return actHand(run, ev, name, input, line, post, fail);
+  const words = actRead(name, input);
+  if (!words) return fail(clip(name, 40) || 'Page action', 'pagebot doesn’t know this tool.');
+  const now = words[0].replace(/…$/, '');
+  actSet(line, words[0]);
+  let r;
+  if (name === 'screenshot' || name === 'zoom') r = await actShot(run, line, name === 'zoom' ? input.region : null, ev.wait);
+  else if (name === 'wait') { await actFor(run, Math.min(Number(input.duration) || 0, 30) * 1000); r = {}; }
+  else if (name === 'highlight') r = await ask('act', { name: 'hl', input }, 8000);
+  else r = await tool(name, input.target?.type === 'coordinate' ? { ...input, target: toCss(run, input.target) } : input);
+  if (run.stale()) return;
+  if (!r) return fail(now, 'The page didn’t answer.');
+  if (r.error) return fail(now, String(r.error));
+  if (name === 'highlight' && !(r.found || []).some(Boolean)) return fail(now, 'Couldn’t find that on the page.');
+  const done = actRead(name, input, r)[1];
+  actSet(line, done, 'done');
+  if (r.image) actThumb(line, r.image);
+  const { id, ...result } = r; // (id: which message the page was answering)
+  return post({ result, note: done });
+}
+// a click or a field: the bookmarklet checks it first (the element, protected fields, whether it leaves the page), then the card asks
+async function actHand(run, ev, name, input, line, post, fail) {
+  const ref = actRef(input.target);
+  if (!ref || (name !== 'left_click' && name !== 'form_input')) return fail('Page action', 'That isn’t available here. Click or fill an element by its ref from read_page or find.');
+  let op = 'click', x = { ref };
   actSet(line, 'Checking the page…');
+  if (name === 'form_input') { // what kind of field decides how it's set
+    const peek = await ask('act', { name: 'click', input: x, dry: 1 }, 8000);
+    if (run.stale()) return;
+    if (!peek) return fail('Set a field', 'The page didn’t answer.');
+    if (peek.no) return fail('Set a field', actNo(peek));
+    const v = input.value;
+    if (peek.role === 'select') { op = 'select'; x = { ref, option: String(v) }; }
+    else if (/^(checkbox|radio|switch)$/.test(peek.role)) { op = 'check'; x = { ref, checked: truthy(v) }; }
+    else { op = 'fill'; x = { ref, text: String(v) }; }
+  }
+  const page = extra => ask('act', { name: op, input: x, ...extra }, 8000);
   const info = await page({ dry: 1 });
   if (run.stale()) return;
-  const [now, done] = actSay(name, input, info);
+  const what = actWhat({ ref: 'ref_' + ref }, info);
+  const [now, done] = op === 'click' ? [`Click ${what}`, `Clicked ${what}`]
+    : op === 'fill' ? [`Type “${clip(x.text, 40)}” into ${what}`, `Typed “${clip(x.text, 40)}” into ${what}`]
+    : op === 'select' ? [`Pick “${clip(x.option, 40)}” in ${what}`, `Picked “${clip(info?.option || x.option, 40)}” in ${what}`]
+    : [`${x.checked ? 'Tick' : 'Untick'} ${what}`, `${x.checked ? 'Ticked' : 'Unticked'} ${what}`];
   if (!info) return fail(now, 'The page didn’t answer.');
   if (info.no) return fail(['password', 'payment', 'file'].includes(info.no) ? 'Tried a protected field' : now, actNo(info)); // (what it tried to type isn't kept)
   const go = info.nav || info.tab; // leaving the page, or another site in a new tab: asks even with permissions skipped
@@ -3016,7 +3128,7 @@ async function pageAct(run, ev) {
   }
   actSet(line, now + '…');
   if (info.nav) { // the page (and the panel with it) goes away on this click, so its result goes first
-    await post({ result: { ...info, ok: 1 }, note: done });
+    await post({ result: { role: info.role, label: info.label, ok: 1 }, note: done });
     actSet(line, done, 'done');
     return void page({ sure: info.nav }); // (the address that was approved, so a link that changed since asks again)
   }
@@ -3025,7 +3137,8 @@ async function pageAct(run, ev) {
   if (!r) return fail(now, 'The page didn’t answer.');
   if (r.no) return fail(now, actNo(r));
   actSet(line, done, 'done');
-  return post({ result: r, note: done });
+  const { id, ...result } = r;
+  return post({ result, note: done });
 }
 // the answer ended (or you stopped it): cards still waiting give up, and steps still running say they stopped
 function actEnd(run) {
@@ -4073,6 +4186,7 @@ async function send() {
         if (ev.t === 'd') { acc += ev.v; renderer.queue(acc); }
         else if (ev.t === 's') searchStep(bot, ev.q);
         else if (ev.t === 'act' && run) pageAct(run, ev);
+        else if (ev.t === 'note') actNote(bot, ev.v); // page actions on Sonnet: a progress note
         else if (ev.t === 'done') { renderer.flush(); refused = 'refusal' in ev; if (ctrl === mine) { ctrl = null; stopMode(false); } finish(bot, out, ev, acc); }
         else if (ev.t === 'err') { if (ev.quota && cfg) { cfg.quota = ev.quota; renderQuota(); } if (!ev.conversationId) pdfBack(); throw new Error(ev.v); } // a broken-off answer stays in the chat
       }

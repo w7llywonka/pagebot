@@ -35,7 +35,7 @@ function sse(res, body, spec = {}) {
     i++;
   }
   for (const t of spec.tools || []) {
-    ev.push({ type: 'content_block_start', index: i, content_block: { type: 'tool_use', id: 'toolu_' + randomBytes(6).toString('hex'), name: t.name, input: {} } },
+    ev.push({ type: 'content_block_start', index: i, content_block: { type: 'tool_use', id: 'toolu_' + randomBytes(6).toString('hex'), name: t.name, input: {}, ...(t.name !== 'highlight' && { toolset_name: 'browser' }) } }, // browser toolset members name their toolset
       { type: 'content_block_delta', index: i, delta: { type: 'input_json_delta', partial_json: JSON.stringify(t.input || {}) } },
       { type: 'content_block_stop', index: i });
     i++;
@@ -158,7 +158,7 @@ test('features together', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL to
     assert.ok(r.done, JSON.stringify(r.events));
     conv = r.done.conversationId;
     assert.equal(r.acts.length, 1);
-    assert.ok(calls[base].body.tools.some(x => x.name === 'click'), 'page tools go along');
+    assert.ok(calls[base].body.tools.some(x => x.type === 'browser_toolset_20260801'), 'page tools go along');
     assert.equal(pdfDocs(calls[base].body).length, 1);
     assert.equal(pdfDocs(calls[base + 1].body).length, 1, 'the PDF goes again in the next round');
     const row = (await db.query("SELECT * FROM messages WHERE conversation_id=$1 AND role='user'", [conv])).rows[0];
@@ -226,7 +226,7 @@ test('features together', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL to
     script = () => ({ text: 'No tools needed.' });
     const r = await chat({ actions: true, page: { url: 'https://x.example/', title: 'X', text: 'A page.' } }, { token: alice });
     assert.ok(r.done, JSON.stringify(r.events));
-    assert.ok(calls[base].body.tools.some(x => x.name === 'read_page'), 'page actions still work');
+    assert.ok(calls[base].body.tools.some(x => x.type === 'browser_toolset_20260801'), 'page actions still work');
     const boot = (await api('/api/boot', { token: alice })).data.user;
     assert.deepEqual([boot.allowPdf, boot.allowActions], [false, true]);
   });

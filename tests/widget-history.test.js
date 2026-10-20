@@ -23,8 +23,13 @@ const boot = {
   models: [{ key: 'haiku', label: 'Haiku' }],
 };
 const hoursAgo = h => new Date(Date.now() - h * 3600e3).toISOString();
-const chat = (id, title, h, extra = {}) => ({ id, title, site: 'news.example.test', url: 'https://news.example.test/article', pageTitle: 'Article', createdAt: hoursAgo(h + 1), updatedAt: hoursAgo(h), ...extra });
-const CHATS = [chat(11, 'What is the budget?', 0.2), chat(12, 'Explain the highlighted text', 30), chat(13, 'Older question', 24 * 20, { site: 'other.example.test' })];
+// History groups chats by the local calendar day, so the fixture's times are set from local midnight (and the browser runs in
+// this process's time zone): "today" is halfway between midnight and now, "yesterday" is noon yesterday, whatever the hour.
+const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const midnight = new Date(new Date().setHours(0, 0, 0, 0)), dayAt = (days, hours) => new Date(midnight.getFullYear(), midnight.getMonth(), midnight.getDate() - days, hours).getTime();
+const at = ms => new Date(ms).toISOString();
+const chat = (id, title, when, extra = {}) => ({ id, title, site: 'news.example.test', url: 'https://news.example.test/article', pageTitle: 'Article', createdAt: at(Math.min(when, Date.now()) - 60e3), updatedAt: at(when), ...extra });
+const CHATS = [chat(11, 'What is the budget?', (midnight.getTime() + Date.now()) / 2), chat(12, 'Explain the highlighted text', dayAt(1, 12)), chat(13, 'Older question', dayAt(20, 12), { site: 'other.example.test' })];
 const DETAIL = {
   chat: CHATS[0],
   messages: [
@@ -36,7 +41,7 @@ const DETAIL = {
 };
 
 async function fixture(t, { who = 'user', theme = 'ember', chats = CHATS, size = { width: 1000, height: 900 }, standalone = true, pages } = {}) {
-  const context = await browser.newContext({ reducedMotion: 'reduce', viewport: size });
+  const context = await browser.newContext({ reducedMotion: 'reduce', viewport: size, timezoneId: TZ });
   context.setDefaultTimeout(5000);
   const state = { requests: [], errors: [], chats: [...chats], removedAll: false };
   t.after(async () => { await context.close(); assert.deepEqual(state.errors, [], 'no browser errors or unexpected requests'); });

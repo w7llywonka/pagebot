@@ -5,6 +5,8 @@ import vm from 'node:vm';
 
 // The bookmarklet's page actions (v9) against a small fake DOM: refs, masking, the refused fields and the
 // navigation check all live in the bookmarklet, so they hold whatever the server or model asks for.
+// fill/select/check/click are what the browser toolset's left_click and form_input run on a ref (the panel maps ref_N to these),
+// so every protected-field (P.bad) and navigation (P.go, "sure") check here guards them. The v12 page tree is in widget-browser.test.js.
 const source = fs.readFileSync(new URL('../bookmarklet.js', import.meta.url), 'utf8');
 const origin = 'https://pagebot.test';
 

@@ -141,14 +141,14 @@ async function panel(t, prefs = {}) {
       if (r.type === 'page') return send({ page: { url: 'https://news.example.test/a', title: 'A', text: 'x' }, selection: '' });
       if (r.type === 'act') send(info[r.input && r.input.ref] || { no: 'gone' });
     });
-  </script><iframe title="Pagebot" src="https://pagebot.example.test/widget?v=10" style="width:440px;height:840px;border:0"></iframe></body></html>`;
+  </script><iframe title="Pagebot" src="https://pagebot.example.test/widget?v=12" style="width:440px;height:840px;border:0"></iframe></body></html>`;
   await context.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url());
     const json = value => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(value) });
     if (url.hostname === 'news.example.test') return route.fulfill({ contentType: 'text/html', body: hostPage });
     if (url.pathname === '/widget') return route.fulfill({ contentType: 'text/html', body: widget });
     state.requests.push({ path: url.pathname, body: request.postDataJSON() });
-    if (url.pathname === '/api/boot') return json({ ...boot, prefs: { ...boot.prefs, ...prefs }, version: 10 });
+    if (url.pathname === '/api/boot') return json({ ...boot, prefs: { ...boot.prefs, ...prefs }, version: 12 });
     if (url.pathname === '/api/chat/act' || url.pathname === '/api/ping') return json({ ok: true });
     if (url.pathname === '/api/site-memory') return json({ memories: [], maxSites: 100, maxInstructions: 4000 });
     state.errors.push(`Unexpected request: ${request.method()} ${url.pathname}`);
@@ -163,7 +163,7 @@ async function panel(t, prefs = {}) {
   await frame.locator('#q').fill('Cancel my order');
   await frame.locator('#sendBtn').click();
   await frame.waitForFunction(() => !!window.__push);
-  const click = ref => frame.evaluate(r => window.__push(r), { t: 'act', id: 'c' + ref, name: 'click', input: { ref }, wait: 300000 });
+  const click = ref => frame.evaluate(r => window.__push(r), { t: 'act', id: 'c' + ref, name: 'left_click', input: { target: { type: 'ref', ref: 'ref_' + ref } }, wait: 300000, ask: true });
   const sent = () => page.evaluate(() => window.hostRequests.filter(r => r.type === 'act' && !r.dry));
   return { frame, click, sent, requests: state.requests };
 }

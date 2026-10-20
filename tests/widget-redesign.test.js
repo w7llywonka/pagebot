@@ -93,7 +93,11 @@ async function fixture(t, { standalone = false, theme = 'ember', viewport = { wi
     for (let i = 0; i < 50 && !frame; i++) { frame = page.frames().find(f => f.url().startsWith(ORIGIN + '/widget')); if (!frame) await page.waitForTimeout(50); }
     assert.ok(frame, 'the widget frame loaded');
   }
-  const settle = () => frame.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+  // two frames, then any CSS transitions still running (a theme switch fades colours over .15s; measuring mid-fade reads the wrong theme)
+  const settle = () => frame.evaluate(async () => {
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await Promise.all(document.getAnimations().filter(a => a instanceof CSSTransition).map(a => a.finished.catch(() => {})));
+  });
   const ready = async () => { await frame.locator('#boot').waitFor({ state: 'detached' }); await frame.locator('#q').waitFor({ state: 'visible' }); await settle(); };
   const iframeBox = () => page.evaluate(() => { const f = document.getElementById('__pagebot'); const r = f.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), right: innerWidth - Math.round(r.right), bottom: innerHeight - Math.round(r.bottom) }; });
   return { context, page, frame, state, settle, ready, iframeBox };
