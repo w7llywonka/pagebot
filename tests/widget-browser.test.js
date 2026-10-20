@@ -16,7 +16,7 @@ const browserTest = chromium ? test : test.skip;
 const widget = await readFile(new URL('../public/widget.html', import.meta.url), 'utf8');
 const ORIGIN = 'https://pagebot.example.test';
 const bookmarklet = (await readFile(new URL('../bookmarklet.js', import.meta.url), 'utf8'))
-  .replaceAll('__ORIGIN__', ORIGIN).replaceAll('__VERSION__', '12').replace(/\n\s*/g, ''); // as the homepage serves it
+  .replaceAll('__ORIGIN__', ORIGIN).replaceAll('__VERSION__', '13').replace(/\n\s*/g, ''); // as the homepage serves it
 let browser;
 before(async () => {
   if (chromium) browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });
@@ -102,7 +102,7 @@ async function fixture(t, { prefs = {} } = {}) {
     if (url.hostname === 'shop.example.test') return url.pathname === '/' ? route.fulfill({ contentType: 'text/html', body: hostPage }) : route.fulfill({ status: 404, body: '' });
     if (url.pathname === '/widget') return route.fulfill({ contentType: 'text/html', body: widget });
     state.requests.push({ path: url.pathname, body: request.postDataJSON() });
-    if (url.pathname === '/api/boot') return json({ ...boot, prefs: state.prefs, version: 12 });
+    if (url.pathname === '/api/boot') return json({ ...boot, prefs: state.prefs, version: 13 });
     if (url.pathname === '/api/ping' || url.pathname === '/api/logout' || url.pathname === '/api/chat/act') return json({ ok: true });
     if (url.pathname === '/api/prefs') { Object.assign(state.prefs, request.postDataJSON()); return json({ prefs: state.prefs, limits: boot.limits }); }
     if (url.pathname === '/api/site-memory') return json({ memories: [], maxSites: 100, maxInstructions: 4000 });
@@ -340,7 +340,7 @@ browserTest('in the pop-up window the tools go to the opener’s page, and scree
   const f = await fixture(t);
   const [pop] = await Promise.all([f.context.waitForEvent('page'), f.page.evaluate(() => window.__pb.win())]);
   pop.on('pageerror', error => f.state.errors.push(error.message));
-  assert.match(pop.url(), /\/widget\?popup=1&v=12$/);
+  assert.match(pop.url(), /\/widget\?popup=1&v=13$/);
   const p = await f.panel(pop);
   assert.equal(await p.frame.locator('#actPill').isVisible(), true);
   await p.ask();
