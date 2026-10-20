@@ -161,12 +161,12 @@ browserTest('with reduced motion the pet is one still frame; the Animations sett
   assert.equal(await less.frame.locator('#petCv').getAttribute('data-frames'), null);
 });
 
-browserTest('Minimize on a v13 bookmark sends pet:true and leaves a see-through 120 px frame with the panda button in it', async t => {
+browserTest('Minimize on a v13 bookmark sends pet:true and leaves a see-through 80 px frame with crisp 2 px art pixels', async t => {
   const f = await fixture(t);
   await f.minimize();
   const min = (await f.host('min')).at(-1);
-  assert.deepEqual([min.on, min.pet, min.w, min.h], [true, true, 120, 120]);
-  assert.deepEqual(await f.style(), { w: '120px', h: '120px', r: '16px', b: '16px', radius: '0px', shadow: 'none', display: 'block' });
+  assert.deepEqual([min.on, min.pet, min.w, min.h], [true, true, 80, 80]);
+  assert.deepEqual(await f.style(), { w: '80px', h: '80px', r: '16px', b: '16px', radius: '0px', shadow: 'none', display: 'block' });
   const pet = f.frame.locator('#pet');
   assert.equal(await pet.isVisible(), true);
   assert.equal(await pet.evaluate(e => e.tagName), 'BUTTON');
@@ -175,7 +175,11 @@ browserTest('Minimize on a v13 bookmark sends pet:true and leaves a see-through 
   const bg = await f.frame.evaluate(() => [getComputedStyle(document.documentElement).backgroundColor, getComputedStyle(document.body).backgroundColor, getComputedStyle(document.documentElement).colorScheme]);
   assert.deepEqual(bg, ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)', 'light'], 'a dark theme still leaves the frame see-through (a light colour scheme, so Chrome adds no backing)');
   const box = await f.petBox();
-  assert.ok(box.w === 120 && box.h === 120, 'the button fills the frame');
+  assert.ok(box.w === 80 && box.h === 80, 'the button fills the frame');
+  assert.deepEqual(await f.frame.locator('#petCv').evaluate(c => {
+    const b = c.getBoundingClientRect();
+    return [c.width, c.height, b.width, b.height, getComputedStyle(c).imageRendering];
+  }), [40, 40, 80, 80, 'pixelated'], 'native art pixels stay crisp at an integer 2× scale');
 });
 
 browserTest('clicking the panda, or Enter and Space on it, opens the panel again; the bookmark still toggles', async t => {
@@ -206,26 +210,26 @@ browserTest('dragging the panda moves it and does not open the panel; a few pixe
   await f.minimize();
   const b = await f.petBox();
   const before = await f.style();
-  const x = b.x + 60, y = b.y + 60;
+  const x = b.x + b.w / 2, y = b.y + b.h / 2;
   await f.page.mouse.move(x, y); await f.page.mouse.down();
   await f.page.mouse.move(x - 40, y - 30, { steps: 6 }); await f.page.mouse.move(x - 120, y - 90, { steps: 6 });
   await f.page.mouse.up();
   await f.page.waitForTimeout(300);
   const after = await f.style();
-  assert.equal(after.w, '120px');
+  assert.equal(after.w, '80px');
   assert.ok(parseInt(after.r) > parseInt(before.r) + 100 && parseInt(after.b) > parseInt(before.b) + 70, `it moved (${before.r},${before.b}) to (${after.r},${after.b})`);
   assert.equal(await f.frame.locator('#pet').isVisible(), true, 'still the panda: a drag is not a click');
   assert.ok((await f.host('drag')).length > 2, 'the same drag message the panel uses');
   assert.deepEqual(JSON.parse(await f.frame.evaluate(() => localStorage.getItem('pb_petpos'))), { r: parseInt(after.r), b: parseInt(after.b) });
   // it stays on screen when dragged off the edge
   const c = await f.petBox();
-  await f.page.mouse.move(c.x + 60, c.y + 60); await f.page.mouse.down(); await f.page.mouse.move(c.x - 2000, c.y - 2000, { steps: 8 }); await f.page.mouse.up();
+  await f.page.mouse.move(c.x + c.w / 2, c.y + c.h / 2); await f.page.mouse.down(); await f.page.mouse.move(c.x - 2000, c.y - 2000, { steps: 8 }); await f.page.mouse.up();
   await f.page.waitForTimeout(300);
   const edge = await f.petBox();
   assert.ok(edge.x >= -1 && edge.y >= -1, `kept on screen (${edge.x}, ${edge.y})`);
   // wobble under the threshold is a click
   const d = await f.petBox();
-  await f.page.mouse.move(d.x + 60, d.y + 60); await f.page.mouse.down(); await f.page.mouse.move(d.x + 62, d.y + 61); await f.page.mouse.up();
+  await f.page.mouse.move(d.x + d.w / 2, d.y + d.h / 2); await f.page.mouse.down(); await f.page.mouse.move(d.x + d.w / 2 + 2, d.y + d.h / 2 + 1); await f.page.mouse.up();
   await f.page.waitForTimeout(260);
   assert.equal(await f.frame.locator('#pet').isVisible(), false, 'a 2 px wobble opens the panel');
   // remembered: a new page load opens the panel there, and minimizing sits the panda there
@@ -252,17 +256,18 @@ browserTest('an answer finishing while minimized: working while it writes, then 
   await f.page.waitForTimeout(260);
   const grown = await f.style();
   const sizes = (await f.host('min')).filter(m => m.pet);
-  assert.ok(parseInt(grown.w) > 120 && parseInt(grown.h) > 140, `the frame makes room for the bubble (${grown.w} x ${grown.h})`);
+  assert.ok(parseInt(grown.w) > 80 && parseInt(grown.h) > 80, `the frame makes room for the bubble (${grown.w} x ${grown.h})`);
   assert.equal(grown.radius, '0px'); assert.equal(grown.shadow, 'none');
   const bubble = await f.frame.locator('#petSay').boundingBox(), fr = await f.page.locator('#__pagebot').boundingBox();
+  assert.equal(await f.frame.locator('#petSay').evaluate(e => getComputedStyle(e).bottom), '70px', 'the bubble stays close to the smaller panda');
   assert.ok(bubble.x >= fr.x - 1 && bubble.y >= fr.y - 1 && bubble.x + bubble.width <= fr.x + fr.width + 1 && bubble.y + bubble.height <= fr.y + fr.height + 1, 'the bubble is inside the frame');
   const pet = await f.petBox();
   assert.ok(Math.abs(pet.x + pet.w - (fr.x + fr.width)) < 2 && Math.abs(pet.y + pet.h - (fr.y + fr.height)) < 2, 'the panda stays at the corner while the frame grows');
   await f.frame.locator('#petSay').waitFor({ state: 'hidden', timeout: 8000 });
   await f.page.waitForTimeout(300);
-  assert.equal((await f.style()).w, '120px', 'back to the small frame');
-  assert.equal(sizes.at(-1).w > 120, true);
-  assert.deepEqual([(await f.host('min')).at(-1).w, (await f.host('min')).at(-1).h], [120, 120]);
+  assert.equal((await f.style()).w, '80px', 'back to the small frame');
+  assert.equal(sizes.at(-1).w > 80, true);
+  assert.deepEqual([(await f.host('min')).at(-1).w, (await f.host('min')).at(-1).h], [80, 80]);
   assert.equal(await cv.getAttribute('data-state'), 'idle');
 });
 
@@ -276,7 +281,7 @@ browserTest('a refusal or an error while minimized makes the panda shrug instead
     gate.resolve();
     await f.frame.locator('#petCv[data-state=shrug]').waitFor({ timeout: 3000 });
     assert.match(await f.frame.locator('#petSay').innerText(), /didn’t work/);
-    assert.ok(parseInt((await f.style()).w) > 120, 'room for the bubble');
+    assert.ok(parseInt((await f.style()).w) > 80, 'room for the bubble');
   }
 });
 
@@ -354,14 +359,14 @@ browserTest('hovering the panda makes it wave and look toward the pointer; left 
   const f = await fixture(t);
   await f.minimize();
   const cv = f.frame.locator('#petCv'), b = await f.petBox();
-  await f.page.mouse.move(b.x + 100, b.y + 60);
+  await f.page.mouse.move(b.x + b.w * .85, b.y + b.h / 2);
   await f.page.waitForTimeout(200);
   assert.equal(await cv.getAttribute('data-state'), 'wave');
   await f.page.waitForTimeout(1300);
-  await f.page.mouse.move(b.x + 4, b.y + 62);
+  await f.page.mouse.move(b.x + b.w * .05, b.y + b.h / 2);
   await f.page.waitForTimeout(250);
   assert.equal(await cv.getAttribute('data-gaze'), 'l', 'looks left when the pointer is to its left');
-  await f.page.mouse.move(b.x + 116, b.y + 62);
+  await f.page.mouse.move(b.x + b.w * .95, b.y + b.h / 2);
   await f.page.waitForTimeout(250);
   assert.equal(await cv.getAttribute('data-gaze'), 'r');
   await f.page.mouse.move(b.x + 300, b.y - 200); // away
@@ -371,7 +376,7 @@ browserTest('hovering the panda makes it wave and look toward the pointer; left 
   await cv.locator('xpath=self::*[@data-state="nap"]').waitFor({ timeout: 4000 });
   const nap = await ink(cv);
   assert.ok(nap.n > 250);
-  await f.page.mouse.move(b.x + 60, b.y + 60);
+  await f.page.mouse.move(b.x + b.w / 2, b.y + b.h / 2);
   await cv.locator('xpath=self::*[@data-state="wake" or @data-state="idle"]').waitFor({ timeout: 2000 });
 });
 
@@ -383,7 +388,7 @@ browserTest('all 14 themes show the whole panda, unclipped, in a see-through fra
     assert.ok(r.n > 400, theme + ': drawn');
     assert.ok(r.x0 >= 1 && r.y0 >= 1 && r.x1 <= r.w - 2 && r.y1 <= r.h - 2, `${theme}: nothing touches the canvas edge (${JSON.stringify(r)})`);
     const st = await f.style();
-    assert.deepEqual([st.w, st.h, st.radius, st.shadow], ['120px', '120px', '0px', 'none'], theme);
+    assert.deepEqual([st.w, st.h, st.radius, st.shadow], ['80px', '80px', '0px', 'none'], theme);
     const bg = await f.frame.evaluate(() => [getComputedStyle(document.documentElement).backgroundColor, getComputedStyle(document.body).backgroundColor]);
     assert.deepEqual(bg, ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)'], theme + ': see-through');
     const box = await f.petBox();
