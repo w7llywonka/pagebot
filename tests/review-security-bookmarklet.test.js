@@ -5,6 +5,8 @@ import vm from 'node:vm';
 
 // Review of the bookmarklet's page actions: how a page's markup can (and can't) get past the protected-field and navigation checks.
 // The same small fake DOM as bookmarklet-actions.test.js; the fake form's properties are shadowed the way a field named "target" shadows them.
+// TODO(part B): these drive the pre-toolset click/fill members; when part B moves clicks and typing to the browser toolset's
+// members, run every one of these checks against those instead (they must all still hold).
 const source = fs.readFileSync(new URL('../bookmarklet.js', import.meta.url), 'utf8');
 const origin = 'https://pagebot.test';
 

@@ -34,7 +34,7 @@ async function sse(res, body, spec = {}) {
     i++;
   }
   for (const t of spec.tools || []) {
-    ev.push({ type: 'content_block_start', index: i, content_block: { type: 'tool_use', id: 'toolu_' + randomBytes(6).toString('hex'), name: t.name, input: {} } },
+    ev.push({ type: 'content_block_start', index: i, content_block: { type: 'tool_use', id: 'toolu_' + randomBytes(6).toString('hex'), name: t.name, input: {}, ...(t.name !== 'highlight' && { toolset_name: 'browser' }) } }, // browser toolset members name their toolset
       { type: 'content_block_delta', index: i, delta: { type: 'input_json_delta', partial_json: JSON.stringify(t.input || {}) } },
       { type: 'content_block_stop', index: i });
     i++;

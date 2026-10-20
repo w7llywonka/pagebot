@@ -5,6 +5,9 @@ import vm from 'node:vm';
 
 // The bookmarklet's page actions (v9) against a small fake DOM: refs, masking, the refused fields and the
 // navigation check all live in the bookmarklet, so they hold whatever the server or model asks for.
+// TODO(part B): els/fill/select/check/click are the pre-toolset members (v9-v11). Part B moves clicking and typing to the
+// browser toolset's left_click/type/key/form_input (in the bookmarklet, next to P.at); port these tests to those members then,
+// keeping every protected-field (P.bad) and navigation (P.go, "sure") assertion. The v12 page tree is in widget-browser.test.js.
 const source = fs.readFileSync(new URL('../bookmarklet.js', import.meta.url), 'utf8');
 const origin = 'https://pagebot.test';
 

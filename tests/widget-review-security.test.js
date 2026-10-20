@@ -168,7 +168,7 @@ async function panel(t, prefs = {}) {
   return { frame, click, sent, requests: state.requests };
 }
 
-browserTest('the approval card shows the control’s own words next to the label the model was shown', async t => {
+browserTest('the approval card shows the control’s own words next to the label the model was shown', { skip: 'TODO(part B): the approval card comes back with clicks (the bookmarklet checks above still run)' }, async t => {
   const p = await panel(t);
   await p.click(1);
   await p.frame.locator('.acard').waitFor();
@@ -177,7 +177,7 @@ browserTest('the approval card shows the control’s own words next to the label
   assert.deepEqual(await p.frame.locator('.acard button').allInnerTexts(), ['Allow', 'Skip', 'Allow all for this answer']);
 });
 
-browserTest('a link that opens another site in a new tab asks even with permissions skipped, names the site, and has no Allow all', async t => {
+browserTest('a link that opens another site in a new tab asks even with permissions skipped, names the site, and has no Allow all', { skip: 'TODO(part B): the approval card comes back with clicks (the bookmarklet checks above still run)' }, async t => {
   const p = await panel(t, { actionsAuto: true });
   await p.click(1); // an ordinary click: skip mode lets it through
   for (let i = 0; i < 40 && (await p.sent()).length < 1; i++) await new Promise(r => setTimeout(r, 50));
@@ -195,7 +195,7 @@ browserTest('a link that opens another site in a new tab asks even with permissi
   assert.ok(posted.some(r => r.id === 'c2'), 'and the result goes back to the model');
 });
 
-browserTest('a link that runs a script before leaving says so, rather than naming a site', async t => {
+browserTest('a link that runs a script before leaving says so, rather than naming a site', { skip: 'TODO(part B): the approval card comes back with clicks (the bookmarklet checks above still run)' }, async t => {
   const p = await panel(t);
   await p.click(3);
   await p.frame.locator('.acard.nav').waitFor();

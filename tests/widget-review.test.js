@@ -38,7 +38,7 @@ async function fixture(t, { width = 440, theme = 'ember', prefs } = {}) {
         const r = event.data;
         if (r.type === 'page') event.source.postMessage({ id: r.id, page: { url: 'https://news.example.test/a', title: 'Article', text: 'From the page' }, selection: '' }, event.origin);
       });
-    </script><iframe title="Pagebot" src="https://pagebot.example.test/widget?v=9" style="width:${width}px;height:700px;border:0"></iframe></body></html>`;
+    </script><iframe title="Pagebot" src="https://pagebot.example.test/widget?v=12" style="width:${width}px;height:700px;border:0"></iframe></body></html>`;
   await context.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url());
     const json = value => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(value) });
