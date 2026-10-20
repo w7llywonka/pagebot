@@ -816,7 +816,8 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 .awarn .warnb{border-color:color-mix(in srgb,var(--warn) 70%,var(--line));color:var(--text);font-weight:600}
 :root[data-theme=clear] .awarn{background:var(--pop);text-shadow:none}
 /* ---- the pet (v13): Minimize turns the panel into the red panda. Own block; the frame is see-through, so nothing here may paint a backing ---- */
-:root.petm,:root.petm body{background:transparent!important;color-scheme:light!important}
+:root.petm,:root.petm body{background:transparent!important;background-image:none!important;color-scheme:light!important}
+:root.petm body::before,:root.petm body::after{content:none!important;display:none!important}
 body.min.pet>:not(#pet):not(#petSay){display:none!important}
 body.min.pet #pet,body.min.pet #petSay:not([hidden]){display:block!important}
 #pet{position:fixed;right:0;bottom:0;width:80px;height:80px;padding:0;margin:0;border:0;background:none;border-radius:14px;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;text-shadow:none}
@@ -1748,8 +1749,8 @@ addEventListener('message', e => {
   const d = e.data || {};
   if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); }
   else if (d.type === 'restore') { setMin(false); claim(); }
-  else if (d.type === 'open') { claim(); refreshOnOpen(); if (histOpen) loadHist(); } // history left open while the panel was hidden gets fresh
-  else if (d.type === 'hidden') release();
+  else if (d.type === 'open') { petHostVisible(true); claim(); refreshOnOpen(); if (histOpen) loadHist(); } // history left open while the panel was hidden gets fresh
+  else if (d.type === 'hidden') { petHostVisible(false); release(); }
   else if (d.type === 'sel') setSel(String(d.text || ''));
 });
 let savedPos = null, savedSize = null;
@@ -3795,9 +3796,99 @@ const petPos = () => { try { const p = JSON.parse(store.get('pb_petpos')); retur
 let petSayT = 0, petDrag = null, petSkip = false;
 function petShow(on) {
   petMode = on; body.classList.toggle('pet', on); document.documentElement.classList.toggle('petm', on); petBtn.hidden = !on;
-  if (on) { pet ||= pandaSprite($('#petCv'), { scale: 2, natural: true }); pet.start(); petState(); }
-  else { pet?.stop(); petSayHide(true); }
+  if (on) { pet ||= pandaSprite($('#petCv'), { scale: 2, natural: true, shadow: false }); pet.start(); petState(); petRoamStart(); }
+  else { petRoamStop(); pet?.stop(); petSayHide(true); }
 }
+// Walk the actual small iframe across the page, rather than sliding a sprite inside a large invisible overlay.
+// Existing v13 bookmarks already expose viewport bounds and clamp drag messages, so no new bookmark is needed.
+const roam = { raf: 0, epoch: 0, last: 0, pos: null, world: null, trip: null, wait: 0, syncAt: 0, reading: false, hover: false, focus: false, hidden: false, moving: false };
+const petClamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+function petRoamPause(delay = 1200) {
+  if (roam.reading) { roam.epoch++; roam.reading = false; }
+  roam.trip = null; roam.pos = null; roam.wait = Math.max(roam.wait, performance.now() + delay);
+  if (roam.moving) pet?.walk(0, 0);
+  roam.moving = false;
+}
+function petRoamStop() {
+  cancelAnimationFrame(roam.raf); roam.raf = 0; roam.epoch++; roam.last = 0;
+  petRoamPause();
+}
+function petRoamStart() {
+  petRoamStop();
+  if (petMode && !calm && !document.hidden && !roam.hidden) roam.raf = requestAnimationFrame(petRoamFrame);
+}
+function petHostVisible(on) {
+  roam.hidden = !on;
+  if (!on) { petRoamStop(); pet?.stop(); }
+  else if (petMode) { pet?.start(); petRoamStart(); }
+}
+function petRoamRead() {
+  if (roam.reading) return;
+  const epoch = roam.epoch; roam.reading = true;
+  Promise.all([ask('where'), ask('tool', { name: 'view', input: {} })]).then(([where, world]) => {
+    if (epoch !== roam.epoch) return;
+    roam.reading = false; roam.syncAt = performance.now() + 1200;
+    const p = where?.pos;
+    if (!(Number.isFinite(p?.r) && Number.isFinite(p?.b) && Number.isFinite(world?.w) && Number.isFinite(world?.h) && world.w > 0 && world.h > 0)) return;
+    const resized = roam.world && (world.w !== roam.world.w || world.h !== roam.world.h);
+    const displaced = roam.pos && Math.hypot(p.r - roam.pos.r, p.b - roam.pos.b) > 4;
+    roam.world = { w: world.w, h: world.h };
+    if (resized || displaced) { petRoamPause(250); roam.pos = { r: p.r, b: p.b }; }
+    else if (!roam.pos) roam.pos = { r: p.r, b: p.b };
+  });
+}
+function petRoamTrip() {
+  const { pos, world } = roam, maxR = Math.max(0, world.w - PET), maxB = Math.max(0, world.h - PET);
+  const mx = Math.min(10, maxR / 2), my = Math.min(10, maxB / 2);
+  let direction = Math.random() < .5 ? -1 : 1;
+  // Turn into the page when near an edge. Most travel is horizontal, with gentle changes in depth.
+  if (pos.r < mx + 60) direction = 1;
+  else if (pos.r > maxR - mx - 60) direction = -1;
+  const r = petClamp(pos.r + direction * (90 + Math.random() * 150), mx, maxR - mx);
+  const b = petClamp(pos.b + (Math.random() - .5) * 150, my, maxB - my);
+  const distance = Math.hypot(r - pos.r, b - pos.b);
+  if (distance < 12) { roam.wait = performance.now() + 1800; return; }
+  // Smooth acceleration and braking, a shallow curved path, and a stride driven by actual distance.
+  const speed = 24 + Math.random() * 14;
+  roam.trip = { from: { ...pos }, to: { r, b }, duration: Math.max(2200, distance / speed * 1500), elapsed: 0, bend: (Math.random() - .5) * 12 };
+}
+function petRoamFrame(now) {
+  roam.raf = 0;
+  if (!petMode || calm || document.hidden || roam.hidden || !petBtn.isConnected) return petRoamStop();
+  roam.raf = requestAnimationFrame(petRoamFrame);
+  if (now - roam.last < 32) return;
+  const dt = roam.last ? Math.min(60, now - roam.last) : 0; roam.last = now;
+  const cv = $('#petCv');
+  if (!cv?.isConnected) return petRoamStop();
+  const state = cv.dataset.state;
+  if (roam.hover || roam.focus || petDrag || !petSay.hidden || view === 'lock' || view === 'ban' || !['idle', 'working'].includes(state)) {
+    petRoamPause(); return;
+  }
+  if (now < roam.wait) return;
+  if (now >= roam.syncAt) {
+    petRoamRead();
+  }
+  if (!roam.pos || !roam.world) return;
+  if (!roam.trip) petRoamTrip();
+  const trip = roam.trip; if (!trip) return;
+  trip.elapsed += dt;
+  const t = Math.min(1, trip.elapsed / trip.duration), ease = t * t * (3 - 2 * t), curve = Math.sin(t * Math.PI) ** 2 * trip.bend;
+  const r = Math.round(petClamp(trip.from.r + (trip.to.r - trip.from.r) * ease, 0, Math.max(0, roam.world.w - PET)));
+  const b = Math.round(petClamp(trip.from.b + (trip.to.b - trip.from.b) * ease + curve, 0, Math.max(0, roam.world.h - PET)));
+  const dx = roam.pos.r - r, dy = roam.pos.b - b;
+  if (dx || dy) {
+    tell('drag', { dx, dy }); pet?.walk(dx, dy); roam.moving = true;
+    roam.pos = { r, b };
+  }
+  if (t === 1) { roam.trip = null; roam.wait = now + 900 + Math.random() * 1600; pet?.walk(0, 0); roam.moving = false; }
+}
+// A keyboard-focused target stays put. Pointer focus left behind by a drag must not pin it forever.
+petBtn.addEventListener('focus', () => { roam.focus = !petDrag; petRoamPause(); });
+petBtn.addEventListener('blur', () => { roam.focus = false; petRoamPause(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { petRoamStop(); pet?.stop(); }
+  else if (petMode && !roam.hidden) { pet?.start(); petRoamStart(); }
+});
 // what the panda does follows what the panel is doing; a locked panel sleeps with a 🔒, a banned one just sleeps
 function petState() {
   if (!pet || !petMode) return;
@@ -3823,11 +3914,13 @@ function petSayHide(quiet) {
   petSay.hidden = true; petSay.classList.remove('out'); if (!quiet && petMode) petSize();
 }
 petSay.onclick = () => setMin(false);
-petBtn.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse' && !petDrag) pet?.play('wave'); });
-petBtn.addEventListener('pointerleave', () => pet?.look(null));
+petBtn.addEventListener('pointerenter', e => { roam.hover = true; petRoamPause(); if (e.pointerType === 'mouse' && !petDrag) pet?.play('wave'); });
+petBtn.addEventListener('pointerleave', () => { roam.hover = false; petRoamPause(); pet?.look(null); });
 petBtn.addEventListener('pointerdown', e => {
   if (e.button !== 0) return;
+  roam.focus = false;
   petDrag = { x: e.screenX, y: e.screenY, moved: false }; petBtn.setPointerCapture(e.pointerId);
+  petRoamPause(2500);
 });
 petBtn.addEventListener('pointermove', e => {
   if (!petDrag) { const r = $('#petCv').getBoundingClientRect(); pet?.look(e.clientX - r.left - r.width * .45, e.clientY - r.top - r.height * .5); return; }
@@ -3840,6 +3933,7 @@ petBtn.addEventListener('pointermove', e => {
 async function petEnd(e) {
   if (!petDrag) return;
   const d = petDrag; petDrag = null; body.classList.remove('dragging');
+  petRoamPause(2500);
   petSkip = true; setTimeout(() => { petSkip = false; }, 0); // the click that follows a drag or a press we handled here isn't a second one
   if (d.moved) { const r = await ask('where'); if (r?.pos) store.set('pb_petpos', JSON.stringify(r.pos)); }
   else if (e.type === 'pointerup') setMin(false);
@@ -3848,7 +3942,7 @@ petBtn.addEventListener('pointerup', petEnd);
 petBtn.addEventListener('pointercancel', petEnd);
 petBtn.addEventListener('lostpointercapture', petEnd); // the release happened somewhere we weren't told about
 petBtn.addEventListener('click', () => { if (!petSkip) setMin(false); }); // Enter and Space
-document.addEventListener('pbmotion', () => loaders.forEach(l => l.start()));
+document.addEventListener('pbmotion', () => { loaders.forEach(l => l.start()); petRoamStart(); });
 // Settings > Appearance > Panel > Minimize to
 for (const [key, label] of [['panda', 'Panda'], ['pill', 'Pill']]) {
   const b = el('button', '', label); b.type = 'button'; b.dataset.m = key; b.setAttribute('role', 'radio');
@@ -3858,7 +3952,7 @@ for (const [key, label] of [['panda', 'Panda'], ['pill', 'Pill']]) {
 function renderMini() {
   const cur = petOn() ? 'panda' : 'pill';
   for (const b of $('#miniSeg').children) { const on = b.dataset.m === cur; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); b.disabled = b.dataset.m === 'panda' && !hostV13; }
-  $('#miniNote').textContent = hostV13 ? 'A little red panda you can drag around and click to open, or the small bar.' : 'The panda needs the newest bookmark: drag the button from the homepage to your bookmarks bar again.';
+  $('#miniNote').textContent = hostV13 ? 'A little red panda that walks around the page. Hover to pause, drag to move, or click to open.' : 'The panda needs the newest bookmark: drag the button from the homepage to your bookmarks bar again.';
 }
 
 // ---- resize from the left and top edges, and dock to the right side (bookmarklet v7) ----
@@ -5289,13 +5383,13 @@ renderCmdList();
 // pandaSprite(canvas, opts) draws a pixel-art red panda into any <canvas> and animates it while it's on screen.
 //   opts.w, opts.h   the canvas in art pixels (default 40 x 40; the minimized pet uses a crisp 2x scale)
 //   opts.scale       css px per art pixel (default 3)
-//   opts.natural     compact pet: smaller head, longer torso, fur shading and a neutral muzzle; loaders keep their original art
+//   opts.natural     the roaming pet: a four-legged, side-profile panda on a completely transparent canvas
 //   opts.dangle      true: the loader scene, the panda hanging from three strings over a dithered void
 //   opts.drop        dangle only: the art row of the panda's head top (default 30% of the height)
 //   opts.void        false: no dithered backdrop
 //   opts.state       the state it starts in (idle, working, nap, locked, dangle)
 //   opts.napAfter    ms of idleness before it curls up for a nap (default 20000)
-// Returns { start, stop, retheme, state, play, look, poke, idleFor, frames, draw }. The fur is the panda's own palette and does
+// Returns { start, stop, retheme, state, play, look, walk, poke, idleFor, frames, draw }. The fur is the panda's own palette and does
 // not follow the theme; only the ground shadow and the void take the theme's colours.
 // States: idle (breathing, with an ear twitch, head tilt, look around, tail swish, stretch every few seconds, and blinks), working,
 // nap (curled up, Zzz), locked (a nap that stays asleep), dangle. One-shots: hop (answer ready), happy, shrug, wave, stretch,
@@ -5348,23 +5442,13 @@ const ART = {
 const mirror = rows => rows.map(r => r + [...r].reverse().join(''));
 const parse = rows => { const o = []; rows.forEach((r, y) => [...r].forEach((c, x) => { if (c !== '.') o.push([x, y, c]); })); return o; };
 const HEAD = parse(mirror(ART.head)), BODY = mirror(ART.body), FOOT = parse(ART.foot);
-// The minimized panda keeps a 40 x 40 grid. A tapered 20 x 14 face, pale ear rims and cheek patches,
-// rusty tear markings and a deeper chest give it red-panda proportions without smoothing the pixels.
-const NATURAL = {
-  head: parse(mirror([
-    '..cc......', '.cwwc.....', '.cwgcaa...', '..caarrraa',
-    '..aarrffff', '.aaarrffff', 'cwwcaaarrf', 'cwggccaaaf',
-    'cggttcggac', '.cggttcggc', '..cggtcgnn', '...cgggggn',
-    '....cggggg', '.....ccccc',
-  ])),
-  body: mirror([
-    '.....aaaa', '...aarrrr', '..aarrvvv', '.aarrvvvv',
-    'aarrrvvvv', 'arravvvvv', 'aravvvvvv', 'aavvvvvvv',
-    'aavvvbbbb', 'avvvbbbbb', '.vvvbbbbb', '.vvbbbbbb',
-    '..bbbbbbb', '...bbbbbb',
-  ]),
-  foot: parse(['.bbbb', 'bbbbb', 'BbBbb']),
-};
+// The pet's small side-profile head: rounded pale ear rims, a rusty eye stripe, cream cheek and a tapered muzzle.
+// Its body, four articulated legs and long ringed tail are drawn independently so the gait follows travelled distance.
+const PROFILE = parse([
+  '.cc.......', 'cwwc......', 'cwgc......', '.aarrfaa..',
+  'aarrffggc.', 'arcwttggcn', 'arcwttggnn', '.acgggggc.',
+  '..aacggc..', '....acc...',
+]);
 const isEarL = ([x, y]) => x < 11 && (y < 3 || (y === 3 && x < 5)), isEarR = ([x, y]) => x >= 11 && (y < 3 || (y === 3 && x > 16));
 const EAR_L = HEAD.filter(isEarL), EAR_R = HEAD.filter(isEarR), FACE = HEAD.filter(p => !isEarL(p) && !isEarR(p));
 // the little glyphs the panda throws off
@@ -5464,6 +5548,7 @@ function pandaSprite(canvas, opts = {}) {
   let theme = null, floor = null, raf = 0, last = 0, frames = 0, live = false, tick = 0;
   let base = opts.state || (dangle ? 'dangle' : 'idle'), baseI = 0, baseLeft = 0;
   let once = null, onceI = 0, onceLeft = 0, over = null, overI = 0, overLeft = 0, blinkAt = 20 + rnd(30), blink = 0, evAt = 16 + rnd(20), idleTicks = 0, gaze = null, holdT = 0;
+  let stride = 0, walking = false, facing = 1;
   const napAfter = Math.round((opts.napAfter ?? 20000) / TICK);
   let parts = [];
   function readTheme() {
@@ -5491,48 +5576,19 @@ function pandaSprite(canvas, opts = {}) {
     const out = [], N = 34; let tip = null;
     for (let i = 0; i <= N; i++) {
       const u = i / N, [x, y] = bez(path, u), r = 1.7 + 1.9 * Math.sin(Math.PI * Math.min(1, u * .92 + .1));
-      const ring = Math.floor(u * 9) % 2;
-      const start = out.length;
-      disc(out, x, y, r, u > .94 ? 'b' : ring ? 'D' : 'r');
-      if (natural && u <= .94) for (let j = start; j < out.length; j++) {
-        const q = out[j]; // light catches the upper edge; the underside stays a soft russet
-        if (q[1] < y - r * .45) q[2] = ring ? 'a' : 'f';
-        else if (!ring && q[1] > y + r * .45) q[2] = 'a';
-      }
-      tip = [Math.round(x), Math.round(y)];
+      disc(out, x, y, r, u > .94 ? 'b' : Math.floor(u * 9) % 2 ? 'D' : 'r'); tip = [Math.round(x), Math.round(y)];
     }
     layer(out); return tip;
   }
   const side = (s, a) => s > 0 ? CX + a : CX - 1 - a; // sideways offsets from the middle of the body, as columns
   function arm(s, name, sx0, sy, wob, gy) { // s: 1 right, -1 left
-    const [a, d] = natural && (name === 'down' || name === 'limp') ? [4, 10] : ARM[name] || ARM.down, sx = side(s, 5.2) + sx0, px = side(s, a) + sx0, py = Math.min(sy + d + wob, gy - 2), out = [], n = Math.max(Math.abs(px - sx), Math.abs(py - sy), 1);
+    const [a, d] = ARM[name] || ARM.down, sx = side(s, 5.2) + sx0, px = side(s, a) + sx0, py = Math.min(sy + d + wob, gy - 2), out = [], n = Math.max(Math.abs(px - sx), Math.abs(py - sy), 1);
     for (let i = 0; i <= n; i++) disc(out, sx + (px - sx) * i / n, sy + (py - sy) * i / n, 1.5, i >= n - 1 ? 'B' : 'b');
     layer(out);
   }
   // head-local (22 x 16) to art coordinates, with the tilt as a shear and the head's own sideways move
   const hat = (x, y, p, cx, ht) => [x + cx - 11 + (p.tilt ? Math.trunc(p.tilt * (7.5 - y) / 7.5 * 1.25) : 0) + p.hx, y + ht];
   function head(p, cx, ht, ear) {
-    if (natural) {
-      const at = (x, y) => hat(x + 1, y, p, cx, ht);
-      layer(NATURAL.head.map(([x, y, c]) => {
-        const left = x < 7 && y < 4, right = x > 12 && y < 4;
-        const twitch = left ? ear[0] : right ? ear[1] : 0;
-        const [X, Y] = at(x, y);
-        return [X + (twitch ? left ? -1 : 1 : 0), Y + twitch, c];
-      }));
-      const shut = ['closed', 'sleep', 'happy'].includes(p.eyes), half = p.eyes === 'half';
-      const ex = p.look === 'l' ? -1 : p.look === 'r' ? 1 : 0, ey = shut ? 0 : p.look === 'u' ? -1 : p.look === 'd' ? 1 : 0;
-      for (const e0 of [4, 14]) {
-        const eyes = shut ? [[0, 1, 'e'], [1, p.eyes === 'sleep' ? 0 : 1, 'e']]
-          : half ? [[0, 1, 'e'], [1, 1, 'e']] : [[0, 0, 'h'], [1, 0, 'e'], [0, 1, 'e'], [1, 1, 'e']];
-        for (const [x, y, c] of eyes) { const [X, Y] = at(e0 + x + ex, 7 + y + ey); set(X, Y, c); }
-      }
-      // A short muzzle, rather than a permanent smile. Keep the open mouth for yawns and reactions.
-      const mouth = ['open', 'o'].includes(p.mouth) ? [[9, 12], [10, 12], [9, 13, 'p'], [10, 13, 'p']]
-        : p.mouth === 'none' ? [] : [[9, 12], [10, 12]];
-      for (const [x, y, c] of mouth) { const [X, Y] = at(x, y); set(X, Y, c || 'n'); }
-      return;
-    }
     const e = (list, k) => list.map(([x, y, c]) => { const [X, Y] = hat(x, y, p, cx, ht); return [X + k * (ear[k > 0 ? 1 : 0] > 0 ? 1 : 0), Y + ear[k > 0 ? 1 : 0], c]; });
     layer(e(EAR_L, -1)); layer(e(EAR_R, 1));
     layer(FACE.map(([x, y, c]) => { const [X, Y] = hat(x, y, p, cx, ht); return [X, Y, c]; }));
@@ -5541,13 +5597,12 @@ function pandaSprite(canvas, opts = {}) {
     for (const [x, y, c] of MOUTH[p.mouth] || MOUTH.smile) { const [X, Y] = hat(x, y, p, cx, ht); set(X, Y, c || 'n'); }
   }
   function sit(p, ph) {
-    const bh = natural ? 14 : 12, bw = natural ? 18 : 16;
-    const BR = Math.max(8, Math.min(18, bh - p.sq)), gy = GY + p.dy, bt = gy - BR, ht = bt - (natural ? 10 : 13) + p.hd, cx = CX + p.dx;
+    const BR = Math.max(8, Math.min(16, 12 - p.sq)), gy = GY + p.dy, bt = gy - BR, ht = bt - 13 + p.hd, cx = CX + p.dx;
     const tip = tail(p, ph, true), body = [];
-    for (let r = 0; r < BR; r++) { const row = (natural ? NATURAL.body : BODY)[Math.floor(r * bh / BR)]; for (let x = 0; x < bw; x++) if (row[x] !== '.') body.push([cx - bw / 2 + x, bt + r, row[x]]); }
+    for (let r = 0; r < BR; r++) { const row = BODY[Math.floor(r * 12 / BR)]; for (let x = 0; x < 16; x++) if (row[x] !== '.') body.push([cx - 8 + x, bt + r, row[x]]); }
     layer(body);
     const feet = [], fl = p.foot === 1 ? 1 : 0, fr = p.foot === 2 ? 1 : 0;
-    for (const [x, y, c] of natural ? NATURAL.foot : FOOT) { feet.push([cx - 9 + x, gy - 2 + y - fl, c]); feet.push([cx + 8 - x, gy - 2 + y - fr, c]); }
+    for (const [x, y, c] of FOOT) { feet.push([cx - 9 + x, gy - 2 + y - fl, c]); feet.push([cx + 8 - x, gy - 2 + y - fr, c]); }
     layer(feet);
     const sy = bt + 3 + p.hd; // arms in front of the body, behind the head (held up they come out from behind it)
     arm(-1, p.armL, p.dx, sy, p.armL === 'swing' ? Math.round(Math.sin(ph * 2)) : 0, gy); arm(1, p.armR, p.dx, sy, p.armR === 'swing' ? Math.round(Math.sin(ph * 2 + 1)) : 0, gy);
@@ -5562,6 +5617,72 @@ function pandaSprite(canvas, opts = {}) {
     tail(p, ph, false);
     head(q, CX, ht + 1, [0, 0]);
     return { earL: [CX - 11, ht + 1], earR: [CX + 8, ht + 1], cx: CX, tip: [CX - 12, GY - 4], ht };
+  }
+  // The roaming pet has its own anatomy. Four feet take turns lifting; a planted foot travels backwards
+  // relative to the body by exactly the distance covered during its stance, rather than sliding in place.
+  function quadruped(p, ph) {
+    const asleep = p.mode === 'curl', moving = walking && !asleep;
+    const jump = Math.round(Math.min(0, p.dy * .3)), gy = 34 + jump;
+    const bob = moving ? Math.round(Math.sin(stride * 2) * .45) : 0;
+    const cy = (asleep ? 28 : 24) + bob + jump, body = [];
+    const stretch = !asleep && !moving ? Math.max(-1, Math.min(1, -p.sq * .5)) : 0;
+    const bodyX = asleep ? 20 : 23, rx = asleep ? 10.5 : 9 + stretch, ry = asleep ? 5.5 : 5.5 - stretch * .4;
+    const stroke = (out, a, b, r, c) => {
+      const n = Math.ceil(Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])) * 2);
+      for (let i = 0; i <= n; i++) disc(out, a[0] + (b[0] - a[0]) * i / Math.max(1, n), a[1] + (b[1] - a[1]) * i / Math.max(1, n), r, c);
+    };
+    const brushTail = front => {
+      const out = [], sway = Math.sin(ph * .45) * (asleep ? .2 : .9);
+      const path = front ? [[13, 28], [8, 33], [23, 34], [29, 31]]
+        : [[17, cy + 1], [12, cy + 5], [3, cy + 8], [4 + sway * .4, cy + 3 + sway]];
+      for (let i = 0; i <= 32; i++) {
+        const u = i / 32, [x, y] = bez(path, u), r = front ? 2.2 : 2 + 1.1 * Math.sin(Math.PI * u), ring = Math.floor(u * (front ? 7 : 6)) % 2, start = out.length;
+        disc(out, x, y, r, u > .96 ? 'v' : ring ? 'a' : 'r');
+        for (let j = start; j < out.length; j++) {
+          const q = out[j];
+          if (q[1] < y - r * .4 && u < .96) q[2] = ring ? 'a' : 'f';
+          else if (q[1] > y + r * .45) q[2] = ring ? 'D' : 'a';
+        }
+      }
+      layer(out);
+    };
+    const leg = (hip, offset, far) => {
+      let dx = 0, lift = 0;
+      if (moving) {
+        const u = ((stride / (Math.PI * 2) + offset) % 1 + 1) % 1;
+        if (u < .62) dx = 3.1 - u / .62 * 6.2;
+        else { const swing = (u - .62) / .38; dx = -3.1 + swing * 6.2; lift = Math.sin(swing * Math.PI) * 2.4; }
+      }
+      const footX = hip + dx, footY = gy - lift + (far ? -1 : 0), kneeX = hip + dx * .45 - (hip < 21 ? 1 : -.5), out = [];
+      stroke(out, [hip, cy + 3], [kneeX, gy - 4 - lift * .2], far ? 1 : 1.3, far ? 'B' : 'b');
+      stroke(out, [kneeX, gy - 4 - lift * .2], [footX, footY - 1], far ? 1 : 1.2, far ? 'B' : 'b');
+      stroke(out, [footX - .5, footY], [footX + 1.3, footY], 1, 'B');
+      layer(out);
+    };
+    if (!asleep) {
+      brushTail(false);
+      leg(21, .5, true); leg(30, .25, true); // the far pair behind the body
+    }
+    for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(bodyX - rx); x <= Math.ceil(bodyX + rx); x++) {
+      const nx = (x - bodyX) / rx, ny = (y - cy) / ry;
+      if (nx * nx + ny * ny > 1) continue;
+      let c = ny < -.5 ? 'f' : ny > .42 ? 'v' : ny > .15 ? 'a' : 'r';
+      if (ny > -.5 && ny < .05 && (x * 3 + y * 5) % 17 === 0) c = 'a'; // a few single-pixel fur breaks
+      body.push([x, y, c]);
+    }
+    layer(body);
+    if (!asleep) { leg(18, 0, false); leg(28, .75, false); }
+    const sniff = !moving && (p.look === 'd' || p.mouth === 'o' || p.hd > 0) ? 1 : 0;
+    const hx = asleep ? 27 : 28 - (p.look === 'l' ? 1 : 0), hy = asleep ? 23 : 17 + bob + jump + sniff - (p.armR === 'wave2' ? 1 : 0);
+    layer(PROFILE.map(([x, y, c]) => [hx + x, hy + y + (y < 3 ? Math.min(1, p.earL + p.earR) : 0), c]));
+    const shut = asleep || ['closed', 'sleep', 'happy'].includes(p.eyes), ey = hy + 5 + (p.look === 'u' ? -1 : 0);
+    set(hx + 5, ey, 'e'); set(hx + 6, ey, 'e');
+    if (!shut && p.eyes !== 'half') { set(hx + 5, ey - 1, 'h'); set(hx + 6, ey - 1, 'e'); }
+    if (!asleep && p.mouth === 'open') { set(hx + 7, hy + 7, 'n'); set(hx + 8, hy + 7, 'p'); }
+    if (asleep) brushTail(true); // tucked round the body, rather than a seated pose
+    canvas.dataset.gait = moving ? 'walk' : asleep ? 'sleep' : 'stand';
+    canvas.dataset.facing = facing < 0 ? 'left' : 'right';
+    return { cx: bodyX, ht: hy, earL: [hx + 1, hy], earR: [hx + 3, hy], tip: [4, cy + 3] };
   }
   function glyph(name, x, y, a) {
     const rows = GLYPH[name]; if (!rows) return;
@@ -5600,13 +5721,13 @@ function pandaSprite(canvas, opts = {}) {
     if (!theme) readTheme();
     g.clearRect(0, 0, W, H);
     buf = new Array(W * H);
-    const info = p.mode === 'curl' ? curl(p, ph) : sit(p, ph);
+    const info = natural ? quadruped(p, ph) : p.mode === 'curl' ? curl(p, ph) : sit(p, ph);
     let shift = () => 0; // dangling: rows slide sideways with the swing, a crisp pixel-art tilt
     if (dangle) { const sw = Math.sin(t * 1.25) * 3.4, tl = Math.sin(t * 1.25 - .7) * 2, top = OY + 11; shift = y => Math.round(sw + tl * (y - top - 8) / 14); }
-    if (dangle && opts.void !== false) g.drawImage(floor || (floor = makeVoid()), 0, 0);
-    else if (!dangle && opts.shadow !== false) shadow(p.mode === 'curl' ? CX + 1 : info.cx);
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = buf[y * W + x]; if (c) { g.fillStyle = PAL[c]; g.fillRect(x + shift(y), y, 1, 1); } }
-    if (dangle) { // three strings: both ears and the tail tip
+    if (!natural && dangle && opts.void !== false) g.drawImage(floor || (floor = makeVoid()), 0, 0);
+    else if (!natural && !dangle && opts.shadow !== false) shadow(p.mode === 'curl' ? CX + 1 : info.cx);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = buf[y * W + x]; if (c) { g.fillStyle = PAL[c]; g.fillRect(natural && facing < 0 ? W - 1 - x : x + shift(y), y, 1, 1); } }
+    if (!natural && dangle) { // three strings: both ears and the tail tip
       const col = css(rgba(PAL.s)), faint = css(rgba(PAL.s), .42), at = [info.earL, info.earR, info.tip], tops = [W / 2 - 14, W / 2 + 2, W / 2 + 16];
       at.forEach(([x, y], i) => { const X = x + OX + shift(y + OY), Y = y + OY; line(tops[i], 0, X, Y, col); line(tops[i] + 1, 0, X + 1, Y, faint); });
     }
@@ -5618,7 +5739,7 @@ function pandaSprite(canvas, opts = {}) {
     if (++i >= a.frames.length) return a.loop ? [0, a.frames[0].d, false] : [0, 0, true];
     return [i, a.frames[i].d, false];
   }
-  const spawn = (k, x, y, vx, vy, life, wait = 0) => parts.push({ k, x, y, vx, vy, age: -wait, life });
+  const spawn = (k, x, y, vx, vy, life, wait = 0) => { if (!natural) parts.push({ k, x, y, vx, vy, age: -wait, life }); };
   function startOnce(name, then) {
     once = { name, then }; onceI = 0; onceLeft = ANIM[name].frames[0].d;
     canvas.dataset.state = name;
@@ -5633,8 +5754,8 @@ function pandaSprite(canvas, opts = {}) {
     if (!once && base === 'idle') { // a small event now and then, a stretch, and a nap after a while
       idleTicks++;
       if (over) { const [i, l, done] = stepAnim(ANIM[over], overI, overLeft); overI = i; overLeft = l; if (done) over = null; }
-      else if (--evAt <= 0) { evAt = 18 + rnd(36); const e = IDLE_EVENTS[rnd(IDLE_EVENTS.length)]; if (e === 'stretch') startOnce('stretch'); else { over = e; overI = 0; overLeft = ANIM[e].frames[0].d; } }
-      if (napAfter && idleTicks >= napAfter && !gaze) startOnce('settle', 'nap');
+      else if (!(natural && walking) && --evAt <= 0) { evAt = 18 + rnd(36); const e = IDLE_EVENTS[rnd(IDLE_EVENTS.length)]; if (e === 'stretch') startOnce('stretch'); else { over = e; overI = 0; overLeft = ANIM[e].frames[0].d; } }
+      if (napAfter && idleTicks >= napAfter && !gaze && !(natural && walking)) startOnce('settle', 'nap');
     }
     if ((base === 'nap' || base === 'locked') && !once && tick % 9 === 0) spawn('z', CX + 8, 12, .32, -.34, 22);
     if (blink) blink--; else if (--blinkAt <= 0) { blinkAt = 26 + rnd(46); blink = 3; }
@@ -5650,7 +5771,7 @@ function pandaSprite(canvas, opts = {}) {
   }
   function drawNow() {
     render(current(), tick * .42, tick * TICK / 1000);
-    if (base === 'working' && !once) { const n = (tick >> 1) % 4; for (let i = 0; i < 3; i++) if (i < n) glyph('dot', CX + 12 + i * 3, 7 - (i === 1 ? 1 : 0), 1); }
+    if (!natural && base === 'working' && !once) { const n = (tick >> 1) % 4; for (let i = 0; i < 3; i++) if (i < n) glyph('dot', CX + 12 + i * 3, 7 - (i === 1 ? 1 : 0), 1); }
     for (const q of parts) if (q.age >= 0) glyph(q.k === 'z' ? (q.age < 6 ? 'z1' : q.age < 13 ? 'z2' : 'z3') : q.k, Math.round(q.x), Math.round(q.y), Math.max(0, Math.min(1, (q.life - q.age) / 5)));
     canvas.dataset.state = once ? once.name : base; canvas.dataset.gaze = gaze ? gaze.look || 'c' : '';
   }
@@ -5693,6 +5814,19 @@ function pandaSprite(canvas, opts = {}) {
       if (dx == null) { gaze = null; return; }
       gaze = { look: Math.abs(dx) > Math.abs(dy) * 1.2 ? (dx < 0 ? 'l' : 'r') : dy < -4 ? 'u' : dy > 4 ? 'd' : '', hx: dx < -6 ? -1 : dx > 6 ? 1 : 0 };
       idleTicks = 0; wakeUp();
+      if (!live) stillDraw();
+    },
+    walk(dx, dy) { // CSS-pixel movement from the host; ten art pixels make one complete four-beat walking cycle
+      if (!natural) return;
+      const distance = Math.hypot(Number(dx) || 0, Number(dy) || 0);
+      walking = !still() && distance > .001;
+      if (walking) {
+        stride = (stride + distance / (S * 10) * Math.PI * 2) % (Math.PI * 2);
+        if (Math.abs(dx) > .01) facing = dx < 0 ? -1 : 1;
+        idleTicks = 0; over = null; wakeUp();
+      }
+      canvas.dataset.gait = walking ? 'walk' : base === 'nap' || base === 'locked' ? 'sleep' : 'stand';
+      canvas.dataset.facing = facing < 0 ? 'left' : 'right';
       if (!live) stillDraw();
     },
     poke() { idleTicks = 0; if (base === 'nap') wakeUp(); else api.play('happy'); },

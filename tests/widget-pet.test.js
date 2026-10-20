@@ -30,7 +30,7 @@ const deferred = () => { let resolve; const promise = new Promise(r => { resolve
 const done = { t: 'done', conversationId: 42, model: 'haiku', usage: { in: 50, out: 20 }, stop: 'end_turn' };
 const ANSWER = 'The article argues that small teams ship faster because they talk less and decide more, and it backs that with three case studies.';
 
-async function fixture(t, { bookmark = 13, reduced = false, store = {}, theme = 'ember', chatGate, events = [{ t: 'd', v: ANSWER }, done], chatStatus = 200, viewport = { width: 1280, height: 800 } } = {}) {
+async function fixture(t, { bookmark = 13, reduced = false, store = {}, theme = 'ember', chatGate, events = [{ t: 'd', v: ANSWER }, done], chatStatus = 200, viewport = { width: 1280, height: 800 }, clock = false, seed } = {}) {
   const context = await browser.newContext({ reducedMotion: reduced ? 'reduce' : 'no-preference', viewport });
   context.setDefaultTimeout(5000);
   const state = { requests: [], errors: [] };
@@ -38,6 +38,10 @@ async function fixture(t, { bookmark = 13, reduced = false, store = {}, theme = 
   await context.addInitScript(([items]) => {
     if (!sessionStorage.getItem('seeded')) { localStorage.setItem('pb_token', 'test-session'); for (const [k, v] of Object.entries(items)) localStorage.setItem(k, v); sessionStorage.setItem('seeded', '1'); }
   }, [store]);
+  if (seed != null) await context.addInitScript(value => {
+    let n = value >>> 0;
+    Math.random = () => { n = (Math.imul(n, 1664525) + 1013904223) >>> 0; return n / 4294967296; };
+  }, seed);
   const hostPage = `<!doctype html><html><body style="margin:0;background:#fff"><p>Host page text.</p>
     <script>
       window.hostRequests = [];
@@ -69,6 +73,7 @@ async function fixture(t, { bookmark = 13, reduced = false, store = {}, theme = 
     return route.fulfill({ status: 404, body: 'Unexpected test request' });
   });
   const page = await context.newPage();
+  if (clock) await page.clock.install({ time: new Date('2026-10-20T15:00:00Z') });
   page.on('pageerror', error => state.errors.push(error.message));
   page.on('console', m => { if (m.type() === 'error' && !/favicon/.test(m.location().url || '') && !(chatStatus === 401 && /401/.test(m.text()))) state.errors.push('console: ' + m.text()); });
   const open = async () => {
@@ -83,12 +88,21 @@ async function fixture(t, { bookmark = 13, reduced = false, store = {}, theme = 
     return frame;
   };
   let frame = await open();
+  if (clock) await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
+  const advance = async ms => {
+    if (!clock) return page.waitForTimeout(ms);
+    for (let left = ms; left > 0; left -= 200) {
+      await page.clock.runFor(Math.min(left, 200));
+      await new Promise(resolve => setTimeout(resolve, 20)); // let cross-frame replies arrive before their fake-clock timeout
+    }
+  };
   const f = {
     context, page, state, get frame() { return frame; },
     reopen: async () => { frame = await open(); return frame; },
     style: () => page.evaluate(() => { const e = document.getElementById('__pagebot'), s = e.style; return { w: s.width, h: s.height, r: s.right, b: s.bottom, radius: s.borderRadius, shadow: s.boxShadow, display: s.display }; }),
     host: type => page.evaluate(t => window.hostRequests.filter(r => r.type === t), type),
-    minimize: async () => { await frame.locator('#minBtn').click(); await page.waitForTimeout(260); },
+    advance,
+    minimize: async () => { await frame.locator('#minBtn').click(); await advance(260); if (clock) await page.waitForTimeout(260); },
     petBox: async () => { const b = await frame.locator('#pet').boundingBox(); return { x: b.x, y: b.y, w: b.width, h: b.height }; }, // page coordinates already
     send: async text => { await frame.locator('#q').fill(text); await frame.locator('#sendBtn').click(); },
   };
@@ -101,27 +115,41 @@ const ink = c => c.evaluate(cv => {
   return { n, x0, y0, x1, y1, w: cv.width, h: cv.height };
 });
 
-browserTest('the sprite draws something in every animation state and every frame, and the states look different', async t => {
-  const f = await fixture(t, { reduced: true });
+browserTest('the quadruped draws every state on a fully transparent canvas and its walking gait follows distance', async t => {
+  const f = await fixture(t);
   await f.minimize();
   const cv = f.frame.locator('#petCv');
   const r = await cv.evaluate(c => {
-    const s = c.sprite, out = {}, seen = new Map();
+    const s = c.sprite, out = {}; let translucent = 0;
     for (const name of s.states) {
       out[name] = [];
       for (let i = 0; i < s.frames(name); i++) {
         s.draw(name, i);
-        const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0, h = 0;
-        for (let k = 0; k < d.length; k += 4) { if (d[k + 3] > 200) n++; h = (h * 31 + d[k] + d[k + 1] * 3 + d[k + 3]) | 0; }
-        out[name].push(n); seen.set(h, name + i);
+        const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0;
+        for (let k = 0; k < d.length; k += 4) { if (d[k + 3] === 255) n++; else if (d[k + 3] !== 0) translucent++; }
+        out[name].push(n);
       }
     }
-    return { out, distinct: seen.size, total: Object.values(out).flat().length, states: s.states };
+    const snapshot = () => {
+      let hash = 2166136261;
+      for (const byte of c.getContext('2d').getImageData(0, 0, c.width, c.height).data) hash = Math.imul(hash ^ byte, 16777619);
+      return hash >>> 0;
+    };
+    s.state('idle'); s.walk(0, 0); s.draw('idle', 0);
+    const standing = snapshot();
+    s.walk(3, 0); s.draw('idle', 0); const step = snapshot(), facingRight = c.dataset.facing;
+    s.walk(5, 0); s.draw('idle', 0); const next = snapshot();
+    s.walk(-3, 0); s.draw('idle', 0); const facingLeft = c.dataset.facing;
+    s.walk(0, 0); s.draw('idle', 0);
+    return { out, translucent, states: s.states, standing, step, next, facingRight, facingLeft, stopped: c.dataset.gait };
   });
   for (const name of ['idle', 'working', 'nap', 'locked', 'dangle', 'hop', 'happy', 'shrug', 'wave', 'stretch', 'settle', 'wake', 'blink'])
     assert.ok(r.states.includes(name), name + ' is a state');
   for (const [name, counts] of Object.entries(r.out)) for (const n of counts) assert.ok(n > 250, `${name} draws a panda (${n} pixels)`);
-  assert.ok(r.distinct > r.total * 0.6, `the frames are mostly different from each other (${r.distinct} of ${r.total})`);
+  assert.equal(r.translucent, 0, 'only the opaque panda is drawn: no faint ground shadow or backdrop');
+  assert.notEqual(r.step, r.standing, 'walking changes the standing pose');
+  assert.notEqual(r.next, r.step, 'advancing farther changes the leg stride');
+  assert.deepEqual([r.facingRight, r.facingLeft, r.stopped], ['right', 'left', 'stand']);
 });
 
 browserTest('the pet animates while it is on screen, and stops when it is off the page or the panel opens again', async t => {
@@ -159,6 +187,116 @@ browserTest('with reduced motion the pet is one still frame; the Animations sett
   await less.minimize();
   assert.equal(await less.frame.locator('#petCv').getAttribute('data-anim'), 'off', 'Less holds still');
   assert.equal(await less.frame.locator('#petCv').getAttribute('data-frames'), null);
+});
+
+const petPosition = async f => { const s = await f.style(); return { r: parseFloat(s.r), b: parseFloat(s.b) }; };
+const distance = (a, b) => Math.hypot(a.r - b.r, a.b - b.b);
+const insideViewport = async (f, w, h) => {
+  const b = await f.petBox();
+  assert.ok(b.x >= -.5 && b.y >= -.5 && b.x + b.w <= w + .5 && b.y + b.h <= h + .5, `pet stays in ${w} × ${h}: ${JSON.stringify(b)}`);
+};
+
+browserTest('the panda walks across the actual page at a bounded speed and stays on screen after a viewport resize', async t => {
+  const f = await fixture(t, { clock: true, seed: 41, store: { pb_petpos: JSON.stringify({ r: 300, b: 200 }) } });
+  await f.minimize();
+  const start = await petPosition(f), positions = [start], gaits = new Set();
+  for (let i = 0; i < 16; i++) {
+    await f.advance(250);
+    positions.push(await petPosition(f));
+    gaits.add(await f.frame.locator('#petCv').getAttribute('data-gait'));
+    await insideViewport(f, 1280, 800);
+  }
+  assert.ok(Math.max(...positions.map(p => distance(start, p))) > 15, 'the host iframe actually travels, rather than walking in place');
+  assert.ok(positions.slice(1).every((p, i) => distance(p, positions[i]) < 15), 'quarter-second steps stay below 60 px/s, including easing and turns');
+  assert.ok(gaits.has('walk'), 'leg animation is active while the frame moves');
+  await f.page.setViewportSize({ width: 360, height: 260 });
+  await f.advance(1000);
+  await insideViewport(f, 360, 260);
+  for (let i = 0; i < 8; i++) { await f.advance(250); await insideViewport(f, 360, 260); }
+});
+
+browserTest('hover, keyboard focus, and holding a drag stop roaming; leaving the pet lets it walk again', async t => {
+  const f = await fixture(t, { clock: true, seed: 17, store: { pb_petpos: JSON.stringify({ r: 350, b: 250 }) } });
+  await f.minimize();
+  await f.advance(2400);
+  let b = await f.petBox();
+  await f.page.mouse.move(b.x + b.w / 2, b.y + b.h / 2);
+  await f.advance(200);
+  const hover = await petPosition(f);
+  await f.advance(1800);
+  assert.ok(distance(hover, await petPosition(f)) < .5, 'the target stays still while the pointer is over it');
+  await f.frame.locator('#pet').focus();
+  await f.page.mouse.move(5, 5);
+  const focused = await petPosition(f);
+  await f.advance(1800);
+  assert.ok(distance(focused, await petPosition(f)) < .5, 'keyboard focus holds the pet still too');
+  await f.frame.locator('#pet').evaluate(e => e.blur());
+  await f.advance(3200);
+  assert.ok(distance(focused, await petPosition(f)) > 5, 'it walks again after hover and focus leave');
+  b = await f.petBox();
+  await f.page.mouse.move(b.x + b.w / 2, b.y + b.h / 2); await f.page.mouse.down();
+  await f.advance(100);
+  const held = await petPosition(f);
+  await f.advance(1800);
+  assert.ok(distance(held, await petPosition(f)) < .5, 'holding the pet never fights the pointer');
+  await f.page.mouse.move(b.x + b.w / 2 - 30, b.y + b.h / 2 - 20); await f.page.mouse.up();
+  await f.advance(100);
+  const dropped = await petPosition(f);
+  assert.ok(distance(held, dropped) > 25, 'the manual drag still moves the pet');
+  await f.page.mouse.move(5, 5);
+  await f.advance(1500);
+  assert.ok(distance(dropped, await petPosition(f)) < .5, 'a short grace period lets the dropped pet stay where it was put');
+  await f.advance(4000);
+  assert.ok(distance(dropped, await petPosition(f)) > 5, 'the dropped pet resumes walking after the grace period without a manual blur');
+});
+
+browserTest('reduced motion, a locked panel, and a sleeping pet stay put instead of roaming', async t => {
+  for (const options of [{ reduced: true }, { store: { pb_motion: 'less' } }, { locked: true }, { sleeping: true }]) {
+    const f = await fixture(t, { clock: true, seed: 22, ...options });
+    if (options.locked) { await f.frame.locator('#lockBtn').click(); await f.frame.locator('#login').waitFor({ state: 'visible' }); }
+    await f.minimize();
+    if (options.sleeping) await f.frame.locator('#petCv').evaluate(c => c.sprite.state('nap'));
+    const start = await petPosition(f);
+    await f.advance(6500);
+    assert.ok(distance(start, await petPosition(f)) < .5, `no autonomous movement for ${JSON.stringify(options)}`);
+    assert.notEqual(await f.frame.locator('#petCv').getAttribute('data-gait'), 'walk');
+  }
+});
+
+browserTest('answer bubbles and hidden panels stop roaming, and reopening resumes without a time jump', async t => {
+  const gate = deferred();
+  const f = await fixture(t, { clock: true, seed: 64, chatGate: gate, store: { pb_petpos: JSON.stringify({ r: 300, b: 200 }) } });
+  await f.send('Summarize this page.');
+  await f.frame.locator('.msg.bot').waitFor();
+  await f.minimize();
+  await f.advance(2400);
+  gate.resolve();
+  await f.frame.locator('#petSay').waitFor({ state: 'visible' });
+  await f.advance(300);
+  const bubble = await petPosition(f);
+  await f.advance(4000);
+  assert.ok(distance(bubble, await petPosition(f)) < .5, 'the answer stays easy to read and click');
+  await f.advance(2700);
+  assert.equal(await f.frame.locator('#petSay').isVisible(), false);
+  await f.advance(2600);
+  assert.ok(distance(bubble, await petPosition(f)) > 5, 'walking returns after the bubble disappears');
+  await f.page.evaluate(() => window.__pb.hide());
+  await f.advance(300);
+  await f.page.waitForFunction(() => window.__pb.f.style.display === 'none');
+  await f.advance(200); // flush a host placement already queued before the hide notification
+  const hidden = await petPosition(f);
+  const hiddenDrags = (await f.host('drag')).length;
+  await f.advance(12000);
+  const remained = await petPosition(f);
+  assert.ok(distance(hidden, remained) < .5, `a hidden bookmarklet moves no frame: ${JSON.stringify({ hidden, remained })}`);
+  assert.equal((await f.host('drag')).length, hiddenDrags, 'a hidden pet sends no movement messages');
+  await f.page.evaluate(() => window.__pb.show());
+  await f.advance(300);
+  assert.ok(distance(hidden, await petPosition(f)) < .5, 'showing it again does not replay hidden time');
+  let resumed = await petPosition(f);
+  for (let i = 0; i < 12 && distance(hidden, resumed) <= 5; i++) { await f.advance(500); resumed = await petPosition(f); }
+  const visibleState = await f.frame.locator('#petCv').evaluate(c => ({ ...c.dataset, hidden: document.hidden, active: document.activeElement?.id }));
+  assert.ok(distance(hidden, resumed) > 5, `the visible pet eventually resumes walking: ${JSON.stringify({ hidden, resumed, visibleState })}`);
 });
 
 browserTest('Minimize on a v13 bookmark sends pet:true and leaves a see-through 80 px frame with crisp 2 px art pixels', async t => {
@@ -391,6 +529,7 @@ browserTest('all 14 themes show the whole panda, unclipped, in a see-through fra
     assert.deepEqual([st.w, st.h, st.radius, st.shadow], ['80px', '80px', '0px', 'none'], theme);
     const bg = await f.frame.evaluate(() => [getComputedStyle(document.documentElement).backgroundColor, getComputedStyle(document.body).backgroundColor]);
     assert.deepEqual(bg, ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)'], theme + ': see-through');
+    assert.deepEqual(await f.frame.evaluate(() => ['::before', '::after'].map(p => getComputedStyle(document.body, p).display)), ['none', 'none'], theme + ': no theme texture behind the pet');
     const box = await f.petBox();
     assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.w <= 1280 && box.y + box.h <= 800, theme + ': on screen');
     // the fur is the panda's own colour whatever the theme
