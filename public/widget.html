@@ -819,12 +819,12 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 :root.petm,:root.petm body{background:transparent!important;color-scheme:light!important}
 body.min.pet>:not(#pet):not(#petSay){display:none!important}
 body.min.pet #pet,body.min.pet #petSay:not([hidden]){display:block!important}
-#pet{position:fixed;right:0;bottom:0;width:120px;height:120px;padding:0;margin:0;border:0;background:none;border-radius:20px;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;text-shadow:none}
+#pet{position:fixed;right:0;bottom:0;width:80px;height:80px;padding:0;margin:0;border:0;background:none;border-radius:14px;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;text-shadow:none}
 #pet:focus-visible{outline:2px solid var(--accent);outline-offset:-6px}
 #pet canvas{display:block;pointer-events:none}
 body.dragging #pet{cursor:grabbing}
-#petLock{position:absolute;right:10px;top:34px;font-size:15px;line-height:1;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));pointer-events:none}
-#petSay{position:fixed;right:12px;bottom:106px;width:max-content;max-width:236px;padding:8px 11px;border-radius:12px;background:var(--pop,var(--panel));color:var(--text);border:1px solid var(--line);box-shadow:0 3px 10px rgba(0,0,0,.3);font:12.5px/1.4 var(--font);overflow-wrap:anywhere;cursor:pointer;text-shadow:none;animation:petPop .24s cubic-bezier(.2,1.6,.4,1) both;transform-origin:90% 100%}
+#petLock{position:absolute;right:7px;top:23px;font-size:12px;line-height:1;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));pointer-events:none}
+#petSay{position:fixed;right:8px;bottom:70px;width:max-content;max-width:236px;padding:8px 11px;border-radius:12px;background:var(--pop,var(--panel));color:var(--text);border:1px solid var(--line);box-shadow:0 3px 10px rgba(0,0,0,.3);font:12.5px/1.4 var(--font);overflow-wrap:anywhere;cursor:pointer;text-shadow:none;animation:petPop .24s cubic-bezier(.2,1.6,.4,1) both;transform-origin:90% 100%}
 #petSay::after{content:"";position:absolute;right:30px;bottom:-6px;width:10px;height:10px;background:inherit;border:inherit;border-width:0 1px 1px 0;transform:rotate(45deg)}
 #petSay.out{opacity:0;transition:opacity .4s ease}
 @keyframes petPop{from{opacity:0;transform:scale(.7) translateY(8px)}}
@@ -1655,7 +1655,7 @@ const hostV6 = hostV >= 6; // ...and can drop the panel's shadow for the clear t
 const hostV7 = hostV >= 7; // ...and can resize the panel and dock it to the side
 // v7 pages (also behind the pop-up window) send highlights as you make them and can find a quoted passage
 const pageV7 = hostV7 || (popup && ver >= 7);
-const hostV13 = hostV >= 13; // ...and can turn the panel into the panda: a see-through, 120 px frame (min with pet:true)
+const hostV13 = hostV >= 13; // ...and can turn the panel into the panda: a see-through frame (min with pet:true)
 const pageV12 = hostV >= 12 || (popup && ver >= 12); // ...and can run page actions with the browser toolset (bookmarklet v12: the page tree, scrolling, hovering)
 const standalone = !embedded && !popup;
 const sysCalm = matchMedia('(prefers-reduced-motion: reduce)');
@@ -3785,17 +3785,17 @@ hd.addEventListener('pointerup', endDrag);
 hd.addEventListener('pointercancel', endDrag);
 
 // ---- the pet (v13): Minimize turns the panel into the red panda ----
-// The bookmark makes the frame a see-through 120 px square when `min` carries pet:true (and a bigger one while the speech bubble
-// shows, then 120 again). The panda is a real <button>; it's dragged with the same 'drag' message as the panel, and clicking it
+// The bookmark makes the frame a see-through 80 px square when `min` carries pet:true (and a bigger one while the speech bubble
+// shows, then 80 again). The panda is a real <button>; it's dragged with the same 'drag' message as the panel, and clicking it
 // (or Enter/Space) is Expand. Older bookmarks (before v13) can't do that and keep the pill. Settings > Appearance > Panel > Minimize to.
-const PET = 120;
+const PET = 80;
 const petBtn = $('#pet'), petSay = $('#petSay');
 const petOn = () => hostV13 && store.get('pb_mini') !== 'pill';
 const petPos = () => { try { const p = JSON.parse(store.get('pb_petpos')); return p?.r >= 0 && p?.b >= 0 ? { r: +p.r, b: +p.b } : null; } catch { return null; } }; // where you left it, per site
 let petSayT = 0, petDrag = null, petSkip = false;
 function petShow(on) {
   petMode = on; body.classList.toggle('pet', on); document.documentElement.classList.toggle('petm', on); petBtn.hidden = !on;
-  if (on) { pet ||= pandaSprite($('#petCv'), { scale: 3 }); pet.start(); petState(); }
+  if (on) { pet ||= pandaSprite($('#petCv'), { scale: 2, natural: true }); pet.start(); petState(); }
   else { pet?.stop(); petSayHide(true); }
 }
 // what the panda does follows what the panel is doing; a locked panel sleeps with a 🔒, a banned one just sleeps
@@ -3813,7 +3813,7 @@ function petAnswered(bot) {
   else { pet.play('hop'); if (text && !bot.querySelector('.stp')) petSayShow('Done — ' + text.slice(0, 60) + (text.length > 60 ? '…' : '')); }
 }
 // the bubble is drawn inside the frame, so the frame grows while it shows and shrinks back after
-function petSize() { tell('min', { on: true, pet: true, w: petSay.hidden ? PET : Math.max(PET, Math.ceil(petSay.offsetWidth) + 40), h: petSay.hidden ? PET : 106 + Math.ceil(petSay.offsetHeight) + 24 }); }
+function petSize() { tell('min', { on: true, pet: true, w: petSay.hidden ? PET : Math.max(PET, Math.ceil(petSay.offsetWidth) + 40), h: petSay.hidden ? PET : 70 + Math.ceil(petSay.offsetHeight) + 24 }); }
 function petSayShow(text) {
   clearTimeout(petSayT); petSay.textContent = text; petSay.classList.remove('out'); petSay.hidden = false; petSize();
   petSayT = setTimeout(() => { petSay.classList.add('out'); petSayT = setTimeout(() => petSayHide(), 450); }, 6000);
@@ -5287,8 +5287,9 @@ renderCmdList();
 
 // ---- panda pet (v13): the loader on the splash and waiting screens, and what Minimize turns the panel into ----
 // pandaSprite(canvas, opts) draws a pixel-art red panda into any <canvas> and animates it while it's on screen.
-//   opts.w, opts.h   the canvas in art pixels (default 40 x 40, which is the pet's 120 px frame at scale 3)
+//   opts.w, opts.h   the canvas in art pixels (default 40 x 40; the minimized pet uses a crisp 2x scale)
 //   opts.scale       css px per art pixel (default 3)
+//   opts.natural     compact pet: smaller head, longer torso, fur shading and a neutral muzzle; loaders keep their original art
 //   opts.dangle      true: the loader scene, the panda hanging from three strings over a dithered void
 //   opts.drop        dangle only: the art row of the panda's head top (default 30% of the height)
 //   opts.void        false: no dithered backdrop
@@ -5306,6 +5307,7 @@ const PAL = {
   o: '#2a1410', r: '#d9552b', R: '#f2893f', D: '#a63a1f', c: '#f6dfb8', w: '#fff6e6', t: '#8a331b', // outline, fur, light fur, shade, cream, white, tear stripe
   u: '#5a2c1a', b: '#3d1d12', B: '#27120b', n: '#1a0d0b', p: '#ee8f86', h: '#ffffff', e: '#1a0d0b', // belly, legs, paws, nose, tongue, eye glint, eye
   z: '#fff6e6', k: '#ff5f7e', y: '#ffd25a', s: '#e0652f', // Zzz, hearts, sparkles, the strings
+  a: '#b85c3c', f: '#df9863', v: '#502e28', g: '#ddc5a6', // muted russet, sunlit fur, dark chest, shaded cream (natural pet)
 };
 // art, as rows of palette letters (. is empty). Heads and bodies are drawn as left halves and mirrored.
 const ART = {
@@ -5346,6 +5348,23 @@ const ART = {
 const mirror = rows => rows.map(r => r + [...r].reverse().join(''));
 const parse = rows => { const o = []; rows.forEach((r, y) => [...r].forEach((c, x) => { if (c !== '.') o.push([x, y, c]); })); return o; };
 const HEAD = parse(mirror(ART.head)), BODY = mirror(ART.body), FOOT = parse(ART.foot);
+// The minimized panda keeps a 40 x 40 grid. A tapered 20 x 14 face, pale ear rims and cheek patches,
+// rusty tear markings and a deeper chest give it red-panda proportions without smoothing the pixels.
+const NATURAL = {
+  head: parse(mirror([
+    '..cc......', '.cwwc.....', '.cwgcaa...', '..caarrraa',
+    '..aarrffff', '.aaarrffff', 'cwwcaaarrf', 'cwggccaaaf',
+    'cggttcggac', '.cggttcggc', '..cggtcgnn', '...cgggggn',
+    '....cggggg', '.....ccccc',
+  ])),
+  body: mirror([
+    '.....aaaa', '...aarrrr', '..aarrvvv', '.aarrvvvv',
+    'aarrrvvvv', 'arravvvvv', 'aravvvvvv', 'aavvvvvvv',
+    'aavvvbbbb', 'avvvbbbbb', '.vvvbbbbb', '.vvbbbbbb',
+    '..bbbbbbb', '...bbbbbb',
+  ]),
+  foot: parse(['.bbbb', 'bbbbb', 'BbBbb']),
+};
 const isEarL = ([x, y]) => x < 11 && (y < 3 || (y === 3 && x < 5)), isEarR = ([x, y]) => x >= 11 && (y < 3 || (y === 3 && x > 16));
 const EAR_L = HEAD.filter(isEarL), EAR_R = HEAD.filter(isEarR), FACE = HEAD.filter(p => !isEarL(p) && !isEarR(p));
 // the little glyphs the panda throws off
@@ -5431,6 +5450,7 @@ const rnd = n => Math.floor(Math.random() * n);
 
 function pandaSprite(canvas, opts = {}) {
   const W = opts.w || 40, H = opts.h || 40, S = opts.scale || 3, dangle = !!opts.dangle;
+  const natural = !!opts.natural;
   const OX = Math.round(opts.ox ?? (W - 40) / 2), OY = Math.round(opts.oy ?? (dangle ? (opts.drop ?? Math.round(H * .3)) - 11 : H - 40));
   const CX = 17, GY = 35; // the middle of the body, and the row its feet stand on
   canvas.width = W; canvas.height = H;
@@ -5471,19 +5491,48 @@ function pandaSprite(canvas, opts = {}) {
     const out = [], N = 34; let tip = null;
     for (let i = 0; i <= N; i++) {
       const u = i / N, [x, y] = bez(path, u), r = 1.7 + 1.9 * Math.sin(Math.PI * Math.min(1, u * .92 + .1));
-      disc(out, x, y, r, u > .94 ? 'b' : Math.floor(u * 9) % 2 ? 'D' : 'r'); tip = [Math.round(x), Math.round(y)];
+      const ring = Math.floor(u * 9) % 2;
+      const start = out.length;
+      disc(out, x, y, r, u > .94 ? 'b' : ring ? 'D' : 'r');
+      if (natural && u <= .94) for (let j = start; j < out.length; j++) {
+        const q = out[j]; // light catches the upper edge; the underside stays a soft russet
+        if (q[1] < y - r * .45) q[2] = ring ? 'a' : 'f';
+        else if (!ring && q[1] > y + r * .45) q[2] = 'a';
+      }
+      tip = [Math.round(x), Math.round(y)];
     }
     layer(out); return tip;
   }
   const side = (s, a) => s > 0 ? CX + a : CX - 1 - a; // sideways offsets from the middle of the body, as columns
   function arm(s, name, sx0, sy, wob, gy) { // s: 1 right, -1 left
-    const [a, d] = ARM[name] || ARM.down, sx = side(s, 5.2) + sx0, px = side(s, a) + sx0, py = Math.min(sy + d + wob, gy - 2), out = [], n = Math.max(Math.abs(px - sx), Math.abs(py - sy), 1);
+    const [a, d] = natural && (name === 'down' || name === 'limp') ? [4, 10] : ARM[name] || ARM.down, sx = side(s, 5.2) + sx0, px = side(s, a) + sx0, py = Math.min(sy + d + wob, gy - 2), out = [], n = Math.max(Math.abs(px - sx), Math.abs(py - sy), 1);
     for (let i = 0; i <= n; i++) disc(out, sx + (px - sx) * i / n, sy + (py - sy) * i / n, 1.5, i >= n - 1 ? 'B' : 'b');
     layer(out);
   }
   // head-local (22 x 16) to art coordinates, with the tilt as a shear and the head's own sideways move
   const hat = (x, y, p, cx, ht) => [x + cx - 11 + (p.tilt ? Math.trunc(p.tilt * (7.5 - y) / 7.5 * 1.25) : 0) + p.hx, y + ht];
   function head(p, cx, ht, ear) {
+    if (natural) {
+      const at = (x, y) => hat(x + 1, y, p, cx, ht);
+      layer(NATURAL.head.map(([x, y, c]) => {
+        const left = x < 7 && y < 4, right = x > 12 && y < 4;
+        const twitch = left ? ear[0] : right ? ear[1] : 0;
+        const [X, Y] = at(x, y);
+        return [X + (twitch ? left ? -1 : 1 : 0), Y + twitch, c];
+      }));
+      const shut = ['closed', 'sleep', 'happy'].includes(p.eyes), half = p.eyes === 'half';
+      const ex = p.look === 'l' ? -1 : p.look === 'r' ? 1 : 0, ey = shut ? 0 : p.look === 'u' ? -1 : p.look === 'd' ? 1 : 0;
+      for (const e0 of [4, 14]) {
+        const eyes = shut ? [[0, 1, 'e'], [1, p.eyes === 'sleep' ? 0 : 1, 'e']]
+          : half ? [[0, 1, 'e'], [1, 1, 'e']] : [[0, 0, 'h'], [1, 0, 'e'], [0, 1, 'e'], [1, 1, 'e']];
+        for (const [x, y, c] of eyes) { const [X, Y] = at(e0 + x + ex, 7 + y + ey); set(X, Y, c); }
+      }
+      // A short muzzle, rather than a permanent smile. Keep the open mouth for yawns and reactions.
+      const mouth = ['open', 'o'].includes(p.mouth) ? [[9, 12], [10, 12], [9, 13, 'p'], [10, 13, 'p']]
+        : p.mouth === 'none' ? [] : [[9, 12], [10, 12]];
+      for (const [x, y, c] of mouth) { const [X, Y] = at(x, y); set(X, Y, c || 'n'); }
+      return;
+    }
     const e = (list, k) => list.map(([x, y, c]) => { const [X, Y] = hat(x, y, p, cx, ht); return [X + k * (ear[k > 0 ? 1 : 0] > 0 ? 1 : 0), Y + ear[k > 0 ? 1 : 0], c]; });
     layer(e(EAR_L, -1)); layer(e(EAR_R, 1));
     layer(FACE.map(([x, y, c]) => { const [X, Y] = hat(x, y, p, cx, ht); return [X, Y, c]; }));
@@ -5492,12 +5541,13 @@ function pandaSprite(canvas, opts = {}) {
     for (const [x, y, c] of MOUTH[p.mouth] || MOUTH.smile) { const [X, Y] = hat(x, y, p, cx, ht); set(X, Y, c || 'n'); }
   }
   function sit(p, ph) {
-    const BR = Math.max(8, Math.min(16, 12 - p.sq)), gy = GY + p.dy, bt = gy - BR, ht = bt - 13 + p.hd, cx = CX + p.dx;
+    const bh = natural ? 14 : 12, bw = natural ? 18 : 16;
+    const BR = Math.max(8, Math.min(18, bh - p.sq)), gy = GY + p.dy, bt = gy - BR, ht = bt - (natural ? 10 : 13) + p.hd, cx = CX + p.dx;
     const tip = tail(p, ph, true), body = [];
-    for (let r = 0; r < BR; r++) { const row = BODY[Math.floor(r * 12 / BR)]; for (let x = 0; x < 16; x++) if (row[x] !== '.') body.push([cx - 8 + x, bt + r, row[x]]); }
+    for (let r = 0; r < BR; r++) { const row = (natural ? NATURAL.body : BODY)[Math.floor(r * bh / BR)]; for (let x = 0; x < bw; x++) if (row[x] !== '.') body.push([cx - bw / 2 + x, bt + r, row[x]]); }
     layer(body);
     const feet = [], fl = p.foot === 1 ? 1 : 0, fr = p.foot === 2 ? 1 : 0;
-    for (const [x, y, c] of FOOT) { feet.push([cx - 9 + x, gy - 2 + y - fl, c]); feet.push([cx + 8 - x, gy - 2 + y - fr, c]); }
+    for (const [x, y, c] of natural ? NATURAL.foot : FOOT) { feet.push([cx - 9 + x, gy - 2 + y - fl, c]); feet.push([cx + 8 - x, gy - 2 + y - fr, c]); }
     layer(feet);
     const sy = bt + 3 + p.hd; // arms in front of the body, behind the head (held up they come out from behind it)
     arm(-1, p.armL, p.dx, sy, p.armL === 'swing' ? Math.round(Math.sin(ph * 2)) : 0, gy); arm(1, p.armR, p.dx, sy, p.armR === 'swing' ? Math.round(Math.sin(ph * 2 + 1)) : 0, gy);
