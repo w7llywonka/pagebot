@@ -472,9 +472,9 @@ browserTest('Account: the name, change password and passcode forms open, and Log
 });
 
 browserTest('About: version, update strip and the keyboard shortcuts cheat sheet', async t => {
-  const f = await fixture(t, { width: 720, version: 12, hostV: 7 });
+  const f = await fixture(t, { width: 720, version: 13, hostV: 7 });
   await f.opens(); await f.go('about');
-  assert.match(await f.frame.locator('#verLine').innerText(), /pagebot v12.*your bookmark is v7/);
+  assert.match(await f.frame.locator('#verLine').innerText(), /pagebot v13.*your bookmark is v7/);
   assert.equal(await f.vis('#aboutUpd'), true);
   assert.equal(await f.frame.locator('#aboutUpd a').getAttribute('href'), '/?update');
   const keys = await f.frame.locator('#keysList').innerText();

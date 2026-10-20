@@ -265,6 +265,7 @@ for (const theme of ['glass', 'clear', 'paper', 'midnight']) {
 browserTest('works on /chat and in a popup-sized window', async t => {
   const f = await fixture(t, { standalone: true, size: { width: 360, height: 640 } });
   await f.openFromMenu();
+  await rowsOf(f).first().waitFor(); // the list loads a moment after the sheet opens
   assert.equal(await rowsOf(f).count(), 2);
   const box = await f.frame.locator('#pdfList').boundingBox();
   assert.ok(box.x >= 0 && box.x + box.width <= 360);
