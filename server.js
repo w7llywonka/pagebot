@@ -1496,7 +1496,11 @@ app.post('/api/chat', limit(60, 'chat'), auth, trusted, chatJson, async (req, re
 });
 
 // highlighted text can't open or close the tags that mark where it starts and ends
-const fence = s => s.replace(/<(\/?)(page|highlighted_text)\b/gi, '&lt;$1$2');
+const fence = s => s.replace(/<(\/?)(page|highlighted_text|annotated_screenshot)\b/gi, '&lt;$1$2');
+// screenshot annotation: the one line that tells the model the screenshot has marks. Only the server writes it (a typed
+// message has the tag escaped like a highlight does), so history and Activity can find it by its exact place in the question.
+const ANNOTATED_NOTE = '<annotated_screenshot>The user drew on this screenshot (arrows, circles, highlights, labels and black boxes); the marks show what they mean. Black boxes cover private information.</annotated_screenshot>';
+const fenceNote = s => s.replace(/<(\/?)annotated_screenshot\b/gi, '&lt;$1annotated_screenshot');
 
 async function chat(req, res) {
   const b = req.body || {}, u = req.user, cfg = req.cfg;
@@ -1516,7 +1520,7 @@ async function chat(req, res) {
 
   // PostgreSQL text can't hold a NUL, and the rows are only saved once the answer is in: one in a question would lose its usage
   const str = v => String(v || '').replaceAll('\0', '');
-  const message = str(b.message).slice(0, 8000);
+  const message = fenceNote(str(b.message).slice(0, 8000));
   const page = b.page && typeof b.page === 'object' ? {
     url: str(b.page.url).slice(0, 2000),
     title: str(b.page.title).slice(0, 300),
@@ -1536,6 +1540,7 @@ async function chat(req, res) {
     if (mt[2].length > 8_000_000) return res.status(413).json({ error: 'Screenshot too large' });
     image = { media_type: mt[1], data: mt[2] };
   }
+  const annotated = b.annotated === true && !!image; // screenshot annotation: the panel says the screenshot carries marks
   const pdfId = Number.isSafeInteger(b.pdf) && b.pdf > 0 ? b.pdf : null; // pdf uploads: the id from /api/pdf
   if (b.pdf != null && !pdfId) return res.status(400).json({ error: 'Bad PDF id' });
   if (!message && !image && !page && !selection && !pdfId) return res.status(400).json({ error: 'Empty message' });
@@ -1573,13 +1578,16 @@ async function chat(req, res) {
   const parts = [];
   if (page && !doc) parts.push(`<page url="${attr(page.url)}" title="${attr(page.title)}"></page>`);
   if (selection) parts.push(`<highlighted_text>\n${selection}\n</highlighted_text>`);
+  if (annotated) parts.push(ANNOTATED_NOTE);
   parts.push(message || (image ? 'Help me with what is in this screenshot.' : pdfId ? 'Summarize this PDF.' : selection ? 'Explain the highlighted text.' : 'Summarize this page.'));
   const userText = parts.join('\n\n');
 
   // old screenshots are not resent (saves tokens) — a note stands in for them. Pages are resent as documents, and so
   // are PDFs (pdf uploads), unless the retention sweep has deleted the file: then a note stands in for it too.
   const messages = history.map(h => {
-    let text = (h.steps ? stepsNote(h.steps) : '') + (h.had_image ? `[A screenshot was attached to this message; it is no longer available.]\n\n${h.content}` : h.content);
+    // an annotated screenshot's line is dropped from follow-ups: the picture is gone, so a note stands in for both
+    const marked = h.had_image && h.role === 'user' && ANNOTATED_RE.test(h.content), content = marked ? h.content.replace(ANNOTATED_RE, '') : h.content;
+    let text = (h.steps ? stepsNote(h.steps) : '') + (h.had_image ? `[${marked ? 'An annotated screenshot (the user drew marks on it) was' : 'A screenshot was'} attached to this message; it is no longer available.]\n\n${content}` : content);
     const d = h.page_doc && parseJSON(h.page_doc), p = h.attachment_id != null ? pdf.prior.get(String(h.attachment_id)) : null;
     if (p && !p.bytes) text = pdfGone(p) + text;
     const docs = [...(d?.text ? [docBlock(d)] : []), ...(p?.bytes ? [pdfBlock(p)] : [])];
@@ -1821,14 +1829,17 @@ const cutTitle = s => s.length > 100 ? s.slice(0, 100).replace(/\s+\S{0,20}$/, '
 const unquot = s => s.replace(/&quot;/g, '"');
 // Questions are stored as the model saw them: a <page> tag (empty when the page went as a document; older rows have its
 // text inside), then the fenced highlight, then what was typed. History shows them apart.
+const ANNOTATED_RE = /<annotated_screenshot>[^<]*<\/annotated_screenshot>(?:\n\n|$)/;
 const PAGE_TAG = /^<page url="([^"]*)" title="([^"]*)">(?:<\/page>|\n[\s\S]*\n<\/page>)(?:\n\n|$)/, HL_TAG = /^<highlighted_text>\n([\s\S]*?)\n<\/highlighted_text>(?:\n\n|$)/;
 function splitQuestion(content) {
-  let text = String(content || ''), page = null, highlight = '';
+  let text = String(content || ''), page = null, highlight = '', annotated = false;
   const p = PAGE_TAG.exec(text), open = !p && /^<page url="([^"]*)" title="([^"]*)">/.exec(text); // open: only the start of an old inline page was read
   if (p || open) { page = { url: unquot((p || open)[1]), title: unquot((p || open)[2]) }; text = p ? text.slice(p[0].length) : ''; }
   const h = HL_TAG.exec(text);
   if (h) { highlight = h[1]; text = text.slice(h[0].length); }
-  return { text, page, highlight };
+  const a = /^<annotated_screenshot>[^<]*<\/annotated_screenshot>(?:\n\n|$)/.exec(text); // screenshot annotation
+  if (a) { annotated = true; text = text.slice(a[0].length); }
+  return { text, page, highlight, annotated };
 }
 function chatTitle(c) {
   const q = splitQuestion(c.first), typed = oneLine(q.text), page = oneLine(c.page_title || q.page?.title);
@@ -1851,7 +1862,7 @@ const chatSql = (more = '') => `SELECT c.id, c.page_url, c.page_title, c.memory_
   JOIN LATERAL (SELECT left(m.content, 4000) AS content FROM messages m
     WHERE m.conversation_id = c.id AND m.role = 'user' ORDER BY m.id LIMIT 1) f ON true`; // chats whose first question never reached the model have none
 // what search looks through: the words of every question and answer, without the page tag's markup
-const SEARCHABLE = `regexp_replace(m.content, '^<page url="[^"]*" title="[^"]*">(</page>)?|</?highlighted_text>', '', 'g')`;
+const SEARCHABLE = `regexp_replace(regexp_replace(m.content, '^<page url="[^"]*" title="[^"]*">(</page>)?|</?highlighted_text>', '', 'g'), '<annotated_screenshot>[^<]*</annotated_screenshot>', '', 'g')`;
 const publicChat = c => ({
   id: Number(c.id), title: chatTitle(c), site: hostOf(c.page_url) || c.memory_site || null, url: c.page_url || null,
   pageTitle: c.page_title || null, createdAt: c.created_at, updatedAt: c.updated_at,
@@ -1862,7 +1873,7 @@ function pastMessage(m, u) {
   if (m.role === 'user') {
     const q = splitQuestion(m.content);
     return { role: 'user', text: q.text, highlight: q.highlight.slice(0, 2000), page: m.has_doc || !!q.page, url: x.url || q.page?.url || null,
-      image: m.had_image, web: !!x.web, at,
+      image: m.had_image, ...(q.annotated && { annotated: true }), web: !!x.web, at,
       ...(m.pdf_name != null && { pdf: { id: Number(m.attachment_id), name: m.pdf_name, pages: m.pdf_pages, gone: !m.pdf_stored } }) }; // pdf uploads: a chip, greyed once the file's been cleared
   }
   const blank = m.content === (m.refused ? '[declined]' : m.incomplete ? '(stopped)' : '(no answer)'); // the stand-ins chat() saves
@@ -2326,7 +2337,7 @@ app.get('/api/admin/overview', limit(300, 'admin'), admin, async (req, res) => {
 
 // The Activity tab: one row per question with its answer's numbers, newest first, 50 at a time.
 // The question shown is what the person typed, without the page text or highlight that went with it.
-const QUESTION_RE = '^(<page .*</page>\n\n)?(<highlighted_text>\n.*</highlighted_text>\n\n)?';
+const QUESTION_RE = '^(<page .*</page>\n\n)?(<highlighted_text>\n.*</highlighted_text>\n\n)?(<annotated_screenshot>[^<]*</annotated_screenshot>\n\n)?';
 const FLAGS = ['image', 'web', 'refused', 'stopped', 'fallback', 'page', 'highlight'];
 app.get('/api/admin/activity', limit(300, 'admin'), admin, async (req, res) => {
   const days = clampInt(req.query.days || 30, 1, 3650), who = whoOf(req.query.user), n = clampInt(req.query.limit || 50, 1, 200);
@@ -2339,7 +2350,7 @@ app.get('/api/admin/activity', limit(300, 'admin'), admin, async (req, res) => {
   const r = await pool.query(`${RANGE}
     SELECT m.id, m.created_at, m.user_id, u.username, m.had_image, m.conversation_id,
       left(regexp_replace(m.content, $4, ''), 300) AS question,
-      (m.page_doc IS NOT NULL OR m.content LIKE '<page %') AS has_page, strpos(m.content, '<highlighted_text>') > 0 AS has_sel,
+      (m.page_doc IS NOT NULL OR m.content LIKE '<page %') AS has_page, strpos(m.content, '<highlighted_text>') > 0 AS has_sel, strpos(m.content, '<annotated_screenshot>') > 0 AS has_ann,
       (SELECT f.name FROM attachments f WHERE f.id = m.attachment_id) AS pdf_name,
       c.page_url, c.page_title, c.hidden_at IS NOT NULL AS removed,
       a.model, a.input_tokens, a.output_tokens, a.cost_usd, a.web_searches, a.refused, a.incomplete, a.steps IS NOT NULL AS acted
@@ -2360,7 +2371,7 @@ app.get('/api/admin/activity', limit(300, 'admin'), admin, async (req, res) => {
     more: r.rows.length > n,
     rows: r.rows.slice(0, n).map(x => ({
       id: Number(x.id), at: x.created_at, user: userRef(x.user_id, x.username), question: x.question,
-      page: x.has_page, highlight: x.has_sel, image: x.had_image, pdf: x.pdf_name || null, url: x.page_url, title: x.page_title, host: hostOf(x.page_url),
+      page: x.has_page, highlight: x.has_sel, image: x.had_image, annotated: x.has_ann, pdf: x.pdf_name || null, url: x.page_url, title: x.page_title, host: hostOf(x.page_url),
       conversationId: Number(x.conversation_id), model: x.model, modelLabel: x.model ? modelLabel(x.model) : null, family: modelFamily(x.model),
       in: x.input_tokens || 0, out: x.output_tokens || 0, usd: Number(x.cost_usd) || 0, searches: x.web_searches || 0,
       refused: !!x.refused, stopped: !!x.incomplete, fallback: !!x.model && !ids.includes(x.model), answered: x.model != null,
@@ -2388,10 +2399,10 @@ app.get('/api/admin/activity/:id', limit(300, 'admin'), admin, async (req, res) 
   const hm = /<highlighted_text>\n([\s\S]*?)\n<\/highlighted_text>/.exec(c);
   res.json({
     id: Number(m.id), at: m.created_at, user: userRef(m.user_id, m.username), conversationId: Number(m.conversation_id), turn: t.rows[0],
-    question: c.replace(/^(<page [\s\S]*<\/page>\n\n)?(<highlighted_text>\n[\s\S]*<\/highlighted_text>\n\n)?/, '').slice(0, 8000),
+    question: c.replace(/^(<page [\s\S]*<\/page>\n\n)?(<highlighted_text>\n[\s\S]*<\/highlighted_text>\n\n)?(<annotated_screenshot>[^<]*<\/annotated_screenshot>\n\n)?/, '').slice(0, 8000),
     page: doc?.url != null || doc?.text ? { url: doc.url || '', title: doc.title || '', chars: (doc.text || '').length }
       : pm ? { url: unq(pm[1]), title: unq(pm[2]), chars: pageEnd > 0 ? Math.max(0, pageEnd - pm[0].length - 2) : null } : null,
-    highlight: hm ? hm[1].slice(0, 2000) : null, image: m.had_image, pdf: f.rows[0] || null,
+    highlight: hm ? hm[1].slice(0, 2000) : null, image: m.had_image, annotated: ANNOTATED_RE.test(c), pdf: f.rows[0] || null,
     answer: x ? x.content.slice(0, 20000) : null, model: x?.model || null, modelLabel: x?.model ? modelLabel(x.model) : null, family: modelFamily(x?.model),
     in: x?.input_tokens || 0, out: x?.output_tokens || 0, usd: Number(x?.cost_usd) || 0, searches: x?.web_searches || 0,
     refused: !!x?.refused, stopped: !!x?.incomplete, fallback: !!x?.model && !ids.includes(x.model),

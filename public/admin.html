@@ -1611,6 +1611,7 @@ function tags(r) {
   if (r.page) t.push(['Page']);
   if (r.highlight) t.push(['Highlight']);
   if (r.image) t.push(['Screenshot']);
+  if (r.annotated) t.push(['✏ Annotated']); // screenshot annotation
   if (r.pdf) t.push(['📄 ' + (r.pdf.length > 40 ? r.pdf.slice(0, 40) + '…' : r.pdf), '', r.pdf]); // pdf uploads
   if (r.searches) t.push([`Web ×${r.searches}`]);
   if (r.acted) t.push(['🖱 Page actions']); // page actions
@@ -1660,7 +1661,7 @@ function detailRow(tb, r, span) {
     if (x.page.chars != null) p.append(` · ${nf.format(x.page.chars)} characters of page text went with it`);
     qcol.appendChild(p);
   }
-  if (x.image) qcol.appendChild(mk('p', 'sub', 'A screenshot was attached (screenshots aren’t stored).'));
+  if (x.image) qcol.appendChild(mk('p', 'sub', 'A screenshot was attached' + (x.annotated ? ', with the person’s marks drawn on it (arrows, circles, labels, black boxes)' : '') + ' (screenshots aren’t stored).'));
   if (x.pdf) qcol.appendChild(mk('p', 'sub', `📄 PDF: ${x.pdf.name} · ${x.pdf.pages ? plural(x.pdf.pages, 'page') + ' · ' : ''}${x.pdf.size < 1048576 ? Math.max(1, Math.round(x.pdf.size / 1024)) + ' KB' : (x.pdf.size / 1048576).toFixed(1) + ' MB'}` +
     (x.pdf.stored ? '' : ' · no longer stored'))); // pdf uploads
   if (x.steps?.length) { // page actions: what the answer did on the page
