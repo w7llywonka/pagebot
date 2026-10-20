@@ -822,7 +822,7 @@ body.min.pet>:not(#pet):not(#petSay){display:none!important}
 body.min.pet #pet,body.min.pet #petSay:not([hidden]){display:block!important}
 #pet{position:fixed;right:0;bottom:0;width:80px;height:80px;padding:0;margin:0;border:0;background:none;border-radius:14px;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;text-shadow:none}
 #pet:focus-visible{outline:2px solid var(--accent);outline-offset:-6px}
-#pet canvas{display:block;pointer-events:none}
+#pet canvas{display:block;pointer-events:none;margin:1px}
 body.dragging #pet{cursor:grabbing}
 #petLock{position:absolute;right:7px;top:23px;font-size:12px;line-height:1;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));pointer-events:none}
 #petSay{position:fixed;right:8px;bottom:70px;width:max-content;max-width:236px;padding:8px 11px;border-radius:12px;background:var(--pop,var(--panel));color:var(--text);border:1px solid var(--line);box-shadow:0 3px 10px rgba(0,0,0,.3);font:12.5px/1.4 var(--font);overflow-wrap:anywhere;cursor:pointer;text-shadow:none;animation:petPop .24s cubic-bezier(.2,1.6,.4,1) both;transform-origin:90% 100%}
@@ -3796,7 +3796,7 @@ const petPos = () => { try { const p = JSON.parse(store.get('pb_petpos')); retur
 let petSayT = 0, petDrag = null, petSkip = false;
 function petShow(on) {
   petMode = on; body.classList.toggle('pet', on); document.documentElement.classList.toggle('petm', on); petBtn.hidden = !on;
-  if (on) { pet ||= pandaSprite($('#petCv'), { scale: 2, natural: true, shadow: false }); pet.start(); petState(); petRoamStart(); }
+  if (on) { pet ||= pandaSprite($('#petCv'), { w: 26, h: 26, scale: 3, ox: 0, oy: 0, natural: true, shadow: false }); pet.start(); petState(); petRoamStart(); }
   else { petRoamStop(); pet?.stop(); petSayHide(true); }
 }
 // Walk the actual small iframe across the page, rather than sliding a sprite inside a large invisible overlay.
@@ -5381,9 +5381,9 @@ renderCmdList();
 
 // ---- panda pet (v13): the loader on the splash and waiting screens, and what Minimize turns the panel into ----
 // pandaSprite(canvas, opts) draws a pixel-art red panda into any <canvas> and animates it while it's on screen.
-//   opts.w, opts.h   the canvas in art pixels (default 40 x 40; the minimized pet uses a crisp 2x scale)
+//   opts.w, opts.h   the canvas in art pixels (default 40 x 40; the pet crops only empty margins into a 26 x 26 canvas at 3x)
 //   opts.scale       css px per art pixel (default 3)
-//   opts.natural     the roaming pet: a four-legged, side-profile panda on a completely transparent canvas
+//   opts.natural     the roaming pet: Elthen's sourced pixel-art animations on a transparent canvas
 //   opts.dangle      true: the loader scene, the panda hanging from three strings over a dithered void
 //   opts.drop        dangle only: the art row of the panda's head top (default 30% of the height)
 //   opts.void        false: no dithered backdrop
@@ -5401,7 +5401,6 @@ const PAL = {
   o: '#2a1410', r: '#d9552b', R: '#f2893f', D: '#a63a1f', c: '#f6dfb8', w: '#fff6e6', t: '#8a331b', // outline, fur, light fur, shade, cream, white, tear stripe
   u: '#5a2c1a', b: '#3d1d12', B: '#27120b', n: '#1a0d0b', p: '#ee8f86', h: '#ffffff', e: '#1a0d0b', // belly, legs, paws, nose, tongue, eye glint, eye
   z: '#fff6e6', k: '#ff5f7e', y: '#ffd25a', s: '#e0652f', // Zzz, hearts, sparkles, the strings
-  a: '#b85c3c', f: '#df9863', v: '#502e28', g: '#ddc5a6', // muted russet, sunlit fur, dark chest, shaded cream (natural pet)
 };
 // art, as rows of palette letters (. is empty). Heads and bodies are drawn as left halves and mirrored.
 const ART = {
@@ -5442,13 +5441,13 @@ const ART = {
 const mirror = rows => rows.map(r => r + [...r].reverse().join(''));
 const parse = rows => { const o = []; rows.forEach((r, y) => [...r].forEach((c, x) => { if (c !== '.') o.push([x, y, c]); })); return o; };
 const HEAD = parse(mirror(ART.head)), BODY = mirror(ART.body), FOOT = parse(ART.foot);
-// The pet's small side-profile head: rounded pale ear rims, a rusty eye stripe, cream cheek and a tapered muzzle.
-// Its body, four articulated legs and long ringed tail are drawn independently so the gait follows travelled distance.
-const PROFILE = parse([
-  '.cc.......', 'cwwc......', 'cwgc......', '.aarrfaa..',
-  'aarrffggc.', 'arcwttggcn', 'arcwttggnn', '.acgggggc.',
-  '..aacggc..', '....acc...',
-]);
+// Red panda artwork by Elthen, used under Elthen's Common Sense License 1.0.
+// Source: https://elthen.itch.io/2d-pixel-art-red-panda-sprites
+// Exact pixels from the used 32 x 32 idle, look, movement and sleep frames; no standalone sprite pack.
+// See THIRD_PARTY_NOTICES.md. Transparent margins are omitted; each patch retains its original coordinates.
+const ELTHEN = {"palette":{"0":"#2f2f2e","1":"#694129","2":"#825235","3":"#9d5021","4":"#b8b8b8","5":"#d67941","6":"#ffffff"},"frames":[{"x":5,"y":20,"rows":["..........000....000","..........0660000660","..........0623656260","..........003555550.","..........0350666050","........000354660650",".....00055503446640.","...005035555000000..",".0052303353555550...","052310013301205020..","03100.011001100110..",".00....000.000.000.."]},{"x":5,"y":20,"rows":["..........000....000","..........0660000660","..........0623656260","..........003555550.","..........0350666050","...000..000354660650",".005250055503446640.","052313035555000000..","03100003353555550...",".00...013301205020..","......011001100110..",".......000.000.000.."]},{"x":5,"y":20,"rows":["..........000....000","..........0660000660","..........0623656260","..........003555550.",".000......0350666050","052500..000354660650","0313250055503446640.",".00013035555000000..","....0003353555550...","......013301205020..","......011001100110..",".......000.000.000.."]},{"x":5,"y":20,"rows":["..........000....000","..........0660000660","..........0623656260","..........003555550.","..........0350666050",".00.....000354660650","0520000055503446640.","031525035555000000..",".0031303353555550...","...000013301205020..","......011001100110..",".......000.000.000.."]},{"x":5,"y":20,"rows":["..........000....000","..........0660000660","..........0623656260","..........003555550.","..........0350666050","........000354660650",".00..00055503446640.","052005035555000000..","03152303353555550...",".00310013301205020..","...00.011001100110..",".......000.000.000.."]},{"x":5,"y":20,"rows":["..........000....000","..........0660000660","..........0623656260","..........003555550.","..........0350666050","........000354660650",".......055503446640.",".....0035555000000..",".0000503353555550...","052523013301205020..","031310011001100110..",".0000..000.000.000.."]},{"x":5,"y":20,"rows":[".........000....000",".........0660000660",".........0626565260",".........003555550.",".........0306660550","........00340666550",".....0005504666450.","...00503555000000..",".0052303353555550..","052310013301205020.","03100.011001100110.",".00....000.000.000."]},{"x":5,"y":20,"rows":[".........000....000",".........0660000660",".........0626565260",".........003555550.",".........0306660550","...000..00340666550",".00525005504666450.","05231303555000000..","03100003353555550..",".00...013301205020.","......011001100110.",".......000.000.000."]},{"x":5,"y":20,"rows":[".........000....000",".........0660000660",".........0626565260",".........003555550.",".000.....0306660550","052500..00340666550","031325005504666450.",".0001303555000000..","....0003353555550..","......013301205020.","......011001100110.",".......000.000.000."]},{"x":5,"y":20,"rows":[".........000....000",".........0660000660",".........0626565260",".........003555550.",".........0306660550",".00.....00340666550","052000005504666450.","03152503555000000..",".0031303353555550..","...000013301205020.","......011001100110.",".......000.000.000."]},{"x":5,"y":20,"rows":[".........000....000",".........0660000660",".........0626565260",".........003555550.",".........0306660550","........00340666550",".00..0005504666450.","05200503555000000..","03152303353555550..",".00310013301205020.","...00.011001100110.",".......000.000.000."]},{"x":5,"y":20,"rows":[".........000....000",".........0660000660",".........0626565260",".........003555550.",".........0306660550","........00340666550",".......05504666450.",".....003555000000..",".0000503353555550..","052523013301205020.","031310011001100110.",".0000..000.000.000."]},{"x":5,"y":17,"rows":["..........000....000","..........0660000660","..........0623656260","..........003555550.","..........0350666050","..........0354660650","...000..00503446640.",".00525005555000000..","0523130355551205020.","0310001335001100110.",".00..0110010000.000.","......00.00........."]},{"x":5,"y":16,"rows":["..........000....000","..........0660000660","..........0623656260","..........003555550.",".000......0350666050","052500..000354660650","0313200055500006640.",".0000133555551200020","....0113355551100110",".....00000000000.000"]},{"x":5,"y":19,"rows":["..........000....000","..........0660000660","..........0623656260",".00.......003555550.","05200000000350666050","03152503550354660650",".003101355503446640.","...000113555000000..","......0000551205020.","..........001100110.","............000.000."]},{"x":5,"y":17,"rows":["..........000....000","..........0660000660","..........0623656260","..........003555550.","..........0350666050",".........00354660650","........05503446640.",".......05555000000..",".....003555555550...",".0000503351203300...","05252310101100010...","031310001100..00....",".0000...000........."]},{"x":5,"y":16,"rows":["..........000....000","..........0660000660","..........0623656260","..........003555550.","..........0350666050","........000354660650",".......035503446640.",".....0035555000000..","...00503310555550...",".005231001105530....","0523100000000000....","03100....00..00.....",".00................."]},{"x":5,"y":19,"rows":["..........000....000","..........0660000660","..........0623656260","........00003555550.",".....000550350666050",".0000503550354660650","0525230010503446640.","031310001105000000..",".0000...001205500...",".........01100010...","..........00..00...."]},{"x":9,"y":24,"rows":[".......000....000.","....0000660000660.","...03550626563260.","..035555055555300.",".0000000006600500.","025252501206640210","013131301106440110",".0000000000000000."]},{"x":9,"y":24,"rows":[".......000....000.","...00000660000660.","..035550626563260.",".0355555055555300.",".0000000006600500.","025252501206640210","013131301106440110",".0000000000000000."]},{"x":9,"y":24,"rows":[".....00000....000.","...00350660000660.","..035550626563260.",".0355555055555300.",".0000000006600500.","025252501206640210","013131301106440110",".0000000000000000."]}],"animations":{"idle":[0,1,2,3,4,5],"look":[6,7,8,9,10,11],"walk":[0,12,13,14,4,15,16,17],"sleep":[18,19,20,20,20,19,18,18]}};
+const sourceGroup = name => name === 'nap' || name === 'locked' ? 'sleep'
+  : ['working', 'wave', 'shrug', 'stretch', 'settle', 'wake', 'lookLR', 'sniff', 'tiltL', 'tiltR'].includes(name) ? 'look' : 'idle';
 const isEarL = ([x, y]) => x < 11 && (y < 3 || (y === 3 && x < 5)), isEarR = ([x, y]) => x >= 11 && (y < 3 || (y === 3 && x > 16));
 const EAR_L = HEAD.filter(isEarL), EAR_R = HEAD.filter(isEarR), FACE = HEAD.filter(p => !isEarL(p) && !isEarR(p));
 // the little glyphs the panda throws off
@@ -5548,7 +5547,7 @@ function pandaSprite(canvas, opts = {}) {
   let theme = null, floor = null, raf = 0, last = 0, frames = 0, live = false, tick = 0;
   let base = opts.state || (dangle ? 'dangle' : 'idle'), baseI = 0, baseLeft = 0;
   let once = null, onceI = 0, onceLeft = 0, over = null, overI = 0, overLeft = 0, blinkAt = 20 + rnd(30), blink = 0, evAt = 16 + rnd(20), idleTicks = 0, gaze = null, holdT = 0;
-  let stride = 0, walking = false, facing = 1;
+  let stride = 0, walking = false, facing = 1, sourcePreview = null;
   const napAfter = Math.round((opts.napAfter ?? 20000) / TICK);
   let parts = [];
   function readTheme() {
@@ -5618,71 +5617,23 @@ function pandaSprite(canvas, opts = {}) {
     head(q, CX, ht + 1, [0, 0]);
     return { earL: [CX - 11, ht + 1], earR: [CX + 8, ht + 1], cx: CX, tip: [CX - 12, GY - 4], ht };
   }
-  // The roaming pet has its own anatomy. Four feet take turns lifting; a planted foot travels backwards
-  // relative to the body by exactly the distance covered during its stance, rather than sliding in place.
-  function quadruped(p, ph) {
-    const asleep = p.mode === 'curl', moving = walking && !asleep;
-    const jump = Math.round(Math.min(0, p.dy * .3)), gy = 34 + jump;
-    const bob = moving ? Math.round(Math.sin(stride * 2) * .45) : 0;
-    const cy = (asleep ? 28 : 24) + bob + jump, body = [];
-    const stretch = !asleep && !moving ? Math.max(-1, Math.min(1, -p.sq * .5)) : 0;
-    const bodyX = asleep ? 20 : 23, rx = asleep ? 10.5 : 9 + stretch, ry = asleep ? 5.5 : 5.5 - stretch * .4;
-    const stroke = (out, a, b, r, c) => {
-      const n = Math.ceil(Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])) * 2);
-      for (let i = 0; i <= n; i++) disc(out, a[0] + (b[0] - a[0]) * i / Math.max(1, n), a[1] + (b[1] - a[1]) * i / Math.max(1, n), r, c);
-    };
-    const brushTail = front => {
-      const out = [], sway = Math.sin(ph * .45) * (asleep ? .2 : .9);
-      const path = front ? [[13, 28], [8, 33], [23, 34], [29, 31]]
-        : [[17, cy + 1], [12, cy + 5], [3, cy + 8], [4 + sway * .4, cy + 3 + sway]];
-      for (let i = 0; i <= 32; i++) {
-        const u = i / 32, [x, y] = bez(path, u), r = front ? 2.2 : 2 + 1.1 * Math.sin(Math.PI * u), ring = Math.floor(u * (front ? 7 : 6)) % 2, start = out.length;
-        disc(out, x, y, r, u > .96 ? 'v' : ring ? 'a' : 'r');
-        for (let j = start; j < out.length; j++) {
-          const q = out[j];
-          if (q[1] < y - r * .4 && u < .96) q[2] = ring ? 'a' : 'f';
-          else if (q[1] > y + r * .45) q[2] = ring ? 'D' : 'a';
-        }
-      }
-      layer(out);
-    };
-    const leg = (hip, offset, far) => {
-      let dx = 0, lift = 0;
-      if (moving) {
-        const u = ((stride / (Math.PI * 2) + offset) % 1 + 1) % 1;
-        if (u < .62) dx = 3.1 - u / .62 * 6.2;
-        else { const swing = (u - .62) / .38; dx = -3.1 + swing * 6.2; lift = Math.sin(swing * Math.PI) * 2.4; }
-      }
-      const footX = hip + dx, footY = gy - lift + (far ? -1 : 0), kneeX = hip + dx * .45 - (hip < 21 ? 1 : -.5), out = [];
-      stroke(out, [hip, cy + 3], [kneeX, gy - 4 - lift * .2], far ? 1 : 1.3, far ? 'B' : 'b');
-      stroke(out, [kneeX, gy - 4 - lift * .2], [footX, footY - 1], far ? 1 : 1.2, far ? 'B' : 'b');
-      stroke(out, [footX - .5, footY], [footX + 1.3, footY], 1, 'B');
-      layer(out);
-    };
-    if (!asleep) {
-      brushTail(false);
-      leg(21, .5, true); leg(30, .25, true); // the far pair behind the body
-    }
-    for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(bodyX - rx); x <= Math.ceil(bodyX + rx); x++) {
-      const nx = (x - bodyX) / rx, ny = (y - cy) / ry;
-      if (nx * nx + ny * ny > 1) continue;
-      let c = ny < -.5 ? 'f' : ny > .42 ? 'v' : ny > .15 ? 'a' : 'r';
-      if (ny > -.5 && ny < .05 && (x * 3 + y * 5) % 17 === 0) c = 'a'; // a few single-pixel fur breaks
-      body.push([x, y, c]);
-    }
-    layer(body);
-    if (!asleep) { leg(18, 0, false); leg(28, .75, false); }
-    const sniff = !moving && (p.look === 'd' || p.mouth === 'o' || p.hd > 0) ? 1 : 0;
-    const hx = asleep ? 27 : 28 - (p.look === 'l' ? 1 : 0), hy = asleep ? 23 : 17 + bob + jump + sniff - (p.armR === 'wave2' ? 1 : 0);
-    layer(PROFILE.map(([x, y, c]) => [hx + x, hy + y + (y < 3 ? Math.min(1, p.earL + p.earR) : 0), c]));
-    const shut = asleep || ['closed', 'sleep', 'happy'].includes(p.eyes), ey = hy + 5 + (p.look === 'u' ? -1 : 0);
-    set(hx + 5, ey, 'e'); set(hx + 6, ey, 'e');
-    if (!shut && p.eyes !== 'half') { set(hx + 5, ey - 1, 'h'); set(hx + 6, ey - 1, 'e'); }
-    if (!asleep && p.mouth === 'open') { set(hx + 7, hy + 7, 'n'); set(hx + 8, hy + 7, 'p'); }
-    if (asleep) brushTail(true); // tucked round the body, rather than a seated pose
+  // Paint the artist's pixels directly, preserving their palette and the 32 x 32 frame coordinates.
+  // Crop only unused transparent margins so a crisp 3x scale fits inside the small 80px button.
+  function sourcedPanda(p, ph, t) {
+    const asleep = sourcePreview ? sourcePreview.group === 'sleep' : p.mode === 'curl';
+    const moving = walking && !asleep;
+    const group = moving ? 'walk' : sourcePreview?.group || (asleep ? 'sleep' : sourceGroup(once?.name || base));
+    const sequence = ELTHEN.animations[group];
+    const index = moving ? Math.floor(stride / (Math.PI * 2) * sequence.length) % sequence.length
+      : sourcePreview ? Math.min(sourcePreview.index, sequence.length - 1) : still() ? 0 : Math.floor(t * 10) % sequence.length;
+    const patch = ELTHEN.frames[sequence[index]];
+    const x0 = Math.round((W - 32) / 2), y0 = H - 32 - Math.ceil(8 / S);
+    patch.rows.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) if (row[x] !== '.') set(x0 + patch.x + x, y0 + patch.y + y, row[x]);
+    });
     canvas.dataset.gait = moving ? 'walk' : asleep ? 'sleep' : 'stand';
     canvas.dataset.facing = facing < 0 ? 'left' : 'right';
-    return { cx: bodyX, ht: hy, earL: [hx + 1, hy], earR: [hx + 3, hy], tip: [4, cy + 3] };
+    return { cx: 20 };
   }
   function glyph(name, x, y, a) {
     const rows = GLYPH[name]; if (!rows) return;
@@ -5721,12 +5672,12 @@ function pandaSprite(canvas, opts = {}) {
     if (!theme) readTheme();
     g.clearRect(0, 0, W, H);
     buf = new Array(W * H);
-    const info = natural ? quadruped(p, ph) : p.mode === 'curl' ? curl(p, ph) : sit(p, ph);
+    const info = natural ? sourcedPanda(p, ph, t) : p.mode === 'curl' ? curl(p, ph) : sit(p, ph);
     let shift = () => 0; // dangling: rows slide sideways with the swing, a crisp pixel-art tilt
     if (dangle) { const sw = Math.sin(t * 1.25) * 3.4, tl = Math.sin(t * 1.25 - .7) * 2, top = OY + 11; shift = y => Math.round(sw + tl * (y - top - 8) / 14); }
     if (!natural && dangle && opts.void !== false) g.drawImage(floor || (floor = makeVoid()), 0, 0);
     else if (!natural && !dangle && opts.shadow !== false) shadow(p.mode === 'curl' ? CX + 1 : info.cx);
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = buf[y * W + x]; if (c) { g.fillStyle = PAL[c]; g.fillRect(natural && facing < 0 ? W - 1 - x : x + shift(y), y, 1, 1); } }
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = buf[y * W + x]; if (c) { g.fillStyle = natural ? ELTHEN.palette[c] : PAL[c]; g.fillRect(natural && facing < 0 ? W - 1 - x : x + shift(y), y, 1, 1); } }
     if (!natural && dangle) { // three strings: both ears and the tail tip
       const col = css(rgba(PAL.s)), faint = css(rgba(PAL.s), .42), at = [info.earL, info.earR, info.tip], tops = [W / 2 - 14, W / 2 + 2, W / 2 + 16];
       at.forEach(([x, y], i) => { const X = x + OX + shift(y + OY), Y = y + OY; line(tops[i], 0, X, Y, col); line(tops[i] + 1, 0, X + 1, Y, faint); });
@@ -5816,7 +5767,7 @@ function pandaSprite(canvas, opts = {}) {
       idleTicks = 0; wakeUp();
       if (!live) stillDraw();
     },
-    walk(dx, dy) { // CSS-pixel movement from the host; ten art pixels make one complete four-beat walking cycle
+    walk(dx, dy) { // CSS-pixel movement from the host; ten art pixels advance the artist's complete walking cycle
       if (!natural) return;
       const distance = Math.hypot(Number(dx) || 0, Number(dy) || 0);
       walking = !still() && distance > .001;
@@ -5831,8 +5782,12 @@ function pandaSprite(canvas, opts = {}) {
     },
     poke() { idleTicks = 0; if (base === 'nap') wakeUp(); else api.play('happy'); },
     idleFor(ms) { idleTicks = Math.round(ms / TICK); }, // test hook: pretend it has been left alone this long
-    frames: n => ANIM[n].frames.length,
-    draw(name, i = 0) { const a = ANIM[name], p = { ...DEF, ...a.frames[Math.min(i, a.frames.length - 1)] }; render(p, i * .9, i * .3); canvas.dataset.state = name; },
+    frames: n => natural ? ELTHEN.animations[sourceGroup(n)].length : ANIM[n].frames.length,
+    draw(name, i = 0) {
+      const a = ANIM[name], p = { ...DEF, ...a.frames[Math.min(i, a.frames.length - 1)] };
+      sourcePreview = natural ? { group: sourceGroup(name), index: i } : null;
+      render(p, i * .9, i * .3); sourcePreview = null; canvas.dataset.state = name;
+    },
     states: SHOTS,
   };
   readTheme(); baseLeft = ANIM[base].frames[0].d; stillDraw();

@@ -13,6 +13,10 @@ const widget = await readFile(new URL('../public/widget.html', import.meta.url),
 const bookmarkletSource = await readFile(new URL('../bookmarklet.js', import.meta.url), 'utf8');
 const ORIGIN = 'https://pagebot.example.test';
 const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', 'pond', 'orbit', 'void', 'arcade', 'glass', 'clear'];
+// Elthen's original Idle frame 0, translated by (-3, -9) in a transparent 26×26 canvas. Calculated
+// independently from the downloaded PNG, with fully transparent RGB normalized as Canvas does.
+const ELTHEN_IDLE_SHA256 = '8cf80a80b8df1a5857b62e077f26504a9b67c80505fde038d79bb606fe3b69e3';
+const ELTHEN_IDLE_FNV = 784633701;
 let browser;
 before(async () => {
   if (chromium) browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });
@@ -115,11 +119,11 @@ const ink = c => c.evaluate(cv => {
   return { n, x0, y0, x1, y1, w: cv.width, h: cv.height };
 });
 
-browserTest('the quadruped draws every state on a fully transparent canvas and its walking gait follows distance', async t => {
+browserTest('the sourced panda preserves Elthen’s pixels, draws every state transparently, and walks by distance', async t => {
   const f = await fixture(t);
   await f.minimize();
   const cv = f.frame.locator('#petCv');
-  const r = await cv.evaluate(c => {
+  const r = await cv.evaluate(async c => {
     const s = c.sprite, out = {}; let translucent = 0;
     for (const name of s.states) {
       out[name] = [];
@@ -137,16 +141,19 @@ browserTest('the quadruped draws every state on a fully transparent canvas and i
     };
     s.state('idle'); s.walk(0, 0); s.draw('idle', 0);
     const standing = snapshot();
-    s.walk(3, 0); s.draw('idle', 0); const step = snapshot(), facingRight = c.dataset.facing;
+    const sourceHash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', c.getContext('2d').getImageData(0, 0, c.width, c.height).data))].map(n => n.toString(16).padStart(2, '0')).join('');
+    s.walk(5, 0); s.draw('idle', 0); const step = snapshot(), facingRight = c.dataset.facing;
     s.walk(5, 0); s.draw('idle', 0); const next = snapshot();
     s.walk(-3, 0); s.draw('idle', 0); const facingLeft = c.dataset.facing;
     s.walk(0, 0); s.draw('idle', 0);
-    return { out, translucent, states: s.states, standing, step, next, facingRight, facingLeft, stopped: c.dataset.gait };
+    return { out, translucent, states: s.states, standing, sourceHash, step, next, facingRight, facingLeft, stopped: c.dataset.gait };
   });
   for (const name of ['idle', 'working', 'nap', 'locked', 'dangle', 'hop', 'happy', 'shrug', 'wave', 'stretch', 'settle', 'wake', 'blink'])
     assert.ok(r.states.includes(name), name + ' is a state');
-  for (const [name, counts] of Object.entries(r.out)) for (const n of counts) assert.ok(n > 250, `${name} draws a panda (${n} pixels)`);
+  for (const [name, counts] of Object.entries(r.out)) for (const n of counts) assert.ok(n > 100, `${name} draws a panda (${n} pixels)`);
   assert.equal(r.translucent, 0, 'only the opaque panda is drawn: no faint ground shadow or backdrop');
+  assert.equal(r.sourceHash, ELTHEN_IDLE_SHA256, 'the displayed animal is the original downloaded artwork, pixel for pixel');
+  assert.equal(r.standing, ELTHEN_IDLE_FNV);
   assert.notEqual(r.step, r.standing, 'walking changes the standing pose');
   assert.notEqual(r.next, r.step, 'advancing farther changes the leg stride');
   assert.deepEqual([r.facingRight, r.facingLeft, r.stopped], ['right', 'left', 'stand']);
@@ -179,7 +186,7 @@ browserTest('with reduced motion the pet is one still frame; the Animations sett
   const cv = still.frame.locator('#petCv');
   assert.equal(await cv.getAttribute('data-anim'), 'off');
   assert.equal(await cv.getAttribute('data-frames'), null, 'no loop was ever started');
-  assert.ok((await ink(cv)).n > 250);
+  assert.ok((await ink(cv)).n > 100);
   const full = await fixture(t, { reduced: true, store: { pb_motion: 'full' } });
   await full.minimize();
   assert.equal(await full.frame.locator('#petCv').getAttribute('data-anim'), 'on', 'Full animates even when the system asks for less');
@@ -299,7 +306,7 @@ browserTest('answer bubbles and hidden panels stop roaming, and reopening resume
   assert.ok(distance(hidden, resumed) > 5, `the visible pet eventually resumes walking: ${JSON.stringify({ hidden, resumed, visibleState })}`);
 });
 
-browserTest('Minimize on a v13 bookmark sends pet:true and leaves a see-through 80 px frame with crisp 2 px art pixels', async t => {
+browserTest('Minimize on a v13 bookmark sends pet:true and leaves a see-through 80 px frame with crisp 3 px art pixels', async t => {
   const f = await fixture(t);
   await f.minimize();
   const min = (await f.host('min')).at(-1);
@@ -317,7 +324,7 @@ browserTest('Minimize on a v13 bookmark sends pet:true and leaves a see-through 
   assert.deepEqual(await f.frame.locator('#petCv').evaluate(c => {
     const b = c.getBoundingClientRect();
     return [c.width, c.height, b.width, b.height, getComputedStyle(c).imageRendering];
-  }), [40, 40, 80, 80, 'pixelated'], 'native art pixels stay crisp at an integer 2× scale');
+  }), [26, 26, 78, 78, 'pixelated'], 'native art pixels stay crisp at an integer 3× scale');
 });
 
 browserTest('clicking the panda, or Enter and Space on it, opens the panel again; the bookmark still toggles', async t => {
@@ -513,7 +520,7 @@ browserTest('hovering the panda makes it wave and look toward the pointer; left 
   await cv.evaluate(c => c.sprite.idleFor(25000));
   await cv.locator('xpath=self::*[@data-state="nap"]').waitFor({ timeout: 4000 });
   const nap = await ink(cv);
-  assert.ok(nap.n > 250);
+  assert.ok(nap.n > 100);
   await f.page.mouse.move(b.x + b.w / 2, b.y + b.h / 2);
   await cv.locator('xpath=self::*[@data-state="wake" or @data-state="idle"]').waitFor({ timeout: 2000 });
 });
@@ -523,7 +530,7 @@ browserTest('all 14 themes show the whole panda, unclipped, in a see-through fra
     const f = await fixture(t, { reduced: true, theme, store: { pb_theme: theme } });
     await f.minimize();
     const cv = f.frame.locator('#petCv'), r = await ink(cv);
-    assert.ok(r.n > 400, theme + ': drawn');
+    assert.ok(r.n > 100, theme + ': drawn');
     assert.ok(r.x0 >= 1 && r.y0 >= 1 && r.x1 <= r.w - 2 && r.y1 <= r.h - 2, `${theme}: nothing touches the canvas edge (${JSON.stringify(r)})`);
     const st = await f.style();
     assert.deepEqual([st.w, st.h, st.radius, st.shadow], ['80px', '80px', '0px', 'none'], theme);
@@ -532,7 +539,12 @@ browserTest('all 14 themes show the whole panda, unclipped, in a see-through fra
     assert.deepEqual(await f.frame.evaluate(() => ['::before', '::after'].map(p => getComputedStyle(document.body, p).display)), ['none', 'none'], theme + ': no theme texture behind the pet');
     const box = await f.petBox();
     assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.w <= 1280 && box.y + box.h <= 800, theme + ': on screen');
-    // the fur is the panda's own colour whatever the theme
-    assert.equal(await cv.evaluate(c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 0; i < d.length; i += 4) if (d[i + 3] === 255 && d[i] === 217 && d[i + 1] === 85 && d[i + 2] === 43) return true; return false; }), true, theme + ': fur colour');
+    // Themes must preserve the original artist's palette and pixels, rather than tinting the fur.
+    assert.equal(await cv.evaluate(c => {
+      c.sprite.walk(0, 0); c.sprite.draw('idle', 0);
+      let hash = 2166136261;
+      for (const byte of c.getContext('2d').getImageData(0, 0, c.width, c.height).data) hash = Math.imul(hash ^ byte, 16777619);
+      return hash >>> 0;
+    }), ELTHEN_IDLE_FNV, theme + ': original sprite pixels');
   }
 });
