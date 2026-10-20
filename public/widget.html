@@ -64,7 +64,7 @@ body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition:background-color .3
 :root[data-theme=clear] .msg.user{color:var(--accent);font-weight:500}
 :root[data-theme=clear] .go,:root[data-theme=clear] .send{text-shadow:none}
 :root[data-theme=clear] .go svg{filter:none}
-:root[data-theme=clear] #att button{background:var(--accent);color:var(--on-accent);border-color:transparent;text-shadow:none}
+:root[data-theme=clear] #att #rmAtt{background:var(--accent);color:var(--on-accent);border-color:transparent;text-shadow:none}
 /* pop-ups sit over the chat, so they get a plain backing (no blur) to stay legible; the settings sheet, history and PDFs hide the chat behind them instead (see the settings block) */
 :root[data-theme=clear] .menu,:root[data-theme=clear] .rbar,:root[data-theme=clear] #jump,:root[data-theme=clear] .cc{background:var(--pop);text-shadow:none}
 :root[data-theme=clear] .menu svg,:root[data-theme=clear] .rbar svg,:root[data-theme=clear] #jump svg{filter:none}
@@ -162,9 +162,10 @@ body.sheet #jump{display:none}
 #composer{flex:none;padding:0 10px 10px;position:relative}
 .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;transition:border-color .15s}
 .box:focus-within{border-color:var(--focus)}
-#att{position:relative;display:inline-block;margin:8px 0 0 10px}
+#att{display:flex;align-items:center;gap:8px;margin:8px 0 0 10px}
+#att .atp{position:relative;flex:none}
 #att img{display:block;height:48px;max-width:140px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
-#att button{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:2px solid var(--panel);background:var(--text);color:var(--bg);font-size:12px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}
+#att #rmAtt{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:2px solid var(--panel);background:var(--text);color:var(--bg);font-size:12px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}
 #q{display:block;width:100%;resize:none;background:none;border:0;color:var(--text);padding:10px 12px 2px;max-height:140px;min-height:38px;outline:none}
 .bar{display:flex;align-items:center;gap:5px;padding:4px 6px 6px}
 .tb{flex:none;background:none;border:0;color:var(--muted);height:28px;min-width:28px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:3px;padding:0 6px;font-size:12.5px;white-space:nowrap}
@@ -1176,6 +1177,65 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
 }
 @media (pointer:coarse) and (min-width:560px){:root.dense .pill{height:26px}}
 </style>
+<style id="inkstyle">
+/* =====================================================================================================
+   SCREENSHOT ANNOTATION (the ✏ Annotate button on the attached screenshot): one sheet over the whole panel, with the
+   picture in the middle and the tools below it. Everything for it is in this block (see "screenshot annotation" in the
+   script), so the rest of the styles stay as they were.
+   ===================================================================================================== */
+#inkBtn{flex:none;height:26px;padding:0 10px;border-radius:99px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:var(--chip-on);color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap}
+#inkBtn:hover{border-color:var(--accent)}
+#inkBtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#att img{cursor:pointer}
+#att.marked img{border-color:var(--accent)}
+:root[data-theme=clear] #inkBtn{background:var(--pop);text-shadow:none}
+#ink{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;background:var(--bg);color:var(--text);animation:sheetIn .2s cubic-bezier(.2,.8,.2,1)}
+:root[data-theme=glass] #ink{background:var(--pop);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+:root[data-theme=clear] #ink{background:var(--pop);text-shadow:none}
+:root[data-theme=clear] #ink svg{filter:none}
+:root:is([data-theme=glass],[data-theme=clear]) body.ink>:not(#ink){visibility:hidden} /* the chat ghosted through the sheet */
+:root[data-theme=pond] #ink{background-image:var(--ct-pond)}
+:root[data-theme=void] #ink{background-image:var(--ct-void)}
+:root[data-theme=orbit] #ink{background-image:var(--ct-orbit)}
+:root[data-theme=arcade] #ink{background-image:var(--ct-arcade)}
+#ink .inkbar{flex:none;display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line)}
+#ink .inkbar b{flex:1;min-width:0;text-align:center;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ink .inkx{min-height:34px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:none;cursor:pointer;font-weight:550}
+#ink .inkx:hover{border-color:var(--focus)}
+#ink .inkx.pri{background:var(--accent);color:var(--on-accent);border-color:transparent;font-weight:650}
+#ink .inkconf{flex:none;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px 8px;padding:7px 10px;font-size:12.5px;border-bottom:1px solid var(--line);background:var(--chip-on)}
+#ink .inkconf .inkx{min-height:28px;padding:0 10px;font-size:12.5px}
+#ink .inkconf .inkx.bad{border-color:color-mix(in srgb,var(--err) 55%,var(--line));color:var(--err)}
+#ink .inkstage{flex:1;min-height:90px;position:relative;overflow:hidden;background:var(--code)}
+:root[data-theme=glass] #ink .inkstage,:root[data-theme=clear] #ink .inkstage{background:rgba(0,0,0,.32)}
+#ink .inkfit{position:absolute;inset:10px;display:grid;place-items:center}
+#ink .inkbox{position:relative;line-height:0}
+#inkCv{display:block;touch-action:none;cursor:crosshair;border-radius:3px;box-shadow:0 0 0 1px var(--line),0 4px 18px rgba(0,0,0,.35);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#inkCv.sel{cursor:default}
+#inkCv:focus-visible,#ink :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#inkText{position:absolute;margin:0;padding:0;border:0;border-radius:2px;resize:none;overflow:hidden;white-space:pre;background:rgba(127,127,127,.16);outline:1px dashed var(--accent)!important;outline-offset:2px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:700;line-height:1.2;min-width:2ch}
+#ink .inktools{flex:none;border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px;align-items:center}
+#ink .inkrow{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 6px;max-width:100%}
+#ink .inkgrp{display:flex;align-items:center;gap:3px}
+#ink .inkb{flex:none;width:34px;height:34px;border-radius:9px;border:1px solid transparent;background:none;color:var(--muted);display:grid;place-items:center;padding:0;cursor:pointer}
+#ink .inkb svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#ink .inkb:hover:not(:disabled){background:var(--chip-on);color:var(--text)}
+#ink .inkb[aria-checked=true]{background:var(--chip-on);color:var(--text);border-color:var(--accent)}
+#ink .inkb:disabled{opacity:.35;cursor:default}
+#ink .inkb.txt{width:auto;padding:0 10px;font-size:12.5px}
+#ink .inkc{width:28px;height:28px;border-radius:50%;padding:0;border:2px solid color-mix(in srgb,var(--text) 40%,transparent);background:var(--c);cursor:pointer}
+#ink .inkc[aria-checked=true]{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent)}
+:root:is([data-theme=glass],[data-theme=clear]) #ink .inkc[aria-checked=true]{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--accent)}
+#ink .inkz i{display:block;border-radius:50%;background:currentColor}
+#ink .inksep{width:1px;height:22px;background:var(--line);margin:0 2px}
+#ink .inkhint{flex:none;font-size:11.5px;color:var(--muted);text-align:center;padding:0 10px 2px;min-height:15px}
+:root[data-theme=arcade] #ink :is(.inkb,.inkx,.inkc){border-radius:3px}
+:root[data-theme=arcade] #ink .inkc{border-radius:50%}
+:root[data-theme=orbit] #ink :is(.inkhint,.inkconf){font-family:var(--mono)}
+@media (pointer:coarse){#ink .inkb{width:40px;height:40px}#ink .inkc{width:32px;height:32px}#ink .inkx{min-height:40px}}
+@media (max-width:340px){#ink .inkb{width:31px}#ink .inkgrp{gap:1px}#ink .inkrow{gap:4px 4px}}
+@media (min-width:560px){#ink .inktools{padding-bottom:14px}#ink .inkb{width:38px;height:38px}#ink .inkc{width:30px;height:30px}#ink .inkbar{padding:10px var(--gut)}}
+</style>
 </head>
 <body class="booting" tabindex="-1">
 <div id="boot" aria-hidden="true">
@@ -1498,10 +1558,37 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
   <div id="pdfList"></div>
 </div>
 
+<div id="ink" role="dialog" aria-modal="true" aria-label="Annotate screenshot" hidden>
+  <div class="inkbar">
+    <button class="inkx" id="inkCancel" type="button" title="Close without changes (Esc)">Cancel</button>
+    <b>Annotate</b>
+    <button class="inkx pri" id="inkDone" type="button" title="Use this picture with your marks">Done</button>
+  </div>
+  <div class="inkconf" id="inkConf" role="alert" hidden><span>Throw away your marks?</span><button class="inkx" id="inkKeep" type="button">Keep drawing</button><button class="inkx bad" id="inkDiscard" type="button">Discard</button></div>
+  <div class="inkstage" id="inkStage"><div class="inkfit" id="inkFit"><div class="inkbox" id="inkBox">
+    <canvas id="inkCv" tabindex="0" role="img" aria-label="Your screenshot. Draw on it with a mouse, finger or pen. With the keyboard, move the cursor with the arrow keys (Shift for bigger steps) and press Space to start and finish a mark."></canvas>
+    <textarea id="inkText" rows="1" aria-label="Label text (Enter to place it, Shift+Enter for a new line, Esc to cancel)" spellcheck="false" hidden></textarea>
+  </div></div></div>
+  <div class="inkhint" id="inkHint" aria-live="polite"></div>
+  <div class="inktools">
+    <div class="inkrow"><div class="inkgrp" id="inkTools" role="radiogroup" aria-label="Tool"></div></div>
+    <div class="inkrow">
+      <div class="inkgrp" id="inkColors" role="radiogroup" aria-label="Colour"></div><span class="inksep" aria-hidden="true"></span>
+      <div class="inkgrp" id="inkSizes" role="radiogroup" aria-label="Size"></div>
+    </div>
+    <div class="inkrow">
+      <button class="inkb" id="inkUndo" type="button" title="Undo (Ctrl+Z)" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></svg></button>
+      <button class="inkb" id="inkRedo" type="button" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><svg viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 15-6.7L21 13"/></svg></button>
+      <button class="inkb" id="inkDel" type="button" title="Delete the selected mark (Delete)" aria-label="Delete the selected mark"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+      <button class="inkb txt" id="inkClear" type="button" title="Remove every mark">Clear</button>
+    </div>
+  </div>
+</div>
+
 <div id="composer" hidden>
   <button id="jump" type="button" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>Jump to latest</button>
   <div class="box">
-    <div id="att" hidden><img alt=""><button id="rmAtt" type="button" title="Remove image" aria-label="Remove image">×</button></div>
+    <div id="att" hidden><span class="atp"><img alt="" title="Click to draw on it"><button id="rmAtt" type="button" title="Remove image" aria-label="Remove image">×</button></span><button id="inkBtn" type="button" title="Draw on this screenshot before you send it">✏ Annotate</button></div>
     <textarea id="q" rows="1" placeholder="Ask about this page…" aria-label="Message"></textarea>
     <div class="bar">
       <button class="tb" id="addBtn" type="button" title="Screenshot, page text, web search" aria-label="Add" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -1969,7 +2056,7 @@ function setHeader(chat) {
 function hideViews() {
   $('#login').style.display = 'none'; $('#login').classList.remove('leave');
   $('#wait').hidden = true; $('#ban').hidden = true; log.hidden = true; $('#composer').hidden = true; $('#ann').hidden = true; $('#rst').hidden = true; $('#upd').hidden = true;
-  stopWaitPoll(); closeWrap(); closeSlash(); closeHistory(); // lock, logout, an account switch or a ban: history closes and late answers are dropped
+  stopWaitPoll(); closeWrap(); closeSlash(); closeHistory(); inkClose(); // lock, logout, an account switch or a ban: history closes and late answers are dropped
 }
 let chatWho = null; // whose chat is in the log
 const whoKey = () => cfg?.who === 'user' ? 'u:' + (cfg.user?.name || '').toLowerCase() : cfg?.who || null;
@@ -2929,7 +3016,7 @@ function showPast({ chat, messages, earlier }, here) {
   for (const m of messages) {
     if (m.role === 'user') {
       if (m.url) doc = m.url;
-      const u = pastMsg(box, 'user', m.text ? esc(m.text).replace(/\n/g, '<br>') : '<i>(no text)</i>', [m.page && '📄 page', m.image && '📷 screenshot', m.web && '🌐 web'].filter(Boolean).join(' · '));
+      const u = pastMsg(box, 'user', m.text ? esc(m.text).replace(/\n/g, '<br>') : '<i>(no text)</i>', [m.page && '📄 page', m.image && '📷 screenshot', m.annotated && '✏ annotated', m.web && '🌐 web'].filter(Boolean).join(' · '));
       if (m.highlight) {
         const h = el('div', 'hq'), flat = oneLine(m.highlight);
         h.textContent = `✂️ “${flat.length > 200 ? flat.slice(0, 200).trimEnd() + '…' : flat}”`; h.title = flat.length > 600 ? flat.slice(0, 600) + '…' : flat;
@@ -3736,12 +3823,13 @@ function renderSel() {
   fitPills();
 }
 $('#selPill').onclick = () => { selOff = true; renderSel(); $('#q').focus(); };
-function setImg(dataUrl, kind = 'shot') {
+function setImg(dataUrl, kind = 'shot', keepMarks) { // keepMarks: annotating (below) swaps in the marked picture; any other picture drops the old marks
+  if (!keepMarks) inkDrop();
   img = dataUrl; imgKind = kind; $('#att img').src = dataUrl;
   $('#att img').alt = kind === 'region' ? 'Region screenshot' : kind === 'paste' ? 'Pasted image' : 'Screenshot';
-  $('#att').hidden = false;
+  $('#att').hidden = false; inkLabel();
 }
-function clearImg() { img = null; $('#att').hidden = true; $('#att img').removeAttribute('src'); }
+function clearImg() { img = null; $('#att').hidden = true; $('#att img').removeAttribute('src'); inkDrop(); }
 $('#rmAtt').onclick = () => { clearImg(); $('#q').focus(); };
 // region screenshots stay on until you turn them off with the ⛶ Region pill or stop sharing
 const WHOLE = { x: 0, y: 0, w: 1, h: 1, whole: true }; // "Screenshot this tab" keeps going the same way as a region
@@ -3927,6 +4015,394 @@ $('#q').addEventListener('paste', async e => {
   try { const bmp = await createImageBitmap(it.getAsFile()); setImg(toJpeg(bmp, bmp.width, bmp.height), 'paste'); }
   catch { note('Couldn’t read that image.'); }
 });
+
+// ---- screenshot annotation ----
+// ✏ Annotate on the attached screenshot opens a sheet to draw on it. The picture itself is never touched: the marks are a list
+// (positions as fractions of the picture, sizes as fractions of its long edge, so they look the same at any size), and
+// reopening Annotate edits or removes them. Done paints the list onto a copy, and that copy is what gets sent. The original and
+// the marks are kept only while that screenshot is attached (removing it, or taking another, drops them).
+const INK_COLORS = [['Red', '#ff3b30'], ['Yellow', '#ffd60a'], ['Green', '#30d158'], ['Blue', '#0a84ff'], ['White', '#ffffff'], ['Black', '#000000']];
+const INK_SIZES = [['Thin', .004, .022], ['Medium', .0075, .033], ['Thick', .014, .05]]; // line width and text height, as fractions of the long edge
+const INK_MAX = 2000; // long edge of what is sent, so it stays well under the server's 8 MB
+const INK_FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
+const INK_TOOLS = [
+  ['select', 'Select', 'Select: click a mark to pick it, drag to move it, Delete removes it', '<path d="M5 3l14 7-6 2-2 6z"/>'],
+  ['pen', 'Pen', 'Pen: draw freehand', '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'],
+  ['arrow', 'Arrow', 'Arrow: drag from the tail to the point (Shift snaps the angle)', '<path d="M5 19 19 5"/><path d="M9 5h10v10"/>'],
+  ['ellipse', 'Circle', 'Circle or oval: drag across the thing (Shift makes it round)', '<ellipse cx="12" cy="12" rx="9" ry="6.5"/>'],
+  ['rect', 'Rectangle', 'Rectangle: drag across the thing (Shift makes it square)', '<rect x="4" y="5" width="16" height="14" rx="1.5"/>'],
+  ['hl', 'Highlighter', 'Highlighter: a wide see-through stroke', '<path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>'],
+  ['text', 'Text', 'Text label: click where it goes, type, press Enter', '<path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/>'],
+  ['red', 'Redact', 'Redact: a solid black box to hide private information before you send. What is under it is not sent', '<rect x="3" y="7" width="18" height="10" rx="1" fill="currentColor"/>'],
+];
+let ink = null; // the attached screenshot's marks { orig, flat, marks }; flat is the picture Done made, so any other picture means they are stale
+let inkUI = null; // the open sheet
+const inkPrefs = { tool: 'arrow', color: 0, size: 1 }; // what you last picked, kept until the panel reloads
+const inkOn = () => !!(ink && ink.flat === img && ink.marks.length); // the attached picture carries marks
+function inkLabel() { const on = inkOn(); $('#inkBtn').textContent = on ? '✏ Edit marks' : '✏ Annotate'; $('#att').classList.toggle('marked', on); }
+function inkDrop() { inkClose(); ink = null; inkLabel(); }
+function inkBack(a) { if (a && img && a.flat === img) { ink = a; inkLabel(); } } // unsend: the marks come back with the picture
+
+const inkClamp = v => Math.min(1, Math.max(0, v));
+// one mark, painted on a canvas W×H. Also used for the picture that is sent, so it matches the sheet at any size.
+function inkDraw(g, m, W, H) {
+  const L = Math.max(W, H), lw = Math.max(1, m.w * L);
+  g.save(); g.lineCap = g.lineJoin = 'round'; g.strokeStyle = g.fillStyle = m.c; g.lineWidth = lw;
+  if (m.t === 'pen' || m.t === 'hl') {
+    if (m.t === 'hl') { g.globalAlpha = .4; g.lineWidth = lw * 3.5; }
+    const p = m.p.map(q => [q[0] * W, q[1] * H]);
+    if (p.length === 1) { g.beginPath(); g.arc(p[0][0], p[0][1], g.lineWidth / 2, 0, 7); g.fill(); }
+    else {
+      g.beginPath(); g.moveTo(p[0][0], p[0][1]);
+      for (let i = 1; i < p.length - 1; i++) g.quadraticCurveTo(p[i][0], p[i][1], (p[i][0] + p[i + 1][0]) / 2, (p[i][1] + p[i + 1][1]) / 2);
+      g.lineTo(p.at(-1)[0], p.at(-1)[1]); g.stroke();
+    }
+  } else if (m.t === 'arrow') {
+    const ax = m.a[0] * W, ay = m.a[1] * H, bx = m.b[0] * W, by = m.b[1] * H, len = Math.hypot(bx - ax, by - ay);
+    if (len >= 1) {
+      const ang = Math.atan2(by - ay, bx - ax), head = Math.min(len * .6, Math.max(lw * 4.5, L * .03));
+      g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx - Math.cos(ang) * head * .8, by - Math.sin(ang) * head * .8); g.stroke();
+      g.beginPath(); g.moveTo(bx, by);
+      g.lineTo(bx - head * Math.cos(ang - .45), by - head * Math.sin(ang - .45)); g.lineTo(bx - head * Math.cos(ang + .45), by - head * Math.sin(ang + .45));
+      g.closePath(); g.fill();
+    }
+  } else if (m.t === 'ellipse' || m.t === 'rect' || m.t === 'red') {
+    const x = Math.min(m.a[0], m.b[0]) * W, y = Math.min(m.a[1], m.b[1]) * H, w = Math.abs(m.a[0] - m.b[0]) * W, h = Math.abs(m.a[1] - m.b[1]) * H;
+    if (m.t === 'red') { g.fillStyle = '#000'; g.fillRect(x, y, w, h); } // solid, whatever colour is picked
+    else if (m.t === 'rect') { g.lineJoin = 'miter'; g.strokeRect(x, y, w, h); }
+    else if (w >= 1 && h >= 1) { g.beginPath(); g.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, 7); g.stroke(); }
+  } else if (m.t === 'text') {
+    const fs = m.s * L, light = inkLight(m.c);
+    g.font = `700 ${fs}px ${INK_FONT}`; g.textBaseline = 'top'; g.lineWidth = fs * .2; g.strokeStyle = light ? '#000' : '#fff'; // an outline keeps it readable on any picture
+    m.str.split('\n').forEach((line, i) => { const x = m.a[0] * W, y = m.a[1] * H + fs * .1 + i * fs * 1.2; g.strokeText(line, x, y); g.fillText(line, x, y); });
+  }
+  g.restore();
+}
+const inkLight = c => { const n = parseInt(c.slice(1), 16); return ((n >> 16) * .3 + ((n >> 8) & 255) * .59 + (n & 255) * .11) > 140; };
+// the box a mark covers, in canvas pixels [x0, y0, x1, y1]
+function inkBounds(g, m, W, H) {
+  const L = Math.max(W, H), lw = m.w * L;
+  let pts, pad = lw / 2;
+  if (m.t === 'pen' || m.t === 'hl') { pts = m.p; if (m.t === 'hl') pad = lw * 1.75; }
+  else if (m.t === 'arrow') { pts = [m.a, m.b]; pad = Math.max(lw * 4.5, L * .03); }
+  else if (m.t === 'text') {
+    const fs = m.s * L, lines = m.str.split('\n'); g.save(); g.font = `700 ${fs}px ${INK_FONT}`;
+    const w = Math.max(...lines.map(l => g.measureText(l).width)); g.restore();
+    return [m.a[0] * W, m.a[1] * H, m.a[0] * W + w, m.a[1] * H + lines.length * fs * 1.2];
+  } else pts = [m.a, m.b];
+  const xs = pts.map(q => q[0] * W), ys = pts.map(q => q[1] * H);
+  return [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) + pad, Math.max(...ys) + pad];
+}
+const inkSeg = (px, py, ax, ay, bx, by) => { // distance from a point to a line segment
+  const dx = bx - ax, dy = by - ay, t = dx || dy ? Math.min(1, Math.max(0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy))) : 0;
+  return Math.hypot(px - ax - t * dx, py - ay - t * dy);
+};
+// the topmost mark under a point (canvas pixels, tol wide), or -1
+function inkHit(u, g, x, y, W, H, tol) {
+  for (let i = u.marks.length - 1; i >= 0; i--) {
+    const m = u.marks[i], lw = m.w * Math.max(W, H);
+    let hit = false;
+    if (m.t === 'pen' || m.t === 'hl') {
+      const r = Math.max(tol, (m.t === 'hl' ? lw * 1.75 : lw / 2)), p = m.p.map(q => [q[0] * W, q[1] * H]);
+      hit = p.length === 1 ? Math.hypot(x - p[0][0], y - p[0][1]) <= r : p.some((q, j) => j && inkSeg(x, y, p[j - 1][0], p[j - 1][1], q[0], q[1]) <= r);
+    } else if (m.t === 'arrow') hit = inkSeg(x, y, m.a[0] * W, m.a[1] * H, m.b[0] * W, m.b[1] * H) <= Math.max(tol, lw * 2);
+    else if (m.t === 'rect') {
+      const [x0, y0, x1, y1] = inkBounds(g, m, W, H), t = Math.max(tol, lw), px = lw / 2;
+      hit = x >= x0 + px - t && x <= x1 - px + t && y >= y0 + px - t && y <= y1 - px + t && !(x > x0 + px + t && x < x1 - px - t && y > y0 + px + t && y < y1 - px - t);
+    } else if (m.t === 'ellipse') {
+      const cx = (m.a[0] + m.b[0]) / 2 * W, cy = (m.a[1] + m.b[1]) / 2 * H, rx = Math.abs(m.a[0] - m.b[0]) * W / 2 || 1, ry = Math.abs(m.a[1] - m.b[1]) * H / 2 || 1;
+      hit = Math.abs(Math.hypot((x - cx) / rx, (y - cy) / ry) - 1) * Math.min(rx, ry) <= Math.max(tol, lw);
+    } else { const [x0, y0, x1, y1] = inkBounds(g, m, W, H); hit = x >= x0 - tol / 2 && x <= x1 + tol / 2 && y >= y0 - tol / 2 && y <= y1 + tol / 2; }
+    if (hit) return i;
+  }
+  return -1;
+}
+const inkPts = m => m.p || [m.a, m.b].filter(Boolean);
+function inkShift(m, dx, dy) { for (const q of inkPts(m)) { q[0] += dx; q[1] += dy; } }
+
+function inkBuild() { // the tools, colours and sizes, once
+  if ($('#inkTools').children.length) return;
+  const radios = (box, pick) => {
+    box.addEventListener('click', e => { const b = e.target.closest('[role=radio]'); if (b) pick(b); });
+    box.addEventListener('keydown', e => { // a radio group: the chosen one is the tab stop, arrows move between them
+      const dir = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key], all = [...box.querySelectorAll('[role=radio]')], i = all.indexOf(document.activeElement);
+      if (i < 0 || (!dir && e.key !== 'Home' && e.key !== 'End')) return;
+      e.preventDefault(); const b = all[e.key === 'Home' ? 0 : e.key === 'End' ? all.length - 1 : (i + dir + all.length) % all.length]; b.focus(); pick(b);
+    });
+  };
+  const radio = (box, cls, label, tip) => { const b = el('button', cls); b.type = 'button'; b.setAttribute('role', 'radio'); b.setAttribute('aria-label', label); b.title = tip || label; box.appendChild(b); return b; };
+  for (const [k, label, tip, path] of INK_TOOLS) { const b = radio($('#inkTools'), 'inkb', label, tip); b.dataset.k = k; b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${path}</svg>`; }
+  INK_COLORS.forEach(([name, c], i) => { const b = radio($('#inkColors'), 'inkc', name); b.dataset.i = i; b.style.setProperty('--c', c); });
+  INK_SIZES.forEach(([name, w], i) => { const b = radio($('#inkSizes'), 'inkb inkz', name + ' lines and text'); b.dataset.i = i; b.innerHTML = `<i style="width:${4 + i * 4}px;height:${4 + i * 4}px"></i>`; });
+  radios($('#inkTools'), b => inkTool(b.dataset.k));
+  radios($('#inkColors'), b => inkStyle({ color: +b.dataset.i }));
+  radios($('#inkSizes'), b => inkStyle({ size: +b.dataset.i }));
+}
+function inkTool(k) {
+  const u = inkUI; if (!u) return;
+  inkTextCommit(); u.tool = inkPrefs.tool = k; if (k !== 'select') u.sel = -1;
+  inkSync(); inkPaint();
+}
+function inkStyle(o) { // colour or size: for what you draw next, for the selected mark, and for a label being typed
+  const u = inkUI; if (!u) return;
+  Object.assign(u, o); Object.assign(inkPrefs, o);
+  if (u.edit) { inkSync(); return inkTextPlace(); }
+  const m = u.marks[u.sel];
+  if (m && m.t !== 'red') { if (m.t === 'text') { m.c = INK_COLORS[u.color][1]; m.s = INK_SIZES[u.size][2]; } else { m.c = INK_COLORS[u.color][1]; m.w = INK_SIZES[u.size][1]; } inkCommit(); }
+  inkSync(); inkPaint();
+}
+function inkSync() { // the buttons and the hint follow the state
+  const u = inkUI; if (!u) return;
+  const mark = (box, i) => box.querySelectorAll('[role=radio]').forEach((b, j) => { b.setAttribute('aria-checked', String(i === j)); b.tabIndex = i === j ? 0 : -1; });
+  mark($('#inkTools'), INK_TOOLS.findIndex(t => t[0] === u.tool)); mark($('#inkColors'), u.color); mark($('#inkSizes'), u.size);
+  $('#inkUndo').disabled = u.hi === 0; $('#inkRedo').disabled = u.hi >= u.hist.length - 1;
+  $('#inkDel').disabled = u.sel < 0; $('#inkClear').disabled = !u.marks.length;
+  $('#inkCv').classList.toggle('sel', u.tool === 'select');
+  $('#inkHint').textContent = INK_TOOLS.find(t => t[0] === u.tool)[2].replace(/^[^:]*: /, '').replace(/^./, c => c.toUpperCase()) + '.';
+}
+const inkChanged = () => JSON.stringify(inkUI.marks) !== inkUI.loaded;
+function inkCommit() { // a change worth an undo step
+  const u = inkUI, j = JSON.stringify(u.marks);
+  if (j === u.hist[u.hi]) return;
+  u.hist.length = u.hi + 1; u.hist.push(j); u.hi++;
+  if (u.hist.length > 100) { u.hist.shift(); u.hi--; }
+  inkSync(); inkPaint();
+}
+function inkGo(d) { // undo (-1) and redo (+1)
+  const u = inkUI, n = u ? u.hi + d : -1; if (n < 0 || n >= u.hist.length) return;
+  inkTextCommit(); inkCancelDrag();
+  u.hi = n; u.marks = JSON.parse(u.hist[n]); u.sel = -1; inkSync(); inkPaint();
+}
+function inkRemove() { const u = inkUI; if (u && u.sel >= 0) { u.marks.splice(u.sel, 1); u.sel = -1; inkCommit(); inkSync(); inkPaint(); } }
+
+// where the picture sits in the sheet; it fits the space left, whatever the panel's size
+function inkFit() {
+  const u = inkUI; if (!u) return;
+  const f = $('#inkFit'), aw = f.clientWidth, ah = f.clientHeight; if (!aw || !ah) return;
+  const sc = Math.min(aw / u.im.naturalWidth, ah / u.im.naturalHeight), cv = $('#inkCv');
+  u.cssW = Math.max(1, Math.floor(u.im.naturalWidth * sc)); u.cssH = Math.max(1, Math.floor(u.im.naturalHeight * sc));
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  cv.width = Math.min(4096, Math.round(u.cssW * dpr)); cv.height = Math.min(4096, Math.round(u.cssH * dpr));
+  cv.style.width = u.cssW + 'px'; cv.style.height = u.cssH + 'px';
+  inkPaint(); inkTextPlace();
+}
+const inkSoon = () => { if (inkUI && !inkUI.raf) inkUI.raf = requestAnimationFrame(inkPaint); };
+function inkPaint() {
+  const u = inkUI; if (!u) return;
+  u.raf = 0;
+  const cv = $('#inkCv'), g = cv.getContext('2d'), W = cv.width, H = cv.height;
+  g.clearRect(0, 0, W, H); g.drawImage(u.im, 0, 0, W, H);
+  for (const m of u.marks) inkDraw(g, m, W, H);
+  if (u.live) inkDraw(g, u.live, W, H);
+  const k = W / (u.cssW || W); // canvas pixels per CSS pixel
+  const m = u.marks[u.sel];
+  if (m) { // the selected mark: a dashed box
+    const [x0, y0, x1, y1] = inkBounds(g, m, W, H).map((v, i) => v + (i < 2 ? -3 : 3) * k);
+    g.save(); g.lineWidth = 3 * k; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    g.lineWidth = 1.5 * k; g.strokeStyle = '#fff'; g.setLineDash([5 * k, 4 * k]); g.strokeRect(x0, y0, x1 - x0, y1 - y0); g.restore();
+  }
+  if (u.kcShow && document.activeElement === cv) { // the keyboard's cursor
+    const x = u.kc.x * W, y = u.kc.y * H, r = 9 * k;
+    g.save(); for (const [w, c] of [[4 * k, 'rgba(0,0,0,.8)'], [1.8 * k, '#fff']]) { g.lineWidth = w; g.strokeStyle = c; g.beginPath(); g.moveTo(x - r, y); g.lineTo(x + r, y); g.moveTo(x, y - r); g.lineTo(x, y + r); g.stroke(); } g.restore();
+  }
+}
+
+// pointer events carry mouse, touch and pen alike; the position is worked out from where the canvas is on screen, so any size or zoom maps right
+const inkPt = e => { const r = $('#inkCv').getBoundingClientRect(); return { x: inkClamp((e.clientX - r.left) / r.width), y: inkClamp((e.clientY - r.top) / r.height) }; };
+function inkBegin(p, shift) { // starts a mark (or a text box, or a selection) at p; sets u.drag while one is being made
+  const u = inkUI, cv = $('#inkCv'), g = cv.getContext('2d'), W = cv.width, H = cv.height;
+  inkTextCommit(); u.shift = !!shift;
+  if (u.tool === 'select') {
+    u.sel = inkHit(u, g, p.x * W, p.y * H, W, H, 9 * W / u.cssW);
+    if (u.sel >= 0) u.drag = { move: true, last: p };
+    inkSync(); inkPaint(); return;
+  }
+  u.sel = -1; inkSync();
+  if (u.tool === 'text') { inkTextStart(p); return; }
+  const c = INK_COLORS[u.color][1], w = INK_SIZES[u.size][1];
+  if (u.tool === 'pen' || u.tool === 'hl') u.live = { t: u.tool, c, w, p: [[p.x, p.y]] };
+  else u.live = { t: u.tool, c, w, a: [p.x, p.y], b: [p.x, p.y] };
+  u.drag = { start: p }; inkSoon();
+}
+function inkMove(p, shift) {
+  const u = inkUI, d = u?.drag; if (!d) return;
+  u.shift = !!shift;
+  if (d.move) {
+    const m = u.marks[u.sel]; if (!m) return;
+    const xs = inkPts(m).map(q => q[0]), ys = inkPts(m).map(q => q[1]); // a mark stays on the picture
+    const dx = Math.max(-Math.min(...xs), Math.min(1 - Math.max(...xs), p.x - d.last.x)), dy = Math.max(-Math.min(...ys), Math.min(1 - Math.max(...ys), p.y - d.last.y));
+    inkShift(m, dx, dy); d.last = { x: d.last.x + dx, y: d.last.y + dy };
+  } else if (u.live.p) {
+    const last = u.live.p.at(-1);
+    if (Math.abs(p.x - last[0]) * u.cssW + Math.abs(p.y - last[1]) * u.cssH >= 1) u.live.p.push([p.x, p.y]);
+  } else {
+    let b = p;
+    if (shift) {
+      const dx = (p.x - d.start.x) * u.cssW, dy = (p.y - d.start.y) * u.cssH;
+      if (u.live.t === 'arrow') { const ang = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * Math.PI / 4, len = Math.hypot(dx, dy); b = { x: d.start.x + Math.cos(ang) * len / u.cssW, y: d.start.y + Math.sin(ang) * len / u.cssH }; }
+      else { const s = Math.max(Math.abs(dx), Math.abs(dy)); b = { x: d.start.x + (dx < 0 ? -s : s) / u.cssW, y: d.start.y + (dy < 0 ? -s : s) / u.cssH }; }
+    }
+    u.live.b = [inkClamp(b.x), inkClamp(b.y)];
+  }
+  inkSoon();
+}
+function inkEnd() {
+  const u = inkUI, d = u?.drag; if (!d) return;
+  u.drag = null;
+  if (d.move) { inkCommit(); return inkPaint(); }
+  const m = u.live; u.live = null;
+  if (m && (m.p || Math.hypot((m.b[0] - m.a[0]) * u.cssW, (m.b[1] - m.a[1]) * u.cssH) >= 4)) { u.marks.push(m); inkCommit(); }
+  inkSync(); inkPaint();
+}
+function inkCancelDrag() {
+  const u = inkUI; if (!u?.drag) return false;
+  if (u.drag.move) u.marks = JSON.parse(u.hist[u.hi]); // put the moved mark back
+  u.drag = null; u.live = null; inkPaint(); return true;
+}
+
+// text labels: a box on the picture where you type; Enter places it
+function inkTextStart(p) {
+  const u = inkUI, t = $('#inkText');
+  u.edit = { x: p.x, y: p.y }; t.hidden = false; t.value = '';
+  inkTextPlace(); t.focus();
+}
+function inkTextPlace() { // size and position the box to match the label as it will be drawn
+  const u = inkUI, t = $('#inkText'); if (!u?.edit) return;
+  const fs = INK_SIZES[u.size][2] * Math.max(u.cssW, u.cssH), c = INK_COLORS[u.color][1], o = inkLight(c) ? '#000' : '#fff', lines = t.value.split('\n');
+  const g = $('#inkCv').getContext('2d'); g.save(); g.font = `700 ${fs}px ${INK_FONT}`;
+  const w = Math.max(fs, ...lines.map(l => g.measureText(l).width)); g.restore();
+  const x = Math.min(u.edit.x * u.cssW, Math.max(0, u.cssW - w - fs * .5));
+  Object.assign(t.style, { left: x + 'px', top: Math.min(u.edit.y * u.cssH, Math.max(0, u.cssH - fs * 1.2 * lines.length)) + 'px', fontSize: fs + 'px', color: c,
+    width: Math.ceil(w + fs * .5) + 'px', height: Math.ceil(fs * 1.2 * lines.length) + 'px',
+    textShadow: `-1px -1px 0 ${o},1px -1px 0 ${o},-1px 1px 0 ${o},1px 1px 0 ${o}` });
+  t.rows = lines.length;
+}
+function inkTextCommit() {
+  const u = inkUI; if (!u?.edit) return;
+  const t = $('#inkText'), str = t.value.replace(/\s+$/, ''), at = { x: u.edit.x * u.cssW, y: u.edit.y * u.cssH };
+  u.edit = null; t.hidden = true; t.value = '';
+  if (!str) return;
+  const x = Math.min(at.x, Math.max(0, u.cssW - parseFloat(t.style.width || 0))) / u.cssW, y = Math.min(at.y, Math.max(0, u.cssH - parseFloat(t.style.height || 0))) / u.cssH;
+  u.marks.push({ t: 'text', c: INK_COLORS[u.color][1], s: INK_SIZES[u.size][2], a: [x, y], str: str.slice(0, 400) });
+  inkCommit();
+}
+function inkTextCancel() { const u = inkUI; if (!u?.edit) return; u.edit = null; $('#inkText').hidden = true; $('#inkText').value = ''; $('#inkCv').focus(); }
+
+// opening, finishing and closing
+async function inkOpen() {
+  if (view !== 'chat' || !img || inkUI || inkOpening) return;
+  inkOpening = true;
+  const src = img, base = ink && ink.flat === src ? ink : { orig: src, flat: null, marks: [] }, im = new Image();
+  try { im.src = base.orig; await im.decode(); }
+  catch { inkOpening = false; return note('Couldn’t open that picture to draw on.'); }
+  inkOpening = false;
+  if (img !== src || inkUI || view !== 'chat') return;
+  closeMenus(); closeSlash();
+  const marks = JSON.parse(JSON.stringify(base.marks)), j = JSON.stringify(marks);
+  inkUI = { base, im, marks, hist: [j], hi: 0, loaded: j, tool: inkPrefs.tool, color: inkPrefs.color, size: inkPrefs.size, sel: -1, live: null, drag: null, edit: null,
+    kc: { x: .5, y: .5 }, kcShow: false, shift: false, cssW: 0, cssH: 0, raf: 0 };
+  inkBuild();
+  $('#ink').hidden = false; $('#inkConf').hidden = true; body.classList.add('ink');
+  inkSync(); inkFit();
+  if (window.ResizeObserver) (inkUI.ro = new ResizeObserver(inkFit)).observe($('#inkFit'));
+  if (document.hasFocus()) $(`#inkTools [aria-checked=true]`).focus();
+}
+let inkOpening = false;
+function inkClose(back) { // back: hand the keyboard back to the message box
+  const u = inkUI; if (!u) return;
+  u.ro?.disconnect(); cancelAnimationFrame(u.raf); inkUI = null;
+  $('#ink').hidden = true; $('#inkConf').hidden = true; $('#inkText').hidden = true; body.classList.remove('ink');
+  if (back && document.hasFocus()) shown($('#inkBtn')) ? $('#inkBtn').focus() : focusView();
+}
+// the picture that is sent: the original at its own size (the long edge held to INK_MAX) with the marks on it
+function inkFlatten(im, marks) {
+  const k = Math.min(1, INK_MAX / Math.max(im.naturalWidth, im.naturalHeight)), W = Math.max(1, Math.round(im.naturalWidth * k)), H = Math.max(1, Math.round(im.naturalHeight * k));
+  const c = el('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.drawImage(im, 0, 0, W, H);
+  for (const m of marks) inkDraw(g, m, W, H);
+  return c.toDataURL('image/jpeg', 0.85);
+}
+function inkDone() {
+  const u = inkUI; if (!u) return;
+  inkTextCommit(); inkCancelDrag();
+  if (!inkChanged()) return inkClose(true);
+  if (!u.marks.length) { ink = null; setImg(u.base.orig, imgKind, true); } // every mark taken off: the plain screenshot again
+  else { const flat = inkFlatten(u.im, u.marks); ink = { orig: u.base.orig, flat, marks: u.marks }; setImg(flat, imgKind, true); }
+  inkClose(true);
+}
+function inkCancel() { // Cancel and Esc: nothing to lose closes at once; unsaved marks ask first
+  const u = inkUI; if (!u) return;
+  inkTextCommit(); inkCancelDrag();
+  if (!inkChanged()) return inkClose(true);
+  $('#inkConf').hidden = false; $('#inkKeep').focus();
+}
+$('#inkBtn').onclick = inkOpen;
+$('#att img').addEventListener('click', inkOpen);
+$('#inkCancel').onclick = inkCancel; $('#inkDone').onclick = inkDone;
+$('#inkKeep').onclick = () => { $('#inkConf').hidden = true; $('#inkCv').focus(); };
+$('#inkDiscard').onclick = () => inkClose(true);
+$('#inkUndo').onclick = () => inkGo(-1); $('#inkRedo').onclick = () => inkGo(1); $('#inkDel').onclick = inkRemove;
+$('#inkClear').onclick = () => { const u = inkUI; inkTextCommit(); inkCancelDrag(); u.marks = []; u.sel = -1; inkCommit(); inkSync(); inkPaint(); $('#inkCv').focus(); };
+{
+  const cv = $('#inkCv'), txt = $('#inkText');
+  cv.addEventListener('pointerdown', e => {
+    const u = inkUI; if (!u || u.drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    e.preventDefault(); u.kcShow = false; cv.focus({ preventScroll: true });
+    try { cv.setPointerCapture(e.pointerId); } catch {}
+    inkBegin(inkPt(e), e.shiftKey);
+    if (u.drag) u.drag.id = e.pointerId;
+  });
+  cv.addEventListener('pointermove', e => {
+    const d = inkUI?.drag; if (!d || d.id !== e.pointerId) return;
+    for (const c of (e.getCoalescedEvents?.() || []).concat(e)) inkMove(inkPt(c), e.shiftKey);
+  });
+  const up = e => { const d = inkUI?.drag; if (d && d.id === e.pointerId) { if (e.type === 'pointercancel') inkCancelDrag(); else { inkMove(inkPt(e), e.shiftKey); inkEnd(); } } };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('blur', () => inkSoon());
+  // the keyboard draws too: arrows move a cursor (Shift: bigger steps), Space or Enter starts a mark and finishes it
+  cv.addEventListener('keydown', e => {
+    const u = inkUI; if (!u || e.ctrlKey || e.metaKey || e.altKey) return;
+    const s = e.shiftKey ? .05 : .01, d = { ArrowLeft: [-s, 0], ArrowRight: [s, 0], ArrowUp: [0, -s], ArrowDown: [0, s] }[e.key];
+    if (d) {
+      e.preventDefault(); u.kcShow = true; u.kc = { x: inkClamp(u.kc.x + d[0]), y: inkClamp(u.kc.y + d[1]) };
+      if (u.drag?.kb) inkMove(u.kc, false);
+      inkSoon();
+    } else if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault(); u.kcShow = true;
+      if (u.drag?.kb) inkEnd();
+      else if (!u.drag) { inkBegin(u.kc, false); if (u.drag) u.drag.kb = true; }
+      inkSoon();
+    } else if ((e.key === '[' || e.key === ']') && u.tool === 'select' && u.marks.length) { // step through the marks
+      e.preventDefault(); u.sel = (u.sel + (e.key === ']' ? 1 : -1) + u.marks.length) % u.marks.length; inkSync(); inkPaint();
+    }
+  });
+  $('#ink .inktools').addEventListener('mousedown', e => { if (inkUI?.edit && e.target.closest('[role=radio]')) e.preventDefault(); }); // picking a colour doesn't place the label being typed
+  txt.addEventListener('input', inkTextPlace);
+  txt.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); inkTextCommit(); $('#inkCv').focus(); }
+  });
+  txt.addEventListener('blur', () => { if (inkUI?.edit) inkTextCommit(); });
+}
+// keys while the sheet is open (captured first, so Esc doesn't also close the panel or history)
+addEventListener('keydown', e => {
+  if (!inkUI) return;
+  const inText = e.target === $('#inkText'), mod = e.ctrlKey || e.metaKey, stop = () => { e.preventDefault(); e.stopPropagation(); };
+  if (e.key === 'Escape') {
+    if (e.isComposing) return;
+    stop();
+    if (inText) inkTextCancel();
+    else if (!$('#inkConf').hidden) { $('#inkConf').hidden = true; $('#inkCv').focus(); }
+    else if (!inkCancelDrag()) inkCancel();
+  } else if (mod && !e.altKey && !inText && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) { stop(); inkGo(e.key.toLowerCase() === 'y' || e.shiftKey ? 1 : -1); }
+  else if ((e.key === 'Delete' || e.key === 'Backspace') && !inText && inkUI.sel >= 0) { stop(); inkRemove(); }
+  else if (e.key === 'Tab') { // the sheet is modal: Tab goes round inside it
+    const all = [...$('#ink').querySelectorAll('button:not(:disabled), textarea:not([hidden]), canvas')].filter(x => shown(x) && x.tabIndex >= 0);
+    if (!all.length) return;
+    const i = all.indexOf(document.activeElement), n = e.shiftKey ? (i <= 0 ? all.length - 1 : i - 1) : (i < 0 || i === all.length - 1 ? 0 : i + 1);
+    stop(); all[n].focus();
+  }
+}, true);
 
 // ---- pdf uploads ----
 // A PDF (only a PDF) uploads on its own as soon as you pick, drop or paste it, then goes with your next message as a
@@ -4297,7 +4773,7 @@ async function send() {
   if (!plan.cmd && !plan.text && !img && !area && !page && !selection && !pdfAtt) { busy = false; return; }
 
   $('#sendBtn').disabled = true; setStatus();
-  if (area && !img) { // screenshots are on: a new shot of the same area (or the whole tab) goes with this message
+  if (area && !img) { // (a screenshot already attached, marked up or not, is this message's, so none is taken over it) screenshots are on: a new shot of the same area (or the whole tab) goes with this message
     const captureArea = area;
     try { const shot = await shootArea(captureArea); if (stale()) return cancelPreparing(); setImg(shot, captureArea.whole ? 'shot' : 'region'); }
     catch (e) {
@@ -4313,7 +4789,7 @@ async function send() {
   if (plan.cmd && text.length > 8000) { cancelPreparing(); return void slashHint(`That’s too long once /${plan.cmd.name} is filled in (8,000 characters at most).`); }
   const acting = actsOn();
   const webNow = !!prefs.web || !!plan.web;
-  const tags = [page && '📄 page', selection && '✂️ highlighted', img && (imgKind === 'region' ? '📷 region' : imgKind === 'paste' ? '🖼 image' : '📷 screenshot'), webNow && '🌐 web', acting && '🖱 actions'].filter(Boolean).join(' · ');
+  const tags = [page && '📄 page', selection && '✂️ highlighted', img && (imgKind === 'region' ? '📷 region' : imgKind === 'paste' ? '🖼 image' : '📷 screenshot'), img && inkOn() && '✏ annotated', webNow && '🌐 web', acting && '🖱 actions'].filter(Boolean).join(' · ');
   const u = addMsg('user', text ? esc(text).replace(/\n/g, '<br>') : '<i>(no text)</i>', tags);
   if (plan.cmd) cmdTag(u, plan.cmd.name);
   if (img) { const im = el('img', 'thumb'); im.src = img; u.appendChild(im); }
@@ -4321,16 +4797,16 @@ async function send() {
   if (sentPdf) u.appendChild(pdfChip(sentPdf));
   const pdfBack = () => { if (sentPdf && !pdfAtt && !pdfUp) { setPdf(sentPdf); setChatPdf(hadPdf); } };
 
-  const sent = { text: plan.typed, img, imgKind, pageOn, sel: !!selection }; // unsend puts back what was typed, command and all
+  const sent = { text: plan.typed, img, imgKind, pageOn, sel: !!selection, ink }; // unsend puts back what was typed, command and all
   // cite: this page can find quoted passages, so ask for numbered quotes
-  const reqBody = { conversationId: convId, message: text, page, site: normalizeMemorySite(info?.page?.url) || null, selection, image: img, model: prefs.model, web: webNow, cite: pageV7, actions: acting, pdf: sentPdf?.id };
+  const reqBody = { conversationId: convId, message: text, page, site: normalizeMemorySite(info?.page?.url) || null, selection, image: img, model: prefs.model, web: webNow, cite: pageV7, actions: acting, pdf: sentPdf?.id, annotated: img && inkOn() ? true : undefined };
   q.value = ''; autosize(); clearImg(); setPage(false);
   if (sentPdf) { setPdf(null); setChatPdf(true); }
   if (selection) selOff = true; // it's in the chat now; a new highlight brings the pill back
   renderSel();
   const unsend = () => {
     u.remove(); bot.remove(); if (!log.querySelector('.msg')) empty();
-    q.value = sent.text; autosize(); if (sent.img) setImg(sent.img, sent.imgKind); setPage(sent.pageOn);
+    q.value = sent.text; autosize(); if (sent.img) { setImg(sent.img, sent.imgKind); inkBack(sent.ink); } setPage(sent.pageOn);
     if (sent.sel) { selOff = false; renderSel(); }
     pdfBack();
   };

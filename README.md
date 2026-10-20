@@ -81,7 +81,7 @@ Enter your `ADMIN_TOKEN`. The admin page has five tabs:
 - **Activity**: every question, newest first, with who asked, the model, the site, tokens and cost.
   - Filter by range, person, model, or kind (page text, highlight, screenshot, web search, declined, stopped, fallback), and search the questions and page addresses.
   - Click a question to see it in full: the highlighted text, the page it came from, the PDF that came with it (its name, pages and whether the file is still stored; never its contents), the steps it took on the page if it used page actions, and the answer.
-  - A question can carry several small tags at once: Page, Highlight, Screenshot, a 📄 PDF name, Web, 🖱 Page actions, Fallback, Declined, Stopped, and **Removed from history**.
+  - A question can carry several small tags at once: Page, Highlight, Screenshot, ✏ Annotated (marks drawn on the screenshot), a 📄 PDF name, Web, 🖱 Page actions, Fallback, Declined, Stopped, and **Removed from history**.
   - Chats someone removed from their history are marked **Removed from history**. Removing doesn't erase anything: you still see the question, the answer and the usage here.
   - Export the matching questions as CSV, up to 5,000.
 - **Devices**:
@@ -114,6 +114,7 @@ What people ask (and the answers) is stored and shows up under Activity, along w
 - The **+** button under the message box has everything you can add:
   - **Screenshot this tab**, or **Screenshot a region** to drag a box over just the part you mean. The panel hides itself while the shot is taken. You can also paste any image with Ctrl/Cmd+V.
   - Screenshots stay on after the first one (shown as a 📷 Screen or ⛶ Region pill): every message you send takes a new shot of the whole tab, or of the same area. Take a different kind of screenshot to switch, or click the pill to turn it off.
+  - **✏ Annotate** (on the little preview of an attached screenshot, or click the preview itself) lets you draw on it before you send, so the question can be “what does this mean?” with an arrow or circle on the thing. See **Annotating a screenshot** below.
   - Chrome asks to share the tab the first time. Sharing then stays on, even when you close the panel, until you choose **Stop sharing this tab** in the + menu or Chrome's own Stop sharing button.
   - **Upload a PDF** (a 📄 pill with its name and page count): pick a file, or drop one anywhere on the panel (a dashed outline shows where), or paste one with Ctrl/Cmd+V. See **PDFs** just below.
   - **Page text** sends the page along. It's on for the first message of each chat (shown as a 📄 Page pill) and off after that, since the page stays in the chat history anyway.
@@ -178,6 +179,22 @@ What people ask (and the answers) is stored and shows up under Activity, along w
 - You log in once per site, and it's remembered there. With a passcode set (yours, or an account's own), the panel locks itself after the idle time you chose, or right away with the 🔒 button.
 
 Updating from an older version? Drag the button from the homepage to your bookmarks bar again to get smoother dragging and resizing, faster quote lookup, and lighter page requests when Page text is off. Old bookmarks still work, but only newer ones work the half-window size out from the window itself (version 11; older bookmarks still get the bigger panel, sized from your screen instead: half its width and about 72% of its height, and the docked sidebar 40% of its width, only until you resize it) and get the stricter page-action checks (version 10), resizing, docking, the ✂️ highlight pill, "show me where" quotes, and page actions (older bookmarks include highlighted text without a pill). Older ones also miss the see-through Glass on every site and the shadow-free Clear (with older ones they turn solid grey on dark-mode sites like Google's), and (for the oldest ones) moving, minimizing, and full-page region shots.
+
+## Annotating a screenshot
+
+Once a screenshot (taken or pasted) is attached, **✏ Annotate** on its preview, or a click on the preview, opens a sheet over the whole panel with the picture in the middle and the tools under it. It works at any panel size, docked, in `/chat` and in the pop-up, and with every theme. It needs no extra software and nothing is sent anywhere while you draw.
+
+- **Tools**: **Select** (pick a mark, drag it, or press Delete), **Pen** (freehand), **Arrow**, **Circle** (an oval; Shift makes it round), **Rectangle** (Shift makes it square), **Highlighter** (a wide see-through stroke), **Text** (click where it goes, type, press Enter; Shift+Enter starts a new line, Esc drops it; it has a light or dark outline so it reads on any picture) and **Redact**.
+- **Redact** fills a solid black box. Use it to hide private information (names, card numbers, emails) before you send: whatever's under a black box isn't in the picture that goes, and the model is told black boxes cover private information.
+- **Look**: six colours (red to start, then yellow, green, blue, white, black) and three sizes. Picking a colour or size with a mark selected changes that mark.
+- **Undo and redo** (Ctrl/Cmd+Z, and Ctrl/Cmd+Shift+Z or Ctrl+Y), **Clear** (also undoable), **Cancel** (or Esc) and **Done**. Cancel closes at once if you haven't changed anything; if you have, it asks whether to throw your marks away (Esc on that question means keep drawing).
+- **Mouse, finger or pen** all draw. The marks stay where you put them whatever the panel's size, and if you resize the window the picture refits.
+- **Keyboard**: the tools, colours and sizes are radio groups (arrow keys move within one, Tab moves between them) and Tab stays inside the sheet. On the picture, the arrow keys move a cursor (Shift for bigger steps) and Space or Enter starts and finishes a mark; with **Select**, `[` and `]` step through the marks and Delete removes one. Animations follow your motion setting.
+- **Done** replaces the screenshot with the marked-up picture, and the preview shows it. The original and your marks are kept as a list while that screenshot stays attached, so **✏ Edit marks** (the button's name once there are marks) brings them back to change or delete one. Taking a different screenshot, or removing this one with its ×, throws the marks away.
+- The picture that's sent is a JPEG at the screenshot's own size (never more than 2000 pixels on the long side), so it's far below the 8 MB limit. Your message gets a small ✏ annotated tag next to the 📷 one, and its thumbnail is the marked-up picture.
+- **With “screenshots stay on”**: an annotated screenshot goes with your very next message and, for that one message, the automatic new shot is skipped (it would have thrown your marks away). After that the 📷 Screen or ⛶ Region pill goes back to taking a fresh shot with each message. To mark up the next message's shot, take it yourself first (**+** → Screenshot this tab, or `/screenshot`), draw, then send. If you stop an answer before the model replies, the marked-up picture and its marks come back with your message.
+- **What the model is told**: the request carries `annotated: true` and the question gets one extra line, `<annotated_screenshot>The user drew on this screenshot (arrows, circles, highlights, labels and black boxes); the marks show what they mean. Black boxes cover private information.</annotated_screenshot>`, after any highlight and before what you typed. Only the flattened picture is sent; the marks themselves are never stored, and, like any screenshot, the picture isn't kept either. On follow-ups the model gets a note that the earlier screenshot had marks drawn on it (but not the line, since the picture is gone).
+- The tag can't be forged: if a message or a highlight contains it, it's escaped like the page and highlight tags. History and the admin Activity tab show your question without the line (Activity adds an **✏ Annotated** tag, and chat history a ✏ annotated tag on the question).
 
 ## Page actions
 
