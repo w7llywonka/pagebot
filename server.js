@@ -63,6 +63,12 @@ const MAX_PASSCODE_FAILS = 10; // wrong passcodes within PASSCODE_WINDOW; then o
 const PASSCODE_WINDOW = 24 * 3600_000; // a right passcode doesn't wipe earlier wrong ones; they expire after a day
 const LOGIN_FAILS_PER_IP = 30; // wrong logins one address gets per hour (on top of 10 tries a minute)
 const OWNER_FAILS_PER_HOUR = 200; // wrong owner passwords from everywhere before password logins pause
+const MIN_PASSWORD = 8; // new passwords, for accounts and the owner alike (ones saved when accounts could use 6 keep working)
+// Rate limits. Every request an address makes counts toward REQUESTS_PER_MIN, whatever it's for; each route then has its own,
+// tighter limit. The counters themselves have a ceiling too, so a flood can't fill the server's memory with them.
+const REQUESTS_PER_MIN = clampInt(process.env.REQUESTS_PER_MIN || 900, 60, 100_000);
+const PAGES_PER_MIN = 120; // the pages themselves: the homepage, the panel, /chat and /admin
+const MAX_RATE_KEYS = clampInt(process.env.MAX_RATE_KEYS || 100_000, 10, 10_000_000);
 const MAX_ANNOUNCEMENT = 500;
 const MAX_MEMORY_SITES = 100;
 const MAX_MEMORY_INSTRUCTIONS = 4000;
@@ -187,6 +193,15 @@ CREATE TABLE IF NOT EXISTS sessions (
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_id BIGINT REFERENCES users(id) ON DELETE CASCADE;
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip TEXT;
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ua TEXT;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS device TEXT; -- the browser it was made in (hashed), so signing a device out also makes it forget its passcode
+-- Browsers that have signed in with the full password. A 5-digit passcode only works in one of these (see PASSWORD_FIRST).
+CREATE TABLE IF NOT EXISTS passcode_browsers (
+  device TEXT NOT NULL,
+  user_id BIGINT REFERENCES users(id) ON DELETE CASCADE, -- NULL is the owner
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS passcode_browsers_idx ON passcode_browsers (device, COALESCE(user_id, 0));
+CREATE INDEX IF NOT EXISTS passcode_browsers_user_idx ON passcode_browsers (COALESCE(user_id, 0));
 CREATE TABLE IF NOT EXISTS conversations (
   id BIGSERIAL PRIMARY KEY,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -545,6 +560,23 @@ async function noteDevice(req, name) {
   if (d && name) await pool.query(`INSERT INTO user_devices(device, username) VALUES ($1, lower($2))
     ON CONFLICT (device, username) DO UPDATE SET seen_at = now()`, [d, name]);
 }
+// Passcodes: five digits are quick to type and quick to guess, so one only works in a browser that has already signed in with
+// the full password, as that person. Anywhere else the answer is "use your password", before the passcode is even looked at:
+// guessing from outside gets nowhere, can't use up the real person's tries, and can't tell which accounts exist or have one.
+const PASSWORD_FIRST = 'Sign in with your password in this browser first. After that, your passcode unlocks it.';
+// userId is an account's id, or null for the owner. It has to be said which: a missing id must never come out as "the owner".
+const whose = userId => { if (userId === undefined) throw new Error('whose browser?'); return userId; };
+async function trustBrowser(req, userId) {
+  const d = deviceOf(req), id = whose(userId);
+  if (d) await pool.query('INSERT INTO passcode_browsers(device, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [d, id]);
+}
+async function browserTrusted(req, userId) {
+  const d = deviceOf(req), id = whose(userId);
+  return !!d && (await pool.query('SELECT 1 FROM passcode_browsers WHERE device = $1 AND COALESCE(user_id, 0) = $2', [d, id ?? 0])).rowCount > 0;
+}
+// signed out everywhere, or the password changed: every browser (except `keep`, the one doing it) needs the password again
+const forgetBrowsers = (userId, keep = null) => pool.query(
+  'DELETE FROM passcode_browsers WHERE COALESCE(user_id, 0) = $1 AND ($2::text IS NULL OR device <> $2)', [whose(userId) ?? 0, keep]);
 // a termination in force (or one that ran its course) keeps its username, and the browsers it used, from signing up again
 const TERMINATED = `SELECT 1 FROM bans t WHERE t.kind = 'terminate' AND t.lifted_at IS NULL`;
 const markBanSeen = id => pool.query('UPDATE bans SET seen_at = now() WHERE id = $1 AND seen_at IS NULL', [id]);
@@ -600,23 +632,55 @@ function adminOk(req) {
 // ---------- middleware ----------
 // sliding-window counters (in memory): requests per address, and wrong logins
 const hits = new Map();
-function take(key, max, win) { // counts a hit unless the window is already full
-  const now = Date.now(), e = hits.get(key) || { win, t: [] };
+let swept = 0;
+function sweep(now = Date.now()) { swept = now; for (const [k, e] of hits) if (!e.t.some(t => now - t < e.win)) hits.delete(k); }
+function take(key, max, win, keep) { // counts a hit unless the window is already full
+  const now = Date.now();
+  let e = hits.get(key);
+  if (!e) {
+    // At the ceiling, expired counters are cleared out (at most every few seconds); if it's still full, a request that would
+    // need a new counter is turned away until there's room, rather than let through uncounted. Wrong-login counts
+    // (max = Infinity) are always kept, and so is the owner (keep), who has to be able to get into /admin during a flood.
+    if (hits.size >= MAX_RATE_KEYS && now - swept > 5000) sweep(now);
+    if (hits.size >= MAX_RATE_KEYS && max !== Infinity && !keep) return false;
+    e = { win, t: [] };
+  }
   e.t = e.t.filter(t => now - t < win);
   hits.set(key, e);
   if (e.t.length >= max) return false;
   e.t.push(now); return true;
 }
 const recent = key => { const e = hits.get(key), now = Date.now(); return e ? e.t.filter(t => now - t < e.win).length : 0; };
-const limit = (max, bucket, win = 60_000) => (req, res, next) => take(bucket + ':' + req.ip, max, win) ? next()
-  : res.status(429).json({ error: win > 60_000 ? 'Too many requests from here — try again later.' : 'Too many requests — wait a minute.' });
-setInterval(() => { const now = Date.now(); for (const [k, e] of hits) if (!e.t.some(t => now - t < e.win)) hits.delete(k); }, 300_000).unref();
+// One connection, one counter. A whole IPv6 /64 belongs to a single line or phone, which can use any address in it, so it
+// counts as one address (otherwise every limit here could be sidestepped by hopping between them); ::ffff:1.2.3.4 is 1.2.3.4.
+function ipKey(ip) {
+  ip = String(ip || '').split('%')[0].toLowerCase();
+  const v4 = /^(?:::ffff:)?(\d{1,3}(?:\.\d{1,3}){3})$/.exec(ip);
+  if (v4) return v4[1];
+  if (!ip.includes(':')) return ip || 'unknown';
+  const groups = part => part ? part.split(':').flatMap(g => g.includes('.') ? ['0', '0'] : [g]) : [];
+  const [head, tail] = ip.split('::'), h = groups(head), t = groups(tail);
+  const all = tail == null ? h : [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill('0'), ...t];
+  return all.slice(0, 4).map(g => (parseInt(g, 16) || 0).toString(16)).join(':') + '::/64';
+}
+const addr = req => ipKey(req.ip);
+// a "slow down" says how long until the next request will get through
+function tooMany(res, key, win) {
+  const e = hits.get(key), wait = e?.t.length ? Math.ceil((e.t[0] + win - Date.now()) / 1000) : 60;
+  return res.status(429).set('Retry-After', String(Math.min(Math.max(wait, 1), Math.ceil(win / 1000))))
+    .json({ error: win > 60_000 ? 'Too many requests from here — try again later.' : 'Too many requests — wait a minute.' });
+}
+const limit = (max, bucket, win = 60_000) => (req, res, next) => {
+  const key = bucket + ':' + addr(req);
+  return take(key, max, win, adminOk(req)) ? next() : tooMany(res, key, win);
+};
+setInterval(sweep, 300_000).unref();
 
 // wrong passwords and passcodes: each address gets LOGIN_FAILS_PER_IP an hour, and a flood of wrong owner
 // passwords from many addresses pauses owner password logins until it dies down
-const tooManyFails = req => recent('fail:' + req.ip) >= LOGIN_FAILS_PER_IP;
+const tooManyFails = req => recent('fail:' + addr(req)) >= LOGIN_FAILS_PER_IP;
 function noteFail(req, owner) {
-  take('fail:' + req.ip, Infinity, 3600_000);
+  take('fail:' + addr(req), Infinity, 3600_000);
   if (owner) take('fail:owner', Infinity, 3600_000);
 }
 const FAILS_MSG = 'Too many wrong tries from here. Try again later.';
@@ -647,8 +711,8 @@ async function touchSession(tok, lock, ip) {
 // the browser and address are kept so /admin can list signed-in devices
 async function newSession(userId, req) {
   const token = crypto.randomBytes(32).toString('base64url');
-  await pool.query('INSERT INTO sessions(token_hash, user_id, ip, ua) VALUES($1, $2, $3, $4)',
-    [sha256(token), userId, req.ip || null, String(req.get('user-agent') || '').slice(0, 300) || null]);
+  await pool.query('INSERT INTO sessions(token_hash, user_id, ip, ua, device) VALUES($1, $2, $3, $4, $5)',
+    [sha256(token), userId, req.ip || null, String(req.get('user-agent') || '').slice(0, 300) || null, deviceOf(req)]);
   return token;
 }
 async function auth(req, res, next) {
@@ -673,9 +737,9 @@ function trusted(req, res, next) {
 // The admin page makes plenty of requests, so the per-minute cap is generous; wrong tokens are what's limited:
 // 20 per address every 10 minutes.
 function admin(req, res, next) {
-  if (recent('adminfail:' + req.ip) >= 20) return res.status(429).json({ error: 'Too many wrong admin tokens from here. Try again in a few minutes.' });
+  if (recent('adminfail:' + addr(req)) >= 20) return res.status(429).set('Retry-After', '600').json({ error: 'Too many wrong admin tokens from here. Try again in a few minutes.' });
   if (adminOk(req)) return next();
-  if (ADMIN_TOKEN.length >= 16) take('adminfail:' + req.ip, Infinity, 600_000);
+  if (ADMIN_TOKEN.length >= 16) take('adminfail:' + addr(req), Infinity, 600_000);
   res.status(401).json({ error: ADMIN_TOKEN.length < 16 ? 'ADMIN_TOKEN env var is not set on the server (min 16 chars).' : 'Wrong admin token' });
 }
 
@@ -687,22 +751,41 @@ setInterval(() => purgeTerminated().catch(e => console.error('purge error:', e.m
 // ---------- app ----------
 const app = express();
 app.set('trust proxy', 1);
+app.set('case sensitive routing', true); // /API/chat is not /api/chat: the checks below go by the address as written
 app.disable('x-powered-by');
+// The bookmarklet points back at the address you opened the homepage from, which always reaches this server.
+// Only a plain host name is accepted, and the page isn't stored by caches, so a forged header only affects its own response.
+const HOST_RE = /^(?:[a-z0-9-]+\.)*[a-z0-9-]+(?::\d{1,5})?$/i;
 app.use((req, res, next) => {
-  res.set({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' });
+  res.set({
+    'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
+    'X-Robots-Tag': 'noindex, nofollow, noarchive', // nothing here belongs in a search engine
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()', // none of it is ever used
+  });
   if (req.secure) res.set('Strict-Transport-Security', 'max-age=15552000');
-  if (req.path.startsWith('/api/')) res.set('Cache-Control', 'no-store');
+  // API answers are data: they are never stored, never run or framed, and never handed to another site's page
+  if (req.path.startsWith('/api/')) res.set({ 'Cache-Control': 'no-store', 'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+    'X-Frame-Options': 'DENY', 'Cross-Origin-Resource-Policy': 'same-origin' });
   next();
 });
+// A proxy in front (Railway's) says how the visitor arrived. Plain http is sent to https before anything else happens, and
+// anything other than opening a page is refused, so a password or a session never travels over an unencrypted connection.
+// (A request that reaches the server directly, like local development or the platform's health check, carries no such note.)
+app.use((req, res, next) => {
+  if (String(req.get('x-forwarded-proto') || '').split(',')[0].trim().toLowerCase() !== 'http' || req.path === '/health') return next();
+  if ((req.method === 'GET' || req.method === 'HEAD') && HOST_RE.test(req.host || '') && req.originalUrl.startsWith('/'))
+    return res.redirect(308, `https://${req.host}${req.originalUrl}`);
+  res.status(403).json({ error: 'Use https.' });
+});
+// Everything counts: each address gets REQUESTS_PER_MIN requests a minute in total (pages, the API, addresses that don't
+// exist, all of it), checked before a request's body is read.
+app.use(limit(REQUESTS_PER_MIN, 'all'));
 // small bodies everywhere; a question with a screenshot can be big, so /api/chat reads its body only after checking the login,
 // and so does /api/pdf (a raw PDF, not JSON)
 // (a page action's result can carry the page's text, so /api/chat/act reads its own body after the login check too)
 const chatJson = express.json({ limit: '12mb' }), smallJson = express.json({ limit: '64kb' }), actJson = express.json({ limit: '8mb' });
 app.use((req, res, next) => req.path === '/api/chat' || req.path === '/api/chat/act' || req.path === '/api/pdf' ? next() : smallJson(req, res, next));
 
-// The bookmarklet points back at the address you opened the homepage from, which always reaches this server.
-// Only a plain host name is accepted, and the page isn't stored by caches, so a forged header only affects its own response.
-const HOST_RE = /^(?:[a-z0-9-]+\.)*[a-z0-9-]+(?::\d{1,5})?$/i;
 const publicOrigin = req => `${req.protocol === 'https' ? 'https' : 'http'}://${HOST_RE.test(req.host || '') ? req.host : process.env.RAILWAY_PUBLIC_DOMAIN || 'localhost'}`;
 
 const escHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -728,7 +811,7 @@ function sendPage(res, file, { frames = "'none'", html = s => s, headers = {} } 
     'Content-Security-Policy': `default-src 'self'; script-src ${c.scripts}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; ` +
       `media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors ${frames}`,
     'Cache-Control': 'no-cache',
-    ...(frames === "'none'" && { 'Cross-Origin-Opener-Policy': 'same-origin' }),
+    ...(frames === "'none'" && { 'Cross-Origin-Opener-Policy': 'same-origin', 'X-Frame-Options': 'DENY' }),
     ...headers,
   }).type('html').send(html(c.html));
 }
@@ -736,7 +819,8 @@ function sendPage(res, file, { frames = "'none'", html = s => s, headers = {} } 
 // The homepage is only the button to drag to the bookmarks bar, on purpose. It doesn't say what the bookmark does and it doesn't
 // link to /chat or /admin: people who were invited already know, and whoever else lands here learns nothing from it. What keeps
 // them out is the panel's sign-in (and, for accounts, the owner accepting them in /admin), not this page being quiet.
-app.get(['/', '/install'], (req, res) => {
+const pages = limit(PAGES_PER_MIN, 'page');
+app.get(['/', '/install'], pages, (req, res) => {
   const origin = publicOrigin(req);
   const code = bookmarkletSrc.replaceAll('__ORIGIN__', origin).replaceAll('__VERSION__', VERSION).replace(/\n\s*/g, '');
   const href = 'javascript:' + encodeURIComponent(code);
@@ -746,13 +830,15 @@ app.get(['/', '/install'], (req, res) => {
   });
 });
 // the panel loads inside any site's page (that's what the bookmarklet does); everything else refuses to be framed
-app.get('/widget', (req, res) => sendPage(res, 'widget.html', { frames: '*' }));
-app.get('/chat', (req, res) => sendPage(res, 'widget.html'));
-app.get('/admin', (req, res) => sendPage(res, 'admin.html'));
+app.get('/widget', pages, (req, res) => sendPage(res, 'widget.html', { frames: '*' }));
+app.get('/chat', pages, (req, res) => sendPage(res, 'widget.html'));
+app.get('/admin', pages, (req, res) => sendPage(res, 'admin.html'));
+app.get('/robots.txt', pages, (req, res) => res.type('text/plain').send('User-agent: *\nDisallow: /\n'));
 
-app.get('/health', async (req, res) => {
+// for the platform's health check: that the server and its database are up, and nothing about what runs here
+app.get('/health', limit(120, 'health'), async (req, res) => {
   await pool.query('SELECT 1');
-  res.json({ ok: true, version: VERSION, models: Object.fromEntries(Object.entries(MODELS).map(([k, m]) => [k, m.id])) });
+  res.json({ ok: true, version: VERSION });
 });
 
 // everything the panel needs to start: theme and how to unlock for anyone, the rest once signed in
@@ -762,10 +848,12 @@ app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
   const s = tok ? await touchSession(tok, cfg.lock, req.ip) : null;
   const u = s?.user || null;
   const accountsExist = cfg.signup || (await pool.query(`SELECT 1 FROM users WHERE status <> 'pending' LIMIT 1`)).rowCount > 0;
+  // the number pad is only offered where the passcode can work: in a browser that has signed in with the owner password
+  const pad = cfg.lock.on && cfg.passwordSet && await browserTrusted(req, null);
   const out = {
     version: VERSION, // panels opened from an older bookmark point to the homepage for the new one
     theme: prefsFor(cfg, u).theme,
-    lock: cfg.lock.on ? 'passcode' : cfg.passwordSet ? 'password' : 'none',
+    lock: pad ? 'passcode' : cfg.passwordSet ? 'password' : 'none',
     passwordSet: cfg.passwordSet,
     accounts: { on: accountsExist, signup: cfg.signup },
     authed: !!s,
@@ -801,7 +889,8 @@ app.post('/api/signup', limit(5, 'signup'), limit(30, 'signup-hour', 3600_000), 
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{2,23}$/.test(name))
     return res.status(400).json({ error: 'Pick a username of 3–24 letters, numbers, dots, dashes or underscores.' });
   if (RESERVED_NAMES.has(name.toLowerCase())) return res.status(400).json({ error: 'That username is taken.' });
-  if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'Use a password with at least 6 characters.' });
+  if (pw.length < MIN_PASSWORD || pw.length > 200) return res.status(400).json({ error: `Use a password with at least ${MIN_PASSWORD} characters.` });
+  if (pw.toLowerCase() === name.toLowerCase()) return res.status(400).json({ error: 'Pick a password that isn’t your username.' });
   if ((await pool.query(`${TERMINATED} AND lower(t.username) = lower($1)`, [name])).rowCount) return res.status(409).json({ error: 'That username is taken.' });
   const dev = deviceOf(req);
   if (dev && (await pool.query(`${TERMINATED} AND lower(t.username) IN (SELECT username FROM user_devices WHERE device = $1)`, [dev])).rowCount)
@@ -817,6 +906,7 @@ app.post('/api/signup', limit(5, 'signup'), limit(30, 'signup-hour', 3600_000), 
     throw e;
   }
   await noteDevice(req, name);
+  await trustBrowser(req, id); // the password was just chosen here
   res.json({ token: await newSession(Number(id), req) });
 });
 
@@ -842,6 +932,8 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
     if (b.passcode != null) {
       const code = String(b.passcode);
       if (!/^\d{5}$/.test(code)) return res.status(400).json({ error: 'Enter all 5 digits.' });
+      // only in a browser this account has signed in to with its password; the answer is the same whoever is asked about
+      if (!(await browserTrusted(req, u?.id ?? -1))) { noteFail(req); return res.status(401).json({ error: PASSWORD_FIRST, usePassword: true }); }
       if (!u?.passcode_hash) { noteFail(req); return res.status(401).json({ error: 'There’s no passcode on this account. Sign in with your password.', usePassword: true }); }
       // Same rules as the owner's passcode: count the attempt before checking it, so parallel guesses can't slip past
       // the cap, and wrong guesses stay on record for a day even if the right passcode is used in between.
@@ -859,16 +951,21 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
       if (!u || !ok) { noteFail(req); return res.status(401).json({ error: 'Wrong username or password.' }); }
     }
     if (u.status === 'blocked') return res.status(403).json({ error: 'This account has been turned off.' });
-    if (b.passcode == null) await pool.query('UPDATE users SET passcode_fails = 0, passcode_fails_at = NULL WHERE id = $1', [u.id]); // the password clears wrong passcodes
+    if (b.passcode == null) {
+      await pool.query('UPDATE users SET passcode_fails = 0, passcode_fails_at = NULL WHERE id = $1', [u.id]); // the password clears wrong passcodes
+      await trustBrowser(req, u.id); // and from now on this browser can use the passcode
+    }
     if (old) await pool.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(old)]);
     await noteDevice(req, String(b.username).trim());
     return res.json({ token: await newSession(Number(u.id), req) });
   }
   const cfg = await loadConfig();
   if (b.passcode != null) {
-    if (!cfg.lock.on) return res.status(400).json({ error: 'No passcode is set — use your password.', usePassword: true });
     const code = String(b.passcode);
     if (!/^\d{5}$/.test(code)) return res.status(400).json({ error: 'Enter all 5 digits.' });
+    // like an account's: only in a browser that has signed in with the owner password
+    if (!(await browserTrusted(req, null))) { noteFail(req); return res.status(401).json({ error: PASSWORD_FIRST, usePassword: true }); }
+    if (!cfg.lock.on) return res.status(400).json({ error: 'No passcode is set — use your password.', usePassword: true });
     // Count the attempt before checking it, so parallel guesses can't slip past the cap. Wrong guesses stay on
     // record for a day even if the right passcode is used in between; hitting the cap needs the password.
     const now = Date.now();
@@ -895,6 +992,7 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
     if (!stored) return res.status(503).json({ error: 'No password set yet — set one at /admin.' });
     if (!password || !(await verifyPw(password, stored))) { noteFail(req, true); return res.status(401).json({ error: 'Wrong password' }); }
     await setSetting('passcode_fails', '0'); // the password clears wrong passcodes
+    await trustBrowser(req, null); // and from now on this browser can use the passcode
   }
   if (old) await pool.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(old)]);
   res.json({ token: await newSession(null, req) });
@@ -904,6 +1002,9 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
 app.post('/api/logout', limit(30, 'logout'), async (req, res) => {
   const tok = bearer(req);
   if (tok) await pool.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(tok)]);
+  // "Log out" (unlike locking) also makes this browser forget its passcode, for whoever used it: next time it's the password
+  const d = req.body?.forget === true && deviceOf(req);
+  if (d) await pool.query('DELETE FROM passcode_browsers WHERE device = $1', [d]);
   res.json({ ok: true });
 });
 
@@ -1044,13 +1145,16 @@ app.post('/api/account/password', limit(10, 'login'), auth, async (req, res) => 
   if (!u) return res.status(400).json({ error: 'Change the owner password in /admin.' });
   const b = req.body || {};
   const pw = String(b.password || '');
-  if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'Use a password with at least 6 characters.' });
+  if (pw.length < MIN_PASSWORD || pw.length > 200) return res.status(400).json({ error: `Use a password with at least ${MIN_PASSWORD} characters.` });
+  if (pw.toLowerCase() === u.name.toLowerCase()) return res.status(400).json({ error: 'Pick a password that isn’t your username.' });
   const row = (await pool.query('SELECT password_hash FROM users WHERE id=$1', [u.id])).rows[0];
   if (!(await verifyPw(String(b.current || ''), row.password_hash))) { noteFail(req); return res.status(401).json({ error: 'Your current password is wrong.' }); }
   // the passcode goes too: it would otherwise sign the devices this signs out straight back in
   const r = await pool.query('UPDATE users SET password_hash=$2, passcode_hash=NULL, passcode_fails=0, passcode_fails_at=NULL WHERE id=$1 RETURNING *',
     [u.id, await hashPw(pw)]);
   await pool.query('DELETE FROM sessions WHERE user_id=$1 AND token_hash <> $2', [u.id, sha256(bearer(req))]);
+  await forgetBrowsers(u.id, deviceOf(req)); // the other browsers need the new password before a passcode works in them again
+  await trustBrowser(req, u.id);
   const nu = toUser(r.rows[0]);
   res.json({ ok: true, user: publicUser(nu), lockMinutes: userLockMinutes(nu) });
 });
@@ -1076,6 +1180,7 @@ app.post('/api/account/passcode', limit(10, 'login'), auth, trusted, async (req,
     // 400, not 401: the panel treats 401 as "signed out"
     if (!(await verifyPw(String(b.current || ''), row.password_hash))) { noteFail(req); return res.status(400).json({ error: 'Your password is wrong.' }); }
     Object.assign(set, { passcode_hash: await hashPw(code), passcode_fails: 0, passcode_fails_at: null });
+    await trustBrowser(req, u.id); // the password was just given here, so the new passcode works in this browser
   }
   const keys = Object.keys(set);
   if (!keys.length) return res.status(400).json({ error: 'Nothing to change.' });
@@ -2433,8 +2538,11 @@ app.get('/api/admin/sessions', limit(300, 'admin'), admin, async (req, res) => {
 });
 app.delete('/api/admin/sessions/:id', limit(300, 'admin'), admin, async (req, res) => {
   if (!/^[0-9a-f]{64}$/.test(req.params.id)) return res.status(400).json({ error: 'Bad device id.' });
-  const r = await pool.query('DELETE FROM sessions WHERE token_hash = $1', [req.params.id]);
+  const r = await pool.query('DELETE FROM sessions WHERE token_hash = $1 RETURNING user_id, device', [req.params.id]);
   if (!r.rowCount) return res.status(404).json({ error: 'That device is already signed out.' });
+  // and its passcode stops working there: that browser needs the password again
+  const { user_id, device } = r.rows[0];
+  if (device) await pool.query('DELETE FROM passcode_browsers WHERE device = $1 AND COALESCE(user_id, 0) = $2', [device, user_id ?? 0]);
   res.json({ ok: true });
 });
 
@@ -2563,7 +2671,7 @@ app.post('/api/admin/users/:id', limit(300, 'admin'), admin, async (req, res) =>
   if (typeof b.adminNote === 'string') set.admin_note = b.adminNote.trim().slice(0, 300) || null;
   if (b.password != null) {
     const pw = String(b.password);
-    if (pw.length < 6 || pw.length > 200) return res.status(400).json({ error: 'The new password needs at least 6 characters.' });
+    if (pw.length < MIN_PASSWORD || pw.length > 200) return res.status(400).json({ error: `The new password needs at least ${MIN_PASSWORD} characters.` });
     // a reset also removes their passcode, which would otherwise still sign them in
     Object.assign(set, { password_hash: await hashPw(pw), passcode_hash: null, passcode_fails: 0, passcode_fails_at: null });
     signOut = true;
@@ -2572,7 +2680,10 @@ app.post('/api/admin/users/:id', limit(300, 'admin'), admin, async (req, res) =>
   if (keys.length) {
     await pool.query(`UPDATE users SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`, [id, ...keys.map(k => set[k])]);
   }
-  if (signOut) await pool.query('DELETE FROM sessions WHERE user_id=$1', [id]);
+  if (signOut) {
+    await pool.query('DELETE FROM sessions WHERE user_id=$1', [id]);
+    await forgetBrowsers(id); // signed out everywhere means the password everywhere, not just the passcode
+  }
   res.json({ ok: true });
 });
 
@@ -2699,9 +2810,10 @@ app.delete('/api/admin/announcement', limit(300, 'admin'), admin, async (req, re
 app.post('/api/admin/password', limit(300, 'admin'), admin, async (req, res) => {
   const pw = String(req.body?.password || '');
   // this password unlocks unlimited use from anywhere, so it gets a longer minimum than account passwords
-  if (pw.length < 8 || pw.length > 200) return res.status(400).json({ error: 'Use at least 8 characters for the owner password.' });
+  if (pw.length < MIN_PASSWORD || pw.length > 200) return res.status(400).json({ error: `Use at least ${MIN_PASSWORD} characters for the owner password.` });
   await setSetting('password_hash', await hashPw(pw));
   const r = await pool.query('DELETE FROM sessions WHERE user_id IS NULL'); // only devices using the owner password
+  await forgetBrowsers(null); // and the owner passcode waits for the new password in each browser
   res.json({ ok: true, signedOut: r.rowCount });
 });
 
@@ -2718,6 +2830,8 @@ app.post('/api/admin/passcode', limit(300, 'admin'), admin, async (req, res) => 
   } else if (b.passcode != null) {
     const code = String(b.passcode);
     if (!/^\d{5}$/.test(code)) return res.status(400).json({ error: 'The passcode must be exactly 5 digits.' });
+    // a passcode only unlocks browsers that have signed in with the password, so it's no use without one
+    if (!(await getSetting('password_hash'))) return res.status(400).json({ error: 'Set an access password first. The passcode only unlocks browsers that have signed in with it.' });
     await setSetting('passcode_hash', await hashPw(code));
     await setSetting('passcode_fails', '0');
   }
@@ -2734,7 +2848,14 @@ app.post('/api/admin/limits', limit(300, 'admin'), admin, async (req, res) => {
 
 app.post('/api/admin/signout-all', limit(300, 'admin'), admin, async (req, res) => {
   const r = await pool.query('DELETE FROM sessions');
+  await pool.query('DELETE FROM passcode_browsers'); // everyone, the owner too, signs in with a password next
   res.json({ ok: true, signedOut: r.rowCount });
+});
+
+// Anything else: nothing is here. Someone trying addresses gets the same short answer each time, and soon a "slow down".
+app.use(limit(60, 'notfound'), (req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
+  res.status(404).type('text/plain').send('Not found');
 });
 
 app.use((err, req, res, next) => {

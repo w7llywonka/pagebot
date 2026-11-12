@@ -42,6 +42,7 @@ Optional variables:
 | `PDF_STORAGE_MB` | `100` | How much uploaded-PDF storage each person (the owner counts as a person) can keep at once, in MB. Fractions work (`0.5`). Going over it turns the upload down with a note to delete a PDF. See **PDFs**. |
 | `SYSTEM_PROMPT` | built in | Replaces the default instructions. |
 | `SESSION_DAYS` | `30` | How long a login lasts without use. Applies to accounts, and to you when no passcode is set. |
+| `REQUESTS_PER_MIN` | `900` | How many requests of any kind one address can make in a minute, on top of each route's own limit. Lower it for a small group; raise it if many people share one address (a school or office network) and see "Too many requests". |
 
 ## Admin (`/admin`)
 
@@ -97,9 +98,9 @@ Enter your `ADMIN_TOKEN`. The admin page has five tabs:
 - **Settings**:
   - **Limits per question**: max tokens per answer (any number from 256 to 100,000), how much page text gets sent, and how many web searches one question can run. Accounts can pick a shorter answer length in their own settings, but never more than this.
   - **Passcode lock**: set a 5-digit passcode and choose how long the panel can sit idle before it locks (1 minute to 1 day, or never).
-    - With a passcode set, the panel shows a number pad instead of the password box.
+    - It's a quick unlock, not a second password: it only works in a browser where you've already signed in with the access password. That browser then shows a number pad instead of the password box. A new browser, a site you haven't used the panel on, or one you logged out of asks for the password once first. So set the access password before the passcode.
     - Wrong passcodes count for 24 hours, even if the right one is entered in between. After 10, only the password can unlock it.
-  - **Access password**: at least 8 characters. Changing it signs out every device you're logged in on. Accounts stay signed in.
+  - **Access password**: at least 8 characters. Changing it signs out every device you're logged in on, and each one needs the new password before your passcode works there again. Accounts stay signed in.
 
 What people ask (and the answers) is stored and shows up under Activity, along with the browser and address each device signs in from. The sign-up screen tells people the owner can see their questions and usage.
 
@@ -108,7 +109,7 @@ What people ask (and the answers) is stored and shows up under Activity, along w
 - Click the bookmark to open the panel. Click it again to hide it. Esc closes it.
 - The panel takes the keyboard only when you open it with the bookmark. An answer arriving, a screenshot, or a lock never pulls your typing out of the page or another tab, and closing or minimizing the panel gives the keyboard back to the page.
 - **Signing in**: while sign-ups are open (or anyone has an account), the panel opens on **Sign in**. As the owner, leave the username blank and type your password. After that, on that site, the panel goes straight to your passcode (if you set one). New people choose **Create an account**, pick a username and password, and can leave a note for you. Until you accept them, they see a screen saying they're waiting to be accepted into the program, and the panel opens up by itself once you do.
-- **Passcodes for everyone**: anyone with an account can set their own 5-digit passcode in ⚙ Settings (it asks for their password) and pick how long the panel can sit idle before it locks. Their panel then locks like yours, and that site shows their number pad. Wrong passcodes count for 24 hours, even if the right one is entered in between. After 10, only their password works.
+- **Passcodes for everyone**: anyone with an account can set their own 5-digit passcode in ⚙ Settings (it asks for their password) and pick how long the panel can sit idle before it locks. Their panel then locks like yours, and that site shows their number pad. Like yours, it only unlocks a browser they've already signed in to with their password; anywhere else they type the password once first. **Log out** makes that browser forget the passcode (🔒 doesn't). Wrong passcodes count for 24 hours, even if the right one is entered in between. After 10, only their password works. New passwords need at least 8 characters and can't be the username.
 - **Drag the top bar** to move the panel anywhere on the page. It remembers where you put it on each site.
 - **Resize** by dragging the panel's left or top edge, or its top-left corner. The ▯ button next to minimize **docks** it to the right side as a full-height sidebar (drag its left edge to change the width); press it again to float it. Size and docking are remembered on each site.
 - **Size**: the panel opens big, about half of your window (50% as wide and 80% as tall, tucked into the bottom-right corner), so there's room to read. The first time on a site that's whatever your window works out to, never narrower than 360 pixels or wider than the window, and on a phone-sized window it simply fills it. Docked, the sidebar opens about 40% as wide as the window (at least 420 pixels). Once you resize or dock it on a site, that choice wins from then on. A big panel lays itself out for the room: answers sit in a comfortable reading column (up to about 760 pixels wide, centred, with the panel's background filling the rest), the type and spacing grow with the panel's own width, the message box gets roomier, and history shows two columns of chats. Narrow, docked and small panels keep the compact layout they always had. `/chat` and the pop-up window use the whole window the same way (⚙ Settings fills the window there too, with its two panes in a centred column). The pop-up now opens at about half your screen too.
@@ -240,14 +241,30 @@ Under the hood it's Anthropic's **browser use toolset** (`browser_toolset_202608
   - An answer that's stopped partway (you press stop, close the panel, or reload the page) stops there, but what it used still counts: the whole question, the answer so far, and any web searches it ran.
   - A question that wouldn't fit in what's left of the day is turned down ("That's more than what's left of today"), and the answer length is capped to fit. Accounts are only ever told this in words and percentages, never in tokens or dollars.
 - **Chat history**: you only ever see your own chats; asking for someone else's looks the same as asking for one that doesn't exist. Removing a chat hides it from your history only (the owner can still read it under Activity), and a removed chat can't be continued. Search is limited (30 a minute, one at a time per person, three seconds at most) so a long history can't slow everyone else down.
+- **Who can reach what**:
+  - Six API routes answer someone who isn't signed in, because signing in needs them: what the lock screen should show, sign-up, sign-in, sign-out, and the two a banned person's notice uses. Every other route answers "not logged in" and nothing else.
+  - An account that hasn't been accepted can change its own password and wait. Everything that asks, reads or stores (chat, history, PDFs, memory, commands) refuses it until you accept it in `/admin`.
+  - `/admin`'s routes take the admin token only. No panel session opens them, not even yours.
+  - `/health` says the server is up and which version it is. The pages themselves (`/`, `/chat`, `/admin`) can be opened by anyone, but they hold no data: everything they show comes from the routes above.
+  - An address that isn't there gets a plain "Not found", whether it's `/.env` or a made-up API route.
 - **Logins**:
   - Each address gets 10 tries a minute and 30 wrong logins an hour, and 20 wrong admin tokens every 10 minutes.
   - After 200 wrong owner passwords in an hour from anywhere, owner password logins pause until it dies down. Devices already signed in and the passcode keep working.
-  - Passwords are stored as scrypt hashes, and sessions as hashes of random tokens.
+  - **A passcode only works in a browser that has signed in with the password.** Five digits can be guessed, so from anywhere else the answer is "sign in with your password first", before the passcode is even looked at. Guessing from outside gets nowhere, can't use up the real person's 10 tries, and can't tell which accounts exist or have a passcode. Logging out, being signed out in `/admin` (one device or everywhere), and a changed password all make a browser need the password again.
+  - Passwords are stored as scrypt hashes, and sessions as hashes of random tokens. New passwords need at least 8 characters and can't be the username.
+- **Rate limits**: everything is limited per address, and a "slow down" answer says how many seconds to wait.
+  - Every route has its own limit (sign-in 10 a minute, sign-up 5 a minute and 30 an hour, chat 60 a minute, and so on).
+  - The pages are limited too (120 a minute), and so are the health check and addresses that don't exist (60 a minute, so scanning for files gets cut off quickly).
+  - On top of that, each address gets 900 requests a minute in total (`REQUESTS_PER_MIN`), checked before a request's body is even read.
+  - A whole IPv6 /64 counts as one address, so hopping between the addresses of one connection doesn't get around any of it.
+  - The counters themselves have a ceiling, so a flood from a huge number of addresses can't fill the server's memory. At the ceiling, new addresses are turned away until it passes; the admin token still gets through.
+  - The limits live in the server's memory: they reset when it restarts, and they assume one copy of the server behind one proxy, which is how Railway runs it.
+- **In transit**: plain `http` is sent to `https` and nothing but opening a page is answered over it, so a password or a session never travels unencrypted. Browsers are told to stay on `https` for six months.
+- **Other sites and search engines**: API answers can't be framed, run, cached, or read by another site's page. Every answer asks search engines not to index it, and `/robots.txt` turns crawlers away.
 - **PDF uploads**: the upload route needs a signed-in, accepted account and is rate limited (20 a minute and 120 an hour per address). It reads the file only after that check, and only a body that starts with `%PDF-` is kept, whatever its content type says. Counting a file's pages is done in a single pass with a fixed budget for unpacking, so a file built to be slow to read can't hold up the server. Everyone only ever sees their own uploads, and a PDF can only be used in the chat it first went with. Each person's stored PDFs are capped (`PDF_STORAGE_MB`), checked and saved together under a per-person lock so quick parallel uploads can't squeeze past it, and listing or deleting your PDFs is scoped to you (someone else's id is a plain 404) and rate limited. The owner sees a PDF's name and size in Activity, never its contents.
 - **The panel itself**:
   - Every page runs only its own scripts and talks only to this server.
-  - Only `/widget` can be embedded in other sites.
+  - Only `/widget` can be embedded in other sites. (That's what the bookmark does, so it can't be turned off. A site you've signed in on could show the panel without you clicking the bookmark; it still can't read what's in it.)
   - Answers are shown as text with simple formatting, never as raw HTML.
   - Slash commands only run from what you type in the message box (or a list row or chip you click). Page text, highlights and answers can't run them, and no command turns a permission on (`/actions` only switches page actions on or off for you, and never touches **Skip all permissions**).
 - **Page actions**: password, payment card and file fields are off limits to the model whatever the settings, a question has at most 40 steps, and clicks that leave the page (or open another site in a new tab) always ask. A step's result can only be sent back by the session that asked for it, with a random id that is only good once. See **Page actions** above.

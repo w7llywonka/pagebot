@@ -469,6 +469,25 @@ browserTest('Account: the name, change password and passcode forms open, and Log
   await f.frame.locator('#outBtn').click();
   await f.frame.locator('#login').waitFor({ state: 'visible' });
   assert.equal(f.reqs('/api/logout').length, 1);
+  assert.deepEqual(f.reqs('/api/logout')[0].body, { forget: true }, 'Log out tells the server to stop taking this browser’s passcode');
+});
+
+// a passcode only works in a browser that signed in with the password; locking keeps that, logging out gives it up
+browserTest('Lock keeps the number pad for this browser; Log out goes back to the password', async t => {
+  const locked = await fixture(t, { width: 720, user: { passcode: true } });
+  await locked.frame.locator('#lockBtn').click();
+  await locked.frame.locator('#pad').waitFor({ state: 'visible' });
+  assert.deepEqual(locked.reqs('/api/logout').map(r => r.body), [{ forget: false }]);
+  assert.match(await locked.frame.locator('#lockSub').innerText(), /Enter your passcode, Maya/);
+
+  const out = await fixture(t, { width: 720, user: { passcode: true } });
+  await out.opens(); await out.go('account');
+  await out.frame.locator('#outBtn').click();
+  await out.frame.locator('#login').waitFor({ state: 'visible' });
+  assert.deepEqual(out.reqs('/api/logout').map(r => r.body), [{ forget: true }]);
+  assert.equal(await out.vis('#pad'), false, 'no number pad: the passcode would be refused here now');
+  assert.equal(await out.vis('#uPass'), true);
+  assert.deepEqual(out.state.errors, []);
 });
 
 browserTest('About: version, update strip and the keyboard shortcuts cheat sheet', async t => {
