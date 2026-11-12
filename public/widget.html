@@ -1509,7 +1509,7 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
             <div class="card pd">
               <form class="pwform" id="pwForm" hidden>
                 <input id="pwCur" type="password" placeholder="Current password" autocomplete="current-password" aria-label="Current password">
-                <input id="pwNew" type="password" placeholder="New password (6+ characters)" autocomplete="new-password" aria-label="New password">
+                <input id="pwNew" type="password" placeholder="New password (8+ characters)" autocomplete="new-password" aria-label="New password">
                 <div class="acct"><button class="ghost pri" type="submit">Save password</button><button class="ghost" id="pwCancel" type="button">Cancel</button><span class="fine" id="pwMsg"></span></div>
               </form>
               <div class="acct" id="pwBtns"><button class="ghost" id="pwChange" type="button" hidden>Change password</button><span class="rh">Signs out your other devices.</span></div>
@@ -2403,12 +2403,15 @@ $('#banOut').onclick = () => logout();
 // any request that finds the account banned brings up the notice
 const onBanned = () => loadBoot().then(() => route()).catch(() => {});
 
-function lock(msg) {
-  if (token) fetch('/api/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }).catch(() => {});
+// forget: this is "Log out", not a lock. The server then stops taking a passcode from this browser until the password is used
+// here again, so the number pad isn't offered either.
+function lock(msg, forget) {
+  if (token || forget) fetch('/api/logout', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Pagebot-Device': device, ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify({ forget: !!forget }) }).catch(() => {});
+  if (forget) { store.set('pb_pin', null); if (cfg?.lock === 'passcode') cfg.lock = cfg.passwordSet ? 'password' : 'none'; }
   token = null; store.set('pb_token', null); resetSiteMemory(); resetCommands(); chatGen++; ctrl?.abort();
   showLogin(msg);
 }
-function logout(msg) { leaveChat(); chatWho = null; annGone = 0; log.innerHTML = ''; clearImg(); clearPdf(); setPage(true); stopStream(); setArea(null); lock(msg); }
+function logout(msg) { leaveChat(); chatWho = null; annGone = 0; log.innerHTML = ''; clearImg(); clearPdf(); setPage(true); stopStream(); setArea(null); lock(msg, true); }
 $('#outBtn').onclick = () => logout();
 $('#lockBtn').onclick = $('#lockNow').onclick = () => lock();
 // stops an answer that's still coming in, so it can't land in (or take over) the next chat
@@ -2704,7 +2707,7 @@ function renderPasscode() {
   $('#pcSec').hidden = !u;
   if (!u) return;
   const on = !!u.passcode;
-  $('#pcState').textContent = !on ? 'Unlock with 5 digits instead of typing your password. pagebot locks itself when it sits idle.'
+  $('#pcState').textContent = !on ? 'Unlock with 5 digits instead of typing your password, in any browser where you’ve already signed in with it. pagebot locks itself when it sits idle.'
     : u.lockMinutes ? `On. pagebot locks after ${lockName(u.lockMinutes)} without activity.` : 'On. pagebot locks only when you press 🔒.';
   $('#pcSet').textContent = on ? 'Change passcode' : 'Set a passcode';
   $('#pcOff').hidden = $('#pcLockRow').hidden = !on;

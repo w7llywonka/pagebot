@@ -500,7 +500,7 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
         <select id="pcLock"></select>
         <div class="btns"><button class="btn" type="submit" id="pcSave">Set passcode</button><button type="button" class="btn ghost" id="pcOff" hidden>Remove passcode</button></div>
         <div class="msg" id="pcMsg"></div>
-        <p class="hint">With a passcode set, the panel shows a number pad instead of the password box, on every site. Wrong passcodes count for 24 hours; after 10, only the password can unlock it.</p>
+        <p class="hint">The passcode is a quick unlock, not a second password. It only works in a browser where you've already signed in with the password: after that, that browser shows a number pad instead of the password box. Anywhere else (a new browser, a site you haven't used the panel on, or after logging out) it asks for the password once first. Wrong passcodes count for 24 hours; after 10, only the password can unlock it.</p>
       </form>
       <form class="card form" id="pwForm" autocomplete="off">
         <div class="cardhead"><h2>Access password</h2></div>
@@ -1559,7 +1559,7 @@ function accountBox(u) {
     blk = button(u.status === 'blocked' ? 'Unblock' : 'Block', 'btn ghost sm' + (u.status === 'blocked' ? '' : ' danger')), rm = button('Delete', 'btn ghost sm danger');
   row.append(reset, out, blk, rm);
   const np = mk('div', 'np'); np.hidden = true;
-  const npIn = mk('input'), npGo = button('Set', 'btn sm'); npIn.type = 'text'; npIn.placeholder = 'New password (6+ characters)'; npIn.setAttribute('aria-label', 'New password');
+  const npIn = mk('input'), npGo = button('Set', 'btn sm'); npIn.type = 'text'; npIn.placeholder = 'New password (8+ characters)'; npIn.setAttribute('aria-label', 'New password');
   np.append(npIn, npGo);
   const act1 = async (body, ok) => {
     try { await send('/api/admin/users/' + u.id, body); await loadUsers(); S.sessions = await api('/api/admin/sessions'); renderPeople(); renderDrawer(); say($('#dwAcct'), true, ok); }
