@@ -733,13 +733,16 @@ function sendPage(res, file, { frames = "'none'", html = s => s, headers = {} } 
   }).type('html').send(html(c.html));
 }
 
+// The homepage is only the button to drag to the bookmarks bar, on purpose. It doesn't say what the bookmark does and it doesn't
+// link to /chat or /admin: people who were invited already know, and whoever else lands here learns nothing from it. What keeps
+// them out is the panel's sign-in (and, for accounts, the owner accepting them in /admin), not this page being quiet.
 app.get(['/', '/install'], (req, res) => {
   const origin = publicOrigin(req);
   const code = bookmarkletSrc.replaceAll('__ORIGIN__', origin).replaceAll('__VERSION__', VERSION).replace(/\n\s*/g, '');
   const href = 'javascript:' + encodeURIComponent(code);
   sendPage(res, 'install.html', {
-    headers: { 'Cache-Control': 'no-store', Vary: 'Host, X-Forwarded-Host, X-Forwarded-Proto' },
-    html: s => s.replaceAll('{{HREF}}', () => escHtml(href)).replaceAll('{{ORIGIN}}', () => escHtml(origin)).replaceAll('{{VERSION}}', VERSION),
+    headers: { 'Cache-Control': 'no-store', Vary: 'Host, X-Forwarded-Host, X-Forwarded-Proto', 'X-Robots-Tag': 'noindex, nofollow, noarchive' },
+    html: s => s.replaceAll('{{HREF}}', () => escHtml(href)).replaceAll('{{VERSION}}', VERSION),
   });
 });
 // the panel loads inside any site's page (that's what the bookmarklet does); everything else refuses to be framed

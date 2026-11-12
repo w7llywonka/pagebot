@@ -71,7 +71,8 @@ test('redesign integration', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL
     assert.match(code, /Math\.round\(vw\*\.5\),360\),vw-32/);
     assert.match(code, /Math\.round\(vh\*\.8\),420\),vh-32/);
     assert.match(code, /Math\.round\(vw\*\.4\),420\),vw-40/);
-    assert.match(html, /fourteen themes/);
+    // around the bookmark itself, the homepage is only the button: it doesn't describe the panel or link to the rest of the site
+    assert.doesNotMatch(html.replace(/ href="[^"]+"/, ''), /themes|screenshot|web search|\/admin|\/chat/i);
   });
 
   await t.test('the owner can pick each new theme; it is saved and comes back on the next boot', async () => {

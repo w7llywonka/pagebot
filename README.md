@@ -21,11 +21,13 @@ You own it and log in with your password or passcode. Other people can create th
    | `TIMEZONE` | Sets when "today" starts in the stats and the usage chart |
 
 4. **Settings → Networking → Generate Domain.**
-5. Open `https://<your-domain>/` — that's the site: drag the button to your bookmarks bar, or use the full-page chat at `/chat`.
+5. Open `https://<your-domain>/` and drag the button to your bookmarks bar. The full-page chat is at `/chat` and the owner's page is at `/admin`; the homepage doesn't link to either.
 
 To generate an admin token: `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"`
 
 The bookmarklet points back at whatever address you opened the homepage from. If you move to a different domain, open the homepage there and drag the button again.
+
+The homepage is only that button, on purpose. It doesn't say what the bookmark does, it doesn't link anywhere, and it asks search engines to leave it out, so someone who lands on it by accident learns nothing. Tell the people you invite what it's for yourself. The quiet page is discretion, not protection: the bookmark's code is still on it for anyone who looks. What keeps people out is the sign-in, and for accounts, you accepting them in `/admin`.
 
 Optional variables:
 
@@ -131,7 +133,7 @@ What people ask (and the answers) is stored and shows up under Activity, along w
   - **Storage cap and deleting**: each person (the owner too) can keep up to `PDF_STORAGE_MB` of PDFs at once, 100 MB unless you change it. Files that are already deleted or past their 30 days don't count. An upload that would go over the cap is turned down with a note saying how much you've used and to delete a PDF, and a **Manage PDFs** button right in that note. You can also open **Your PDFs** any time from the **+** menu (a small **Manage PDFs** link at the bottom) or from the footer of the chat history sheet (**Manage your PDFs**). It's a sheet like history: each PDF with its name, pages, size, upload date and the chat it's in, a bar showing how much of the cap you're using, and a **Delete** button on every row (it asks first). Deleting removes the file for good. The chats it was in keep their messages and show it as “no longer available”, and follow-ups carry a note instead of the file, just as after 30 days. Deleting one that's waiting on your message just clears its pill, and deleting while an answer is coming in doesn't spoil that answer. Settings isn't involved. You can always see and delete your own PDFs, even if PDF uploads are turned off for your account.
   - The owner can always upload PDFs. For accounts, turn **PDF uploads** on or off per person, in the defaults for new people, in bulk, or as part of a timed restriction (**Take away PDF uploads**). It's in the CSV export too. Turning it off also stops chats that already have a PDF in them: a follow-up there is turned down with a note to start a new chat (once a PDF's file is cleared after 30 days, the chat can carry on).
 - The model name next to the send button picks the model: ⚡ Haiku 5.5 is fast and cheap; ✦ Sonnet 5.5 is smarter. With `OPENROUTER_API_KEY` set there's also ◆ Muse Spark 1.3, Meta's model through OpenRouter (the cheapest of the three). Its answers don't point at passages on the page.
-- When a new version of pagebot is out, a panel opened from an older bookmark shows a small strip that links to the homepage, where dragging the button again updates it. The version is under ⚙ Settings → **About** and in the homepage footer.
+- When a new version of pagebot is out, a panel opened from an older bookmark shows a small strip that links to the homepage, where dragging the button again updates it. The version is under ⚙ Settings → **About**.
 - While an answer is coming in, the send button turns into a **stop** button. What arrived so far stays in the chat, and follow-ups can build on it.
 - Scroll up while an answer is coming in and the panel stays where you are. **Jump to latest** takes you back down.
 - A new chat offers one-click starters: **Summarize this page**, **Key points**, and **Explain it simply**, plus any of your own slash commands you chose to show there.
