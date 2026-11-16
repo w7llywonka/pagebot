@@ -41,7 +41,7 @@ button,input,textarea{font:inherit;color:inherit}
 ::placeholder{color:var(--muted);opacity:.85}
 a{color:var(--accent)}
 [hidden]{display:none!important}
-body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition:background-color .35s ease,border-color .35s ease,color .35s ease!important}
+body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition-property:background-color,border-color,color!important;transition-duration:.2s!important}
 
 /* glass surfaces */
 :root[data-theme=glass] body{background:rgba(16,18,26,.28);text-shadow:0 1px 2px rgba(0,0,0,.3);scrollbar-color:rgba(255,255,255,.35) transparent}
@@ -416,17 +416,7 @@ kbd{font:600 11.5px/1.2 var(--mono);padding:3px 7px;border:1px solid var(--line)
 :root:is([data-theme=glass],[data-theme=clear]) #sheet :is(input[type=text],input[type=password],textarea,select,kbd){background:color-mix(in srgb,var(--text) 8%,transparent)}
 :root[data-theme=clear] #sheet svg{filter:none}
 :root[data-theme=clear] #sheet .awarn{background:var(--pop)}
-/* the other themes' touches */
-:root[data-theme=orbit] #sheet :is(.rh,.chead p,.stab small,.sec>h3,.fine,kbd,.kt,.chip,.sw .ds){font-family:var(--mono)}
-:root[data-theme=orbit] #sheet :is(.chead h2,.sh h2,.stab[aria-selected=true]){text-shadow:-1px 0 0 var(--fr),1px 0 0 var(--fb)}
-:root[data-theme=orbit] #sheet :is(.card,#quotaSec,.sw,.aopt,#stabs){border-radius:8px}
-:root[data-theme=orbit] #sheet .stab[aria-selected=true]{box-shadow:inset 2px 0 0 var(--accent)}
-:root[data-theme=arcade] #sheet :is(.card,#quotaSec,.sw,.aopt,#stabs,.stab,.seg,.seg button,input,textarea,select,.ghost,.callout,.wcta){border-radius:3px}
-:root[data-theme=arcade] #sheet .tg{border-radius:3px}
-:root[data-theme=arcade] #sheet .tg::after{border-radius:2px}
-:root[data-theme=arcade] #sheet :is(.chead h2,.sh h2){font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;text-shadow:0 0 10px color-mix(in srgb,var(--accent) 60%,transparent)}
-:root[data-theme=pond] #sheet :is(.card,#quotaSec){box-shadow:inset 0 1px 0 rgba(241,230,210,.07)}
-:root[data-theme=terminal] #sheet{--fs:13px}
+
 
 /* lock screen */
 #login{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px 24px;text-align:center;overflow-y:auto;outline:none}
@@ -832,100 +822,7 @@ body.dragging #pet{cursor:grabbing}
 :root[data-theme=clear] #petSay{background:var(--pop)}
 </style>
 <style id="redesign">
-/* =====================================================================================================
-   REDESIGN: a half-screen panel, four new themes, dithered textures and the pixel loader.
-   Everything for it is in this one block, after the main styles, so each rule here adds to or overrides
-   one above. Settings is left exactly as it was (only the theme picker gains swatches).
-   ===================================================================================================== */
-
-/* ---- ordered-dither tiles (4 x 4 Bayer, drawn at 2px a cell). The m- ones are masks, tinted by whatever colour the element has ---- */
-:root{--m-d12:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM2 2h1v1h-1z' fill='%23000'/%3E%3C/svg%3E");--m-d25:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM2 0h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1z' fill='%23000'/%3E%3C/svg%3E");--m-d50:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM2 0h1v1h-1zM1 1h1v1h-1zM3 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM1 3h1v1h-1zM3 3h1v1h-1z' fill='%23000'/%3E%3C/svg%3E");--m-plus:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath d='M10 12h5v1h-5zM12 10h1v5h-1zM0 0h1v1H0z' fill='%23000'/%3E%3C/svg%3E");
-  --ct-pond:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM2 0h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1z' fill='%234fd6b8' fill-opacity='.16'/%3E%3C/svg%3E");--ct-void:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM2 0h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1z' fill='%23f2914a' fill-opacity='.15'/%3E%3C/svg%3E");--ct-orbit:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath d='M10 12h5v1h-5zM12 10h1v5h-1zM0 0h1v1H0z' fill='%23aab8ff' fill-opacity='.3'/%3E%3C/svg%3E");--ct-arcade:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM2 0h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1z' fill='%23ff5fb0' fill-opacity='.2'/%3E%3C/svg%3E");--ring:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Ccircle cx='300' cy='300' r='262' fill='none' stroke='%23aab8ff' stroke-opacity='.34' stroke-width='5' stroke-linecap='round' stroke-dasharray='0.1 22.86'/%3E%3Ccircle cx='404' cy='62' r='9' fill='%23fff' fill-opacity='.9'/%3E%3Ccircle cx='520' cy='130' r='7' fill='%237b97ff'/%3E%3Ccircle cx='496' cy='146' r='5' fill='%237b97ff' fill-opacity='.7'/%3E%3Ccircle cx='76' cy='420' r='6' fill='%23fff' fill-opacity='.8'/%3E%3C/svg%3E");
-  --m-dn:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAABgCAYAAAA6lNMyAAAASklEQVR42t3QMQoAIRBD0R/vf+exXQKChRNZp0sIrxgBxecGds8X8mL5D3lRpwwPpQ6jZeGhIoYiBi3G5QVRg4jxswXbBhGDNmMCBXBm20gp/mkAAAAASUVORK5CYII=");--m-up:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAABgCAYAAAA6lNMyAAAAS0lEQVR42mNgIAv8Z6Ac/KeCSmqaMURV/CfajP90MeM/Tc2gswpGNBlGupjxny5mMNDEDJqoYEL3OhPBxEuGGUzIAQsToKkZw18AAPpVZtu5u8XOAAAAAElFTkSuQmCC");--ring-s:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Ccircle cx='60' cy='60' r='48' fill='none' stroke='%23aab8ff' stroke-opacity='.55' stroke-width='3' stroke-linecap='round' stroke-dasharray='0.1 7.54'/%3E%3Ccircle cx='93' cy='25' r='6' fill='%23fff'/%3E%3Ccircle cx='14' cy='72' r='4.5' fill='%237b97ff'/%3E%3Ccircle cx='30' cy='98' r='3' fill='%23fff' fill-opacity='.7'/%3E%3C/svg%3E")}
-
-/* ---- the new themes ---- */
-/* pond: a dithered cave pond. Dark brown rock, tan where the light hits, turquoise water */
-:root[data-theme=pond]{color-scheme:dark;--bg:#17120e;--panel:#251d17;--line:#4a3a2d;--text:#f1e6d2;--muted:#bfa98e;--accent:#4fd6b8;--on-accent:#08211b;--user:#1c3a37;--err:#ff9c85;--code:#100c09;--chip-on:#1d3733;--focus:#6fb7a4;--warn:#e8b04a;--tx1:#d9b27c;--tx2:#4fd6b8}
-/* orbit: near-black, a field of faint + marks, a dotted orbit, blue and white, a red/blue fringe on the lettering */
-:root[data-theme=orbit]{color-scheme:dark;--bg:#05060b;--panel:#0c0f18;--line:#222a3f;--text:#e9edf8;--muted:#9aa3bd;--accent:#7b97ff;--on-accent:#050814;--user:#131c40;--err:#ff8585;--code:#030409;--chip-on:#111a3a;--focus:#4d63b3;--warn:#e8b04a;--fr:rgba(255,72,72,.75);--fb:rgba(72,120,255,.85)}
-/* void: muted grey, dithered, an isometric lattice, with orange strings hanging down */
-:root[data-theme=void]{color-scheme:dark;--bg:#24282d;--panel:#30353b;--line:#555b64;--text:#eef0f2;--muted:#bcc2c9;--accent:#f6a05a;--on-accent:#1d1007;--user:#4a3b30;--err:#ffa08c;--code:#1e2227;--chip-on:#4a4035;--focus:#8d949d;--warn:#f2c14a}
-/* arcade: deep purple, neon pink, scanlines, a grid floor and notched corners */
-:root[data-theme=arcade]{color-scheme:dark;--bg:#120a29;--panel:#1c1140;--line:#3d2a78;--text:#f5ecff;--muted:#b9a6e6;--accent:#ff5fb0;--on-accent:#1a0620;--user:#3a1a5e;--err:#ff9a9a;--code:#0c061c;--chip-on:#32185a;--focus:#8f6bff;--warn:#ffd25a}
-
-/* ---- textures: two fixed layers behind the chat, static (no animation), faded out toward the middle so text stays clean ---- */
-:root:is([data-theme=pond],[data-theme=orbit],[data-theme=void],[data-theme=arcade]) body{isolation:isolate}
-:root:is([data-theme=pond],[data-theme=orbit],[data-theme=void],[data-theme=arcade]) body::before,
-:root:is([data-theme=pond],[data-theme=orbit],[data-theme=void],[data-theme=arcade]) body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
-  -webkit-mask-repeat:repeat,no-repeat;mask-repeat:repeat,no-repeat;-webkit-mask-composite:source-in;mask-composite:intersect}
-/* pond: tan light from the top right, turquoise water at the bottom */
-:root[data-theme=pond] body::before{background:var(--tx1);opacity:.3;-webkit-mask-image:var(--m-dn),linear-gradient(to left,#000 10%,transparent 95%);mask-image:var(--m-dn),linear-gradient(to left,#000 10%,transparent 95%);-webkit-mask-size:8px 256px,100% 100%;mask-size:8px 256px,100% 100%;-webkit-mask-repeat:repeat-x,no-repeat;mask-repeat:repeat-x,no-repeat;-webkit-mask-position:0 0,0 0;mask-position:0 0,0 0}
-:root[data-theme=pond] body::after{background:var(--tx2);opacity:.28;-webkit-mask-image:var(--m-up),linear-gradient(to right,#000 25%,rgba(0,0,0,.45));mask-image:var(--m-up),linear-gradient(to right,#000 25%,rgba(0,0,0,.45));-webkit-mask-size:8px 256px,100% 100%;mask-size:8px 256px,100% 100%;-webkit-mask-repeat:repeat-x,no-repeat;mask-repeat:repeat-x,no-repeat;-webkit-mask-position:0 100%,0 0;mask-position:0 100%,0 0}
-/* orbit: the + field, and one big dotted orbit behind the chat */
-:root[data-theme=orbit] body::before{background:#aab8ff;opacity:.2;-webkit-mask-image:var(--m-plus);mask-image:var(--m-plus);-webkit-mask-size:24px 24px;mask-size:24px 24px;-webkit-mask-composite:source-over;mask-composite:add}
-:root[data-theme=orbit] body::after{background:var(--ring) 50% 46%/min(108vmin,900px) auto no-repeat;opacity:.6}
-/* void: an isometric lattice (30 degree lines), a dithered orange glow in the corner, and three orange strings */
-:root[data-theme=void] body::before{background:
-  linear-gradient(to bottom,rgba(246,160,90,.5),rgba(246,160,90,0)) 76% 0/2px 38% no-repeat,
-  linear-gradient(to bottom,rgba(246,160,90,.5),rgba(246,160,90,0)) 84% 0/2px 24% no-repeat,
-  linear-gradient(to bottom,rgba(246,160,90,.5),rgba(246,160,90,0)) 91% 0/2px 31% no-repeat,
-  repeating-linear-gradient(30deg,rgba(255,255,255,.05) 0 1px,transparent 1px 38px),repeating-linear-gradient(-30deg,rgba(255,255,255,.05) 0 1px,transparent 1px 38px)}
-:root[data-theme=void] body::after{background:var(--accent);opacity:.3;-webkit-mask-image:var(--m-up),linear-gradient(to left,#000 5%,transparent 80%);mask-image:var(--m-up),linear-gradient(to left,#000 5%,transparent 80%);-webkit-mask-size:8px 224px,100% 100%;mask-size:8px 224px,100% 100%;-webkit-mask-repeat:repeat-x,no-repeat;mask-repeat:repeat-x,no-repeat;-webkit-mask-position:0 100%,0 0;mask-position:0 100%,0 0}
-/* arcade: scanlines over everything, and a neon grid floor rising from the bottom */
-:root[data-theme=arcade] body::before{background:repeating-linear-gradient(to bottom,rgba(255,255,255,.035) 0 1px,transparent 1px 3px)}
-:root[data-theme=arcade] body::after{background:linear-gradient(rgba(255,95,176,.42) 1px,transparent 1px) 0 0/100% 30px,linear-gradient(90deg,rgba(255,95,176,.32) 1px,transparent 1px) 0 0/38px 100%;
-  -webkit-mask-image:linear-gradient(to top,#000,transparent 38%);mask-image:linear-gradient(to top,#000,transparent 38%);-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
-
-/* ---- the new themes, component by component (everything else follows the variables) ---- */
-/* pond: bubbles catch a little light, yours shimmer with a turquoise dither, and the message box sparkles when you click into it */
-/* citation chips: the accent on a light tint of itself, kept light enough to read in every one of these */
-:root:is([data-theme=pond],[data-theme=orbit],[data-theme=void],[data-theme=arcade]) .cite{background:color-mix(in srgb,var(--accent) 9%,var(--panel))}
-:root[data-theme=pond] .msg.bot{box-shadow:inset 0 1px 0 rgba(241,230,210,.07)}
-:root[data-theme=pond] .msg.user{background-image:var(--ct-pond)}
-:root[data-theme=pond] .box{position:relative}
-:root[data-theme=pond] .box:focus-within{border-color:var(--accent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 38%,transparent),0 0 24px color-mix(in srgb,var(--accent) 20%,transparent)}
-:root[data-theme=pond] .box::after{content:"";position:absolute;right:44px;top:11px;width:2px;height:2px;background:#fff;opacity:0;pointer-events:none;
-  box-shadow:-26px 9px 0 #fff,-61px -2px 0 rgba(255,255,255,.7),-98px 7px 0 #fff,-139px 1px 0 rgba(255,255,255,.6),-42px 19px 0 rgba(255,255,255,.55),14px 14px 0 rgba(255,255,255,.8)}
-:root[data-theme=pond] .box:focus-within::after{opacity:.95;animation:twinkle 1.6s steps(2) 3}
-@keyframes twinkle{50%{opacity:.25}}
-:root[data-theme=pond] .go,:root[data-theme=pond] .send{box-shadow:0 0 0 1px color-mix(in srgb,#fff 25%,transparent) inset}
-:root[data-theme=pond] .cite.on{box-shadow:0 0 8px color-mix(in srgb,var(--accent) 70%,transparent)}
-/* orbit: monospace for the small lettering, a red/blue fringe on headings and the active state, square-ish corners */
-:root[data-theme=orbit] :is(header,.tags,.meta,.pill,.tb,.hday,.hsub,.menu .md,.menu .tip,.slash .mh,.cite,.starters button,.acts,.src){font-family:var(--mono)}
-:root[data-theme=orbit] :is(.title .name,.empty b,.msg .h,.hrow.on .htitle,.slash [aria-selected=true] b,.cite.on,.tb.on,.ib.on){text-shadow:-1px 0 0 var(--fr),1px 0 0 var(--fb)}
-:root[data-theme=orbit] .msg{border-radius:7px}
-:root[data-theme=orbit] .msg.bot{border-left:2px solid color-mix(in srgb,var(--accent) 75%,var(--line))}
-:root[data-theme=orbit] .msg.user{background-image:linear-gradient(90deg,color-mix(in srgb,var(--accent) 14%,transparent),transparent 40%);border-right:2px solid var(--accent)}
-:root[data-theme=orbit] .box{border-radius:9px}
-:root[data-theme=orbit] .box:focus-within{border-color:var(--accent);box-shadow:-1px 0 0 var(--fr),1px 0 0 var(--fb),0 0 18px color-mix(in srgb,var(--accent) 18%,transparent)}
-:root[data-theme=orbit] .empty::before{content:"";display:block;width:104px;height:104px;margin:0 auto 10px;background:var(--ring-s) 50% 50%/contain no-repeat}
-:root[data-theme=orbit] .empty::after{content:"-=:.  @%+.%::..  #=:.  +:";display:block;margin-top:12px;font:11px/1.3 var(--mono);letter-spacing:.14em;color:var(--muted);opacity:.6}
-/* void: warm bubbles for you, grey for it, orange strings above the box */
-:root[data-theme=void] .msg.user{background-image:var(--ct-void)}
-:root[data-theme=void] .msg.bot{box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
-:root[data-theme=void] .box{box-shadow:0 -1px 0 rgba(255,255,255,.04) inset}
-:root[data-theme=void] .box:focus-within{border-color:var(--accent)}
-:root[data-theme=void] .title .name{color:var(--accent)}
-/* arcade: notched corners (clipped, so no shadows on those), neon glow on the lettering, hard pill and button shapes */
-:root[data-theme=arcade] :is(.msg,.box,.acard){clip-path:polygon(0 4px,4px 4px,4px 0,calc(100% - 4px) 0,calc(100% - 4px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 4px) calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 4px),0 calc(100% - 4px))}
-:root[data-theme=arcade] .msg,:root[data-theme=arcade] .box{border-radius:0}
-:root[data-theme=arcade] .box{border-width:2px}
-:root[data-theme=arcade] .box:focus-within{border-color:var(--accent)}
-:root[data-theme=arcade] .msg.user{background-image:var(--ct-arcade);border:1px solid color-mix(in srgb,var(--accent) 50%,var(--user))}
-:root[data-theme=arcade] :is(.pill,.starters button,.go,.tb,.menu button){border-radius:3px}
-:root[data-theme=arcade] .go{width:32px;height:32px;box-shadow:0 0 12px color-mix(in srgb,var(--accent) 55%,transparent)}
-:root[data-theme=arcade] :is(.title .name,.empty b,.msg .h){font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;text-shadow:0 0 10px color-mix(in srgb,var(--accent) 60%,transparent)}
-:root[data-theme=arcade] header{border-bottom:2px solid var(--line)}
-/* the picker's swatches for the new themes (the previews keep the same shapes as the others, with the texture on top) */
-:root[data-theme=pond] :is(#hist,#wrap){background-image:var(--ct-pond)} /* the sheets over the chat carry the theme's dither too (Settings keeps its plain background) */
-:root[data-theme=void] :is(#hist,#wrap){background-image:var(--ct-void)}
-:root[data-theme=orbit] :is(#hist,#wrap){background-image:var(--ct-orbit)}
-:root[data-theme=arcade] :is(#hist,#wrap){background-image:var(--ct-arcade)}
-.sw[data-t=pond] .pv{background-image:var(--ct-pond),linear-gradient(135deg,rgba(217,178,124,.32),transparent 55%,rgba(79,214,184,.32))}
-.sw[data-t=void] .pv{background-image:var(--ct-void),radial-gradient(circle at 100% 100%,rgba(246,160,90,.4),transparent 60%),repeating-linear-gradient(30deg,rgba(255,255,255,.08) 0 1px,transparent 1px 9px)}
-.sw[data-t=orbit] .pv{background-image:var(--ct-orbit)}
-.sw[data-t=arcade] .pv{background-image:repeating-linear-gradient(to bottom,rgba(255,255,255,.06) 0 1px,transparent 1px 3px),var(--ct-arcade),linear-gradient(to top,rgba(255,95,176,.4),transparent 55%)}
-
+/* Workspace: responsive layout below; finishes are defined in #studio. */
 /* ---- the big panel: layout that follows the panel's own width (an iframe's viewport IS the panel, so these rules see its size) ----
    --grow: how many extra px the type gets (0 up to about 420px wide, 2.5px from about 900px). --gut: the side space that centres a
    reading column of at most --col. Narrow and docked panels get 0 and 12px, so they look as they always did. */
@@ -1251,6 +1148,91 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
 @media (max-width:340px){#ink .inkb{width:31px}#ink .inkgrp{gap:1px}#ink .inkrow{gap:4px 4px}}
 @media (min-width:560px){#ink .inktools{padding-bottom:14px}#ink .inkb{width:38px;height:38px}#ink .inkc{width:30px;height:30px}#ink .inkbar{padding:10px var(--gut)}}
 </style>
+<style id="studio">
+/* Pagebot workspace: flat materials, a consistent type scale, and no decorative paint layers. */
+:root{--bg:#161b21;--panel:#1e252e;--line:#333d49;--text:#edf0f4;--muted:#a2afbf;--accent:#a6c4f4;--on-accent:#142640;--user:#27364b;--err:#ffaaa0;--code:#10151b;--chip-on:#2b3b52;--focus:#7595bd;--col:760px}
+:root[data-theme=paper]{--bg:#f6f7f9;--panel:#fff;--line:#dce1e8;--text:#202a37;--muted:#5c6979;--accent:#365c99;--on-accent:#fff;--user:#e8eef8;--code:#eceff4;--chip-on:#e6edf8;--focus:#7b96be}
+:root[data-theme=midnight]{--bg:#111e28;--panel:#192b36;--line:#2f4957;--text:#e4eef1;--muted:#9fb7c1;--accent:#93d0da;--on-accent:#0b2e35;--user:#243f4b;--code:#0d1820;--chip-on:#244754;--focus:#679ba9}
+:root[data-theme=forest],:root[data-theme=pond]{--bg:#18211e;--panel:#222e27;--line:#394a40;--text:#e6ede6;--muted:#acbdae;--accent:#b7d0ac;--on-accent:#20351c;--user:#324434;--code:#111b15;--chip-on:#374a35;--focus:#7f9e7c}
+:root[data-theme=dusk],:root[data-theme=arcade]{--bg:#242028;--panel:#302a35;--line:#49404f;--text:#eee8f1;--muted:#b5a6bd;--accent:#d2b8de;--on-accent:#372042;--user:#413249;--code:#1b1720;--chip-on:#44334f;--focus:#a087ad}
+:root[data-theme=sakura]{--bg:#f8f3ee;--panel:#fffcf8;--line:#e2d7cc;--text:#3a3028;--muted:#705c4b;--accent:#7e422c;--on-accent:#fff;--user:#f0dfd2;--code:#efe6dc;--chip-on:#f0e0d3;--focus:#b18c70}
+:root[data-theme=terminal]{--bg:#171d19;--panel:#202a23;--line:#364b3b;--text:#dbeade;--muted:#a1b7a8;--accent:#b8d3bd;--on-accent:#1c3422;--user:#2d3e32;--code:#111a14;--chip-on:#304b37;--focus:#82a18b}
+:root[data-theme=orbit]{--bg:#1b2028;--panel:#262d38;--line:#3c485b;--text:#e7ecf5;--muted:#afbdd3;--accent:#b9c9e6;--on-accent:#223350;--user:#344359;--code:#141a23;--chip-on:#344862;--focus:#839bc1}
+:root[data-theme=void]{--bg:#25251f;--panel:#303128;--line:#484c3c;--text:#edeede;--muted:#bcc0a7;--accent:#d0d4a4;--on-accent:#2c3315;--user:#3e4430;--code:#1b1e16;--chip-on:#464d32;--focus:#9ba67a}
+:root[data-theme=paper],:root[data-theme=sakura]{color-scheme:light;--warn:#875000}
+body{line-height:1.6;-webkit-font-smoothing:antialiased}
+header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
+.title{gap:10px;letter-spacing:-.4px;font-size:15px;font-weight:650}
+.title .name{font-family:var(--font);font-size:15px;font-weight:650}
+.dot{width:12px;height:16px;border-radius:2px;background:var(--accent);clip-path:polygon(0 0,100% 0,100% 75%,65% 75%,65% 100%,0 100%)}
+.ib{border-radius:6px}.ib svg{stroke-width:1.6}
+#log{padding-top:24px;padding-bottom:24px;gap:20px}
+.msg{animation:none;line-height:1.7}
+.msg.bot{background:transparent;border:0;border-radius:0;padding:10px 12px;max-width:min(100%,var(--col));box-shadow:none}
+.msg.user{border-radius:12px 12px 3px 12px;padding:12px 16px;background:var(--user);max-width:88%}
+.msg pre{border-radius:6px}.msg .acts{opacity:.75}
+.empty{max-width:560px;width:100%;text-align:left;margin:auto;line-height:1.65;padding-block:30px}
+.desk-label{display:flex;align-items:center;gap:9px;color:var(--accent);font:10px/1.6 var(--mono);letter-spacing:.13em;margin-bottom:20px}
+.desk-label::before{content:'';width:18px;height:1px;background:var(--accent)}
+.empty b{font:600 clamp(27px,4vw,42px)/1.12 var(--font);letter-spacing:-.045em;margin-bottom:18px;text-wrap:balance}
+.empty p{max-width:44ch;margin:0;font-size:14px}
+.starters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:30px;width:100%}
+.starters button{display:flex;flex-direction:column;align-items:flex-start;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:15px 13px;text-align:left;color:var(--text);font-size:12px;line-height:1.5;min-width:0;cursor:pointer}
+.starters button:hover{border-color:var(--focus);background:var(--chip-on)}
+.starters .starter-num{font:10px/1.5 var(--mono);color:var(--accent)}
+.starters .starter-desc{color:var(--muted);font-size:11px;line-height:1.5}
+.starters .starter-name{font-weight:600;font-size:13px}
+#composer{padding-bottom:18px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:none}
+.box:focus-within{border-color:var(--focus);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 10%,transparent)}
+#q{padding:15px 16px 4px;min-height:56px;line-height:1.5}
+.bar{padding:5px 10px 10px}.go{border-radius:7px;box-shadow:none}.pill{border-radius:5px}
+.menu{border-radius:8px;box-shadow:0 8px 28px #0002}
+#sheet .chead h2{font-size:27px;font-weight:650;letter-spacing:-.035em}
+#sheet :is(.card,#quotaSec,#stabs){border-radius:8px;box-shadow:none}
+#sheet .sec>h3{font:10px/1.6 var(--mono);letter-spacing:.1em;text-transform:uppercase}
+#sheet .stab[aria-selected=true]{background:var(--chip-on);box-shadow:inset 2px 0 var(--accent)}
+#sheet .themes{gap:10px;grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+#sheet .sw{border-radius:7px;overflow:hidden;background:var(--panel);padding:6px;text-align:left}
+#sheet .sw .pv{height:68px;border-radius:4px;background-image:none;box-shadow:none}
+#sheet .sw.on{box-shadow:0 0 0 1px var(--accent)}
+#sheet .sw .nm{font-weight:600;font-size:12px}#sheet .sw .ds{font-size:10px}
+.more-themes{margin-top:14px}.more-themes summary{cursor:pointer;color:var(--muted);font-size:12px;padding:8px 0}.more-themes[open] summary{margin-bottom:8px}
+#companionSeg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;width:100%}
+#companionRow{flex-direction:column;align-items:stretch}#companionRow .rc{width:100%;justify-content:stretch}
+.companion-choice{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 3px;border-radius:7px;border:1px solid var(--line);background:var(--bg);font-size:11px;cursor:pointer;min-width:0}
+.companion-choice canvas{display:block;image-rendering:auto}.companion-choice[data-kind=panda] canvas{image-rendering:pixelated}
+.companion-choice.on{border-color:var(--accent);background:var(--chip-on)}.companion-choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#workspaceNav{display:none}
+#boot .bg{background:var(--bg)}#boot .bg::after{display:none}
+#boot .orb{width:32px;height:36px;overflow:hidden;animation:none!important;transform:none!important}
+#boot .orb>*{display:none!important}
+#boot .orb::before{content:'';position:absolute;inset:5px 7px;border-radius:3px;background:var(--accent);clip-path:polygon(0 0,100% 0,100% 75%,65% 75%,65% 100%,0 100%)}
+#boot .word{font:600 25px var(--font);letter-spacing:-1px}#boot .word span{animation:none;opacity:1;transform:none}
+#boot .tag{font:11px var(--mono);color:var(--muted);letter-spacing:.03em}#boot .meter{height:2px;border-radius:0}
+/* Compact is a real density change, including at the wider breakpoint. */
+:root.dense .msg{padding-block:6px;line-height:1.5}:root.dense .empty b{font-size:26px}
+@media(min-width:1100px){
+  body.standalone.workspace{padding-left:208px;--gut:max(24px,calc((100vw - 208px - var(--col))/2))}
+  .standalone.workspace #workspaceNav{position:fixed;inset:0 auto 0 0;width:208px;display:flex;flex-direction:column;gap:6px;padding:23px 16px;border-right:1px solid var(--line);background:var(--panel);z-index:5}
+  .workspace-brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:650;letter-spacing:-.5px;padding:0 9px 30px}
+  .workspace-kicker{padding:10px 10px 8px;font:10px var(--mono);letter-spacing:.1em;color:var(--muted)}
+  #workspaceNav button{display:flex;align-items:center;gap:10px;text-align:left;border:0;border-radius:6px;padding:10px;color:var(--muted);background:none;font-size:12px;cursor:pointer}
+  #workspaceNav button:hover{color:var(--text);background:var(--chip-on)}
+  #workspaceNav button:first-of-type{background:var(--chip-on);color:var(--text)}
+  #workspaceNav svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .workspace-foot{margin-top:auto;border-top:1px solid var(--line);padding:16px 10px 0;color:var(--muted);font-size:11px;line-height:1.7}
+  .workspace-foot strong{display:block;color:var(--text);font-weight:500;margin-bottom:4px}
+  .workspace :is(#sheet,#hist,#pdfs){left:208px}
+  body.standalone.workspace header{padding-inline:24px 14px}
+  .workspace header .title .name{font-size:12px;font-weight:500;letter-spacing:.01em;color:var(--muted)}
+  .workspace header .title .name::after{content:' / conversation';color:var(--text)}
+  .workspace .empty{max-width:560px}
+  .workspace #composer{padding-bottom:24px}
+}
+@media(max-width:559px){.empty{padding:18px 4px}.empty b{font-size:29px}.starters{grid-template-columns:1fr;gap:7px;margin-top:24px}.starters button{display:grid;grid-template-columns:22px 1fr;padding:11px 13px;gap:2px 8px}.starters .starter-num{grid-row:1/3;padding-top:2px}.starters .starter-desc{grid-column:2}.starters button:has(.starter-name){gap:2px 8px}}
+@media(max-width:420px){header{padding-left:12px}.ib{width:29px}#sheet .themes{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
 </head>
 <body class="booting" tabindex="-1">
 <div id="boot" aria-hidden="true">
@@ -1271,6 +1253,15 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
   </div>
 </div>
 
+<nav id="workspaceNav" aria-label="Workspace" hidden>
+  <div class="workspace-brand"><span class="dot" aria-hidden="true"></span>pagebot</div>
+  <div class="workspace-kicker">WORKSPACE</div>
+  <button id="workspaceNew" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New conversation</button>
+  <button id="workspaceHistory" type="button"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></svg>Conversations</button>
+  <button id="workspaceFiles" type="button"><svg viewBox="0 0 24 24"><path d="M5 3h9l5 5v13H5zM14 3v6h5"/></svg>Documents</button>
+  <button id="workspaceSettings" type="button"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 17h16M8 4v6M16 14v6"/></svg>Preferences</button>
+  <div class="workspace-foot"><strong>A little room to think.</strong>Add a PDF with +.<br>Type / for your shortcuts.</div>
+</nav>
 <header>
   <div class="title"><span class="dot"></span><span class="name">pagebot</span><span class="mstat" id="mstat"><span class="typing"><i></i><i></i><i></i></span></span></div>
   <button class="ib hide-min" id="newBtn" title="New chat" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -1377,17 +1368,19 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
 
         <div class="cat" id="cat-appearance" role="tabpanel" aria-labelledby="tab-appearance" tabindex="-1" hidden>
           <div class="chead"><h2>Appearance</h2><p>How pagebot looks, and how the panel sits on your screen.</p></div>
-          <section class="sec"><h3>Theme</h3>
-            <div class="themes" id="themes" role="radiogroup" aria-label="Theme"></div>
+          <section class="sec" id="themeGallery" role="radiogroup" aria-label="Theme"><h3>Theme</h3>
+            <div class="themes" id="themes"></div>
             <p class="fine" id="glassNote" hidden>To make <span id="glassName">Glass</span> see-through on every site, including dark-mode ones, drag the button from the pagebot homepage to your bookmarks bar again.</p></section>
           <section class="sec"><h3>Motion</h3>
-            <div class="card"><div class="row s"><div class="rt"><b class="rl" id="motLbl">Animations</b><span class="rh">Less turns off the fades, slides and the panda’s movement. System follows your device’s setting.</span></div><div class="rc"><div class="seg" id="motionSeg" role="radiogroup" aria-labelledby="motLbl"></div></div></div></div></section>
+            <div class="card"><div class="row s"><div class="rt"><b class="rl" id="motLbl">Animations</b><span class="rh">Less turns off fades, slides and companion movement to save power. System follows your device’s setting.</span></div><div class="rc"><div class="seg" id="motionSeg" role="radiogroup" aria-labelledby="motLbl"></div></div></div></div></section>
           <section class="sec"><h3>Spacing</h3>
             <div class="card"><div class="row s"><div class="rt"><b class="rl" id="denLbl">Density</b><span class="rh">Compact fits more on screen: tighter spacing and slightly smaller text.</span></div><div class="rc"><div class="seg" id="densitySeg" role="radiogroup" aria-labelledby="denLbl"></div></div></div></div></section>
           <section class="sec" id="panelSec" hidden><h3>Panel</h3>
             <div class="card">
               <div class="row" id="dockRow"><div class="rt"><b class="rl" id="dockLbl">Dock to the side</b><span class="rh">Pins pagebot to the right edge of the window, full height. It opens that way next time too.</span></div><div class="rc"><button class="tg" id="dockTog" type="button" role="switch" aria-checked="false" aria-labelledby="dockLbl"></button></div></div>
               <div class="row s" id="miniRow"><div class="rt"><b class="rl" id="miniLbl">Minimize to</b><span class="rh" id="miniNote">A little red panda you can drag around and click to open, or the small bar.</span></div><div class="rc"><div class="seg" id="miniSeg" role="radiogroup" aria-labelledby="miniLbl"></div></div></div>
+              <div class="row s" id="companionRow"><div class="rt"><b class="rl" id="companionLbl">Companion</b><span class="rh">Choose who keeps you company between questions. Saved on this browser.</span></div><div class="rc"><div id="companionSeg" role="radiogroup" aria-labelledby="companionLbl"></div></div></div>
+              <div class="row" id="roamRow"><div class="rt"><b class="rl" id="roamLbl">Let the pet explore</b><span class="rh">Turn off to keep it where you leave it. It can still blink and react.</span></div><div class="rc"><button class="tg" id="roamTog" type="button" role="switch" aria-checked="true" aria-labelledby="roamLbl"></button></div></div>
               <div class="row"><div class="rt"><b class="rl">Size and position</b><span class="rh" id="panelMsg" role="status" aria-live="polite">Drag the header to move the panel and its left or top edge to resize it. This puts it back where it started.</span></div><div class="rc"><button class="ghost" id="panelReset" type="button">Reset</button></div></div>
             </div>
           </section>
@@ -1783,17 +1776,17 @@ if (popup && pageV7) ask('page', { max: 1 }).then(r => { if (r) setSel(r.selecti
 // ---- themes ----
 const THEMES = [
   ['auto', 'Auto'],
-  ['ember', 'Ember', '#141414', '#d97757', '#2b2622', '#ebe8e1'],
-  ['paper', 'Paper', '#faf9f5', '#c6613f', '#f1e7de', '#1f1e1b'],
-  ['midnight', 'Midnight', '#0e1320', '#7c9cff', '#1c2847', '#e2e8f5'],
-  ['forest', 'Forest', '#0f1511', '#5fc485', '#1b2b20', '#e3ebe3'],
-  ['dusk', 'Dusk', '#14111c', '#b48cff', '#291f3d', '#ebe6f5'],
-  ['sakura', 'Sakura', '#fff7f9', '#d9467a', '#fde3ec', '#2b2026'],
-  ['terminal', 'Terminal', '#050805', '#39e75f', '#0e2111', '#a3f7a3'],
-  ['pond', 'Pond', '#17120e', '#4fd6b8', '#1c3a37', '#f1e6d2'],
-  ['orbit', 'Orbit', '#05060b', '#7b97ff', '#131c40', '#e9edf8'],
-  ['void', 'Void', '#24282d', '#f6a05a', '#4a3b30', '#eef0f2'],
-  ['arcade', 'Arcade', '#120a29', '#ff5fb0', '#3a1a5e', '#f5ecff'],
+  ['ember', 'Carbon', '#161b21', '#a6c4f4', '#27364b', '#edf0f4'],
+  ['paper', 'Porcelain', '#f6f7f9', '#365c99', '#e8eef8', '#202a37'],
+  ['midnight', 'Tide', '#111e28', '#93d0da', '#243f4b', '#e4eef1'],
+  ['forest', 'Fern', '#18211e', '#b7d0ac', '#324434', '#e6ede6'],
+  ['dusk', 'Mulberry', '#242028', '#d2b8de', '#413249', '#eee8f1'],
+  ['sakura', 'Terracotta', '#f8f3ee', '#7e422c', '#f0dfd2', '#3a3028'],
+  ['terminal', 'Field notes', '#171d19', '#b8d3bd', '#2d3e32', '#dbeade'],
+  ['pond', 'Grove', '#18211e', '#b7d0ac', '#324434', '#e6ede6'],
+  ['orbit', 'Blueprint', '#1b2028', '#b9c9e6', '#344359', '#e7ecf5'],
+  ['void', 'Olive', '#25251f', '#d0d4a4', '#3e4430', '#edeede'],
+  ['arcade', 'Iris', '#242028', '#d2b8de', '#413249', '#eee8f1'],
   ['glass', 'Glass', 'transparent', '#ffffff', 'rgba(255,255,255,.55)', '#ffffff'],
   ['clear', 'Clear', 'transparent', '#9cc2ff', 'transparent', '#ffffff'],
 ];
@@ -1801,6 +1794,8 @@ const light = matchMedia('(prefers-color-scheme: light)');
 const resolveTheme = t => t === 'auto' ? (light.matches ? 'paper' : 'ember') : t;
 // the gallery is a radio group: the chosen swatch is the one tab stop, and arrow keys move between the others
 function syncThemes(t) {
+  const selected = [...document.querySelectorAll('.sw')].find(b => b.dataset.t === t);
+  const details = selected?.closest('details'); if (details) details.open = true;
   document.querySelectorAll('.sw').forEach(b => { const on = b.dataset.t === t; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
 }
 function applyTheme(t, fade) {
@@ -1808,7 +1803,7 @@ function applyTheme(t, fade) {
   store.set('pb_theme', t);
   syncThemes(t);
   if (document.documentElement.dataset.theme === r) return;
-  if (fade) { body.classList.add('tt'); clearTimeout(applyTheme.t); applyTheme.t = setTimeout(() => body.classList.remove('tt'), 400); }
+  if (fade) { body.classList.add('tt'); clearTimeout(applyTheme.t); applyTheme.t = setTimeout(() => body.classList.remove('tt'), 240); }
   document.documentElement.dataset.theme = r;
   syncGlass();
   loaders.forEach(l => l.retheme()); // the pixel loader follows the theme's colours
@@ -1832,16 +1827,26 @@ function syncGlass(recheck) {
   });
 }
 light.addEventListener('change', () => { if (prefs.theme === 'auto') applyTheme('auto', true); });
-const THEME_NOTE = { auto: 'Follows your device', ember: 'Warm dark', paper: 'Warm light', midnight: 'Deep blue', forest: 'Dark green', dusk: 'Soft purple', sakura: 'Pale pink', terminal: 'Green on black', pond: 'Dithered cave pond', orbit: 'Dotted space', void: 'Grey and amber', arcade: 'Neon purple', glass: 'See-through, blurred', clear: 'No panel at all' };
+const THEME_NOTE = { auto: 'Follows your device', ember: 'Graphite & ice', paper: 'White & ink', midnight: 'Deep sea & mist', forest: 'Evergreen & lichen', dusk: 'Aubergine & orchid', sakura: 'Chalk & rust', terminal: 'Monospace & sage', pond: 'Woodland dark', orbit: 'Steel & blue', void: 'Stone & olive', arcade: 'Muted iris', glass: 'See-through, blurred', clear: 'No panel at all' };
+const moreThemes = document.createElement('details'); moreThemes.className = 'more-themes';
+moreThemes.innerHTML = '<summary>More finishes &amp; transparent modes</summary><div class=themes></div>';
+$('#themes').after(moreThemes);
+moreThemes.querySelector('summary').addEventListener('keydown', e => {
+  if (e.key !== 'ArrowDown') return;
+  e.preventDefault(); moreThemes.open = true; moreThemes.querySelector('.sw')?.focus();
+});
+moreThemes.addEventListener('toggle', () => {
+  if (moreThemes.open && !moreThemes.querySelector('.sw[tabindex="0"]')) moreThemes.querySelector('.sw').tabIndex = 0;
+});
 for (const [key, name, bg, acc, user, text] of THEMES) {
   const b = el('button', 'sw', '<span class="pv"><i></i><u></u><b></b></span><span class="nm"></span><span class="ds"></span>');
   b.type = 'button'; b.dataset.t = key; b.title = key === 'auto' ? 'Follows your system light/dark setting' : name;
   b.setAttribute('role', 'radio');
   b.querySelector('.nm').textContent = name; b.querySelector('.ds').textContent = THEME_NOTE[key] || '';
   if (bg) b.style.cssText = `--sw-bg:${bg};--sw-acc:${acc};--sw-user:${user};--sw-text:${text}`;
-  else b.style.cssText = '--sw-acc:#d97757;--sw-user:#2b2622;--sw-text:#8e8a82';
+  else b.style.cssText = '--sw-acc:#a6c4f4;--sw-user:#27364b;--sw-text:#a2afbf';
   b.onclick = () => { applyTheme(key, true); savePrefs({ theme: key }); };
-  $('#themes').appendChild(b);
+  (['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura'].includes(key) ? $('#themes') : moreThemes.querySelector('.themes')).appendChild(b);
 }
 syncGlass(); // the theme painted on the first frame may already be glass or clear
 
@@ -2051,14 +2056,16 @@ const BUILTINS = [
 const STARTERS = BUILTINS.filter(c => c.starter).map(c => [c.starter, c.prompt('this page')]);
 function empty() {
   stick = true; jump.hidden = true;
-  if (standalone)
-    return void (log.innerHTML = '<div class="empty"><b>Ask anything.</b>Use + to add a PDF, screenshot a tab or turn on web search. You can also drop in a PDF or paste an image. Type / for commands.</div>', slashStarters());
-  log.innerHTML = '<div class="empty"><b>Ask about this page.</b>The page text goes with your first message, and anything you highlight is included. Use + for a PDF, a screenshot or web search, or type / for commands.' +
-    '</div>';
+  log.innerHTML = standalone
+    ? '<div class="empty"><span class="desk-label">YOUR WORKSPACE</span><b>What are we working on?</b><p>Bring a question, a document, or a half-formed idea. We’ll take it from there.</p></div>'
+    : '<div class="empty"><span class="desk-label">PAGE COMPANION</span><b>Go a little deeper.</b><p>Read the essentials, question a claim, or make sense of a passage. This page is included with your first message.</p></div>';
   const box = el('div', 'starters');
-  for (const [label, text] of STARTERS) {
+  for (const [label, text] of (standalone ? [['Understand', 'Help me understand a topic or document. Ask what I am working with and how familiar I am with it before explaining.'], ['Compare', 'Help me compare options. First ask what the options are, what I care about, and what constraints matter.'], ['Draft', 'Help me turn rough notes into a clear draft. First ask what I am writing, who it is for, and what notes I have.']] : STARTERS)) {
     const b = el('button'); b.type = 'button'; b.textContent = label;
-    b.onclick = () => { if (busy) return; setPage(true); q.value = text; autosize(); send(); };
+    const title = el('span', 'starter-name'); title.textContent = label; b.replaceChildren(title);
+    const number = el('span', 'starter-num'); number.textContent = String(box.children.length + 1).padStart(2, '0'); b.prepend(number);
+    const desc = el('span', 'starter-desc'); desc.textContent = standalone ? ({Understand: 'Unpack an idea or document.', Compare: 'Find the tradeoffs that matter.', Draft: 'Give rough notes a clear shape.'}[label] || '') : ({'Summarize this page': 'The essentials, without the detour.', 'Key points': 'See what matters most.', 'Explain it simply': 'Make the complicated clearer.'}[label] || 'Work with this page.'); b.append(desc);
+    b.onclick = () => { if (busy) return; if (!standalone) setPage(true); q.value = text; autosize(); send(); };
     box.appendChild(b);
   }
   log.querySelector('.empty').appendChild(box);
@@ -2074,6 +2081,7 @@ function setHeader(chat) {
   $('#lockBtn').hidden = $('#lockNow').hidden = !canLock;
 }
 function hideViews() {
+  $('#workspaceNav').hidden = true; body.classList.remove('workspace');
   $('#login').style.display = 'none'; $('#login').classList.remove('leave');
   $('#wait').hidden = true; $('#ban').hidden = true; log.hidden = true; $('#composer').hidden = true; $('#ann').hidden = true; $('#rst').hidden = true; $('#upd').hidden = true;
   stopWaitPoll(); closeWrap(); closeSlash(); closeHistory(); inkClose(); // lock, logout, an account switch or a ban: history closes and late answers are dropped
@@ -2086,6 +2094,7 @@ function showChat(enter) {
   if (chatWho && k !== chatWho) { leaveChat(); resetSiteMemory(); log.replaceChildren(); clearImg(); clearPdf(); setPage(true); stopStream(); setArea(null); annGone = 0; }
   chatWho = k;
   log.hidden = false; $('#composer').hidden = false;
+  if (standalone) { $('#workspaceNav').hidden = false; body.classList.add('workspace'); }
   setHeader(true); renderAccount(); renderAnn(); renderRst(); renderUpd();
   if (!log.children.length) empty();
   if (enter) { body.classList.add('enter'); setTimeout(() => body.classList.remove('enter'), 600); }
@@ -3537,13 +3546,13 @@ $('#stabs').addEventListener('keydown', e => {
   if (wideQ.matches) selectCat(key, null, true); else { setCat = key; renderSheetView(); $('#tab-' + key).focus(); }
 });
 // the theme gallery: one tab stop (the chosen swatch), arrows move between the rest, Enter or Space picks
-$('#themes').addEventListener('keydown', e => {
+$('#themeGallery').addEventListener('keydown', e => {
   const all = [...document.querySelectorAll('.sw')], i = all.indexOf(e.target), n = all.length;
   const to = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? (i + 1) % n : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? (i - 1 + n) % n : e.key === 'Home' ? 0 : e.key === 'End' ? n - 1 : -1;
   if (i < 0 || to < 0) return;
-  e.preventDefault(); all.forEach(b => { b.tabIndex = -1; }); all[to].tabIndex = 0; all[to].focus();
+  e.preventDefault(); all.forEach(b => { b.tabIndex = -1; }); all[to].tabIndex = 0; const details = all[to].closest('details'); if (details) details.open = true; all[to].focus();
 });
-$('#themes').addEventListener('focusout', e => { if (!e.relatedTarget?.closest?.('#themes')) syncThemes(prefs.theme); });
+$('#themeGallery').addEventListener('focusout', e => { if (!e.relatedTarget?.closest?.('#themeGallery')) syncThemes(prefs.theme); });
 
 function openSheet(focusTokens) {
   if (view !== 'chat') return;
@@ -3796,7 +3805,7 @@ const petPos = () => { try { const p = JSON.parse(store.get('pb_petpos')); retur
 let petSayT = 0, petDrag = null, petSkip = false;
 function petShow(on) {
   petMode = on; body.classList.toggle('pet', on); document.documentElement.classList.toggle('petm', on); petBtn.hidden = !on;
-  if (on) { pet ||= pandaSprite($('#petCv'), { w: 26, h: 26, scale: 3, ox: 0, oy: 0, natural: true, shadow: false }); pet.start(); petState(); petRoamStart(); }
+  if (on) { pet ||= createCompanion($('#petCv')); pet.start(); petState(); petRoamStart(); }
   else { petRoamStop(); pet?.stop(); petSayHide(true); }
 }
 // Walk the actual small iframe across the page, rather than sliding a sprite inside a large invisible overlay.
@@ -3814,6 +3823,7 @@ function petRoamStop() {
   petRoamPause();
 }
 function petRoamStart() {
+  if (store.get('pb_roam') === 'off') return petRoamStop();
   petRoamStop();
   if (petMode && !calm && !document.hidden && !roam.hidden) roam.raf = requestAnimationFrame(petRoamFrame);
 }
@@ -3944,7 +3954,9 @@ petBtn.addEventListener('lostpointercapture', petEnd); // the release happened s
 petBtn.addEventListener('click', () => { if (!petSkip) setMin(false); }); // Enter and Space
 document.addEventListener('pbmotion', () => { loaders.forEach(l => l.start()); petRoamStart(); });
 // Settings > Appearance > Panel > Minimize to
-for (const [key, label] of [['panda', 'Panda'], ['pill', 'Pill']]) {
+const COMPANIONS = { panda: 'Red panda', cat: 'Cat', fox: 'Fox', frog: 'Frog' };
+const companionKind = () => Object.hasOwn(COMPANIONS, store.get('pb_companion')) ? store.get('pb_companion') : 'panda';
+for (const [key, label] of [['panda', 'Pet'], ['pill', 'Bar']]) {
   const b = el('button', '', label); b.type = 'button'; b.dataset.m = key; b.setAttribute('role', 'radio');
   b.onclick = () => { store.set('pb_mini', key === 'pill' ? 'pill' : null); renderMini(); };
   $('#miniSeg').appendChild(b);
@@ -3952,7 +3964,112 @@ for (const [key, label] of [['panda', 'Panda'], ['pill', 'Pill']]) {
 function renderMini() {
   const cur = petOn() ? 'panda' : 'pill';
   for (const b of $('#miniSeg').children) { const on = b.dataset.m === cur; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); b.disabled = b.dataset.m === 'panda' && !hostV13; }
-  $('#miniNote').textContent = hostV13 ? 'A little red panda that walks around the page. Hover to pause, drag to move, or click to open.' : 'The panda needs the newest bookmark: drag the button from the homepage to your bookmarks bar again.';
+  $('#miniNote').textContent = hostV13 ? 'Your companion walks around the page. Hover to pause, drag to move, or click to open.' : 'Pets need the newest bookmark. Drag the button from the homepage to your bookmarks bar again.';
+  $('#companionRow').hidden = !petOn();
+  renderCompanions();
+  $('#roamRow').hidden = !petOn();
+  $('#roamTog').setAttribute('aria-checked', String(store.get('pb_roam') !== 'off'));
+}
+
+$('#roamTog').onclick = () => {
+  const enabled = store.get('pb_roam') === 'off'; store.set('pb_roam', enabled ? null : 'off');
+  renderMini(); petRoamStart();
+};
+// The selection is local to this browser, like density and minimized style.
+function renderCompanions() {
+  const group = $('#companionSeg');
+  if (!group.children.length) for (const [kind, label] of Object.entries(COMPANIONS)) {
+    const b = el('button', 'companion-choice'); b.type = 'button'; b.dataset.kind = kind;
+    b.setAttribute('role', 'radio'); b.setAttribute('aria-label', label);
+    const cv = document.createElement('canvas'); b.append(cv, document.createTextNode(label));
+    if (kind === 'panda') pandaSprite(cv, { w: 26, h: 26, scale: 2, natural: true, still: true, shadow: false });
+    else companionSprite(cv, kind, { size: 52, still: true });
+    b.onclick = () => {
+      store.set('pb_companion', kind); pet?.stop(); pet = null;
+      if (petMode) petShow(true);
+      renderCompanions();
+    };
+    group.appendChild(b);
+  }
+  for (const b of group.children) {
+    const on = b.dataset.kind === companionKind();
+    b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1;
+  }
+}
+$('#companionSeg').addEventListener('keydown', e => {
+  const keys = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'];
+  if (!keys.includes(e.key)) return;
+  const buttons = [...$('#companionSeg').children], i = buttons.indexOf(document.activeElement);
+  if (i < 0) return;
+  e.preventDefault();
+  const next = e.key === 'Home' ? 0 : e.key === 'End' ? buttons.length - 1 : (i + (['ArrowLeft', 'ArrowUp'].includes(e.key) ? -1 : 1) + buttons.length) % buttons.length;
+  buttons[next].click(); buttons[next].focus();
+});
+function createCompanion(canvas) {
+  const kind = companionKind();
+  canvas.dataset.companion = kind;
+  return kind === 'panda' ? pandaSprite(canvas, { w: 26, h: 26, scale: 3, ox: 0, oy: 0, natural: true, shadow: false }) : companionSprite(canvas, kind);
+}
+// Original vector artwork. Only one 10fps timer runs, while visible and motion is allowed.
+function companionSprite(canvas, kind, opts = {}) {
+  const size = opts.size || 78, g = canvas.getContext('2d');
+  canvas.width = canvas.height = size * 2; canvas.style.width = canvas.style.height = size + 'px';
+  canvas.setAttribute('aria-hidden', 'true'); canvas.dataset.companion = kind;
+  let timer = 0, live = false, base = 'idle', shot = '', shotUntil = 0, gaze = 0, facing = 1, moving = false, tick = 0, idleTicks = 0, stride = 0;
+  const still = () => calm || opts.still;
+  const ellipse = (x,y,rx,ry,color) => { g.beginPath(); g.ellipse(x,y,rx,ry,0,0,Math.PI*2); g.fillStyle=color; g.fill(); };
+  const path = (points,color) => { g.beginPath(); points.forEach(([x,y],i) => i ? g.lineTo(x,y) : g.moveTo(x,y)); g.closePath(); g.fillStyle=color; g.fill(); };
+  function draw() {
+    g.setTransform(canvas.width/80,0,0,canvas.height/80,0,0); g.clearRect(0,0,80,80);
+    const now = performance.now(); if (now >= shotUntil) shot = '';
+    const asleep = base === 'locked' || base === 'nap', blink = asleep || (!still() && tick % 48 > 45);
+    const bob = still() || asleep ? 0 : Math.sin(tick*.35) * (moving ? 1.8 : .6);
+    const hop = shot === 'hop' || shot === 'happy' ? (still() ? 0 : -Math.abs(Math.sin(tick*.5))*6) : 0;
+    g.save(); g.translate(40,40+bob+hop); g.scale(facing,1); g.translate(-40,-40);
+    if (kind === 'frog') {
+      ellipse(25,65+(moving ? Math.sin(stride)*2 : 0),12,5,'#426c55'); ellipse(55,65-(moving ? Math.sin(stride)*2 : 0),12,5,'#426c55');
+      ellipse(40,50,23,18,'#719d72'); ellipse(40,55,15,11,'#dce6ae');
+      ellipse(26,32,10,11,'#719d72'); ellipse(54,32,10,11,'#719d72');
+      ellipse(26,31,6,7,'#f3efcf'); ellipse(54,31,6,7,'#f3efcf');
+    } else {
+      const fur = kind === 'fox' ? '#c77642' : '#8493a0', light = kind === 'fox' ? '#f4e6d0' : '#dfe4e3';
+      // Separate silhouettes: a pointed fox tail and ears; a curved cat tail and round face.
+      g.strokeStyle=fur; g.lineWidth=kind === 'fox' ? 11 : 6; g.lineCap='round'; g.beginPath(); g.moveTo(55,58); g.quadraticCurveTo(76,63,67,kind === 'fox' ? 37 : 30); g.stroke();
+      if (kind === 'fox') ellipse(68,38,5,8,light);
+      ellipse(40,51,18,19,fur); ellipse(40,57,10,11,light);
+      ellipse(29,67+(moving ? Math.sin(stride)*2 : 0),8,4,fur); ellipse(51,67-(moving ? Math.sin(stride)*2 : 0),8,4,fur);
+      path([[20,34],[19,12],[35,25]],fur); path([[45,25],[61,12],[60,36]],fur);
+      path([[23,27],[23,18],[31,27]],light); path([[49,27],[57,18],[57,29]],light);
+      ellipse(40,35,22,18,fur);
+      if (kind === 'fox') { path([[18,36],[40,54],[40,39]],light); path([[62,36],[40,54],[40,39]],light); }
+      else { ellipse(40,44,13,7,light); g.strokeStyle=light; g.lineWidth=1.3; for(const y of [39,43]) { g.beginPath();g.moveTo(13,y);g.lineTo(26,y+2);g.moveTo(54,y+2);g.lineTo(67,y);g.stroke(); } }
+      ellipse(40,43,2.5,2,'#3b3d3d');
+    }
+    const ey = kind === 'frog' ? 31 : 34, ex = kind === 'frog' ? [26,54] : [30,50];
+    for (const x of ex) { if (blink) { g.fillStyle='#293b36';g.fillRect(x-3,ey,6,1.5); } else ellipse(x+gaze,ey,2.3,3.2,'#293b36'); }
+    if (shot === 'wave') { g.strokeStyle = kind === 'frog' ? '#719d72' : kind === 'fox' ? '#c77642' : '#8493a0'; g.lineWidth=6;g.lineCap='round';g.beginPath();g.moveTo(57,49);g.lineTo(66,still() ? 36 : 34+Math.sin(tick*.7)*4);g.stroke(); }
+    g.restore();
+    if (asleep) { g.fillStyle='#718378';g.font='11px system-ui';g.fillText('z',64,17); }
+    if (base === 'working') { g.fillStyle='#718378';g.font='bold 15px system-ui';g.fillText('···',30,16); }
+    canvas.dataset.state = shot || base; canvas.dataset.gait = moving ? 'walk' : asleep ? 'sleep' : 'stand'; canvas.dataset.facing = facing < 0 ? 'left' : 'right';
+    canvas.dataset.frames = tick;
+  }
+  function frame() {
+    timer = 0;
+    if (!live || !canvas.isConnected || document.hidden || !canvas.getClientRects().length) { live = false; return; }
+    tick++; if (base === 'idle' && !moving && !gaze && ++idleTicks >= 200) base = 'nap';
+    draw(); timer = setTimeout(frame,100);
+  }
+  const api = {
+    start() { loaders.add(api); clearTimeout(timer); timer=0; live=false; draw(); canvas.dataset.anim=still() ? 'off' : 'on'; if (!still()) { live=true;timer=setTimeout(frame,100); } },
+    stop() { live=false;clearTimeout(timer);timer=0;loaders.delete(api);canvas.dataset.anim='off'; },
+    state(name) { if (base !== name) idleTicks=0; base=name;shot='';draw(); },
+    play(name) { idleTicks=0; if (base === 'nap') base='idle'; shot=name;shotUntil=performance.now()+900;draw(); },
+    look(dx) { gaze=dx == null ? 0 : Math.sign(dx);if(dx != null) { idleTicks=0;if(base === 'nap') base='idle'; }if(!live) draw(); },
+    walk(dx,dy) { const distance=Math.hypot(dx||0,dy||0); moving=!still() && distance>.001; if (moving) { stride+=distance*.2;idleTicks=0;if(base === 'nap') base='idle'; } if (dx) facing=Math.sign(dx);if(!live) draw(); },
+    poke() { api.play('happy'); }, retheme: draw,
+  };
+  canvas.sprite=api;draw();return api;
 }
 
 // ---- resize from the left and top edges, and dock to the right side (bookmarklet v7) ----
@@ -5799,16 +5916,11 @@ return pandaSprite;
 })();
 document.addEventListener('visibilitychange', () => { if (!document.hidden) loaders.forEach(l => l.start()); }); // a hidden panel pauses its loaders; they pick up again when it shows
 
-// where the loader appears: the first-load splash and the waiting screen
-// the splash canvas is as tall as the panel, so the strings come down from its top edge to the animal above the wordmark
-const bigPanel = Math.max(innerWidth, (screen.availWidth || 0) / 2) >= 600; // an older bookmark opens small and grows once we tell it the size, so look at the screen too
-const bootScale = bigPanel ? 4 : 3, bootH = Math.ceil(Math.max(innerHeight, screen.availHeight || 0) / bootScale) + 8;
-const bootLoader = pandaSprite($('#bootPbl'), { w: 72, h: bootH, scale: bootScale, drop: bootH - 40, dangle: true });
-bootLoader.start();
+// The opening mark is static CSS; only the pending-approval screen creates a panda loader.
 let waitLoader = null;
 
 // ---- first-load animation; an already loaded panel reopens immediately ----
-const CAP = calm ? 600 : 2150; // don't keep a slow network request behind the intro indefinitely
+const CAP = 600; // don't keep a slow network request behind the intro indefinitely
 let splashT0 = performance.now(), splashing = true;
 const sinceSplash = t => wait(Math.max(0, splashT0 + t - performance.now()));
 async function endSplash(ready, setView) {
@@ -5817,20 +5929,7 @@ async function endSplash(ready, setView) {
   setView?.();
   body.classList.add('reveal');
   boot.classList.add('out');
-  const fly = boot.querySelector('.fly'), dot = $('header .dot');
-  let landed = Promise.resolve();
-  if (!calm && fly.animate) {
-    const a = fly.getBoundingClientRect(), b = dot.getBoundingClientRect();
-    if (b.width && a.width) {
-      const dx = b.left + b.width / 2 - (a.left + a.width / 2), dy = b.top + b.height / 2 - (a.top + a.height / 2);
-      landed = fly.animate([{ transform: 'none' }, { transform: `translate(${dx}px,${dy}px) scale(${b.width / a.width})` }],
-        { duration: 500, delay: 90, easing: 'cubic-bezier(.6,0,.25,1)', fill: 'forwards' }).finished.catch(() => {});
-    }
-  }
-  await Promise.race([landed, wait(900)]);
   body.classList.remove('booting');
-  if (!calm) dot.animate?.([{ transform: 'scale(2.1)' }, { transform: 'scale(1)' }], { duration: 420, easing: 'cubic-bezier(.3,1.7,.5,1)' });
-  await wait(calm ? 0 : 110);
   boot.remove();
   splashing = false;
   setTimeout(() => { if (!splashing) body.classList.remove('reveal'); }, 900);
@@ -5848,6 +5947,10 @@ async function refreshOnOpen() {
   } catch {} finally { refreshingOpen = false; }
 }
 
+$('#workspaceNew').onclick = () => { closeSheet(); closeHistory(); closePdfs(); newChat(); q.focus(); };
+$('#workspaceHistory').onclick = () => openHistory();
+$('#workspaceFiles').onclick = () => openPdfs();
+$('#workspaceSettings').onclick = () => openSheet();
 setPage(true);
 renderPrefs();
 if (embedded && !hostV3) claim(); // older bookmarks don't say when they open the panel, but it only loads when you click one

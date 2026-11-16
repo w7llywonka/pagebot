@@ -10,7 +10,7 @@ const body = /<body>([\s\S]*)<\/body>/.exec(html)[1];
 const visible = body.replace(/<script>[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
 test('the homepage shows the button, one line on where it goes, and the copy fallback, and nothing else', () => {
-  assert.equal(visible, '📌 pagebot Drag to your bookmarks bar. Can’t drag? Copy it instead');
+  assert.equal(visible, 'pagebot Drag to your bookmarks bar. Can’t drag? Copy it instead');
 });
 
 test('the button is the bookmark, with its version, where the server and the other tests look for it', () => {

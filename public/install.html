@@ -6,14 +6,14 @@
 <meta name="robots" content="noindex,nofollow,noarchive,nosnippet">
 <title>pagebot</title>
 <style>
-:root{--bg:#fff;--ink:#22302c;--muted:#8a9590;--teal:#0f5f57;--teal-d:#0a443e;--glow:rgba(15,95,87,.22);
+:root{--bg:#f6f7f9;--ink:#202a37;--muted:#626f7f;--teal:#365c99;--teal-d:#274b84;--glow:rgba(54,92,153,.14);
   font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color-scheme:light dark}
-@media (prefers-color-scheme:dark){:root{--bg:#101413;--ink:#e4eae7;--muted:#7c8783;--teal:#17776d;--teal-d:#1c887d;--glow:rgba(0,0,0,.4)}}
+@media (prefers-color-scheme:dark){:root{--bg:#161b21;--ink:#edf0f4;--muted:#a2afbf;--teal:#365c99;--teal-d:#426daf;--glow:rgba(0,0,0,.4)}}
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;min-height:100svh;display:grid;place-items:center;padding:24px;background:var(--bg);color:var(--ink)}
 main{display:flex;flex-direction:column;align-items:center;text-align:center}
-.btn{display:inline-flex;align-items:center;gap:10px;padding:15px 34px;border-radius:999px;background:var(--teal);color:#fff;font-size:19px;font-weight:500;text-decoration:none;cursor:grab;
-  box-shadow:0 8px 24px var(--glow);transition:transform .12s,background .15s;-webkit-user-select:none;user-select:none}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:15px 34px;border-radius:8px;background:var(--teal);color:#fff;font-size:18px;font-weight:600;text-decoration:none;cursor:grab;
+  box-shadow:0 2px 6px var(--glow);transition:transform .12s,background .15s;-webkit-user-select:none;user-select:none}
 .btn:hover{background:var(--teal-d);transform:translateY(-1px)}
 .btn:active{cursor:grabbing;transform:translateY(1px)}
 .hint{max-width:26em;margin:18px 0 0;font-size:14px;color:var(--muted)}
@@ -26,7 +26,7 @@ main{display:flex;flex-direction:column;align-items:center;text-align:center}
 </head>
 <body>
 <main>
-  <a class="btn" id="bm" href="{{HREF}}" title="Drag me to your bookmarks bar" data-v="{{VERSION}}">📌 pagebot</a>
+  <a class="btn" id="bm" href="{{HREF}}" title="Drag me to your bookmarks bar" data-v="{{VERSION}}">pagebot</a>
   <p class="hint" id="hint" role="status">Drag to your bookmarks bar.</p>
   <button class="copy" id="copy" type="button">Can’t drag? Copy it instead</button>
 </main>

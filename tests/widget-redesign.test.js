@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { after, before, test } from 'node:test';
 
-// The redesign: new themes, the half-screen panel's layout and sizes, and the pixel loader.
+// Workspace navigation, finishes, responsive panel sizing, and fast static loading.
 // Like widget.test.js: Playwright and a local Chromium, every HTTP response a fixture, no server or database.
 const require = createRequire(import.meta.url);
 let chromium;
@@ -76,6 +76,7 @@ async function fixture(t, { standalone = false, theme = 'ember', viewport = { wi
     }
     if (url.pathname === '/api/site-memory') return json({ memories: [], maxSites: 100, maxInstructions: 4000 });
     if (url.pathname === '/api/commands') return json({ commands: [] });
+    if (url.pathname === '/api/pdf') return json({ used: 0, cap: 10 * 1048576, pdfs: [] });
     state.errors.push(`Unexpected request: ${request.method()} ${url.pathname}`);
     return route.fulfill({ status: 404, body: 'Unexpected test request' });
   });
@@ -133,6 +134,7 @@ browserTest('each new theme is in the picker, applies to the panel, is saved as 
   await f.frame.locator('#setBtn').click();
   await f.frame.locator('#tab-appearance').click(); // the picker is in Settings > Appearance
   assert.equal(await f.frame.locator('.themes .sw').count(), 14);
+  await f.frame.locator('.more-themes summary').click();
   for (const name of NEW_THEMES) {
     await f.frame.locator(`.sw[data-t=${name}]`).click();
     assert.equal(await f.frame.evaluate(() => document.documentElement.dataset.theme), name);
@@ -150,7 +152,7 @@ browserTest('each new theme is in the picker, applies to the panel, is saved as 
   assert.equal(await g.frame.locator('.sw[data-t=orbit]').count(), 1);
 });
 
-browserTest('Settings keeps its sections and its picker; only the swatches are new', async t => {
+browserTest('Settings keeps its sections and exposes curated finishes with accurate previews', async t => {
   const f = await fixture(t);
   await f.ready();
   await f.frame.locator('#setBtn').click();
@@ -159,14 +161,15 @@ browserTest('Settings keeps its sections and its picker; only the swatches are n
   for (const old of ['usage today', 'website memory', 'slash commands', 'answer length', 'quick unlock']) assert.ok(headings.includes(old), old);
   assert.deepEqual(await f.frame.locator('#stabs [role=tab] b').allInnerTexts(), ['General', 'Appearance', 'Memory & commands', 'Page actions', 'Files & chats', 'Privacy', 'Account', 'Usage', 'About']);
   await f.frame.locator('#tab-appearance').click();
+  await f.frame.locator('.more-themes summary').click();
   const names = await f.frame.locator('.themes .sw .nm').allInnerTexts();
-  assert.deepEqual(names, ['Auto', 'Ember', 'Paper', 'Midnight', 'Forest', 'Dusk', 'Sakura', 'Terminal', 'Pond', 'Orbit', 'Void', 'Arcade', 'Glass', 'Clear']);
+  assert.deepEqual(names, ['Auto', 'Carbon', 'Porcelain', 'Tide', 'Fern', 'Mulberry', 'Terracotta', 'Field notes', 'Grove', 'Blueprint', 'Olive', 'Iris', 'Glass', 'Clear']);
   // a swatch carries its theme's colours, like the older ones
-  assert.equal(await f.frame.locator('.sw[data-t=pond]').evaluate(e => e.style.getPropertyValue('--sw-acc')), '#4fd6b8');
-  assert.equal(await f.frame.locator('.sw[data-t=void]').evaluate(e => e.style.getPropertyValue('--sw-acc')), '#f6a05a');
+  assert.equal(await f.frame.locator('.sw[data-t=pond]').evaluate(e => e.style.getPropertyValue('--sw-acc')), '#b7d0ac');
+  assert.equal(await f.frame.locator('.sw[data-t=void]').evaluate(e => e.style.getPropertyValue('--sw-acc')), '#d0d4a4');
 });
 
-browserTest('every new theme has readable text: the palette pairs and the real components, all at WCAG 4.5 or better', async t => {
+browserTest('every solid finish has readable text: the palette pairs and the real components, all at WCAG 4.5 or better', async t => {
   const f = await fixture(t);
   await f.ready();
   await f.frame.evaluate(CONTRAST);
@@ -209,69 +212,47 @@ browserTest('every new theme has readable text: the palette pairs and the real c
     }
     return out;
   }, { name });
-  for (const name of NEW_THEMES) {
+  const failures = [];
+  for (const name of ['ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', ...NEW_THEMES]) {
     await f.frame.evaluate(n => { document.documentElement.dataset.theme = n; }, name);
     await f.settle();
     const r = await checks(name);
     for (const [label, ratio] of Object.entries(r)) {
-      assert.ok(ratio >= 4.5, `${name}: ${label} has contrast ${ratio?.toFixed?.(2)}, needs 4.5`);
+      if (!(ratio >= 4.5)) failures.push(`${name}: ${label} has contrast ${ratio?.toFixed?.(2)}, needs 4.5`);
     }
   }
+  assert.deepEqual(failures, []);
 });
 
-browserTest('the new themes draw a static dither texture and leave glass and clear alone', async t => {
-  const f = await fixture(t);
-  await f.ready();
-  const pseudo = (theme) => f.frame.evaluate(n => {
-    document.documentElement.dataset.theme = n;
-    const b = getComputedStyle(document.body), before = getComputedStyle(document.body, '::before'), after = getComputedStyle(document.body, '::after');
-    return { iso: b.isolation, before: before.content, after: after.content, beforeAnim: before.animationName, afterAnim: after.animationName, pos: after.position, events: after.pointerEvents };
-  }, theme);
-  for (const name of NEW_THEMES) {
-    const r = await pseudo(name);
-    assert.equal(r.iso, 'isolate', name);
-    assert.equal(r.before, '""', name);
-    assert.equal(r.after, '""', name);
-    assert.equal(r.beforeAnim, 'none', `${name}: the texture must not animate`);
-    assert.equal(r.afterAnim, 'none', `${name}: the texture must not animate`);
-    assert.equal(r.pos, 'fixed');
-    assert.equal(r.events, 'none');
+browserTest('solid finishes have no decorative texture layers; transparent modes retain their behavior', async t => {
+  const f = await fixture(t); await f.ready();
+  for (const name of ['ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', ...NEW_THEMES]) {
+    const result = await f.frame.evaluate(n => {
+      document.documentElement.dataset.theme = n;
+      const body = getComputedStyle(document.body);
+      return { before: getComputedStyle(document.body, '::before').content, after: getComputedStyle(document.body, '::after').content, image: body.backgroundImage };
+    }, name);
+    assert.equal(result.before, 'none', name); assert.equal(result.after, 'none', name); assert.equal(result.image, 'none', name);
   }
-  for (const name of ['ember', 'paper', 'clear']) {
-    const r = await pseudo(name);
-    assert.equal(r.iso, 'auto', name);
-    assert.equal(r.after, 'none', name);
+  for (const theme of ['glass', 'clear']) {
+    const r = await f.frame.evaluate(n => { document.documentElement.dataset.theme = n; return getComputedStyle(document.body).backgroundColor; }, theme);
+    assert.match(r, /^rgba/, `${theme} still has a transparent background`);
   }
-  const glass = await pseudo('glass'); // glass has its own sheen layer on ::before and nothing else
-  assert.equal(glass.iso, 'auto');
-  assert.equal(glass.after, 'none');
 });
 
-browserTest('the pixel loader plays on the splash, never blocks, and is gone with it', async t => {
-  const gate = deferred();
-  const f = await fixture(t, { bootGate: gate });
+browserTest('the static loading mark yields on boot, uses no animation loop, and does not block input', async t => {
+  const gate = deferred(), f = await fixture(t, { bootGate: gate });
   const canvas = f.frame.locator('#bootPbl');
-  await canvas.waitFor({ state: 'visible' });
-  assert.equal(await canvas.getAttribute('data-anim'), 'on');
-  assert.equal(await canvas.getAttribute('aria-hidden'), 'true');
-  const size = await canvas.evaluate(c => [c.width, c.height, c.getBoundingClientRect().width > 100]);
-  assert.ok(size[0] >= 60 && size[1] >= 60 && size[2], 'a real, sizeable canvas');
-  // it paints something: the animal and strings are not transparent
-  assert.ok(await canvas.evaluate(c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 200) n++; return n > 200; }));
-  // the panda dangles from three strings: they start at the top edge of the canvas, and the red panda's fur is on it
-  assert.ok(await canvas.evaluate(c => { const d = c.getContext('2d').getImageData(0, 0, c.width, 1).data; let runs = 0, on = false; for (let i = 3; i < d.length; i += 4) { const o = d[i] > 150; if (o && !on) runs++; on = o; } return runs >= 3; }), 'three strings come down from the top');
-  assert.ok(await canvas.evaluate(c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 0; i < d.length; i += 4) if (d[i + 3] === 255 && d[i] === 217 && d[i + 1] === 85 && d[i + 2] === 43) return true; return false; }), 'it is the red panda');
-  const frames = Number(await canvas.getAttribute('data-frames'));
-  await f.page.waitForTimeout(500);
-  assert.ok(Number(await canvas.getAttribute('data-frames')) > frames + 2, 'it animates while the splash is up');
-  // the splash waits on the network at most a couple of seconds, and the panel behind it is not covered afterwards
-  gate.resolve();
-  await f.frame.locator('#boot').waitFor({ state: 'detached' });
-  assert.equal(await f.frame.locator('#bootPbl').count(), 0);
+  assert.equal(await canvas.isVisible(), false);
+  assert.equal(await canvas.getAttribute('data-frames'), null);
+  const mark = await f.frame.locator('#boot .orb').evaluate(e => {
+    const s = getComputedStyle(e, '::before'); return { content: s.content, animation: s.animationName };
+  });
+  assert.equal(mark.content, '""'); assert.equal(mark.animation, 'none');
+  gate.resolve(); await f.ready();
   await f.frame.locator('#q').fill('hello');
   assert.equal(await f.frame.locator('#q').inputValue(), 'hello');
-  const hit = await f.frame.evaluate(() => { const r = document.querySelector('#q').getBoundingClientRect(); return document.elementFromPoint(r.x + 20, r.y + 10)?.id; });
-  assert.equal(hit, 'q', 'nothing from the splash sits over the message box');
+  assert.equal(await f.frame.evaluate(() => { const r = document.querySelector('#q').getBoundingClientRect(); return document.elementFromPoint(r.x+20,r.y+10)?.id; }), 'q');
 });
 
 browserTest('the Thinking bubble is plain dots, not the loader, and never blocks the message box', async t => {
@@ -290,42 +271,31 @@ browserTest('the Thinking bubble is plain dots, not the loader, and never blocks
   assert.equal(await f.frame.locator('.msg.bot .typing').count(), 0, 'the dots go when the words arrive');
 });
 
-browserTest('with reduced motion the loader draws one still frame and never runs a loop', async t => {
-  const gate = deferred(), chatGate = deferred();
-  const f = await fixture(t, { reduced: true, bootGate: gate, chatGate });
+browserTest('a slow boot cannot keep the splash up; reduced motion also schedules no canvas frames', async t => {
+  const gate = deferred(), f = await fixture(t, { reduced: true, bootGate: gate });
   const canvas = f.frame.locator('#bootPbl');
-  await canvas.waitFor({ state: 'visible' });
-  assert.equal(await canvas.getAttribute('data-anim'), 'off');
-  assert.equal(await canvas.getAttribute('data-frames'), null, 'no animation frames were ever scheduled');
-  assert.ok(await canvas.evaluate(c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 200) n++; return n > 200; }), 'the still frame is drawn');
-  gate.resolve();
-  chatGate.resolve();
+  assert.equal(await canvas.getAttribute('data-frames'), null);
+  assert.equal(await canvas.isVisible(), false);
+  await f.frame.locator('#boot').waitFor({ state: 'detached', timeout: 1800 });
+  gate.resolve(); await f.ready();
 });
 
-browserTest('the panda keeps its own colours on every theme; only the void behind it follows the theme', async t => {
-  const f = await fixture(t, { bootGate: deferred() });
-  const canvas = f.frame.locator('#bootPbl');
-  await canvas.waitFor({ state: 'visible' });
-  const has = rgb => canvas.evaluate((c, rgb) => { // is a colour drawn, exactly
-    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
-    for (let i = 0; i < d.length; i += 4) if (d[i + 3] === 255 && `${d[i]},${d[i + 1]},${d[i + 2]}` === rgb) return true;
-    return false;
-  }, rgb);
-  const dither = () => canvas.evaluate(c => { // the void's dots: translucent, in the theme's text colour
-    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
-    for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 20 && d[i + 3] < 80) return `${d[i]},${d[i + 1]},${d[i + 2]}`;
-    return '';
-  });
-  assert.equal(await has('217,85,43'), true); // the red panda's fur, #d9552b
-  const ember = await dither();
-  assert.ok(ember);
-  await f.frame.evaluate(() => document.querySelector('.sw[data-t=paper]').click()); // the picker's own code path
-  await f.page.waitForTimeout(300);
-  assert.equal(await has('217,85,43'), true, 'the fur does not take the theme\'s colour');
-  assert.notEqual(await dither(), ember, 'the void follows the theme');
+browserTest('theme keyboard navigation reaches additional finishes and restores a saved legacy finish', async t => {
+  const f = await fixture(t); await f.ready();
+  await f.frame.locator('#setBtn').click(); await f.frame.locator('#tab-appearance').click();
+  await f.frame.locator('.sw[data-t=sakura]').focus();
+  await f.page.keyboard.press('ArrowRight');
+  assert.equal(await f.frame.evaluate(() => document.activeElement.dataset.t), 'terminal');
+  assert.equal(await f.frame.locator('.more-themes').getAttribute('open'), '');
+  await f.page.keyboard.press('Enter');
+  assert.equal(await f.frame.evaluate(() => document.documentElement.dataset.theme), 'terminal');
+  const g = await fixture(t, { store: { pb_theme: 'orbit' }, theme: 'orbit' }); await g.ready();
+  await g.frame.locator('#setBtn').click(); await g.frame.locator('#tab-appearance').click();
+  assert.equal(await g.frame.locator('.sw[data-t=orbit]').isVisible(), true);
+  assert.equal(await g.frame.locator('.sw[data-t=orbit]').getAttribute('aria-checked'), 'true');
 });
 
-browserTest('the big layout switches on with the panel: a centred reading column and bigger type at half-screen, the old compact one when narrow', async t => {
+browserTest('the big layout switches on with the panel: a centred reading column and bigger type at half-screen, a comfortable composer when narrow', async t => {
   const wide = await fixture(t, { boxed: { w: 1400, h: 800 }, viewport: { width: 1440, height: 900 } });
   await wide.ready();
   await wide.frame.locator('#q').fill('Summarize this page.');
@@ -362,9 +332,9 @@ browserTest('the big layout switches on with the panel: a centred reading column
   assert.equal(n.msgFont, 14);
   assert.ok(n.gutter >= 12 && n.gutter < 13, `side space ${n.gutter}`);
   assert.equal(n.hd, 46);
-  assert.ok(n.qMin < 40);
+  assert.ok(n.qMin >= 52, 'the narrow composer leaves comfortable room for input');
   assert.ok(n.boxWidth >= 355 && n.boxWidth <= 360, `box ${n.boxWidth}`);
-  assert.ok(n.botWidth <= 340);
+  assert.ok(n.botWidth <= 356);
 });
 
 browserTest('history cards use two columns when there is room and one when narrow; the slash list runs one command per line when wide', async t => {
@@ -395,11 +365,11 @@ browserTest('/chat uses the whole window with the reading column in the middle, 
   await f.frame.locator('.msg.bot .meta').waitFor();
   const m = await f.frame.evaluate(() => { const b = document.querySelector('.msg.bot').getBoundingClientRect(); return { body: document.body.getBoundingClientRect().width, left: Math.round(b.left), width: Math.round(b.width) }; });
   assert.equal(m.body, 1440);
-  assert.ok(m.width <= 760 && m.left === 340, JSON.stringify(m)); // (1440 - 760) / 2
+  assert.ok(m.width <= 760 && m.left === 444, JSON.stringify(m)); // 208px rail + (1440 - 208 - 760) / 2
   await f.frame.locator('#setBtn').click();
   // the sheet fills the window like history does; its two panes sit in a centred column of at most 900px
   const sheet = await f.frame.evaluate(() => { const r = document.querySelector('#sheet').getBoundingClientRect(), c = document.querySelector('.sin').getBoundingClientRect(); return [Math.round(r.width), Math.round(c.width), Math.round(c.left)]; });
-  assert.deepEqual(sheet, [1440, 900, 270], 'Settings fills the window with its panes centred in 900px');
+  assert.deepEqual(sheet, [1232, 900, 374], 'Settings uses a centred 900px column beside the workspace rail');
 });
 
 // ---- the panel's size: the real bookmarklet in a host page; the panel is the iframe it makes ----
@@ -489,4 +459,29 @@ browserTest('the pending-approval screen shows the loader instead of the hourgla
   await f.frame.evaluate(() => document.querySelector('#wait').classList.add('in')); // what the panel does the moment you're accepted
   await f.frame.locator('.hg').waitFor({ state: 'visible' }); // it pops in
   assert.equal(await f.frame.locator('.wl').isVisible(), false);
+});
+
+browserTest('the workspace navigation opens existing features and task starters send useful prompts', async t => {
+  const f = await fixture(t, { standalone: true, reduced: true }); await f.ready();
+  assert.equal(await f.frame.locator('#workspaceNav').isVisible(), true);
+  await f.frame.locator('#workspaceHistory').click();
+  assert.equal(await f.frame.locator('#hist').isVisible(), true);
+  await f.frame.locator('#workspaceSettings').click();
+  assert.equal(await f.frame.locator('#sheet').isVisible(), true);
+  assert.equal(await f.frame.locator('#hist').isVisible(), false);
+  await f.frame.locator('#workspaceFiles').click();
+  assert.equal(await f.frame.locator('#pdfs').isVisible(), true);
+  await f.frame.locator('#workspaceNew').click();
+  assert.equal(await f.frame.locator('#pdfs').isVisible(), false);
+  for (const [label, part] of [['Understand', 'how familiar'], ['Compare', 'constraints'], ['Draft', 'who it is for']]) {
+    await f.frame.locator('.starters button').filter({ has: f.frame.locator('.starter-name', { hasText: label }) }).click();
+    await f.frame.locator('.msg.bot .meta').waitFor();
+    const req = f.state.requests.filter(r => r.path === '/api/chat').at(-1);
+    assert.ok(JSON.stringify(req.body).includes(part));
+    await f.frame.locator('#workspaceNew').click();
+    assert.equal(await f.frame.locator('.msg').count(), 0);
+  }
+  await f.page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await f.frame.locator('#workspaceNav').isVisible(), false);
+  assert.equal(await f.frame.locator('#setBtn').isVisible(), true);
 });

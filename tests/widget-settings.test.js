@@ -592,7 +592,7 @@ browserTest('/chat at full width: two panes in a centred column, and Done return
   const f = await fixture(t, { width: 1440, height: 900, standalone: true });
   await f.opens();
   const g = await f.frame.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(); return { sheet: r('#sheet'), inner: r('.sin'), pane: r('#spane'), nav: r('#snav') }; });
-  assert.equal(Math.round(g.sheet.width), 1440);
+  assert.equal(Math.round(g.sheet.width), 1232, 'the workspace rail stays available beside settings');
   assert.equal(Math.round(g.inner.width), 900);
   assert.ok(g.pane.width <= 600 && g.nav.right <= g.pane.left);
   assert.equal(await f.vis('#snav'), true);
