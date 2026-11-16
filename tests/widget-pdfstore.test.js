@@ -89,8 +89,11 @@ async function fixture(t, { standalone = false, theme = 'ember', pdfs = stored()
   const frame = standalone ? page.mainFrame() : page.frames().find(f => f.url().startsWith('https://pagebot.example.test/'));
   await frame.locator('#q').waitFor({ state: 'visible' });
   await frame.locator('#boot').waitFor({ state: 'detached' });
-  const openFromMenu = async () => { await frame.locator('#addBtn').click(); await frame.locator('#pdfManage').click(); await frame.locator('#pdfs').waitFor({ state: 'visible' }); };
-  return { page, frame, state, openFromMenu };
+  // Showing the sheet starts an asynchronous list request. The storage summary is rendered
+  // with the completed list, including its empty state, so it is the readiness condition.
+  const waitForPdfs = async () => { await frame.locator('#pdfs').waitFor({ state: 'visible' }); await frame.locator('#pdfUsed').waitFor({ state: 'visible' }); };
+  const openFromMenu = async () => { await frame.locator('#addBtn').click(); await frame.locator('#pdfManage').click(); await waitForPdfs(); };
+  return { page, frame, state, openFromMenu, waitForPdfs };
 }
 const rowsOf = f => f.frame.locator('#pdfList .prow');
 
@@ -178,7 +181,7 @@ browserTest('when the cap is reached the upload note has a Manage PDFs button th
   assert.match(await note.innerText(), /Delete a PDF you’re done with to make room\.\s*Manage PDFs$/);
   assert.equal(await f.frame.locator('#pdfPill').isVisible(), false);
   await note.getByRole('button', { name: 'Manage PDFs' }).click();
-  await f.frame.locator('#pdfs').waitFor({ state: 'visible' });
+  await f.waitForPdfs();
   assert.equal(await rowsOf(f).count(), 2);
 });
 
@@ -255,7 +258,10 @@ for (const theme of ['glass', 'clear', 'paper', 'midnight']) {
     assert.equal(css.pos, 'absolute');
     if (theme !== 'glass' && theme !== 'clear') assert.notEqual(css.bg, 'rgba(0, 0, 0, 0)', 'an opaque sheet over the chat');
     else assert.ok(await sheet.evaluate(el => getComputedStyle(el).backdropFilter !== 'none' || getComputedStyle(el).webkitBackdropFilter !== 'none'), 'glass blurs what is behind');
-    if (theme === 'clear') assert.equal(await f.frame.locator('#composer').evaluate(el => getComputedStyle(el).visibility), 'hidden', 'nothing shows through the clear panel');
+    if (theme === 'clear') {
+      await f.frame.waitForFunction(() => getComputedStyle(document.querySelector('#composer')).visibility === 'hidden');
+      assert.equal(await f.frame.locator('#composer').evaluate(el => getComputedStyle(el).visibility), 'hidden', 'nothing shows through the clear panel');
+    }
     const box = await sheet.evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.left, width: r.width }; }), rows = await rowsOf(f).evaluateAll(els => els.map(e => { const r = e.getBoundingClientRect(); return [r.left, r.right]; }));
     for (const [l, r] of rows) assert.ok(l >= box.x - 1 && r <= box.x + box.width + 1, 'rows fit the panel');
     for (const row of await rowsOf(f).all()) assert.equal(await row.getByRole('button', { name: /Delete/ }).isVisible(), true);
