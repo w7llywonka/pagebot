@@ -473,9 +473,9 @@ browserTest('Settings > Appearance > Panel > Minimize to switches between the pa
   await f.frame.locator('#setBtn').click();
   await f.frame.locator('#tab-appearance').click();
   assert.equal(await f.frame.locator('#miniLbl').innerText(), 'Minimize to');
-  assert.deepEqual(await seg.locator('button').allInnerTexts(), ['Panda', 'Pill']);
-  assert.equal(await seg.locator('button.on').innerText(), 'Panda', 'the panda is the default on a v13 bookmark');
-  await seg.getByText('Pill').click();
+  assert.deepEqual(await seg.locator('button').allInnerTexts(), ['Pet', 'Bar']);
+  assert.equal(await seg.locator('button.on').innerText(), 'Pet', 'the panda is the default on a v13 bookmark');
+  await seg.getByText('Bar').click();
   assert.equal(await f.frame.evaluate(() => localStorage.getItem('pb_mini')), 'pill');
   await f.frame.locator('#shClose').click().catch(() => f.page.keyboard.press('Escape'));
   await f.frame.locator('#minBtn').click();
@@ -486,7 +486,7 @@ browserTest('Settings > Appearance > Panel > Minimize to switches between the pa
   await f.page.waitForTimeout(260);
   await f.frame.locator('#setBtn').click();
   await f.frame.locator('#tab-appearance').click();
-  await seg.getByText('Panda').click();
+  await seg.getByText('Pet').click();
   assert.equal(await f.frame.evaluate(() => localStorage.getItem('pb_mini')), null);
   await f.page.keyboard.press('Escape');
   await f.minimize();
@@ -495,8 +495,8 @@ browserTest('Settings > Appearance > Panel > Minimize to switches between the pa
   const old = await fixture(t, { bookmark: 12 });
   await old.frame.locator('#setBtn').click();
   await old.frame.locator('#tab-appearance').click();
-  assert.equal(await old.frame.locator('#miniSeg button', { hasText: 'Panda' }).isDisabled(), true);
-  assert.equal(await old.frame.locator('#miniSeg button.on').innerText(), 'Pill');
+  assert.equal(await old.frame.locator('#miniSeg button', { hasText: 'Pet' }).isDisabled(), true);
+  assert.equal(await old.frame.locator('#miniSeg button.on').innerText(), 'Bar');
   assert.match(await old.frame.locator('#miniNote').innerText(), /newest bookmark/);
 });
 
@@ -547,4 +547,75 @@ browserTest('all 14 themes show the whole panda, unclipped, in a see-through fra
       return hash >>> 0;
     }), ELTHEN_IDLE_FNV, theme + ': original sprite pixels');
   }
+});
+
+browserTest('desk companions can be selected with the keyboard, persist, and open from a transparent frame', async t => {
+  const f = await fixture(t, { reduced: true });
+  await f.frame.locator('#setBtn').click();
+  await f.frame.locator('#tab-appearance').click();
+  const choices = f.frame.locator('#companionSeg');
+  assert.deepEqual(await choices.locator('button').allInnerTexts(), ['Red panda', 'Cat', 'Fox', 'Frog']);
+  await choices.getByRole('radio', { name: 'Red panda', exact: true }).focus();
+  await f.page.keyboard.press('ArrowRight');
+  assert.equal(await choices.getByRole('radio', { name: 'Cat', exact: true }).getAttribute('aria-checked'), 'true');
+  for (const kind of ['cat', 'fox', 'frog']) {
+    await choices.locator(`[data-kind=${kind}]`).click();
+    assert.equal(await f.frame.evaluate(() => localStorage.getItem('pb_companion')), kind);
+    await f.page.keyboard.press('Escape');
+    await f.minimize();
+    const cv = f.frame.locator('#petCv');
+    assert.equal(await cv.getAttribute('data-companion'), kind);
+    assert.equal(await cv.getAttribute('data-anim'), 'off');
+    assert.equal((await f.style()).w, '80px');
+    assert.equal((await f.style()).shadow, 'none');
+    const pixels = await ink(cv); assert.ok(pixels.n > 100 && pixels.n < pixels.w * pixels.h * .8);
+    const n = await cv.getAttribute('data-frames');
+    await f.page.waitForTimeout(250);
+    assert.equal(await cv.getAttribute('data-frames'), n, 'reduced motion runs no animation loop');
+    await f.frame.locator('#pet').press('Enter');
+    await f.frame.locator('#q').waitFor({ state: 'visible' });
+    await f.frame.locator('#setBtn').click();
+    await f.frame.locator('#tab-appearance').click();
+  }
+  await f.page.keyboard.press('Escape');
+  await f.reopen();
+  await f.minimize();
+  assert.equal(await f.frame.locator('#petCv').getAttribute('data-companion'), 'frog');
+});
+
+browserTest('the original companions animate only while visible, and show working and completion states', async t => {
+  const gate = deferred();
+  const f = await fixture(t, { store: { pb_companion: 'fox' }, chatGate: gate });
+  await f.send('Summarize'); await f.minimize();
+  const cv = f.frame.locator('#petCv');
+  assert.equal(await cv.getAttribute('data-state'), 'working');
+  const tick = Number(await cv.getAttribute('data-frames'));
+  await f.page.waitForTimeout(350);
+  assert.ok(Number(await cv.getAttribute('data-frames')) > tick);
+  gate.resolve();
+  await f.frame.locator('#petSay').waitFor({ state: 'visible' });
+  assert.match(await f.frame.locator('#petSay').innerText(), /^Done/);
+  await f.frame.locator('#pet').click();
+  assert.equal(await cv.getAttribute('data-anim'), 'off');
+  const stopped = await cv.getAttribute('data-frames');
+  await f.page.waitForTimeout(350);
+  assert.equal(await cv.getAttribute('data-frames'), stopped);
+});
+
+browserTest('roaming can be disabled independently of animation and the choice survives reopening', async t => {
+  const f = await fixture(t, { store: { pb_companion: 'cat' } });
+  await f.frame.locator('#setBtn').click(); await f.frame.locator('#tab-appearance').click();
+  const toggle = f.frame.locator('#roamTog');
+  await toggle.click();
+  assert.equal(await toggle.getAttribute('aria-checked'), 'false');
+  assert.equal(await f.frame.evaluate(() => localStorage.getItem('pb_roam')), 'off');
+  await f.page.keyboard.press('Escape'); await f.minimize();
+  const before = await f.style();
+  await f.page.waitForTimeout(2200);
+  const after = await f.style();
+  assert.equal(after.r, before.r); assert.equal(after.b, before.b);
+  assert.equal((await f.host('drag')).length, 0);
+  assert.equal(await f.frame.locator('#petCv').getAttribute('data-anim'), 'on');
+  await f.reopen(); await f.frame.locator('#setBtn').click(); await f.frame.locator('#tab-appearance').click();
+  assert.equal(await f.frame.locator('#roamTog').getAttribute('aria-checked'), 'false');
 });
