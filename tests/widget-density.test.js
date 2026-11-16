@@ -143,7 +143,8 @@ browserTest('choosing Compact in Settings applies at once, is saved, and is stil
   assert.equal(await f.saved(), 'compact');
   assert.equal(await f.frame.locator('#densitySeg .on').innerText(), 'Compact');
   assert.equal(await f.frame.locator('#densitySeg .on').getAttribute('aria-checked'), 'true');
-  assert.ok((await f.frame.evaluate(() => document.querySelector('header').getBoundingClientRect().height)) < before.header, 'the header got shorter on the spot');
+  const afterHeader = await f.frame.evaluate(() => document.querySelector('header').getBoundingClientRect().height);
+  assert.ok(afterHeader < before.header, `the header got shorter on the spot: ${before.header}px → ${afterHeader}px`);
   await f.frame.locator('#shDone').first().click().catch(() => {});
   await f.reload();
   assert.equal(await f.dense(), true, 'still compact after a reload');

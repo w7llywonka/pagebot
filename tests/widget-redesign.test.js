@@ -99,7 +99,17 @@ async function fixture(t, { standalone = false, theme = 'ember', viewport = { wi
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     await Promise.all(document.getAnimations().filter(a => a instanceof CSSTransition).map(a => a.finished.catch(() => {})));
   });
-  const ready = async () => { await frame.locator('#boot').waitFor({ state: 'detached' }); await frame.locator('#q').waitFor({ state: 'visible' }); await settle(); };
+  const ready = async () => {
+    await frame.locator('#boot').waitFor({ state: 'detached' });
+    await frame.locator('#q').waitFor({ state: 'visible' });
+    // The fast widget boot may finish before its host iframe's size transition does.
+    if (!standalone) await page.evaluate(async () => {
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const iframe = document.getElementById('__pagebot');
+      await Promise.all(iframe.getAnimations().map(a => a.finished.catch(() => {})));
+    });
+    await settle();
+  };
   const iframeBox = () => page.evaluate(() => { const f = document.getElementById('__pagebot'); const r = f.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), right: innerWidth - Math.round(r.right), bottom: innerHeight - Math.round(r.bottom) }; });
   return { context, page, frame, state, settle, ready, iframeBox };
 }

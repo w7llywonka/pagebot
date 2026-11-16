@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import zlib from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readRouterStream } from './lib/router-stream.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUB = path.join(__dirname, 'public');
@@ -15,7 +16,7 @@ const PUB = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
 // pagebot's version. It's written into the bookmark people drag from the homepage, so raise it by one to release an
 // update: panels opened from an older bookmark then send people to the homepage to drag the new one.
-const VERSION = 13; // 13: Minimize turns the panel into a little red panda, a see-through 120 px frame (see README, “The panda”); 12: page actions use the browser toolset: screenshots, coordinates, keys, and a page tree that sees into shadow DOM and frames (see README, “Page actions”); 11: the panel opens half-screen sized, worked out from the window (see README, “Size”); 10: the bookmarklet's page-action checks got stricter (see README, “Page actions”)
+const VERSION = 14; // 14: preserve complete page paragraphs within the overall extraction budget; 13: Minimize turns the panel into a little red panda, a see-through 120 px frame (see README, “The panda”); 12: page actions use the browser toolset: screenshots, coordinates, keys, and a page tree that sees into shadow DOM and frames (see README, “Page actions”); 11: the panel opens half-screen sized, worked out from the window (see README, “Size”); 10: the bookmarklet's page-action checks got stricter (see README, “Page actions”)
 // the two models the panel can switch between; web search tool versions differ per model
 const MODELS = {
   haiku: { id: process.env.HAIKU_MODEL || process.env.MODEL || 'claude-haiku-5-5', label: 'Haiku 5.5', search: 'web_search_20250305' },
@@ -1187,7 +1188,6 @@ function addRouterUsage(tot, u, model) {
   tot.usd += typeof u.cost === 'number' ? u.cost : tokenCost(model, { input_tokens: i, output_tokens: o }) + searches * SEARCH_USD;
 }
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const ROUTER_STOP = { stop: 'end_turn', length: 'max_tokens', content_filter: 'refusal' };
 const routerError = (status, body) => Object.assign(new Error(String(body?.error?.message || `OpenRouter error ${status}`)), { status, router: true });
 // One answer from OpenRouter: OpenAI-style chat completions, streamed as server-sent events. `s` fills in as it
 // streams (whether it got going, its usage, the web pages it cites), so an answer that breaks off still counts.
@@ -1199,26 +1199,8 @@ async function askRouter(body, signal, s, onText) {
   });
   if (!r.ok) throw routerError(r.status, await r.json().catch(() => null));
   s.started = true;
-  const dec = new TextDecoder();
-  let buf = '', finish = null;
-  for await (const chunk of r.body) {
-    buf += dec.decode(chunk, { stream: true });
-    const lines = buf.split('\n');
-    buf = lines.pop();
-    for (const line of lines) {
-      if (!line.startsWith('data:')) continue; // blank lines and ": OPENROUTER PROCESSING" keep-alives
-      const data = line.slice(5).trim();
-      let ev;
-      try { ev = JSON.parse(data); } catch { continue; } // the closing [DONE] too
-      if (ev.error) throw routerError(ev.error.code, ev); // an error after the answer started comes as an event
-      if (ev.usage) s.usage = ev.usage; // with the last event
-      const c = ev.choices?.[0];
-      if (c?.finish_reason) finish = c.finish_reason;
-      for (const a of c?.delta?.annotations || []) if (a?.type === 'url_citation' && a.url_citation) s.sources.push(a.url_citation);
-      if (c?.delta?.content) onText(c.delta.content);
-    }
-  }
-  return { model: body.model, stop_reason: ROUTER_STOP[finish] || finish || 'end_turn' };
+  const stop_reason = await readRouterStream(r.body, s, onText);
+  return { model: body.model, stop_reason };
 }
 
 // ---------- page actions ----------

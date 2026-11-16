@@ -568,7 +568,7 @@ browserTest('desk companions can be selected with the keyboard, persist, and ope
     assert.equal(await cv.getAttribute('data-anim'), 'off');
     assert.equal((await f.style()).w, '80px');
     assert.equal((await f.style()).shadow, 'none');
-    const pixels = await ink(cv); assert.ok(pixels.n > 100 && pixels.n < pixels.w * pixels.h * .8);
+    const pixels = await ink(cv); assert.ok(pixels.n > 50 && pixels.n < pixels.w * pixels.h * .8, 'the sourced animal is drawn with a transparent surround');
     const n = await cv.getAttribute('data-frames');
     await f.page.waitForTimeout(250);
     assert.equal(await cv.getAttribute('data-frames'), n, 'reduced motion runs no animation loop');
@@ -583,7 +583,7 @@ browserTest('desk companions can be selected with the keyboard, persist, and ope
   assert.equal(await f.frame.locator('#petCv').getAttribute('data-companion'), 'frog');
 });
 
-browserTest('the original companions animate only while visible, and show working and completion states', async t => {
+browserTest('the sourced companions animate only while visible, and show working and completion states', async t => {
   const gate = deferred();
   const f = await fixture(t, { store: { pb_companion: 'fox' }, chatGate: gate });
   await f.send('Summarize'); await f.minimize();
@@ -618,4 +618,91 @@ browserTest('roaming can be disabled independently of animation and the choice s
   assert.equal(await f.frame.locator('#petCv').getAttribute('data-anim'), 'on');
   await f.reopen(); await f.frame.locator('#setBtn').click(); await f.frame.locator('#tab-appearance').click();
   assert.equal(await f.frame.locator('#roamTog').getAttribute('aria-checked'), 'false');
+});
+
+// These hashes are generated from the downloaded artists' PNG cells, before the widget's
+// palette encoding. Compare every embedded clip, including frames not used by the first idle pose.
+for (const kind of ['cat', 'fox', 'frog']) {
+  browserTest(`the sourced ${kind} preserves every artist frame and its transparent pixel edges`, async t => {
+    const references = JSON.parse(await readFile(new URL('./fixtures/companion-art.json', import.meta.url), 'utf8'));
+    const reference = references[kind];
+    const f = await fixture(t, { reduced: true, store: { pb_companion: kind, pb_roam: 'off' } });
+    await f.minimize();
+    const result = await f.frame.locator('#petCv').evaluate(async (canvas, source) => {
+      const sprite = canvas.sprite, frames = [];
+      sprite.walk(0, 0); sprite.look(null);
+      for (const [clip, sequence] of Object.entries(source.clips)) {
+        const count = sprite.frames(clip);
+        for (let i = 0; i < count; i++) {
+          sprite.draw(clip, i);
+          const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+          let opaque = 0, translucent = 0, edge = 0;
+          for (let n = 3; n < pixels.length; n += 4) {
+            const alpha = pixels[n], pixel = (n - 3) / 4;
+            if (alpha === 255) opaque++; else if (alpha !== 0) translucent++;
+            if (alpha && (pixel % canvas.width === 0 || pixel % canvas.width === canvas.width - 1 || pixel < canvas.width || pixel >= canvas.width * (canvas.height - 1))) edge++;
+          }
+          const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', pixels))].map(v => v.toString(16).padStart(2, '0')).join('');
+          frames.push({ clip, i, count, hash, opaque, translucent, edge, sourceFrame: canvas.dataset.frame });
+        }
+      }
+      return { source: canvas.dataset.artSource, w: canvas.width, h: canvas.height, rendering: getComputedStyle(canvas).imageRendering, frames };
+    }, reference);
+    assert.equal(result.source, reference.source.artist);
+    assert.deepEqual([result.w, result.h], [26, 26]);
+    assert.equal(result.rendering, 'pixelated', 'integer-scaled art stays crisp');
+    assert.equal(result.frames.length, Object.values(reference.clips).reduce((n, clip) => n + clip.frames.length, 0));
+    for (const frame of result.frames) {
+      const expected = reference.clips[frame.clip].frames[frame.i];
+      const label = `${kind} ${frame.clip} frame ${frame.i}`;
+      assert.equal(frame.count, reference.clips[frame.clip].frames.length, `${label}: source sequence length`);
+      assert.equal(frame.hash, expected.sha256, `${label}: original pixels and palette`);
+      assert.equal(frame.sourceFrame, String(expected.index), `${label}: source frame selected`);
+      assert.ok(frame.opaque > 0, `${label}: not blank`);
+      assert.equal(frame.translucent, 0, `${label}: no smoothing or painted shadow`);
+      assert.equal(frame.edge, 0, `${label}: no clipping against the transparent frame`);
+    }
+    const count = await f.frame.locator('#petCv').getAttribute('data-frames');
+    await f.page.waitForTimeout(250);
+    assert.equal(await f.frame.locator('#petCv').getAttribute('data-frames'), count, 'reduced motion starts no animation loop');
+  });
+}
+
+browserTest('sourced companions use authored walking and state clips, then stop painting when hidden', async t => {
+  const references = JSON.parse(await readFile(new URL('./fixtures/companion-art.json', import.meta.url), 'utf8'));
+  for (const kind of ['cat', 'fox', 'frog']) {
+    const f = await fixture(t, { store: { pb_companion: kind, pb_roam: 'off' } });
+    await f.minimize();
+    const canvas = f.frame.locator('#petCv');
+    const walked = await canvas.evaluate(async c => {
+      const s = c.sprite, sourceFrames = [], delay = () => new Promise(r => setTimeout(r, 130));
+      s.state('idle');
+      for (let i = 0; i < 4; i++) { s.walk(4, 0); await delay(); sourceFrames.push(c.dataset.frame); }
+      const clip = c.dataset.clip;
+      s.walk(-4, 0); await delay(); const left = c.dataset.facing;
+      s.walk(0, 0); await delay(); const stopped = c.dataset.gait;
+      return { clip, sourceFrames, left, stopped };
+    });
+    assert.equal(walked.clip, kind === 'frog' ? 'hop' : 'walk', `${kind}: authored movement clip`);
+    assert.ok(new Set(walked.sourceFrames).size > 1, `${kind}: distance advances the actual leg/hop sequence`);
+    assert.equal(walked.left, 'left');
+    assert.equal(walked.stopped, 'stand');
+    for (const name of ['working', 'nap', 'locked', 'idle']) {
+      await canvas.evaluate((c, state) => c.sprite.state(state), name);
+      await f.frame.waitForFunction(([state, clip]) => {
+        const c = document.querySelector('#petCv'); return c.dataset.state === state && c.dataset.clip === clip;
+      }, [name, references[kind].states[name]]);
+    }
+    // Hide the actual iframe, rather than merely stopping the sprite's public API.
+    await f.page.evaluate(() => window.__pb.hide());
+    await f.page.waitForFunction(() => window.__pb.f.style.display === 'none');
+    await f.page.waitForTimeout(160);
+    const hiddenFrame = await canvas.getAttribute('data-frames');
+    await f.page.waitForTimeout(350);
+    assert.equal(await canvas.getAttribute('data-frames'), hiddenFrame, `${kind}: hidden canvas does no paint work`);
+    assert.equal(await canvas.getAttribute('data-anim'), 'off');
+    await f.page.evaluate(() => window.__pb.show());
+    await f.frame.waitForFunction(previous => Number(document.querySelector('#petCv').dataset.frames) > Number(previous), hiddenFrame);
+    assert.equal(await canvas.getAttribute('data-anim'), 'on', `${kind}: showing the minimized frame resumes its animation`);
+  }
 });
