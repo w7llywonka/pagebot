@@ -1,0 +1,1579 @@
+{
+  "cat": {
+    "source": {
+      "artist": "Elthen",
+      "url": "https://elthen.itch.io/2d-pixel-art-cat-sprites",
+      "crop": [
+        3,
+        9,
+        26,
+        26
+      ],
+      "files": [
+        {
+          "name": "Cat Sprite Sheet.png",
+          "sha256": "28723e8039cde4218da26ff51cbbaca05052ab7c27ca2eb896cf4bb11392fd29"
+        }
+      ]
+    },
+    "states": {
+      "idle": "idle",
+      "working": "groom",
+      "nap": "sleep",
+      "locked": "sleep",
+      "hop": "jump",
+      "happy": "paw",
+      "shrug": "scared",
+      "wave": "paw",
+      "wake": "look"
+    },
+    "clips": {
+      "idle": {
+        "frames": [
+          {
+            "index": 0,
+            "sha256": "e4fac2fa4f7b8131905252ebfaa4fe5ec2d141b4631cf494205b275102a33738",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              0,
+              0,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 1,
+            "sha256": "563b6f9010bf52b8c8148b037510b309b3ce8455e67ca8a7f9100fe24bb84920",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              32,
+              0,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 2,
+            "sha256": "91c51456b6329c4f197bc001962bc2a32b5d8b028ade92e7f4734a959e860d60",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              64,
+              0,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 3,
+            "sha256": "32d380a796efc9c66fcaf90744ab361bd7d4a4adbefddb7a066e6239d5ad6ea4",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              96,
+              0,
+              32,
+              32
+            ]
+          }
+        ],
+        "durations": [
+          120,
+          120,
+          120,
+          120
+        ]
+      },
+      "look": {
+        "frames": [
+          {
+            "index": 4,
+            "sha256": "cf3f512aa514c6d7bcdf0d26601301492f4c6184afbd1fc4a24ba26f5ae75d6a",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              0,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 5,
+            "sha256": "970fb9fcb22d2671b28f4c5de9ae34e0e4efa848330b66f130a72d16de7a69b6",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              32,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 6,
+            "sha256": "9bd57189dcb12ba16d87415e7cdd960fbaa435252eb27141f971b69e4af1de25",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              64,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 7,
+            "sha256": "79623d954b6baf05c02a5921f41a0529132b8e182d24c94a0af675d295547497",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              96,
+              32,
+              32,
+              32
+            ]
+          }
+        ],
+        "durations": [
+          120,
+          120,
+          120,
+          120
+        ]
+      },
+      "groom": {
+        "frames": [
+          {
+            "index": 8,
+            "sha256": "6f5a60519e7ee990df9e7ea86c640ace11d81d6cc92115b189b329f4f315e6df",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              0,
+              64,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 9,
+            "sha256": "cac9d14d3be22de7996b8357b20680080a258c7773bf0f7bc307a584bbea61dd",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              32,
+              64,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 10,
+            "sha256": "3e58241921ea182b218d25ef7cd444b7b7ad8db4ad340cd3ec5b4aa8414ebfe7",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              64,
+              64,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 11,
+            "sha256": "f4b7b40193945b531465395c8ae29a8cee6aa24db19fdd02ebad019d3fa1050f",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              96,
+              64,
+              32,
+              32
+            ]
+          }
+        ],
+        "durations": [
+          120,
+          120,
+          120,
+          120
+        ]
+      },
+      "walk": {
+        "frames": [
+          {
+            "index": 12,
+            "sha256": "35b2f8729bcff0eea74bcf85b2f3420144a614dc4d31f303e488014d54cf6ec8",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              0,
+              128,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 13,
+            "sha256": "16388f2e6a6e789ce9b6c639003bdc78b8c7ee1a4627b0d0644dec4c8599a467",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              32,
+              128,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 14,
+            "sha256": "0226ebc2edb393f9d5bfb2122990a396d7c66a7e90ce4d64f7ed124fef47d1f0",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              64,
+              128,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 15,
+            "sha256": "6da1d9e559039194915aeabaae28f417b95af91f1f866e34f13d83661ba55875",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              96,
+              128,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 16,
+            "sha256": "c625bb6cce7be9a0a4c36e8a57f44432ee5c5e913689c1bda27d4718e092f0b6",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              128,
+              128,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 17,
+            "sha256": "b81c111df12d4e7fafbcb17a56169ea34d1ad12f506ad6bd9905d907b712e8d5",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              160,
+              128,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 18,
+            "sha256": "a7c6708c4271071cb12c8402fedb52a7d4e4a0aabf7500efd462c1bdb39d74ea",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              192,
+              128,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 19,
+            "sha256": "fb827628b171766425405ca1ea650aaa54c3564e720efd604101a39225889f05",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              224,
+              128,
+              32,
+              32
+            ]
+          }
+        ],
+        "durations": [
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120
+        ]
+      },
+      "sleep": {
+        "frames": [
+          {
+            "index": 20,
+            "sha256": "bef7682bcbe2a83e54c20a7882f7dd9d714447a0066315067db073055c8c8526",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              0,
+              192,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 21,
+            "sha256": "79bd1b8c3e508d5d3da5dbeaf8866138aa97f8f9d50ab3a3ce7e43dce9675d16",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              32,
+              192,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 22,
+            "sha256": "b9de9d69ab928464fdb24245ceb30b1cbf97b1548f32db3a46c022733da6067a",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              64,
+              192,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 23,
+            "sha256": "79bd1b8c3e508d5d3da5dbeaf8866138aa97f8f9d50ab3a3ce7e43dce9675d16",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              96,
+              192,
+              32,
+              32
+            ]
+          }
+        ],
+        "durations": [
+          120,
+          120,
+          120,
+          120
+        ]
+      },
+      "paw": {
+        "frames": [
+          {
+            "index": 24,
+            "sha256": "79664178bc833a203513a10036d2619ce0c42198c12a10061d1ebcfbeef49834",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              0,
+              224,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 25,
+            "sha256": "30fe2c5bfe171d0d8f3069f98cbfbcb1c5e85309cc5d5b54f30bc91f484a7a45",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              32,
+              224,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 26,
+            "sha256": "19d846c61f04f4d255acb521b378dfb71daf573a8c485b8e99b3ecf70b94264c",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              64,
+              224,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 27,
+            "sha256": "cfb77d1c3a60a712416e32495aec7ea0840036e4d24e392c2f1ba3e51c2c7048",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              96,
+              224,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 28,
+            "sha256": "eb42987f8631381ebac59b3cf1b1289e4778a2cc62ea656dd066958a2cb26053",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              128,
+              224,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 29,
+            "sha256": "10e5b68c998d706389811e7ea929566085492cb220e9ccf65d1c16c283454178",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              160,
+              224,
+              32,
+              32
+            ]
+          }
+        ],
+        "durations": [
+          120,
+          120,
+          120,
+          120,
+          120,
+          120
+        ]
+      },
+      "jump": {
+        "frames": [
+          {
+            "index": 30,
+            "sha256": "e4fac2fa4f7b8131905252ebfaa4fe5ec2d141b4631cf494205b275102a33738",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              0,
+              256,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 31,
+            "sha256": "23037e57adecaf919fad944acc464b2b333ae6ffa3905a7f31060066f693ae8c",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              32,
+              256,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 32,
+            "sha256": "4e6bb24eafe6defcd8fe9d615f30b3b82066806fd9d1e420ab06626fdb201038",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              64,
+              256,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 33,
+            "sha256": "b7fb97a8d778bfedacbea4404e411297176222b361d4b64acf68e79895329d4a",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              96,
+              256,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 34,
+            "sha256": "467620f73aab916f3ee272365620176937288b17d040b758ee7f539c23c7bb1b",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              128,
+              256,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 35,
+            "sha256": "ecccb95e7cc325a676024e5c9658f46d92d88a490e7adf2ffd7f6d1288f6ebbe",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              160,
+              256,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 36,
+            "sha256": "f1da008c500569438c078a0273614852ef6ece4960a46d133e06cab814eacf55",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              192,
+              256,
+              32,
+              32
+            ]
+          }
+        ],
+        "durations": [
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120
+        ]
+      },
+      "scared": {
+        "frames": [
+          {
+            "index": 37,
+            "sha256": "35b2f8729bcff0eea74bcf85b2f3420144a614dc4d31f303e488014d54cf6ec8",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              0,
+              288,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 38,
+            "sha256": "9c749a45658510dc036667202329d0e463369b50dbd3efb0eaf76e06fd0c68cb",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              32,
+              288,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 39,
+            "sha256": "af88f01f7152632382d8d348f41874e5c5412bc2c01f6c9f567c30ee57ab084f",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              64,
+              288,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 40,
+            "sha256": "3051d1600919e13e7b7fb3534b9c56cf6dca5f8f5d85d06191d69780bf219001",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              96,
+              288,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 41,
+            "sha256": "e0c2afd505b5f9d61083a58d6ada27d03b95e4bd2c307903c6afa784a29bf88b",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              128,
+              288,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 42,
+            "sha256": "e0c2afd505b5f9d61083a58d6ada27d03b95e4bd2c307903c6afa784a29bf88b",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              160,
+              288,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 43,
+            "sha256": "290f2d684b3fbe5e1f3983d16b8b57acac6510506b4d7604cf1d0d7c5bc81ec3",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              192,
+              288,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 44,
+            "sha256": "35b2f8729bcff0eea74bcf85b2f3420144a614dc4d31f303e488014d54cf6ec8",
+            "source": "Cat Sprite Sheet.png",
+            "rect": [
+              224,
+              288,
+              32,
+              32
+            ]
+          }
+        ],
+        "durations": [
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120
+        ]
+      }
+    }
+  },
+  "fox": {
+    "source": {
+      "artist": "Elthen",
+      "url": "https://elthen.itch.io/2d-pixel-art-fox-sprites",
+      "crop": [
+        3,
+        9,
+        26,
+        26
+      ],
+      "files": [
+        {
+          "name": "Fox Sprite Sheet.png",
+          "sha256": "819a2790d2fa4866216d49babffabf0d24a0258addeaa3b671ecbede91bf2b0d"
+        }
+      ]
+    },
+    "states": {
+      "idle": "idle",
+      "working": "look",
+      "nap": "sleep",
+      "locked": "sleep",
+      "hop": "catch",
+      "happy": "look",
+      "shrug": "flinch",
+      "wave": "look",
+      "wake": "look"
+    },
+    "clips": {
+      "idle": {
+        "frames": [
+          {
+            "index": 0,
+            "sha256": "5bed82d295128e398e5a78c55d221e594499d1362f2ce9e53e7f419630940123",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              0,
+              0,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 1,
+            "sha256": "f1fedd9273818dd65d9bb114a77861afffae4ce3c36e7a0531615d1b4ae583ab",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              32,
+              0,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 2,
+            "sha256": "58744a4831beed5af4d1c2ddf52248ae01f8a4f45a06352d3906b05d74137fa0",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              64,
+              0,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 3,
+            "sha256": "364dc04cab447d0837f3e6f0c84814a26bcebb572c3272f4c87ef6f193409549",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              96,
+              0,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 4,
+            "sha256": "a9dd22b96e65541cc46b29dc8df1866b8ca53f197c060901c0537e65d0fd8f53",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              128,
+              0,
+              32,
+              32
+            ]
+          }
+        ],
+        "durations": [
+          120,
+          120,
+          120,
+          120,
+          120
+        ]
+      },
+      "look": {
+        "frames": [
+          {
+            "index": 5,
+            "sha256": "5bed82d295128e398e5a78c55d221e594499d1362f2ce9e53e7f419630940123",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              0,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 6,
+            "sha256": "b88ac3f9555f29c29ebb55abf7dc52f7d46d2c93ac509a570ab75d250a65053c",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              32,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 7,
+            "sha256": "badab3c11c37d1de3ad0ade16e5d9cb49dbdec9d358a7ed3e53affdda88c6fc1",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              64,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 8,
+            "sha256": "e436cb91ec82a16dc710a4442b5cf6805d2ee3ee56c30e78e1e78106875879f1",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              96,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 9,
+            "sha256": "83ec6499052b0e8a9f50dba7328fe571b5da095851dfd6c01ebfc1821f6187f9",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              128,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 10,
+            "sha256": "1b683fef6026eef0d880e382210be8dd3df498b39a15d51499d67bb06b931196",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              160,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 11,
+            "sha256": "bf43e649e7519c786665e84366ead6dbeb2fc2565caf870d434103bccd3019a0",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              192,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 12,
+            "sha256": "11dfc04a6803159b38887594163036788398c4b63a3d6b596f79f4bdbcdd3864",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              224,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 13,
+            "sha256": "83ec6499052b0e8a9f50dba7328fe571b5da095851dfd6c01ebfc1821f6187f9",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              256,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 14,
+            "sha256": "1b683fef6026eef0d880e382210be8dd3df498b39a15d51499d67bb06b931196",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              288,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 15,
+            "sha256": "1313ad3f6152f153d3d7eacd8f81e377bb0b02d0b70a0903d6c8f1fa9a5223e6",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              320,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 16,
+            "sha256": "b4bbf17218f84779a45c30d361a5926fb6c8b059d993312f780973f38d5c2189",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              352,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 17,
+            "sha256": "364dc04cab447d0837f3e6f0c84814a26bcebb572c3272f4c87ef6f193409549",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              384,
+              32,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 18,
+            "sha256": "a9dd22b96e65541cc46b29dc8df1866b8ca53f197c060901c0537e65d0fd8f53",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              416,
+              32,
+              32,
+              32
+            ]
+          }
+        ],
+        "durations": [
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120
+        ]
+      },
+      "walk": {
+        "frames": [
+          {
+            "index": 19,
+            "sha256": "a27c593e9a88bc7336e31f482a07fa8b95cfa37926d26b6a136721db55284cb5",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              0,
+              64,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 20,
+            "sha256": "9cb4f2f3ee2d2f78bfa34b73df3f3cf0c26a4d0e82aea67405cf3bd2e7b9a362",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              32,
+              64,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 21,
+            "sha256": "f32966aac4a6cb8a88bdcd8a42ade0c63224967cd6b1de93180517a4db111d7d",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              64,
+              64,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 22,
+            "sha256": "85f6a4dc07bacd4050187a66ff8d38aa3dded663956f05347f7810a8c7a0ca8f",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              96,
+              64,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 23,
+            "sha256": "4df55d5ce309a24052641434e29e99928b5a0f093a8c4170d25e140b2afba738",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              128,
+              64,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 24,
+            "sha256": "e4ce30c34783149a98d541d7120e00d5dcd57e82470023ac5272ef318e6b7830",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              160,
+              64,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 25,
+            "sha256": "e3dca511ef2c6ee65389e92262f9d2951c6150912ebf51c8f408c2c957163bc5",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              192,
+              64,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 26,
+            "sha256": "1f014230dbc2ee788d88de1daef2210443eacc876d70f00b3a6caf0020c99be2",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              224,
+              64,
+              32,
+              32
+            ]
+          }
+        ],
+        "durations": [
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120
+        ]
+      },
+      "catch": {
+        "frames": [
+          {
+            "index": 27,
+            "sha256": "5bed82d295128e398e5a78c55d221e594499d1362f2ce9e53e7f419630940123",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              0,
+              96,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 28,
+            "sha256": "0973696e62ffe83f4ec28561e11dbd636fb804c98f8edd8dd04fde5baf205dc3",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              32,
+              96,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 29,
+            "sha256": "40b829a75da795db69d8c0e2d66834fab408cb1ed58f2a73c76143278bb2c33e",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              64,
+              96,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 30,
+            "sha256": "209ad73c370f39068834ffe1a6530ac9ec87967b119e3a90c5e9d403e1c2cfe7",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              96,
+              96,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 31,
+            "sha256": "148d785915be30feb1769e267d3e014b85fefccd870af64f4ecdc59641959582",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              128,
+              96,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 32,
+            "sha256": "b56d8df81f53aa855d9e292355038828ce153b361ec896678e70e99e7b0836d1",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              160,
+              96,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 33,
+            "sha256": "72d687e4491cd32a55fb6b9eb86ccf4814bd9a12c0f635de6cb44c57ddc0f2d9",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              192,
+              96,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 34,
+            "sha256": "5259c43b9279bad830a3414300322e019e2930c46f7c5b77139ce2753fbb89c1",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              224,
+              96,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 35,
+            "sha256": "3cc6f1041ab2ecd47ac0ebde8da694921003340a566031aad9e613bbbc765696",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              256,
+              96,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 36,
+            "sha256": "0a5b76ff155174c30f4b76feedc90654fc47125ef91c6419574b1f69b6dda5ce",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              288,
+              96,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 37,
+            "sha256": "b0ae0bc541c6ac9902321bc21df5f6df47655b4d96994e2a6d9cdf5801eed3c2",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              320,
+              96,
+              32,
+              32
+            ]
+          }
+        ],
+        "durations": [
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120,
+          120
+        ]
+      },
+      "flinch": {
+        "frames": [
+          {
+            "index": 38,
+            "sha256": "8e33a4a8b1c7a6ad97df588194fcc63bd501ba9b3098961748aafca23b831454",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              0,
+              128,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 39,
+            "sha256": "e2bb03da3b409371278e15911f4a4733a91ff9bcc76eea91605fb3120bdd6e6f",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              32,
+              128,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 40,
+            "sha256": "fdf211dc2623f82788fa624ec6eb17523ca671f3d7e70f5bfb46f3f695a86460",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              64,
+              128,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 41,
+            "sha256": "2826a34797f10a5f241f5969a1b4cc3e862deb253550acf898192625e5ae3229",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              96,
+              128,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 42,
+            "sha256": "2acc12cf8ee106209bad0d7555320c47b279f4f0731f1d98a66e633bec2c01a6",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              128,
+              128,
+              32,
+              32
+            ]
+          }
+        ],
+        "durations": [
+          120,
+          120,
+          120,
+          120,
+          120
+        ]
+      },
+      "sleep": {
+        "frames": [
+          {
+            "index": 43,
+            "sha256": "129d9ffa5ca5d4a7f3a1d8b1f3682a6bd3e3ca8fb2a035bd25735f11379e9110",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              0,
+              160,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 44,
+            "sha256": "a906148fc0f1fc3063f2d16831f921ffcdd3649a643406b3ec2f93931b1af364",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              32,
+              160,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 45,
+            "sha256": "9d5c321a57c829a27a4b1e68e39adfb2b713ba6f7cafe4b4f688ee12d0c35323",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              64,
+              160,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 46,
+            "sha256": "9d5c321a57c829a27a4b1e68e39adfb2b713ba6f7cafe4b4f688ee12d0c35323",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              96,
+              160,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 47,
+            "sha256": "5fae092d4b7dd4d5b85417e83be91d1c69581136f689153b4142e47b1ce5d61c",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              128,
+              160,
+              32,
+              32
+            ]
+          },
+          {
+            "index": 48,
+            "sha256": "bf1660f84c7ca7da684811d6263e9d6e97ced2fce431059e1e38de2224495180",
+            "source": "Fox Sprite Sheet.png",
+            "rect": [
+              160,
+              160,
+              32,
+              32
+            ]
+          }
+        ],
+        "durations": [
+          120,
+          120,
+          120,
+          120,
+          120,
+          120
+        ]
+      }
+    }
+  },
+  "frog": {
+    "source": {
+      "artist": "Eduardo Scarpato",
+      "url": "https://eduardscarpato.itch.io/toxic-frog-animations-pixel-art-2d-free",
+      "crop": [
+        8,
+        9,
+        26,
+        26
+      ],
+      "files": [
+        {
+          "name": "ToxicFrogGreenBrown_Idle.png",
+          "sha256": "fb47efa257eb888e36c3a82275870d79991c46061b22e4d297e13ded2136a8ae"
+        },
+        {
+          "name": "ToxicFrogGreenBrown_Hop.png",
+          "sha256": "95c12730e8ba0d4fc36c523e82c9630828a942d0ac33500f0eea0f1548c35a17"
+        },
+        {
+          "name": "ToxicFrogGreenBrown_Hurt.png",
+          "sha256": "27862616afdf7d10502acb338e7ed57b093ec15bd57710dacd8bd6d5d80ad7f7"
+        }
+      ]
+    },
+    "states": {
+      "idle": "idle",
+      "working": "idle",
+      "nap": "quiet",
+      "locked": "quiet",
+      "hop": "hop",
+      "happy": "hop",
+      "shrug": "hurt",
+      "wave": "idle",
+      "wake": "idle"
+    },
+    "clips": {
+      "idle": {
+        "frames": [
+          {
+            "index": 0,
+            "sha256": "22d6be626f9f6b55dea84a1357f9391c15380ec3cb91b81cda3eb0a2172db174",
+            "source": "ToxicFrogGreenBrown_Idle.png",
+            "rect": [
+              0,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 1,
+            "sha256": "4c9f6165ccbf2177948750a26945557cad15443de0beb643f5584598ffe74cfa",
+            "source": "ToxicFrogGreenBrown_Idle.png",
+            "rect": [
+              48,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 2,
+            "sha256": "76a6eb3d14eb4f3920c76473997f072d3a6755e60aebef0e0945fc8d7b096ca3",
+            "source": "ToxicFrogGreenBrown_Idle.png",
+            "rect": [
+              96,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 3,
+            "sha256": "f804acbc2d55255b6ec68e114a2f7ab0af451dcba0832ad90706b8e33487dada",
+            "source": "ToxicFrogGreenBrown_Idle.png",
+            "rect": [
+              144,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 4,
+            "sha256": "be188a488702791b03666ca3a3c24349469753da5e40d2cff5c5716e667c5a5b",
+            "source": "ToxicFrogGreenBrown_Idle.png",
+            "rect": [
+              192,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 5,
+            "sha256": "491a8732823ca145e25540aa8ebdaffee6c18969be6ab903c1cc621d08528545",
+            "source": "ToxicFrogGreenBrown_Idle.png",
+            "rect": [
+              240,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 6,
+            "sha256": "6382edef1c54f88f3aa44f9c3f508eaf052e4e21e47da8ee8303ab238f7b6f07",
+            "source": "ToxicFrogGreenBrown_Idle.png",
+            "rect": [
+              288,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 7,
+            "sha256": "271a90a6d88cf97ae727ba770c40c0786aad5ef9b8899679025ac9d69aced613",
+            "source": "ToxicFrogGreenBrown_Idle.png",
+            "rect": [
+              336,
+              0,
+              48,
+              48
+            ]
+          }
+        ],
+        "durations": [
+          100,
+          100,
+          100,
+          100,
+          100,
+          100,
+          100,
+          100
+        ]
+      },
+      "hop": {
+        "frames": [
+          {
+            "index": 8,
+            "sha256": "22d6be626f9f6b55dea84a1357f9391c15380ec3cb91b81cda3eb0a2172db174",
+            "source": "ToxicFrogGreenBrown_Hop.png",
+            "rect": [
+              0,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 9,
+            "sha256": "45916d5654be1aad32e355a1a5f7b595b3fa596b0d279de0e46f164593e73dd8",
+            "source": "ToxicFrogGreenBrown_Hop.png",
+            "rect": [
+              48,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 10,
+            "sha256": "13006d848138721ad60f07e18b2aa6069cf116fea883c0ca2b591d622fae8228",
+            "source": "ToxicFrogGreenBrown_Hop.png",
+            "rect": [
+              96,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 11,
+            "sha256": "dcead49cca9e64e2dd97adfca3b4de283065b795b4fc65c2dcd88214490cb5ea",
+            "source": "ToxicFrogGreenBrown_Hop.png",
+            "rect": [
+              144,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 12,
+            "sha256": "20178f50ef87b36e999338df0de2f65d6a1a512cd45ab174890183e42e4dede3",
+            "source": "ToxicFrogGreenBrown_Hop.png",
+            "rect": [
+              192,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 13,
+            "sha256": "933435a20422d64e01b0afb906c499ec1f5611c1ad5c2bae1ae2ec0c34953472",
+            "source": "ToxicFrogGreenBrown_Hop.png",
+            "rect": [
+              240,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 14,
+            "sha256": "d507212676ec2e21663949550a01afba0e5d558e43bdf81d67b41de8ac60ef6e",
+            "source": "ToxicFrogGreenBrown_Hop.png",
+            "rect": [
+              288,
+              0,
+              48,
+              48
+            ]
+          }
+        ],
+        "durations": [
+          100,
+          100,
+          100,
+          100,
+          100,
+          100,
+          100
+        ]
+      },
+      "hurt": {
+        "frames": [
+          {
+            "index": 15,
+            "sha256": "22d6be626f9f6b55dea84a1357f9391c15380ec3cb91b81cda3eb0a2172db174",
+            "source": "ToxicFrogGreenBrown_Hurt.png",
+            "rect": [
+              0,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 16,
+            "sha256": "4fd11756eb89067ccd7d89565c509e599267cae7e02ed294bad04599674af204",
+            "source": "ToxicFrogGreenBrown_Hurt.png",
+            "rect": [
+              48,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 17,
+            "sha256": "cf59dbf3e2a1fed28070401f18798030ec9e68b91d7e2a38c71d6928be9fdf88",
+            "source": "ToxicFrogGreenBrown_Hurt.png",
+            "rect": [
+              96,
+              0,
+              48,
+              48
+            ]
+          },
+          {
+            "index": 18,
+            "sha256": "e89d6d691d309a9e7f8e34ddf0d2a6336e3dffec6ad349f592452ef999cc0f4d",
+            "source": "ToxicFrogGreenBrown_Hurt.png",
+            "rect": [
+              144,
+              0,
+              48,
+              48
+            ]
+          }
+        ],
+        "durations": [
+          500,
+          100,
+          100,
+          100
+        ]
+      },
+      "quiet": {
+        "frames": [
+          {
+            "index": 2,
+            "sha256": "76a6eb3d14eb4f3920c76473997f072d3a6755e60aebef0e0945fc8d7b096ca3",
+            "source": "ToxicFrogGreenBrown_Idle.png",
+            "rect": [
+              96,
+              0,
+              48,
+              48
+            ]
+          }
+        ],
+        "durations": [
+          100
+        ]
+      }
+    }
+  }
+}

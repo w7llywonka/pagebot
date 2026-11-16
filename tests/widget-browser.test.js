@@ -190,6 +190,38 @@ browserTest('read_page sees open shadow DOM, same-origin frames and ::before tex
   assert.match((await f.tool('read_page', { depth: 1 })).text, /^\(Deeper parts are left out/m);
 });
 
+browserTest('get_page_text keeps long paragraphs from the page, shadow DOM and same-origin frames', async t => {
+  const f = await fixture(t);
+  const article = 'Article start. ' + 'A long paragraph must retain the evidence and conclusion. '.repeat(35) + 'ARTICLE_END';
+  const shadow = 'Shadow start. ' + 'This paragraph is rendered inside a web component. '.repeat(25) + 'SHADOW_END';
+  const framed = 'Frame start. ' + 'This embedded document contains additional context. '.repeat(25) + 'FRAME_END';
+  await f.page.evaluate(({ article, shadow, framed }) => {
+    const p = document.createElement('p'); p.textContent = article; document.body.prepend(p);
+    document.getElementById('host').shadowRoot.querySelector('p').textContent = shadow;
+    document.getElementById('same').contentDocument.querySelector('p').textContent = framed;
+  }, { article, shadow, framed });
+  const result = await f.tool('get_page_text');
+  for (const text of [article, shadow, framed]) assert.ok(result.text.includes(text), 'the entire visible text node is available to the bot');
+  // A tree read remains a compact, navigable preview rather than repeating the entire article in one line.
+  const tree = await f.tool('read_page', { filter: 'all' });
+  assert.ok(tree.text.includes('Article start.'));
+  assert.ok(!tree.text.includes('ARTICLE_END'), 'tree excerpts retain the existing 300-character cap');
+  const updated = article + ' DYNAMIC_UPDATE';
+  await f.page.evaluate(text => { document.body.querySelector('p').textContent = text; }, updated);
+  assert.ok((await f.tool('get_page_text')).text.includes(updated), 'each read observes later page changes');
+});
+
+browserTest('get_page_text returns a bounded prefix when one text node exceeds the page budget', async t => {
+  const f = await fixture(t);
+  await f.page.evaluate(() => {
+    const p = document.createElement('p'); p.textContent = 'a'.repeat(450000) + 'OUTSIDE_BUDGET'; document.body.prepend(p);
+  });
+  const result = await f.tool('get_page_text');
+  assert.ok(result.text.startsWith('a'.repeat(1000)), 'an oversized first paragraph is read rather than discarded');
+  assert.ok(result.text.length >= 399000 && result.text.length <= 400000, `the complete extraction respects its global budget: ${result.text.length}`);
+  assert.ok(!result.text.includes('OUTSIDE_BUDGET'));
+});
+
 browserTest('find, get_page_text, scroll, scroll_to, hover and P.at reach into shadow roots and frames', async t => {
   const f = await fixture(t);
   const buy = await f.tool('find', { query: 'buy button' });
