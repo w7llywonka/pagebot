@@ -138,7 +138,7 @@ browserTest('an answer’s details line shows its share of the limit for an acco
   const o = await fixture(t, { boot: owner, events: [{ t: 'd', v: 'Answer.' }, { ...done, usage: { in: 50, out: 20, usd: 0.0001 } }] });
   await o.ask();
   await o.page.locator('.msg.bot .meta').waitFor();
-  assert.match(await o.page.locator('.msg.bot .meta').innerText(), /Haiku 5\.5 · 50 in · 20 out/);
+  assert.match(await o.page.locator('.msg.bot .meta').innerText(), /Haiku 5\.5 · 50 tokens in · 20 out/);
 });
 
 browserTest('a refused question because the limit is used up moves the bar to used up, with friendly words', async t => {
@@ -167,6 +167,7 @@ browserTest('answer lengths are named for accounts and numbered for the owner', 
   assert.deepEqual(await names(f), ['Brief', 'Short', 'Standard', 'Long', 'Very long', 'Extra long', 'Maximum']);
   assert.equal(await f.page.locator('#tokSeg button.on').innerText(), 'Standard');
   assert.doesNotMatch(await f.page.locator('#tokSec').innerText(), /\d+\s*(k|tokens)\b/i);
+  assert.doesNotMatch(await f.page.locator('#tokSec').innerText(), /tokens/i, 'accounts never see the word');
   const custom = await fixture(t, { boot: { ...account, limits: { ...account.limits, maxTokens: 3000 } } });
   await custom.openSettings('general');
   const note = await custom.page.locator('#tokNote').innerText();
@@ -175,5 +176,5 @@ browserTest('answer lengths are named for accounts and numbered for the owner', 
   const o = await fixture(t, { boot: owner });
   await o.openSettings('general');
   assert.deepEqual(await names(o), ['512', '1k', '2k', '4k', '8k', '16k', '100k']);
-  assert.match(await o.page.locator('#tokSec').innerText(), /Maximum tokens per reply/);
+  assert.match(await o.page.locator('#tokSec').innerText(), /The longest a reply can be, in tokens/);
 });

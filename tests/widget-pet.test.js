@@ -472,10 +472,10 @@ browserTest('Settings > Appearance > Panel > Minimize to switches between the pa
   const seg = f.frame.locator('#miniSeg');
   await f.frame.locator('#setBtn').click();
   await f.frame.locator('#tab-appearance').click();
-  assert.equal(await f.frame.locator('#miniLbl').innerText(), 'Minimize to');
-  assert.deepEqual(await seg.locator('button').allInnerTexts(), ['Pet', 'Bar']);
-  assert.equal(await seg.locator('button.on').innerText(), 'Pet', 'the panda is the default on a v13 bookmark');
-  await seg.getByText('Bar').click();
+  assert.equal(await f.frame.locator('#miniLbl').innerText(), 'When minimized, show');
+  assert.deepEqual(await seg.locator('button').allInnerTexts(), ['Companion', 'Small bar']);
+  assert.equal(await seg.locator('button.on').innerText(), 'Companion', 'the panda is the default on a v13 bookmark');
+  await seg.getByText('Small bar').click();
   assert.equal(await f.frame.evaluate(() => localStorage.getItem('pb_mini')), 'pill');
   await f.frame.locator('#shClose').click().catch(() => f.page.keyboard.press('Escape'));
   await f.frame.locator('#minBtn').click();
@@ -486,7 +486,7 @@ browserTest('Settings > Appearance > Panel > Minimize to switches between the pa
   await f.page.waitForTimeout(260);
   await f.frame.locator('#setBtn').click();
   await f.frame.locator('#tab-appearance').click();
-  await seg.getByText('Pet').click();
+  await seg.getByText('Companion').click();
   assert.equal(await f.frame.evaluate(() => localStorage.getItem('pb_mini')), null);
   await f.page.keyboard.press('Escape');
   await f.minimize();
@@ -495,8 +495,8 @@ browserTest('Settings > Appearance > Panel > Minimize to switches between the pa
   const old = await fixture(t, { bookmark: 12 });
   await old.frame.locator('#setBtn').click();
   await old.frame.locator('#tab-appearance').click();
-  assert.equal(await old.frame.locator('#miniSeg button', { hasText: 'Pet' }).isDisabled(), true);
-  assert.equal(await old.frame.locator('#miniSeg button.on').innerText(), 'Bar');
+  assert.equal(await old.frame.locator('#miniSeg button', { hasText: 'Companion' }).isDisabled(), true);
+  assert.equal(await old.frame.locator('#miniSeg button.on').innerText(), 'Small bar');
   assert.match(await old.frame.locator('#miniNote').innerText(), /newest bookmark/);
 });
 

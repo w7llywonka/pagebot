@@ -125,7 +125,7 @@ browserTest('dragging a file that isn’t a PDF onto the panel is turned away; a
   assert.equal(await f.frame.locator('#drop').isVisible(), false);
   // a file named .pdf that isn't one is caught before it uploads
   await f.drag(await f.file('fake.pdf', 'application/pdf', 'PK\u0003\u0004 not a pdf'));
-  await f.frame.locator('.note', { hasText: '“fake.pdf” isn’t really a PDF' }).waitFor();
+  await f.frame.locator('.note', { hasText: '“fake.pdf” won’t open as a PDF' }).waitFor();
   assert.equal(f.state.uploads.length, 0);
 
   await f.drag(await f.file('slides.pdf', 'application/pdf', PDF.toString('latin1')));
@@ -179,9 +179,9 @@ browserTest('without PDF uploads on the account, the menu says so and drops are 
   const f = await fixture(t, { user: { allowPdf: false } });
   await f.frame.locator('#addBtn').click();
   assert.equal(await f.frame.locator('#pdfBtn').isDisabled(), true);
-  assert.match(await f.frame.locator('#pdfBtn').innerText(), /Not turned on for your account/);
+  assert.match(await f.frame.locator('#pdfBtn').innerText(), /Not on for you\. Ask the owner\./);
   await f.frame.locator('#addBtn').click();
   await f.drag(await f.file('slides.pdf', 'application/pdf', PDF.toString('latin1')));
-  await f.frame.locator('.note', { hasText: 'PDF uploads aren’t turned on for your account.' }).waitFor();
+  await f.frame.locator('.note', { hasText: 'PDFs aren’t turned on for your account. The owner can switch them on.' }).waitFor();
   assert.equal(f.state.uploads.length, 0);
 });

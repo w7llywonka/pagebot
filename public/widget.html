@@ -17,36 +17,34 @@
 })();
 </script>
 <style>
-:root{--font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--hd:46px;
-  color-scheme:dark;--bg:#141414;--panel:#1d1d1d;--line:#2b2b2b;--text:#ebe8e1;--muted:#8e8a82;--accent:#d97757;--on-accent:#fff;--user:#2b2622;--err:#ff8a7a;--code:#0e0e0e;--chip-on:#2a201b;--focus:#4a4a4a;
-  font:14px/1.45 var(--font)}
-:root[data-theme=paper]{color-scheme:light;--bg:#faf9f5;--panel:#fff;--line:#e5e0d6;--text:#1f1e1b;--muted:#736e66;--accent:#c6613f;--on-accent:#fff;--user:#f1e7de;--err:#bf3b26;--code:#f2efe8;--chip-on:#f7e7de;--focus:#c9c1b4}
-:root[data-theme=midnight]{color-scheme:dark;--bg:#0e1320;--panel:#151c2c;--line:#232d42;--text:#e2e8f5;--muted:#8590a8;--accent:#7c9cff;--on-accent:#0b1020;--user:#1c2847;--err:#ff8f8f;--code:#0a0f1a;--chip-on:#1a2547;--focus:#3a4766}
-:root[data-theme=forest]{color-scheme:dark;--bg:#0f1511;--panel:#161e18;--line:#253128;--text:#e3ebe3;--muted:#859487;--accent:#5fc485;--on-accent:#08140c;--user:#1b2b20;--err:#ff8f80;--code:#0a0f0b;--chip-on:#163020;--focus:#35473a}
-:root[data-theme=dusk]{color-scheme:dark;--bg:#14111c;--panel:#1c1826;--line:#2c2639;--text:#ebe6f5;--muted:#938aa6;--accent:#b48cff;--on-accent:#140d24;--user:#291f3d;--err:#ff8fa3;--code:#0f0c15;--chip-on:#2a1f45;--focus:#463d5a}
-:root[data-theme=sakura]{color-scheme:light;--bg:#fff7f9;--panel:#fff;--line:#f0d8e0;--text:#2b2026;--muted:#7f6670;--accent:#d9467a;--on-accent:#fff;--user:#fde3ec;--err:#c0392b;--code:#fbeef3;--chip-on:#fde3ec;--focus:#e7bccb}
+:root{--font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--hd:46px;font:14px/1.45 var(--font)}
+
+:root[data-theme=midnight]{color-scheme:dark}
+:root[data-theme=forest]{color-scheme:dark}
+:root[data-theme=dusk]{color-scheme:dark}
+
 /* Glass: the panel goes see-through and the bookmarklet blurs the page behind it.
    White text on dark pages, dark text on light pages (data-page comes from the bookmarklet). */
-:root[data-theme=glass]{color-scheme:light;--bg:transparent;--panel:rgba(255,255,255,.12);--line:rgba(255,255,255,.26);--text:#fff;--muted:rgba(255,255,255,.74);--accent:#9cc2ff;--on-accent:#0c1834;--user:rgba(140,180,255,.3);--err:#ffb4a9;--code:rgba(0,0,0,.24);--chip-on:rgba(255,255,255,.2);--focus:rgba(255,255,255,.6);--pop:rgba(26,28,38,.84)}
-:root[data-theme=glass][data-page=light]{--panel:rgba(255,255,255,.5);--line:rgba(255,255,255,.78);--text:#11131a;--muted:rgba(17,19,26,.62);--accent:#2f62d8;--on-accent:#fff;--user:rgba(47,98,216,.16);--err:#b42318;--code:rgba(255,255,255,.6);--chip-on:rgba(255,255,255,.72);--focus:rgba(17,19,26,.32);--pop:rgba(250,251,255,.92)}
+:root[data-theme=glass]{color-scheme:light;--bg:transparent;--text:#fff;--code:rgba(0,0,0,.24)}
+:root[data-theme=glass][data-page=light]{--code:rgba(255,255,255,.6)}
 /* Clear: no panel at all, just the words and controls over the page. No tint, no blur, no shadow.
    A thin halo keeps text readable over anything; white on dark pages, dark on light ones (data-page comes from the bookmarklet). */
-:root[data-theme=clear]{color-scheme:light;--bg:transparent;--panel:transparent;--line:rgba(255,255,255,.32);--text:#fff;--muted:rgba(255,255,255,.82);--accent:#9cc2ff;--on-accent:#0c1834;--user:transparent;--err:#ffb4a9;--code:transparent;--chip-on:rgba(255,255,255,.14);--focus:rgba(255,255,255,.7);--pop:rgba(26,28,38,.94);--hc:rgba(0,0,0,.9)}
-:root[data-theme=clear][data-page=light]{--line:rgba(17,19,26,.28);--text:#11131a;--muted:rgba(17,19,26,.72);--accent:#2f62d8;--on-accent:#fff;--err:#b42318;--chip-on:rgba(17,19,26,.08);--focus:rgba(17,19,26,.45);--pop:rgba(250,251,255,.96);--hc:rgba(255,255,255,.95)}
-:root[data-theme=terminal]{color-scheme:dark;--bg:#050805;--panel:#0a110a;--line:#1a2b1a;--text:#a3f7a3;--muted:#5a9a5a;--accent:#39e75f;--on-accent:#031003;--user:#0e2111;--err:#ff6b6b;--code:#000;--chip-on:#0b2611;--focus:#2b4a2b;--font:var(--mono);font-size:13px}
+:root[data-theme=clear]{color-scheme:light;--bg:transparent;--panel:transparent;--line:rgba(255,255,255,.32);--text:#fff;--muted:rgba(255,255,255,.82);--err:#ffb4a9;--code:transparent;--focus:rgba(255,255,255,.7);--hc:rgba(0,0,0,.9)}
+:root[data-theme=clear][data-page=light]{--line:rgba(17,19,26,.28);--focus:rgba(17,19,26,.45);--hc:rgba(255,255,255,.95)}
+:root[data-theme=terminal]{color-scheme:dark;--font:var(--mono);font-size:13px}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text)}
 body{display:flex;flex-direction:column;overflow:hidden;position:relative}
 button,input,textarea{font:inherit;color:inherit}
-::placeholder{color:var(--muted);opacity:.85}
+
 a{color:var(--accent)}
 [hidden]{display:none!important}
 body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition-property:background-color,border-color,color!important;transition-duration:.2s!important}
 
 /* glass surfaces */
-:root[data-theme=glass] body{background:rgba(16,18,26,.28);text-shadow:0 1px 2px rgba(0,0,0,.3);scrollbar-color:rgba(255,255,255,.35) transparent}
-:root[data-theme=glass][data-page=light] body{background:rgba(255,255,255,.34);text-shadow:0 1px 0 rgba(255,255,255,.4);scrollbar-color:rgba(17,19,26,.25) transparent}
-:root[data-theme=glass]:not([data-blur]):not(.nohost) body{background:rgba(16,18,26,.88)} /* older bookmarks can't blur the page, so stay readable */
+:root[data-theme=glass] body{text-shadow:0 1px 2px rgba(0,0,0,.3);scrollbar-color:rgba(255,255,255,.35) transparent}
+:root[data-theme=glass][data-page=light] body{text-shadow:0 1px 0 rgba(255,255,255,.4);scrollbar-color:rgba(17,19,26,.25) transparent}
+ /* older bookmarks can't blur the page, so stay readable */
 :root[data-theme=glass] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,0) 36%,rgba(255,255,255,0) 64%,rgba(255,255,255,.08))}
 :root[data-theme=glass] header{background:rgba(255,255,255,.05)}
 :root[data-theme=glass] .msg.bot,:root[data-theme=glass] .box,:root[data-theme=glass] .pad button{box-shadow:inset 0 1px 0 rgba(255,255,255,.28)}
@@ -58,10 +56,10 @@ body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition-property:background
 :root[data-theme=clear] body{background:transparent;text-shadow:0 0 2px var(--hc),0 0 6px var(--hc);scrollbar-color:var(--line) transparent}
 :root[data-theme=clear] :is(button,input,textarea){text-shadow:inherit}
 :root[data-theme=clear] svg{filter:drop-shadow(0 0 1.5px var(--hc))}
-:root[data-theme=clear] header{background:none;border-bottom-color:transparent}
+:root[data-theme=clear] header{border-bottom-color:transparent}
 :root[data-theme=clear] .msg{padding-left:2px;padding-right:2px}
 :root[data-theme=clear] .msg.bot{border-color:transparent}
-:root[data-theme=clear] .msg.user{color:var(--accent);font-weight:500}
+
 :root[data-theme=clear] .go,:root[data-theme=clear] .send{text-shadow:none}
 :root[data-theme=clear] .go svg{filter:none}
 :root[data-theme=clear] #att #rmAtt{background:var(--accent);color:var(--on-accent);border-color:transparent;text-shadow:none}
@@ -73,15 +71,15 @@ body.tt,body.tt>:not(#boot),body.tt>:not(#boot) *{transition-property:background
 :root.nohost[data-theme=glass],:root.nohost[data-theme=clear]{background:radial-gradient(60% 50% at 15% 20%,#5b7cff 0,transparent 70%),radial-gradient(50% 45% at 85% 25%,#c35bff 0,transparent 70%),radial-gradient(55% 50% at 70% 85%,#ff7a9c 0,transparent 70%),radial-gradient(50% 50% at 20% 85%,#2ec5b6 0,transparent 70%),#1a1d2e;background-attachment:fixed}
 
 /* header */
-header{flex:none;display:flex;align-items:center;gap:2px;height:var(--hd);padding:0 6px 0 12px;border-bottom:1px solid var(--line);user-select:none;-webkit-user-select:none;position:relative;z-index:3;background:var(--bg)}
+header{flex:none;display:flex;align-items:center;padding:0 6px 0 12px;border-bottom:1px solid var(--line);user-select:none;-webkit-user-select:none;position:relative;z-index:3}
 body.movable header{cursor:grab;touch-action:none}
 body.dragging,body.dragging *{cursor:grabbing!important}
-.title{flex:1;min-width:0;display:flex;align-items:center;gap:8px;font-weight:600;letter-spacing:.2px;white-space:nowrap}
+.title{flex:1;min-width:0;display:flex;align-items:center;white-space:nowrap}
 .title a{color:inherit;text-decoration:none}
-.dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--accent)}
-.ib{flex:none;background:none;border:0;color:var(--muted);width:30px;height:30px;border-radius:8px;cursor:pointer;display:grid;place-items:center;padding:0}
-.ib:hover,.ib.on{background:var(--line);color:var(--text)}
-.ib svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.dot{flex:none}
+.ib{flex:none;background:none;border:0;cursor:pointer;display:grid;place-items:center;padding:0}
+
+.ib svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .ib .ex,body.min .ib .mn{display:none}
 body.min .ib .ex{display:block}
 .mstat{display:none;align-items:center;margin-left:2px}
@@ -89,86 +87,83 @@ body.min .ib .ex{display:block}
 .mstat.new::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
 
 /* minimized: the header becomes a pill */
-body.min header{height:100%;border:0;padding:0 5px 0 15px;cursor:pointer}
+body.min header{height:100%;border:0;cursor:pointer}
 body.min.movable header{cursor:grab}
 body.min>:not(header){display:none!important}
 body.min .hide-min{display:none!important}
 body.min .mstat.busy,body.min .mstat.new{display:inline-flex}
 
 /* chat */
-#log{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin}
-.empty{margin:auto;text-align:center;color:var(--muted);font-size:13px;max-width:272px}
-.empty b{color:var(--text);font-weight:600;display:block;margin-bottom:4px;font-size:14px}
-.msg{max-width:92%;padding:8px 11px;border-radius:12px;overflow-wrap:anywhere;animation:msgIn .22s ease both}
+#log{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;scrollbar-width:thin}
+.empty{font-size:13px}
+
+.msg{max-width:92%;padding:8px 11px;border-radius:12px;overflow-wrap:anywhere}
 @keyframes msgIn{from{opacity:0;transform:translateY(4px)}}
-.msg.user{align-self:flex-end;background:var(--user)}
-.msg.bot{align-self:flex-start;background:var(--panel);border:1px solid var(--line)}
-.msg.err .body{color:var(--err)}
+.msg.user{align-self:flex-end}
+.msg.bot{align-self:flex-start}
+
 .msg p{margin:0 0 7px}.msg p:last-child{margin:0}
-.msg pre{background:var(--code);border:1px solid var(--line);padding:8px;border-radius:8px;overflow-x:auto;margin:6px 0;white-space:pre}
+.msg pre{padding:8px;overflow-x:auto;margin:6px 0;white-space:pre}
 .msg code{font:12.5px/1.4 var(--mono)}
-.msg :not(pre)>code{background:var(--code);padding:1px 4px;border-radius:4px}
+
 .msg ul,.msg ol{margin:4px 0 7px;padding-left:20px}
 .msg .lh{color:var(--muted);font-size:.86em}
-.msg .h{font-weight:650;margin-top:10px}
-.msg .h:first-child{margin-top:0}
-.msg blockquote{margin:4px 0 7px;padding:1px 0 1px 9px;border-left:3px solid var(--line);color:var(--muted)}
+
+
+.msg blockquote{margin:4px 0 7px;padding:1px 0 1px 9px}
 .msg hr{border:0;border-top:1px solid var(--line);margin:9px 0}
 .msg .tw{overflow-x:auto;margin:6px 0 8px;scrollbar-width:thin}
 .msg table{border-collapse:collapse;font-size:12.5px;overflow-wrap:normal}
 .msg th,.msg td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
-.msg th{background:var(--code);font-weight:600}
+.msg th{font-weight:600}
 .msg th.c,.msg td.c{text-align:center}
 .msg th.r,.msg td.r{text-align:right}
 .msg blockquote:last-child,.msg .tw:last-child{margin-bottom:0}
 :root[data-theme=glass][data-page=light] .msg :is(th,td,blockquote,hr){border-color:rgba(17,19,26,.2)}
 .cb{position:relative;margin:6px 0}
 .cb pre{margin:0}
-.cc{position:absolute;top:5px;right:5px;opacity:0;user-select:none;-webkit-user-select:none;background:var(--pop,var(--panel));color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;transition:opacity .12s}
+.cc{position:absolute;top:5px;right:5px;user-select:none;-webkit-user-select:none;cursor:pointer;transition:opacity .12s}
 .cb:hover .cc,.cc:focus-visible{opacity:1}
 .cc:hover{color:var(--text)}
-.tags{font-size:11px;color:var(--muted);margin-bottom:3px}
-.meta{font-size:11px;color:var(--muted);margin-top:5px}
-.acts{float:right;display:inline-flex;gap:2px;margin-left:10px}
-.act{background:none;border:0;padding:0 2px;height:16px;color:var(--muted);cursor:pointer;display:inline-grid;place-items:center}
+.tags{color:var(--muted);margin-bottom:3px}
+.meta{color:var(--muted)}
+.acts{float:right;display:inline-flex;margin-left:10px}
+.act{border:0;cursor:pointer;place-items:center}
 .act:hover{color:var(--text)}
-.act svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.act svg{stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .stp{color:var(--muted);font-style:italic}
-.starters{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:14px}
-.starters button{background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:5px 11px;font-size:12.5px;cursor:pointer;color:var(--text)}
-.starters button:hover{border-color:var(--focus)}
 /* back to the newest message, after you've scrolled up */
-#jump{position:absolute;left:50%;bottom:calc(100% + 8px);z-index:4;display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 11px 0 8px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:12px;white-space:nowrap;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.2);transform:translateX(-50%);animation:jumpIn .16s ease both}
+#jump{position:absolute;bottom:calc(100% + 8px);z-index:4;display:inline-flex;align-items:center;gap:5px;color:var(--text);font-size:12px;white-space:nowrap;cursor:pointer;animation:jumpIn .16s ease both}
 #jump:hover{border-color:var(--focus)}
 #jump svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 @keyframes jumpIn{from{opacity:0;transform:translate(-50%,4px)}}
 body.sheet #jump{display:none}
-.mini{background:none;border:0;padding:0;color:var(--accent);font-size:11px;cursor:pointer;text-decoration:underline}
-.steps{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;font-size:12px;color:var(--muted)}
+.mini{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;text-decoration:underline}
+.steps{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;color:var(--muted)}
 .step::before{content:"🌐 "}
 .step.live{animation:breathe 1.2s ease-in-out infinite}
 @keyframes breathe{50%{opacity:.4}}
-.src{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;font-size:11.5px}
+.src{display:flex;flex-wrap:wrap;margin-top:8px}
 .src span{color:var(--muted);width:100%}
-.src a{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none;color:var(--text);background:var(--code);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+.src a{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none;color:var(--text)}
 .src a:hover{border-color:var(--accent)}
-.thumb{display:block;max-width:100%;max-height:120px;border-radius:6px;margin-top:6px;border:1px solid var(--line)}
-.note{align-self:center;font-size:12px;color:var(--muted);text-align:center;max-width:90%}
+.thumb{display:block;max-width:100%;max-height:120px;margin-top:6px}
+.note{align-self:center;color:var(--muted);text-align:center;max-width:90%}
 .typing{display:inline-flex;gap:3px}.typing i{width:5px;height:5px;border-radius:50%;background:var(--muted);animation:b 1s infinite}
 .typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
 @keyframes b{0%,80%,100%{opacity:.25}40%{opacity:1}}
 
 /* composer: one box with the text on top and a small toolbar underneath */
 #composer{flex:none;padding:0 10px 10px;position:relative}
-.box{background:var(--panel);border:1px solid var(--line);border-radius:14px;transition:border-color .15s}
-.box:focus-within{border-color:var(--focus)}
+.box{transition:border-color .15s}
+
 #att{display:flex;align-items:center;gap:8px;margin:8px 0 0 10px}
 #att .atp{position:relative;flex:none}
-#att img{display:block;height:48px;max-width:140px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+#att img{display:block;height:48px;max-width:140px;object-fit:cover}
 #att #rmAtt{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:2px solid var(--panel);background:var(--text);color:var(--bg);font-size:12px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}
-#q{display:block;width:100%;resize:none;background:none;border:0;color:var(--text);padding:10px 12px 2px;max-height:140px;min-height:38px;outline:none}
-.bar{display:flex;align-items:center;gap:5px;padding:4px 6px 6px}
-.tb{flex:none;background:none;border:0;color:var(--muted);height:28px;min-width:28px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:3px;padding:0 6px;font-size:12.5px;white-space:nowrap}
+#q{display:block;width:100%;resize:none;background:none;border:0;color:var(--text);max-height:140px;outline:none}
+.bar{display:flex;align-items:center;gap:5px}
+.tb{flex:none;background:none;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:3px;padding:0 6px;font-size:12.5px;white-space:nowrap}
 .tb:hover,.tb.on{background:var(--chip-on);color:var(--text)}
 .tb svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tb.model svg{width:13px;height:13px}
@@ -178,27 +173,27 @@ body.sheet #jump{display:none}
 .bar.stack{flex-wrap:wrap;row-gap:5px}
 .bar.stack .pills{order:9;flex:1 0 100%}
 .bar.stack .model{margin-left:auto}
-.pill{flex:none;display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 6px 0 8px;border-radius:99px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:var(--chip-on);color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap}
-.pill i{font-style:normal;color:var(--muted);font-size:13px;line-height:1}
+.pill{flex:none;display:inline-flex;align-items:center;cursor:pointer;white-space:nowrap}
+.pill i{font-style:normal;color:var(--muted);line-height:1}
 .pill:hover i{color:var(--text)}
-.go{flex:none;width:30px;height:30px;border-radius:50%;border:0;background:var(--accent);color:var(--on-accent);cursor:pointer;display:grid;place-items:center;padding:0;transition:transform .1s,opacity .15s}
+.go{flex:none;border:0;background:var(--accent);color:var(--on-accent);cursor:pointer;display:grid;place-items:center;padding:0;transition:transform .1s,opacity .15s}
 .go:active{transform:scale(.92)}
 .go:disabled{opacity:.4;cursor:default}
-.go svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
-.menu{position:absolute;bottom:calc(100% - 4px);left:10px;z-index:5;min-width:220px;padding:5px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.35);animation:menuIn .14s ease both}
+.go svg{stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.menu{position:absolute;bottom:calc(100% - 4px);left:10px;z-index:5;min-width:220px;animation:menuIn .14s ease both}
 .menu.right{left:auto;right:10px}
 @keyframes menuIn{from{opacity:0;transform:translateY(4px)}}
-.menu button{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-radius:8px;padding:7px 9px;cursor:pointer;text-align:left;font-size:13px}
-.menu button:hover:not(:disabled){background:var(--chip-on)}
+.menu button{display:flex;align-items:center;width:100%;background:none;border:0;cursor:pointer;text-align:left;font-size:13px}
+
 .menu button:disabled{opacity:.45;cursor:default}
-.menu .mi{width:18px;text-align:center;flex:none}
+.menu .mi{text-align:center;flex:none}
 .menu .mt{flex:1;min-width:0}
-.menu .md{display:block;font-size:11.5px;color:var(--muted)}
+.menu .md{display:block;color:var(--muted)}
 .menu .ck{color:var(--accent);visibility:hidden;font-weight:700}
 .menu [aria-checked=true] .ck{visibility:visible}
-.menu .tip{font-size:11.5px;color:var(--muted);padding:6px 9px 3px;border-top:1px solid var(--line);margin-top:4px}
+.menu .tip{color:var(--muted);margin-top:4px}
 textarea:focus,input:focus{border-color:var(--focus)}
-.send{background:var(--accent);color:var(--on-accent);border:0;border-radius:10px;height:40px;padding:0 14px;font-weight:600;cursor:pointer}
+.send{background:var(--accent);color:var(--on-accent);border:0;cursor:pointer}
 .send:disabled{opacity:.45;cursor:default}
 
 /* settings sheet */
@@ -246,10 +241,10 @@ textarea:focus,input:focus{border-color:var(--focus)}
 body.standalone #composer .menu.slash{right:14px}
 :root:is([data-theme=glass],[data-theme=clear]) .menu.slash{background-image:linear-gradient(var(--pop),var(--pop))} /* a second layer: the list is long and sits over the chat's own text */
 .slash .sl{position:relative;max-height:min(264px,calc(100vh - 170px));overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
-.slash .mh{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:650;padding:6px 9px 2px}
+.slash .mh{color:var(--muted);font-weight:650}
 .slash .sl button{padding:5px 9px;gap:9px}
 .menu.slash .sl button:hover{background:none} /* the pointer moves the highlight, so only one row is ever lit */
-.menu.slash .sl button[aria-selected=true]{background:var(--chip-on)}
+
 .slash .sl button[aria-disabled=true]{cursor:default}
 .slash .sl button[aria-disabled=true] :is(.mi,b){opacity:.5}
 .slash .mt b{font-weight:600}
@@ -261,7 +256,6 @@ body.standalone #composer .menu.slash{right:14px}
 .menu.slash .tip .mini{display:inline;width:auto;margin-left:auto;padding:0;border-radius:0;font-size:11.5px;background:none} /* not a .menu row */
 @media (pointer:coarse){.slash .sl button{min-height:40px}.slash .keys{display:none}}
 .msg .ctag{display:inline-block;padding:0 5px;margin-right:1px;border-radius:5px;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);font-weight:650;font-family:var(--mono);font-size:10.5px}
-.starters button.mine{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));font-family:var(--mono);font-size:12px}
 #cmdStatus{min-height:1.45em;overflow-wrap:anywhere}
 #cmdStatus.error{color:var(--err)}
 .memory-form label.cmdst{font-weight:400;max-width:none;align-items:center}
@@ -281,7 +275,7 @@ body.standalone #composer .menu.slash{right:14px}
 #snav{flex:none;width:200px;position:sticky;top:0;align-self:flex-start;padding:16px 0;max-height:calc(100vh - var(--hd) - 48px);overflow-y:auto;scrollbar-width:thin}
 #stabs{display:flex;flex-direction:column;gap:2px}
 .stab{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;border-radius:10px;padding:9px 10px;cursor:pointer;color:var(--muted);font-size:var(--fs)}
-.stab:hover{background:var(--chip-on);color:var(--text)}
+.stab:hover{color:var(--text)}
 .stab[aria-selected=true]{background:var(--chip-on);color:var(--text);font-weight:600;box-shadow:inset 3px 0 0 var(--accent)}
 .stab .ni{flex:none;width:18px;height:18px;display:grid;place-items:center}
 .stab svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
@@ -312,25 +306,25 @@ body.standalone #composer .menu.slash{right:14px}
 #sheet .card.pd>.rh{margin:0 0 10px}
 .fsu{margin:8px 0 12px}
 /* controls: one switch, one segmented control, one select and text input, and three buttons (secondary, primary, danger) */
-.tg{position:relative;flex:none;width:44px;height:26px;border-radius:99px;border:1px solid var(--line);background:color-mix(in srgb,var(--text) 14%,var(--panel));cursor:pointer;padding:0;transition:background-color .15s,border-color .15s}
-.tg::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--text);opacity:.8;transition:transform .16s cubic-bezier(.3,1.4,.5,1)}
-.tg[aria-checked=true]{background:var(--accent);border-color:var(--accent)}
-.tg[aria-checked=true]::after{transform:translateX(18px);background:var(--on-accent);opacity:1}
+.tg{position:relative;flex:none;width:44px;height:26px;border-radius:99px;cursor:pointer;padding:0;transition:background-color .15s,border-color .15s}
+.tg::after{content:"";position:absolute;border-radius:50%;transition:transform .16s cubic-bezier(.3,1.4,.5,1)}
+
+.tg[aria-checked=true]::after{background:var(--on-accent);opacity:1}
 .tg:disabled{opacity:.45;cursor:default}
-#sheet .seg{display:inline-flex;max-width:100%;padding:2px;gap:2px;border:1px solid var(--line);border-radius:11px;background:color-mix(in srgb,var(--text) 5%,transparent);overflow:hidden}
-#sheet .seg button{flex:1 1 auto;min-height:30px;padding:5px 13px;border:0;border-radius:9px;background:none;color:var(--muted);cursor:pointer;font-size:var(--fh);white-space:nowrap}
+#sheet .seg{display:inline-flex;max-width:100%;gap:2px;overflow:hidden}
+#sheet .seg button{flex:1 1 auto;min-height:30px;padding:5px 13px;border:0;background:none;color:var(--muted);cursor:pointer;font-size:var(--fh);white-space:nowrap}
 #sheet .seg button:hover:not(:disabled){color:var(--text)}
-#sheet .seg button.on{background:var(--chip-on);color:var(--text);font-weight:600;box-shadow:inset 0 0 0 1.5px var(--accent)} /* the accent as an outline, so the label keeps full contrast in every theme */
+#sheet .seg button.on{color:var(--text);font-weight:600} /* the accent as an outline, so the label keeps full contrast in every theme */
 #sheet .seg button:disabled{opacity:.45;cursor:default}
-#sheet .ghost{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 14px;border-radius:10px;font-size:var(--fs);font-weight:550;text-decoration:none;color:var(--text);background:none}
-#sheet .ghost:hover:not(:disabled){border-color:var(--focus);background:var(--chip-on)}
+#sheet .ghost{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 14px;font-size:var(--fs);font-weight:550;text-decoration:none;color:var(--text)}
+
 #sheet .ghost:disabled{opacity:.5;cursor:default}
-#sheet .ghost.pri{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+#sheet .ghost.pri{border-color:var(--accent)}
 #sheet .ghost.pri:hover:not(:disabled){background:var(--accent);filter:brightness(1.08)}
-#sheet .ghost.bad:hover:not(:disabled){background:color-mix(in srgb,var(--err) 12%,transparent);border-color:var(--err)}
+#sheet .ghost.bad:hover:not(:disabled){border-color:var(--err)}
 #sheet .alink{min-height:34px}
-#sheet :is(input[type=text],input[type=password],textarea,select){width:100%;min-width:0;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font:inherit;font-size:var(--fs);outline:none}
-#sheet :is(input[type=text],input[type=password],textarea,select):focus{border-color:var(--accent)}
+#sheet :is(input[type=text],input[type=password],textarea,select){width:100%;min-width:0;color:var(--text);padding:9px 11px;font:inherit;font-size:var(--fs);outline:none}
+
 #sheet select{appearance:none;-webkit-appearance:none;padding-right:32px;cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 17px) 55%,calc(100% - 12px) 55%;background-size:5px 5px;background-repeat:no-repeat}
 #sheet input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;margin:0}
 #sheet .pcl select{width:auto;padding:6px 30px 6px 10px}
@@ -344,27 +338,27 @@ body.standalone #composer .menu.slash{right:14px}
 #pwBtns .rh{margin-left:2px}
 #sheet .pcs{margin:0 0 12px}
 #quotaSec{margin:0 0 24px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
-#quotaSec h3{margin:0 0 10px;font-size:var(--fs);text-transform:none;letter-spacing:0;color:var(--text);font-weight:650}
+#quotaSec h3{margin:0 0 10px;text-transform:none;letter-spacing:0;color:var(--text);font-weight:650}
 #sheet .wcta{border-radius:14px;padding:14px 16px}
-.av{flex:none;width:40px;height:40px;border-radius:50%;background:var(--chip-on);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:16px;text-transform:uppercase}
+.av{flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:16px;text-transform:uppercase}
 .callout{margin:0 0 20px;padding:11px 14px;border-radius:12px;border:1px solid color-mix(in srgb,var(--warn) 60%,var(--line));background:color-mix(in srgb,var(--warn) 12%,var(--panel));font-size:var(--fh);line-height:1.45}
 .callout a{color:inherit;font-weight:600}
 #sheet .aopts{gap:8px}
-#sheet .aopt{position:relative;padding:11px 14px 11px 44px;border-radius:12px;background:var(--panel);font-size:var(--fh);line-height:1.45}
+#sheet .aopt{position:relative;padding:11px 14px 11px 44px;background:var(--panel);font-size:var(--fh);line-height:1.45}
 #sheet .aopt b{font-size:var(--fs)}
 .aopt::before{content:"";position:absolute;left:15px;top:14px;width:16px;height:16px;border-radius:50%;border:2px solid var(--line);box-sizing:border-box}
-.aopt.on::before{border-color:var(--accent);background:var(--accent);box-shadow:inset 0 0 0 3px var(--panel)}
+.aopt.on::before{border-color:var(--accent);background:var(--accent)}
 .aopt:disabled{opacity:.5;cursor:default}
 .aopt:disabled:hover{border-color:var(--line)}
-.chip{flex:none;font-size:11px;font-weight:650;padding:2px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
-.chip.on{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 50%,var(--line));background:var(--chip-on)}
-.kh{padding:12px 14px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:650}
+.chip{flex:none;font-weight:650;border-radius:99px;white-space:nowrap}
+.chip.on{border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
+.kh{padding:12px 14px 4px;font-weight:650}
 .kh+.krow{border-top:0}
 .krow{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 14px;padding:7px 14px}
 .krow:last-child{padding-bottom:12px}
 .kk{flex:none;width:120px;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
 .kt{flex:1 1 140px;min-width:0;font-size:var(--fh);color:var(--muted);line-height:1.45}
-kbd{font:600 11.5px/1.2 var(--mono);padding:3px 7px;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;background:var(--bg);color:var(--text)}
+kbd{font:600 11.5px/1.2 var(--mono);padding:3px 7px;border:1px solid var(--line);border-bottom-width:2px;color:var(--text)}
 .sask{display:flex;align-items:center;flex-wrap:wrap;gap:8px;width:100%}
 .sask p{flex:1 1 180px;margin:0;font-size:var(--fh)}
 .sask p span{display:block;margin-top:1px;color:var(--muted)}
@@ -392,10 +386,10 @@ kbd{font:600 11.5px/1.2 var(--mono);padding:3px 7px;border:1px solid var(--line)
 @media (max-width:559.98px){
   .sin{display:block;padding:0}
   #snav{position:static;width:auto;max-height:none;padding:12px var(--sg) 24px}
-  #stabs{gap:0;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  #stabs{gap:0;background:var(--panel);overflow:hidden}
   .stab{padding:11px 12px;border-radius:0;color:var(--text)}
   .stab+.stab{border-top:1px solid var(--line)}
-  .stab:hover{background:var(--chip-on)}
+
   .stab[aria-selected=true]{background:none;font-weight:inherit;box-shadow:none}
   .stab[aria-selected=true] .ni{color:inherit}
   .stab .ni{color:var(--accent)}
@@ -410,7 +404,7 @@ kbd{font:600 11.5px/1.2 var(--mono);padding:3px 7px;border:1px solid var(--line)
   .row.s .rc>*{flex:1}
   .kk{width:auto;flex:1 1 100%}
 }
-@media (pointer:coarse){.tg{width:50px;height:30px}.tg::after{width:24px;height:24px}.tg[aria-checked=true]::after{transform:translateX(20px)}#sheet .seg button{min-height:38px}#sheet .ghost{min-height:40px}.stab{padding-block:12px}}
+@media (pointer:coarse){.tg{width:50px;height:30px}.tg::after{}.tg[aria-checked=true]::after{}#sheet .seg button{min-height:38px}#sheet .ghost{min-height:40px}.stab{padding-block:12px}}
 /* glass and clear: the page shows through them, so the sheet gets a real backing (history's idea), and the cards a faint tint of their own */
 :root:is([data-theme=glass],[data-theme=clear]) #sheet :is(.card,#quotaSec,#stabs,.sw,.aopt){background:color-mix(in srgb,var(--text) 7%,transparent)}
 :root:is([data-theme=glass],[data-theme=clear]) #sheet :is(input[type=text],input[type=password],textarea,select,kbd){background:color-mix(in srgb,var(--text) 8%,transparent)}
@@ -419,7 +413,7 @@ kbd{font:600 11.5px/1.2 var(--mono);padding:3px 7px;border:1px solid var(--line)
 
 
 /* lock screen */
-#login{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px 24px;text-align:center;overflow-y:auto;outline:none}
+#login{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px 24px;text-align:center;overflow-y:auto;outline:none}
 #login.leave{animation:fadeOut .2s ease forwards}
 .lk{width:44px;height:44px;border-radius:14px;background:var(--chip-on);color:var(--accent);display:grid;place-items:center;margin-bottom:2px;flex:none}
 .lk svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -435,28 +429,28 @@ kbd{font:600 11.5px/1.2 var(--mono);padding:3px 7px;border:1px solid var(--line)
 .dots.bad{animation:shake .42s}
 @keyframes shake{20%{transform:translateX(-9px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
 .pad{display:grid;grid-template-columns:repeat(3,56px);gap:10px 18px;flex:none}
-.pad button{width:56px;height:56px;border-radius:50%;border:1px solid var(--line);background:var(--panel);font-size:20px;cursor:pointer;padding:0;transition:background-color .12s,transform .08s,border-color .12s}
+.pad button{width:56px;height:56px;border-radius:50%;font-size:20px;cursor:pointer;padding:0;transition:background-color .12s,transform .08s,border-color .12s}
 .pad button:hover{border-color:var(--focus)}
 .pad button:active,.pad button.hit{transform:scale(.92);background:var(--chip-on)}
 .pad .del{border:0;background:none;color:var(--muted);display:grid;place-items:center}
 .pad .del svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .pwrow{display:flex;gap:8px;width:100%;max-width:290px;margin-top:6px}
 .pwrow input{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;outline:none}
-#loginErr{color:var(--err);font-size:13px;min-height:18px}
-.link,.plink{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:12.5px;padding:2px}
+#loginErr{color:var(--err);min-height:18px}
+.link,.plink{background:none;border:0;text-decoration:underline;cursor:pointer;padding:2px}
 .links{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:2px 4px;font-size:12.5px;color:var(--muted)}
 .fields{display:flex;flex-direction:column;gap:8px;width:100%;max-width:290px;margin-top:6px}
 .fields input,.fields textarea{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;outline:none;resize:none;min-width:0}
 .fields .send{margin-top:2px}
 
 /* waiting to be accepted */
-#wait{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px 30px;text-align:center}
+#wait{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 30px;text-align:center}
 #wait h2{margin:6px 0 0;font-size:17px}
 #wait p{margin:0;color:var(--muted);font-size:13px;max-width:300px}
-#wait p b{color:var(--text)}
-.hg{position:relative;width:64px;height:64px;border-radius:20px;background:var(--chip-on);color:var(--accent);display:grid;place-items:center}
+
+.hg{position:relative;width:64px;height:64px;background:var(--chip-on);color:var(--accent);display:grid;place-items:center}
 .hg svg{width:28px;height:28px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;animation:hgFlip 2.6s cubic-bezier(.6,0,.3,1) infinite}
-.hg::after{content:"";position:absolute;inset:-6px;border-radius:24px;border:1.5px solid var(--accent);opacity:0;animation:hgPulse 2.6s ease-out infinite}
+.hg::after{content:"";position:absolute;inset:-6px;border:1.5px solid var(--accent);opacity:0;animation:hgPulse 2.6s ease-out infinite}
 @keyframes hgFlip{0%,70%{transform:rotate(0)}88%,100%{transform:rotate(180deg)}}
 @keyframes hgPulse{0%{opacity:.5;transform:scale(.92)}60%,100%{opacity:0;transform:scale(1.15)}}
 #wait.in .hg{background:var(--accent);color:var(--on-accent);animation:bPop .5s cubic-bezier(.3,1.6,.5,1)}
@@ -468,8 +462,8 @@ kbd{font:600 11.5px/1.2 var(--mono);padding:3px 7px;border:1px solid var(--line)
 #ban>*{flex-shrink:0} /* a long notice scrolls instead of squashing */
 #ban h2{margin:6px 0 0;font-size:18px}
 #ban p{margin:0;color:var(--muted);font-size:13px;max-width:310px}
-#ban .bk{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--err)}
-.bi{width:64px;height:64px;border-radius:20px;background:color-mix(in srgb,var(--err) 16%,var(--panel));color:var(--err);display:grid;place-items:center;animation:bPop .5s cubic-bezier(.3,1.6,.5,1)}
+#ban .bk{font-weight:700;color:var(--err)}
+.bi{width:64px;height:64px;background:color-mix(in srgb,var(--err) 16%,var(--panel));color:var(--err);display:grid;place-items:center;animation:bPop .5s cubic-bezier(.3,1.6,.5,1)}
 .bi svg{width:30px;height:30px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 #ban.term .bi{background:var(--text);color:var(--bg)}
 #ban.term .bk{color:var(--text)}
@@ -481,7 +475,7 @@ kbd{font:600 11.5px/1.2 var(--mono);padding:3px 7px;border:1px solid var(--line)
 .bfacts dt{flex:none;width:76px;color:var(--muted)}
 .bfacts dd{margin:0;min-width:0;overflow-wrap:anywhere;white-space:pre-wrap}
 #banLeft{font-variant-numeric:tabular-nums;color:var(--text)!important;font-weight:600}
-.bagree{display:flex;gap:8px;align-items:flex-start;max-width:310px;text-align:left;font-size:12.5px;cursor:pointer}
+.bagree{display:flex;gap:8px;align-items:flex-start;max-width:310px;text-align:left;cursor:pointer}
 .bagree input{margin:2px 0 0;accent-color:var(--accent);flex:none}
 #banReact:disabled{opacity:.45;cursor:default}
 #banErr{color:var(--err)!important;min-height:0}
@@ -493,7 +487,7 @@ kbd{font:600 11.5px/1.2 var(--mono);padding:3px 7px;border:1px solid var(--line)
 #banAppealState b{font-weight:650}
 
 /* settings: today's usage and the account */
-.qbar{height:8px;border-radius:99px;background:color-mix(in srgb,var(--accent) 16%,var(--panel));overflow:hidden}
+.qbar{border-radius:99px;overflow:hidden}
 .qbar i{display:block;height:100%;width:0;border-radius:99px;background:var(--accent);transition:width .4s ease}
 .qbar i.warn{background:#e0a030}
 .qbar i.full{background:var(--err)}
@@ -524,10 +518,10 @@ body:focus{outline:none}
 #boot{position:fixed;inset:0;z-index:100;display:grid;place-items:center;animation:failsafe 0s 6s forwards}
 #boot.armed,#boot.armed *{animation-play-state:paused!important}
 @keyframes failsafe{to{visibility:hidden}}
-#boot .bg{position:absolute;inset:0;background:var(--bg);transition:opacity .42s ease .14s}
+#boot .bg{position:absolute;inset:0;transition:opacity .42s ease .14s}
 #boot .bg::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 43%,color-mix(in srgb,var(--accent) 15%,transparent),transparent 55%);opacity:0;animation:bFade .9s ease .1s forwards}
 #boot .c{position:relative;display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:-10px}
-#boot .orb{position:relative;width:96px;height:96px;display:grid;place-items:center}
+#boot .orb{position:relative;display:grid;place-items:center}
 #boot .ring{position:absolute;left:8px;top:8px;width:80px;height:80px;transform:rotate(-90deg);overflow:visible;transition:opacity .22s ease,transform .32s cubic-bezier(.55,0,.75,.1)}
 #boot .ring circle{fill:none;stroke:var(--accent);stroke-width:1.6;stroke-linecap:round;stroke-dasharray:170;stroke-dashoffset:170;animation:bDraw .85s cubic-bezier(.65,0,.35,1) .15s forwards}
 #boot .ring .trail{stroke-width:7;opacity:.16;animation-delay:.24s}
@@ -539,10 +533,10 @@ body:focus{outline:none}
 #boot .core{position:relative;display:block;width:20px;height:20px;border-radius:50%;background:var(--accent);animation:bPop .6s cubic-bezier(.3,1.6,.5,1) both}
 #boot .core::after{content:"";position:absolute;inset:-12px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 40%,transparent),transparent 70%);opacity:0;animation:bFade .7s ease .35s forwards}
 #boot .txt{display:flex;flex-direction:column;align-items:center;gap:9px;transition:opacity .22s ease,transform .3s ease}
-#boot .word{display:flex;font-weight:700;font-size:22px;letter-spacing:.3px}
-#boot .word span{display:inline-block;opacity:0;animation:bLetter .55s cubic-bezier(.2,.8,.2,1) calc(.35s + var(--i) * 55ms) forwards,bWave .45s ease calc(1.05s + var(--i) * 40ms)}
-#boot .tag{font-size:12.5px;color:var(--muted);opacity:0;animation:bUp .5s ease .85s forwards}
-#boot .meter{width:84px;height:2px;border-radius:2px;overflow:hidden;background:color-mix(in srgb,var(--muted) 22%,transparent);opacity:0;animation:bFade .3s ease .5s forwards}
+#boot .word{display:flex}
+#boot .word span{display:inline-block}
+#boot .tag{opacity:0;animation:bUp .5s ease .85s forwards}
+#boot .meter{width:84px;overflow:hidden;background:color-mix(in srgb,var(--muted) 22%,transparent);opacity:0;animation:bFade .3s ease .5s forwards}
 #boot .meter i{display:block;width:100%;height:100%;border-radius:2px;background:var(--accent);transform:scaleX(0);transform-origin:0 50%;animation:bFill 1.15s cubic-bezier(.4,0,.2,1) .5s forwards}
 @keyframes bFade{to{opacity:1}}
 @keyframes bDraw{to{stroke-dashoffset:0}}
@@ -575,7 +569,7 @@ body.enter #composer{animation:rise .4s cubic-bezier(.2,.8,.2,1) .06s both}
 /* the highlight pill, and numbered quotes from the page that find the passage on the page when clicked */
 .pill.sel{flex:0 1 auto;min-width:0;max-width:210px}
 .pill.sel span{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.cite{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;margin:0 1px 0 3px;padding:0 4px;border:0;border-radius:99px;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);font:700 10.5px/1 var(--font);vertical-align:2px;cursor:pointer;transition:background-color .15s,color .15s,transform .1s}
+.cite{display:inline-flex;align-items:center;justify-content:center;margin:0 1px 0 3px;padding:0 4px;border:0;border-radius:99px;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);font:700 10.5px/1 var(--font);vertical-align:2px;cursor:pointer;transition:background-color .15s,color .15s,transform .1s}
 .cite:hover,.cite.on{background:var(--accent);color:var(--on-accent)}
 .cite:active{transform:scale(.9)}
 .cite.miss{opacity:.45}
@@ -597,22 +591,22 @@ body.rs-c *{cursor:nwse-resize!important}
 body.docked:not(.min) header{cursor:default}
 
 /* announcement from the owner */
-#ann{flex:none;display:flex;gap:10px;align-items:flex-start;margin:10px 10px 0;padding:9px 9px 9px 11px;border-radius:12px;background:var(--chip-on);border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));animation:annIn .4s cubic-bezier(.2,.8,.2,1) both}
+#ann{flex:none;display:flex;gap:10px;align-items:flex-start;margin:10px 10px 0;padding:9px 9px 9px 11px;border-radius:12px;border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));animation:annIn .4s cubic-bezier(.2,.8,.2,1) both}
 @keyframes annIn{from{opacity:0;transform:translateY(-8px)}}
 #ann.out{animation:fadeOut .2s ease forwards}
 #ann .ai{flex:none;font-size:15px;line-height:1.35}
 #ann .ab{flex:1;min-width:0}
-#annText{font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:110px;overflow-y:auto}
+#annText{font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere;overflow-y:auto}
 #annMeta{font-size:11px;color:var(--muted);margin-top:3px}
 /* restricted: what's taken away, until when, and why */
-#rst{flex:none;display:flex;gap:10px;align-items:flex-start;margin:10px 10px 0;padding:9px 9px 9px 11px;border-radius:12px;background:color-mix(in srgb,#e0a030 12%,var(--panel));border:1px solid color-mix(in srgb,#e0a030 45%,var(--line))}
+#rst{flex:none;display:flex;gap:10px;align-items:flex-start;margin:10px 10px 0;padding:9px 9px 9px 11px;border-radius:12px;border:1px solid color-mix(in srgb,#e0a030 45%,var(--line))}
 #rst .ai{flex:none;font-size:15px;line-height:1.35}
 #rst .ab{flex:1;min-width:0;font-size:13px;overflow-wrap:anywhere}
 #rstMeta{font-size:11px;color:var(--muted);margin-top:3px;white-space:pre-wrap}
 #rstX{flex:none;background:none;border:0;color:var(--muted);font-size:16px;line-height:1;padding:2px 4px;cursor:pointer}
 #annX{flex:none;align-self:center;background:var(--accent);color:var(--on-accent);border:0;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer}
 /* a newer pagebot is out than the bookmark that opened this panel */
-#upd{flex:none;display:flex;align-items:center;gap:8px;margin:10px 10px 0;padding:5px 5px 5px 11px;border-radius:10px;background:var(--chip-on);border:1px solid var(--line);font-size:12.5px;animation:annIn .4s cubic-bezier(.2,.8,.2,1) both}
+#upd{flex:none;display:flex;align-items:center;gap:8px;margin:10px 10px 0;padding:5px 5px 5px 11px;border-radius:10px;border:1px solid var(--line);font-size:12.5px;animation:annIn .4s cubic-bezier(.2,.8,.2,1) both}
 #upd span{flex:1;min-width:0}
 #updGo{flex:none;background:var(--accent);color:var(--on-accent);border-radius:7px;padding:4px 9px;font-weight:600;text-decoration:none}
 #updX{flex:none;background:none;border:0;color:var(--muted);font-size:17px;line-height:1;cursor:pointer;padding:2px 6px}
@@ -634,15 +628,10 @@ body.docked:not(.min) header{cursor:default}
 .wbar{flex:1;display:flex;gap:4px}
 .wbar i{flex:1;height:3px;border-radius:2px;background:color-mix(in srgb,var(--text) 16%,transparent)}
 .wbar i.done,.wbar i.cur{background:var(--accent)}
-.wslide{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px 24px 12px;text-align:center;overflow-y:auto;--g:color-mix(in srgb,var(--accent) 22%,transparent);background:radial-gradient(90% 60% at 50% 0%,var(--g),transparent 70%)}
-.wslide[data-k="1"]{background:radial-gradient(80% 55% at 100% 0%,var(--g),transparent 70%)}
-.wslide[data-k="2"]{background:radial-gradient(80% 60% at 0% 100%,var(--g),transparent 70%)}
-.wslide[data-k="3"]{background:radial-gradient(90% 60% at 50% 100%,var(--g),transparent 70%)}
-.wslide[data-k="4"]{background:radial-gradient(80% 60% at 0% 0%,var(--g),transparent 70%)}
-.wslide[data-k="5"]{background:radial-gradient(80% 60% at 100% 100%,var(--g),transparent 70%)}
+.wslide{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px 24px 12px;text-align:center;overflow-y:auto}
 .wslide>*,.wsites li,.wgrid div{animation:wIn .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--d,0) * 110ms + 80ms)}
 @keyframes wIn{from{opacity:0;transform:translateY(12px)}}
-.wk{font-size:11.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:650}
+.wk{font-size:13px;color:var(--muted);font-weight:650}
 .wbig{font-size:64px;line-height:1;font-weight:800;letter-spacing:-2px;color:var(--accent);font-variant-numeric:tabular-nums}
 .wh{font-size:24px;font-weight:750;letter-spacing:-.4px;max-width:100%;overflow-wrap:anywhere}
 .wsub{margin:0;font-size:14px}
@@ -673,7 +662,7 @@ body.docked:not(.min) header{cursor:default}
 .wsw u.u2{bottom:30px;width:40px}
 .wsw b{position:absolute;right:12px;top:30px;width:52px;height:20px;border-radius:9px;background:var(--sw-user)}
 .wgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin:6px 0}
-.wgrid div{display:flex;flex-direction:column;gap:2px;padding:12px 10px;border-radius:12px;background:var(--panel);border:1px solid var(--line);min-width:0}
+.wgrid div{display:flex;flex-direction:column;gap:2px;padding:12px 10px;min-width:0}
 .wgrid b{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wgrid span{font-size:11.5px;color:var(--muted)}
 .wdone{margin-top:6px;padding:0 26px}
@@ -690,10 +679,10 @@ body.hist #jump,body.pdfs #jump{display:none}
 :root[data-theme=clear] #sheet{background:var(--pop) linear-gradient(var(--pop),var(--pop));text-shadow:none} /* a page of settings to read, so it gets a backing like history's: page text showed through the cards */
 .title .name{min-width:0;overflow:hidden;text-overflow:ellipsis} /* gives way to the header buttons in a narrow panel */
 .hsearch{flex:none;padding:10px 10px 4px}
-#histQ{width:100%;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 11px;outline:none}
+#histQ{width:100%;min-width:0;outline:none}
 #histList,#pdfList{flex:1;min-height:0;overflow-y:auto;padding:0 6px 14px;scrollbar-width:thin}
-.hday{padding:12px 8px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:650}
-.hrow{display:flex;align-items:center;gap:2px;border-radius:10px;padding-right:3px}
+.hday{padding:12px 8px 4px}
+.hrow{display:flex;align-items:center;gap:2px;padding-right:3px}
 .hrow:hover,.hrow:focus-within{background:var(--chip-on)}
 .hrow.wait{opacity:.55;pointer-events:none}
 .hrow.err .hsub{color:var(--err)}
@@ -701,12 +690,12 @@ body.hist #jump,body.pdfs #jump{display:none}
 .htitle,.hsub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .htitle{font-size:13px;font-weight:600}
 .hrow.on .htitle::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin:0 6px 1px 0;vertical-align:middle}
-.hsub{font-size:11.5px;color:var(--muted)}
+.hsub{color:var(--muted)}
 .hsnip{font-size:12px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .hsnip mark{background:color-mix(in srgb,var(--accent) 30%,transparent);color:var(--text);border-radius:3px;padding:0 1px}
-.hdel{opacity:0}
+
 .hrow:hover .hdel,.hrow:focus-within .hdel{opacity:1}
-@media (hover:none){.hdel{opacity:1}}
+@media (hover:none){}
 .hask{flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:8px}
 .hask p{flex:1 1 160px;margin:0;font-size:12.5px;overflow-wrap:anywhere}
 .hask p span{display:block;margin-top:1px;font-size:11.5px;color:var(--muted)}
@@ -741,7 +730,7 @@ body.hist #jump,body.pdfs #jump{display:none}
 .pill.pdf .pl,.pills.tight .pill.pdf .pl{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .pill .spn{flex:none;width:11px;height:11px;border-radius:50%;border:2px solid color-mix(in srgb,var(--text) 22%,transparent);border-top-color:var(--accent);animation:pbSpin .8s linear infinite}
 @keyframes pbSpin{to{transform:rotate(360deg)}}
-.fchip{display:flex;align-items:center;gap:5px;max-width:100%;width:max-content;margin-top:6px;padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 60%,transparent);font-size:12px;font-weight:400;color:var(--text)}
+.fchip{display:flex;align-items:center;gap:5px;max-width:100%;width:max-content;margin-top:6px;font-size:12px;font-weight:400;color:var(--text)}
 .fchip .fn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fchip .fpg{flex:none;color:var(--muted)}
 .fchip.gone{opacity:.7}
@@ -766,7 +755,7 @@ body.standalone #composer .menu.right{left:auto;right:14px}
 body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 @media (max-width:780px){body.standalone{border:0}}
 /* page actions: the 🖱 Actions pill, step lines and approval cards in answers, and the permission setting */
-:root{--warn:#e0a030}
+
 :root:is([data-theme=paper],[data-theme=sakura],[data-page=light]){--warn:#9a5a00}
 .pill .au{font-size:10px;font-weight:750;letter-spacing:.4px;text-transform:uppercase;color:var(--warn)}
 .pill.auto{border-color:color-mix(in srgb,var(--warn) 70%,var(--line))}
@@ -782,14 +771,14 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 .aview{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:14px;border:0;margin:0;background:rgba(0,0,0,.8);cursor:zoom-out}
 .aview img{max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
 .acard.share{border-color:color-mix(in srgb,var(--accent) 55%,var(--line))}
-.acard{margin:3px 0 5px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--code);color:var(--text);font-size:12.5px;animation:msgIn .18s ease both}
+.acard{margin:3px 0 5px;padding:8px 10px;color:var(--text);font-size:12.5px;animation:msgIn .18s ease both}
 .acard.nav{border-color:color-mix(in srgb,var(--warn) 65%,var(--line))}
 .acard .aq{display:flex;gap:5px;font-weight:600;overflow-wrap:anywhere}
 .acard .aq span:first-child{flex:none;width:16px;text-align:center}
 .acard .aw{margin-top:5px;color:var(--warn);font-size:12px}
 .acard .ad{margin-top:4px;color:var(--muted);font-size:12px;overflow-wrap:anywhere}
 .acard .ab{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.acard button{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer}
+.acard button{color:var(--text);font-size:12px;cursor:pointer}
 .acard button:hover{border-color:var(--focus)}
 .acard .aok{background:var(--accent);border-color:transparent;color:var(--on-accent);font-weight:600}
 :root[data-theme=clear] .acard{background:var(--pop);text-shadow:none}
@@ -826,47 +815,45 @@ body.dragging #pet{cursor:grabbing}
 /* ---- the big panel: layout that follows the panel's own width (an iframe's viewport IS the panel, so these rules see its size) ----
    --grow: how many extra px the type gets (0 up to about 420px wide, 2.5px from about 900px). --gut: the side space that centres a
    reading column of at most --col. Narrow and docked panels get 0 and 12px, so they look as they always did. */
-:root{--col:760px;--grow:clamp(0px,.6vw - 3px,2.5px);--gut:max(clamp(12px,3.2vw,28px),calc((100vw - var(--col))/2))}
+:root{--grow:clamp(0px,.6vw - 3px,2.5px);--gut:max(clamp(12px,3.2vw,28px),calc((100vw - var(--col))/2))}
 .msg{font-size:calc(1em + var(--grow))}
 .msg code{font-size:calc(12.5px + var(--grow)*.8)}
 .msg table{font-size:calc(12.5px + var(--grow)*.8)}
 #log{padding-inline:var(--gut)}
 .empty{font-size:calc(13px + var(--grow))}
-.empty b{font-size:calc(14px + var(--grow)*1.6)}
+
 @media (min-width:560px){
   :root{--hd:52px}
   header{padding-left:var(--gut)}
-  .title{font-size:15px;gap:10px}
-  .dot{width:9px;height:9px}
-  .ib{width:34px;height:34px;border-radius:10px}
-  .ib svg{width:18px;height:18px}
-  #log{padding-top:18px;padding-bottom:14px;gap:14px}
-  .msg{padding:11px 15px;border-radius:16px;line-height:1.58}
-  .msg.bot{max-width:min(100%,var(--col))}
-  .msg.user{max-width:min(84%,600px)}
+
+
+
+
+
+  .msg{padding:11px 15px;border-radius:16px}
+
+
   .msg p{margin-bottom:9px}
-  .msg .h{margin-top:14px}
+
   .msg pre{padding:11px 13px}
   .msg th,.msg td{padding:6px 11px}
-  .empty{max-width:min(460px,100%)}
-  .starters{gap:8px;margin-top:18px}
-  .starters button{padding:7px 14px;font-size:calc(12.5px + var(--grow)*.5)}
-  .note{font-size:12.5px}
+
+
   .tags,.meta{font-size:11.5px}
   /* the message box: roomier, and as wide as the reading column */
   #composer{width:100%;max-width:calc(var(--col) + 28px);margin:0 auto;padding:0 14px 16px}
   #composer .menu{left:14px}
   #composer .menu.right{left:auto;right:14px}
   #composer .menu.slash{right:14px}
-  .box{border-radius:18px}
-  #q{font-size:calc(1em + var(--grow));padding:14px 16px 4px;min-height:54px;max-height:220px}
-  .bar{padding:5px 9px 9px;gap:6px}
-  .tb{height:32px;min-width:32px;padding:0 8px;font-size:13px}
-  .pill{height:26px;font-size:12.5px}
-  .go{width:36px;height:36px}
-  .go svg{width:18px;height:18px}
-  .menu{min-width:260px;border-radius:14px;padding:6px}
-  .menu button{padding:9px 11px;font-size:13.5px}
+
+  #q{font-size:calc(1em + var(--grow));max-height:220px}
+  .bar{gap:6px}
+  .tb{padding:0 8px;font-size:13px}
+
+
+
+  .menu{min-width:260px}
+  .menu button{font-size:13.5px}
   /* the lists: slash commands run on one line each, the extra width goes to the hint */
   .slash .sl{max-height:min(340px,calc(100vh - 190px))}
   .slash .sl button{padding:8px 12px}
@@ -875,15 +862,15 @@ body.dragging #pet{cursor:grabbing}
   .slash .md{flex:1;min-width:0}
   /* history: a search box and cards in two columns, centred like the chat */
   #hist .hsearch{padding:16px var(--gut) 6px}
-  #histQ{padding:11px 14px;border-radius:12px;font-size:calc(14px + var(--grow))}
+  #histQ{font-size:calc(14px + var(--grow))}
   #histList{padding:0 var(--gut) 20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;align-content:start}
   #histList>*{grid-column:1/-1}
-  #histList>.hrow{grid-column:auto;border:1px solid var(--line);background:var(--panel);border-radius:12px;padding-right:4px}
+  #histList>.hrow{grid-column:auto;border-radius:12px;padding-right:4px}
   #histList>.hrow:hover,#histList>.hrow:focus-within{background:var(--chip-on);border-color:var(--focus)}
   :root:is([data-theme=glass],[data-theme=clear]) #histList>.hrow{background:var(--pop)} /* the cards need a solid-ish backing over the see-through sheet */
   .hopen{padding:11px 12px;gap:3px}
   .htitle{font-size:calc(13.5px + var(--grow))}
-  .hsub{font-size:12px}
+
   .hday{padding-top:16px}
   .hstate{max-width:340px}
   /* Wrapped keeps cards a comfortable width */
@@ -891,11 +878,11 @@ body.dragging #pet{cursor:grabbing}
   .wload{font-size:14px}
 }
 @media (min-width:900px){
-  #log{padding-top:24px;gap:16px}
+
   .msg{padding:13px 18px}
   #hist #histList{gap:10px 12px}
 }
-@media (min-height:760px) and (min-width:560px){#log{padding-top:28px}}
+@media (min-height:760px) and (min-width:560px){}
 
 /* /chat and the pop-up window: the whole window, with the reading column in the middle (Settings keeps the width it always had) */
 body.standalone{max-width:none;border:0}
@@ -907,7 +894,7 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
 /* ---- the loader (see pandaSprite): the splash, the waiting screen, and an answer that hasn't started yet ---- */
 .pbl{display:block;image-rendering:crisp-edges;image-rendering:pixelated}
 #boot .ring,#boot .pulse,#boot .sats{display:none} /* the old orb gives way to the loader; the little core still flies up to the header dot */
-#boot .orb{width:100%;height:150px;position:relative;display:block;margin-bottom:2px}
+#boot .orb{position:relative;display:block;margin-bottom:2px}
 #boot .orb .pbl{position:absolute;left:50%;bottom:0;margin:0;transform:translateX(-50%);transition:opacity .28s ease,transform .3s ease}
 #boot .fly{position:absolute;left:50%;top:62%;margin:-10px 0 0 -10px;opacity:0}
 #boot.out .fly{opacity:1;transition:opacity .12s}
@@ -938,10 +925,10 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
 /* the chat */
 :root.dense #log{padding-block:8px;gap:6px}
 :root.dense .empty{font-size:calc(12.5px + var(--grow))}
-:root.dense .empty b{font-size:calc(13.5px + var(--grow)*1.6)}
-:root.dense .starters{gap:5px;margin-top:10px}
-:root.dense .starters button{padding:4px 10px;font-size:calc(12px + var(--grow)*.5)}
-:root.dense .msg{padding-block:6px;padding-inline:10px}
+
+
+:root.dense .starters button{font-size:calc(12px + var(--grow)*.5)}
+:root.dense .msg{padding-inline:10px}
 :root.dense[data-theme=clear] .msg{padding-inline:2px}
 :root.dense .msg p{margin-bottom:5px}
 :root.dense .msg .h{margin-top:7px}
@@ -1049,14 +1036,14 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
 @media (min-width:560px){
   :root.dense{--hd:44px}
   :root.dense #log{padding-block:14px;gap:10px}
-  :root.dense .msg{padding-block:8px;padding-inline:13px;line-height:1.5}
+  :root.dense .msg{padding-inline:13px}
   :root.dense[data-theme=clear] .msg{padding-inline:2px}
   :root.dense .msg p{margin-bottom:6px}
   :root.dense .msg .h{margin-top:10px}
   :root.dense .msg pre{padding:8px 11px}
   :root.dense .msg th,:root.dense .msg td{padding:4px 9px}
-  :root.dense .starters{gap:6px;margin-top:14px}
-  :root.dense .starters button{padding:5px 12px}
+
+
   :root.dense .note{font-size:12px}
   :root.dense .tags,:root.dense .meta{font-size:11px}
   :root.dense #composer{padding-bottom:12px}
@@ -1095,7 +1082,7 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
    picture in the middle and the tools below it. Everything for it is in this block (see "screenshot annotation" in the
    script), so the rest of the styles stay as they were.
    ===================================================================================================== */
-#inkBtn{flex:none;height:26px;padding:0 10px;border-radius:99px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:var(--chip-on);color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap}
+#inkBtn{flex:none;border-radius:99px;background:var(--chip-on);color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap}
 #inkBtn:hover{border-color:var(--accent)}
 #inkBtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #att img{cursor:pointer}
@@ -1106,10 +1093,6 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
 :root[data-theme=clear] #ink{background:var(--pop);text-shadow:none}
 :root[data-theme=clear] #ink svg{filter:none}
 :root:is([data-theme=glass],[data-theme=clear]) body.ink>:not(#ink){visibility:hidden} /* the chat ghosted through the sheet */
-:root[data-theme=pond] #ink{background-image:var(--ct-pond)}
-:root[data-theme=void] #ink{background-image:var(--ct-void)}
-:root[data-theme=orbit] #ink{background-image:var(--ct-orbit)}
-:root[data-theme=arcade] #ink{background-image:var(--ct-arcade)}
 #ink .inkbar{flex:none;display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line)}
 #ink .inkbar b{flex:1;min-width:0;text-align:center;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #ink .inkx{min-height:34px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:none;cursor:pointer;font-weight:550}
@@ -1141,99 +1124,358 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
 #ink .inkz i{display:block;border-radius:50%;background:currentColor}
 #ink .inksep{width:1px;height:22px;background:var(--line);margin:0 2px}
 #ink .inkhint{flex:none;font-size:11.5px;color:var(--muted);text-align:center;padding:0 10px 2px;min-height:15px}
-:root[data-theme=arcade] #ink :is(.inkb,.inkx,.inkc){border-radius:3px}
-:root[data-theme=arcade] #ink .inkc{border-radius:50%}
-:root[data-theme=orbit] #ink :is(.inkhint,.inkconf){font-family:var(--mono)}
 @media (pointer:coarse){#ink .inkb{width:40px;height:40px}#ink .inkc{width:32px;height:32px}#ink .inkx{min-height:40px}}
 @media (max-width:340px){#ink .inkb{width:31px}#ink .inkgrp{gap:1px}#ink .inkrow{gap:4px 4px}}
 @media (min-width:560px){#ink .inktools{padding-bottom:14px}#ink .inkb{width:38px;height:38px}#ink .inkc{width:30px;height:30px}#ink .inkbar{padding:10px var(--gut)}}
 </style>
 <style id="studio">
-/* Pagebot workspace: flat materials, a consistent type scale, and no decorative paint layers. */
-:root{--bg:#161b21;--panel:#1e252e;--line:#333d49;--text:#edf0f4;--muted:#a2afbf;--accent:#a6c4f4;--on-accent:#142640;--user:#27364b;--err:#ffaaa0;--code:#10151b;--chip-on:#2b3b52;--focus:#7595bd;--col:760px}
-:root[data-theme=paper]{--bg:#f6f7f9;--panel:#fff;--line:#dce1e8;--text:#202a37;--muted:#5c6979;--accent:#365c99;--on-accent:#fff;--user:#e8eef8;--code:#eceff4;--chip-on:#e6edf8;--focus:#7b96be}
-:root[data-theme=midnight]{--bg:#111e28;--panel:#192b36;--line:#2f4957;--text:#e4eef1;--muted:#9fb7c1;--accent:#93d0da;--on-accent:#0b2e35;--user:#243f4b;--code:#0d1820;--chip-on:#244754;--focus:#679ba9}
-:root[data-theme=forest],:root[data-theme=pond]{--bg:#18211e;--panel:#222e27;--line:#394a40;--text:#e6ede6;--muted:#acbdae;--accent:#b7d0ac;--on-accent:#20351c;--user:#324434;--code:#111b15;--chip-on:#374a35;--focus:#7f9e7c}
-:root[data-theme=dusk],:root[data-theme=arcade]{--bg:#242028;--panel:#302a35;--line:#49404f;--text:#eee8f1;--muted:#b5a6bd;--accent:#d2b8de;--on-accent:#372042;--user:#413249;--code:#1b1720;--chip-on:#44334f;--focus:#a087ad}
-:root[data-theme=sakura]{--bg:#f8f3ee;--panel:#fffcf8;--line:#e2d7cc;--text:#3a3028;--muted:#705c4b;--accent:#7e422c;--on-accent:#fff;--user:#f0dfd2;--code:#efe6dc;--chip-on:#f0e0d3;--focus:#b18c70}
-:root[data-theme=terminal]{--bg:#171d19;--panel:#202a23;--line:#364b3b;--text:#dbeade;--muted:#a1b7a8;--accent:#b8d3bd;--on-accent:#1c3422;--user:#2d3e32;--code:#111a14;--chip-on:#304b37;--focus:#82a18b}
-:root[data-theme=orbit]{--bg:#1b2028;--panel:#262d38;--line:#3c485b;--text:#e7ecf5;--muted:#afbdd3;--accent:#b9c9e6;--on-accent:#223350;--user:#344359;--code:#141a23;--chip-on:#344862;--focus:#839bc1}
-:root[data-theme=void]{--bg:#25251f;--panel:#303128;--line:#484c3c;--text:#edeede;--muted:#bcc0a7;--accent:#d0d4a4;--on-accent:#2c3315;--user:#3e4430;--code:#1b1e16;--chip-on:#464d32;--focus:#9ba67a}
-:root[data-theme=paper],:root[data-theme=sakura]{color-scheme:light;--warn:#875000}
+/* Cozy and clear: warm surfaces, one friendly accent per theme, round shapes, plain type. No texture or gradient layers on
+   solid themes, no new animation loops; motion is short opacity/transform transitions that the calm classes switch off. */
+/* ---- tokens: --tint is a soft fill for cards, chips and icon buttons; --edge outlines fields (3:1); --err-tint and --warn-tint back notes */
+:root{--display:ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--r-sm:10px;--r-md:12px;--r-lg:16px;--r-xl:20px;--r-pill:999px;--col:760px;
+  --lift:0 1px 2px rgb(0 0 0 / .16),0 6px 18px rgb(0 0 0 / .14);--pop-shadow:0 16px 40px rgb(0 0 0 / .4),0 2px 6px rgb(0 0 0 / .2);--ring:0 0 0 3px color-mix(in srgb,var(--accent) 24%,transparent);
+  color-scheme:dark;--bg:#1f1915;--panel:#28201b;--tint:#30261f;--user:#3d2e25;--code:#17120f;--chip-on:#43312a;--line:#3a2e27;--edge:#8a7263;--text:#f6ece2;--muted:#c8b4a4;--accent:#f4a882;--on-accent:#2c160b;--err:#ffab9c;--warn:#f2bd66;--err-tint:#3d2320;--warn-tint:#3a2d1a;--focus:#8a7263}
+:root[data-theme=paper]{color-scheme:light;--bg:#fbf5ec;--panel:#fffbf5;--tint:#f5eadc;--user:#f8e1cf;--code:#f3e8da;--chip-on:#f6dcc8;--line:#ecdccb;--edge:#9f826c;--text:#3a2a20;--muted:#735a4a;--accent:#933d1a;--on-accent:#fff;--err:#b0261c;--warn:#875000;--err-tint:#fae3dc;--warn-tint:#f9ead0;--focus:#9f826c}
+:root[data-theme=midnight]{--bg:#13222a;--panel:#1a2c35;--tint:#203540;--user:#25404d;--code:#0e1a20;--chip-on:#29495a;--line:#2b414c;--edge:#6f8f9c;--text:#e7f1f3;--muted:#a6c0c9;--accent:#8fd6df;--on-accent:#0a2a30;--err:#ffa99c;--warn:#f0c070;--err-tint:#3a2428;--warn-tint:#33301f;--focus:#6f8f9c}
+:root[data-theme=forest]{--bg:#161f19;--panel:#1e2a22;--tint:#243329;--user:#2c3f31;--code:#111812;--chip-on:#30483a;--line:#2c3b30;--edge:#71907a;--text:#e8f0e6;--muted:#adc1ad;--accent:#a6d99d;--on-accent:#10260f;--err:#ffab9c;--warn:#f0c070;--err-tint:#3a2522;--warn-tint:#33301f;--focus:#71907a}
+:root[data-theme=dusk]{--bg:#221a24;--panel:#2c222f;--tint:#342839;--user:#432f47;--code:#19131b;--chip-on:#4a3350;--line:#3d2f41;--edge:#8f7895;--text:#f3e9f3;--muted:#c8b1ca;--accent:#eab4dc;--on-accent:#33152b;--err:#ffab9c;--warn:#f0c070;--err-tint:#41242b;--warn-tint:#3a2f22;--focus:#8f7895}
+:root[data-theme=sakura]{color-scheme:light;--bg:#fdf4f5;--panel:#fffafa;--tint:#f9e8eb;--user:#fbdde4;--code:#f7e9ec;--chip-on:#f7d7df;--line:#f0d6dc;--edge:#a37f89;--text:#3e2229;--muted:#7a5059;--accent:#982d54;--on-accent:#fff;--err:#b0261c;--warn:#875000;--err-tint:#fbe1dc;--warn-tint:#f9ebd3;--focus:#a37f89}
+:root[data-theme=terminal]{--bg:#0c110c;--panel:#111911;--tint:#152015;--user:#1a2b1b;--code:#080c08;--chip-on:#1c341f;--line:#203220;--edge:#4f7d52;--text:#bff5bc;--muted:#86c287;--accent:#6ae884;--on-accent:#04160a;--err:#ff9a8a;--warn:#f0c46a;--err-tint:#2c1814;--warn-tint:#2a2612;--focus:#4f7d52;--display:var(--mono);--r-lg:10px;--r-xl:12px}
+:root[data-theme=pond]{--bg:#13211f;--panel:#1a2c29;--tint:#203632;--user:#24423c;--code:#0e1917;--chip-on:#284a43;--line:#29403b;--edge:#6b928a;--text:#e5f2ee;--muted:#a5c4bc;--accent:#8ddcc2;--on-accent:#0b2b22;--err:#ffab9c;--warn:#f0c070;--err-tint:#38262a;--warn-tint:#30301f;--focus:#6b928a}
+:root[data-theme=orbit]{--bg:#142238;--panel:#1b2c47;--tint:#213452;--user:#28426a;--code:#0f1a2c;--chip-on:#2c4770;--line:#2b4166;--edge:#7891b8;--text:#eaf2ff;--muted:#a9bedd;--accent:#93c8ff;--on-accent:#0b2244;--err:#ffab9c;--warn:#f0c070;--err-tint:#3a2430;--warn-tint:#33301f;--focus:#7891b8}
+:root[data-theme=void]{--bg:#21221a;--panel:#2b2c22;--tint:#323428;--user:#3c3f2d;--code:#181912;--chip-on:#444832;--line:#393b2d;--edge:#8b8e70;--text:#f0f0e2;--muted:#c2c4a8;--accent:#d8dc96;--on-accent:#2a2f0e;--err:#ffab9c;--warn:#f0c070;--err-tint:#3b2622;--warn-tint:#36321d;--focus:#8b8e70}
+:root[data-theme=arcade]{--bg:#1a1730;--panel:#231f3d;--tint:#2a2647;--user:#352f5c;--code:#13112a;--chip-on:#3a3366;--line:#332e55;--edge:#857fb8;--text:#f1efff;--muted:#bcb7e0;--accent:#ff9ad2;--on-accent:#3b0a27;--err:#ffab9c;--warn:#f0c070;--err-tint:#3b2433;--warn-tint:#363020;--focus:#857fb8}
+:root:is([data-theme=paper],[data-theme=sakura]){--lift:0 1px 2px rgb(60 30 10 / .06),0 6px 18px rgb(60 30 10 / .07);--pop-shadow:0 14px 36px rgb(40 20 8 / .2),0 2px 6px rgb(40 20 8 / .08)}
+/* Glass: a warm tint behind the words, strong enough to read over bright pictures. Clear: the panel stays see-through, but each
+   message, the greeting, the banners and the message box get a plain backing (--pop, no blur), so page text never runs through them. */
+:root[data-theme=glass]{--panel:rgb(255 255 255 / .08);--tint:rgb(255 255 255 / .1);--edge:rgb(255 255 255 / .72);--err-tint:rgb(120 30 20 / .55);--warn-tint:rgb(120 80 10 / .55);--accent:#ffd2b8;--on-accent:#3a1708;--err:#ffcdc4;--warn:#ffd98f;--user:rgb(255 196 163 / .18);--chip-on:rgb(255 255 255 / .14);--pop:rgb(38 27 22 / .92);--line:rgb(255 255 255 / .2);--muted:rgb(255 255 255 / .86);--focus:rgb(255 255 255 / .72)}
+:root[data-theme=glass][data-page=light]{--panel:rgb(255 255 255 / .4);--tint:rgb(255 255 255 / .5);--edge:rgb(58 38 28 / .7);--err-tint:rgb(250 220 210 / .88);--warn-tint:rgb(249 234 208 / .88);--text:#2a1c15;--muted:rgb(42 28 21 / .82);--accent:#7a3214;--err:#9e2016;--warn:#6e4000;--on-accent:#fff;--user:rgb(248 214 192 / .8);--chip-on:rgb(255 255 255 / .74);--pop:rgb(255 251 246 / .95);--line:rgb(58 38 28 / .14);--focus:rgb(58 38 28 / .55)}
+:root[data-theme=glass] body{background:rgb(30 22 18 / .68)}
+:root[data-theme=glass][data-page=light] body{background:rgb(255 250 244 / .72)}
+:root[data-theme=glass]:not([data-blur]):not(.nohost) body{background:rgb(30 22 18 / .9)}
+:root[data-theme=clear]{--tint:var(--pop);--edge:rgb(255 255 255 / .7);--err-tint:rgb(70 26 20 / .95);--warn-tint:rgb(66 48 18 / .95);--accent:#ffc3a3;--on-accent:#3a1708;--chip-on:rgb(70 52 44 / .95);--pop:rgb(32 24 20 / .93);--user:rgb(92 68 56 / .95)}
+:root[data-theme=clear][data-page=light]{--edge:rgb(58 38 28 / .6);--warn:#7a4800;--err:#a3221a;--err-tint:rgb(252 226 218 / .96);--warn-tint:rgb(250 236 212 / .96);--text:#2a1c15;--muted:rgb(42 28 21 / .8);--accent:#933d1a;--on-accent:#fff;--chip-on:rgb(246 222 204 / .96);--user:rgb(246 222 204 / .96);--pop:rgb(255 251 246 / .95)}
+:root[data-theme=clear] :is(.msg,.empty,#ann,#rst,#upd,.box,.note){background:var(--pop);text-shadow:none}
+:root[data-theme=clear] .msg.user{background:var(--user);color:var(--text);font-weight:inherit}
+:root[data-theme=clear] .msg.bot{padding:12px 16px;border-radius:var(--r-lg)}
+:root[data-theme=clear] .empty{padding:20px;border-radius:var(--r-xl)}
+:root[data-theme=clear] .note{padding:4px 12px;border-radius:var(--r-pill)}
+:root[data-theme=clear] :is(.msg,.empty,.box,#ann,#rst,#upd) svg,:root[data-theme=clear] header svg{filter:none}
+:root[data-theme=clear] header{background:var(--pop);text-shadow:none}
+:root[data-theme=glass] :is(.starters button,#histList>.hrow,#pdfList>.hrow){background:var(--tint)}
+
+/* ---- shared type and focus. Only what declares a transition gets one: with reduced motion every element would otherwise
+   run a one-frame transition of every property it changes (density, theme), which keeps a frame of stale layout */
+*{transition-property:none}
 body{line-height:1.6;-webkit-font-smoothing:antialiased}
-/* Controls are usable as soon as boot returns; delayed entrances can retain stale layout variables. */
-body.reveal :is(header,#log,#login,#composer){animation:none}
-header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
-.title{gap:10px;letter-spacing:-.4px;font-size:15px;font-weight:650}
-.title .name{font-family:var(--font);font-size:15px;font-weight:650}
-.dot{width:12px;height:16px;border-radius:2px;background:var(--accent);clip-path:polygon(0 0,100% 0,100% 75%,65% 75%,65% 100%,0 100%)}
-.ib{border-radius:6px}.ib svg{stroke-width:1.6}
+body.reveal :is(header,#log,#login,#composer){animation:none} /* controls are usable as soon as boot returns */
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+::placeholder{color:var(--muted);opacity:1}
+
+/* ---- header: the three everyday actions get words on wide panels; soft filled icon buttons */
+header{height:var(--hd);padding-inline:16px 8px;background:var(--bg);gap:4px}
+.title{gap:9px;font:700 16px/1 var(--display);letter-spacing:-.2px}
+.title .name{font:inherit}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--accent)}
+.ib{width:34px;height:34px;border-radius:var(--r-pill);color:var(--muted);gap:6px;transition:background-color .15s,color .15s}
+.ib:hover,.ib.on{background:var(--tint);color:var(--text)}
+.ib svg{stroke-width:1.9}
+.ib .lbl{display:none}
+@media (min-width:560px){.ib{width:36px;height:36px}.ib svg{width:18px;height:18px}}
+@media (min-width:620px){
+  .ib.words{display:inline-flex;align-items:center;width:auto;padding:0 14px 0 11px;background:var(--tint);color:var(--text);font:600 13.5px/1 var(--font)}
+  .ib.words:hover,.ib.words.on{background:var(--chip-on)}
+  .ib .lbl{display:inline}
+  #lockBtn,#dockBtn{margin-left:4px}
+}
+/* the name of an icon-only button, shown on keyboard focus too (title only shows on hover) */
+header .ib[title]:focus-visible::after{content:attr(title);position:absolute;top:calc(100% + 6px);right:0;z-index:9;padding:4px 10px;border-radius:var(--r-sm);background:var(--text);color:var(--bg);font:600 12px/1.4 var(--font);white-space:nowrap;pointer-events:none}
+@media (min-width:620px){header .ib.words:focus-visible::after{display:none}}
+header .ib{position:relative}
+@media (max-width:420px){header{padding-left:12px}.ib{width:32px}}
+/* minimized into the small bar */
+body.min header{border-radius:var(--r-pill);padding:0 5px 0 16px;background:var(--panel)}
+body.min .title{font-size:15px}
+
+/* ---- the first screen: hello from the companion, one line of help, then plain starters */
+.empty{max-width:600px;width:100%;margin:auto;text-align:left;color:var(--muted);line-height:1.55;padding-block:24px}
+.hello{display:flex;align-items:center;gap:16px;margin:0 0 4px}
+.buddy{flex:none;display:grid;place-items:end center;width:96px;height:84px;border-radius:50% 50% var(--r-xl) var(--r-xl);background:var(--chip-on);padding-bottom:10px;overflow:hidden}
+.buddy canvas{display:block;image-rendering:pixelated;width:72px!important;height:72px!important}
+.hello .hi{display:block;color:var(--muted);font:600 calc(15px + var(--grow)*.6)/1.3 var(--display);margin:0 0 2px}
+.empty b{display:block;color:var(--text);font:700 clamp(24px,3.4vw,30px)/1.18 var(--display);letter-spacing:-.4px;margin:0;text-wrap:balance}
+.empty p{max-width:52ch;margin:14px 0 0;font-size:calc(14px + var(--grow)*.6);color:var(--muted)}
+.starters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:20px;width:100%}
+.starters button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;padding:14px 14px 15px;border:0;border-radius:var(--r-lg);background:var(--tint);color:var(--text);text-align:left;font-size:13.5px;line-height:1.45;cursor:pointer;transition:background-color .15s ease,transform .15s ease}
+.starters button:hover{background:var(--chip-on);border:0;transform:translateY(-1px)}
+.starters button:active{transform:none}
+:root.calm .starters button:hover{transform:none}
+@media (prefers-reduced-motion:reduce){:root:not(.motion-full) .starters button:hover{transform:none}}
+.starters .ico{display:grid;place-items:center;width:34px;height:34px;margin-bottom:6px;border-radius:50%;background:var(--panel);font-size:17px;line-height:1}
+.starters .starter-name{font-weight:650;font-size:14.5px;color:var(--text)}
+.starters .starter-desc{color:var(--muted);font-size:13px;line-height:1.45}
+/* your own commands chosen as starters: a slimmer full-width row that shows what the command sends (its title) */
+.starters button.mine{grid-column:1/-1;flex-direction:row;align-items:center;gap:10px;padding:8px 14px 8px 8px;font:600 13.5px/1.3 var(--mono);border:0;background:var(--tint)}
+.starters button.mine::before{content:"/";display:grid;place-items:center;flex:none;width:28px;height:28px;border-radius:50%;background:var(--panel);color:var(--accent);font:700 14px/1 var(--mono)}
+.starters button.mine::after{content:attr(title);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 13px/1.3 var(--font);color:var(--muted)}
+/* narrow or short panels: a smaller hello and the starters as a wrapping row of chips, so all of them fit 360 x 560 */
+@media (max-width:559.98px),(max-height:600px){
+  .empty{padding:12px 2px}
+  .hello{gap:12px}
+  .buddy{width:60px;height:56px;padding-bottom:7px;border-radius:50% 50% var(--r-lg) var(--r-lg)}
+  .empty b{font-size:21px;letter-spacing:-.2px}
+  .hello .hi{font-size:14px}
+  .empty p{font-size:13.5px;margin-top:10px}
+  .starters{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:8px;margin-top:14px}
+  .buddy canvas{width:48px!important;height:48px!important}
+  .starters button{flex:0 1 auto;flex-direction:row;align-items:center;gap:8px;padding:5px 14px 5px 5px;border-radius:var(--r-pill)}
+  .starters .ico{width:28px;height:28px;margin:0;font-size:14px}
+  .starters .starter-desc{display:none}
+  .starters .starter-name{font-size:13.5px}
+  .starters button.mine{flex:1 1 100%;padding:5px 14px 5px 5px}
+}
+
+/* ---- messages: answers sit on the page in the reading column; your own messages are a soft bubble */
 #log{padding-top:24px;padding-bottom:24px;gap:20px}
 .msg{animation:none;line-height:1.7}
 .msg.bot{background:transparent;border:0;border-radius:0;padding:10px 12px;max-width:min(100%,var(--col));box-shadow:none}
-.msg.user{border-radius:12px 12px 3px 12px;padding:12px 16px;background:var(--user);max-width:88%}
-.msg pre{border-radius:6px}.msg .acts{opacity:.75}
-.empty{max-width:560px;width:100%;text-align:left;margin:auto;line-height:1.65;padding-block:30px}
-.desk-label{display:flex;align-items:center;gap:9px;color:var(--accent);font:10px/1.6 var(--mono);letter-spacing:.13em;margin-bottom:20px}
-.desk-label::before{content:'';width:18px;height:1px;background:var(--accent)}
-.empty b{font:600 clamp(27px,4vw,42px)/1.12 var(--font);letter-spacing:-.045em;margin-bottom:18px;text-wrap:balance}
-.empty p{max-width:44ch;margin:0;font-size:14px}
-.starters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:30px;width:100%}
-.starters button{display:flex;flex-direction:column;align-items:flex-start;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:15px 13px;text-align:left;color:var(--text);font-size:12px;line-height:1.5;min-width:0;cursor:pointer}
-.starters button:hover{border-color:var(--focus);background:var(--chip-on)}
-.starters .starter-num{font:10px/1.5 var(--mono);color:var(--accent)}
-.starters .starter-desc{color:var(--muted);font-size:11px;line-height:1.5}
-.starters .starter-name{font-weight:600;font-size:13px}
-#composer{padding-bottom:18px}
-.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:none}
-.box:focus-within{border-color:var(--focus);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 10%,transparent)}
-#q{padding:15px 16px 4px;min-height:56px;line-height:1.5}
-.bar{padding:5px 10px 10px}.go{border-radius:7px;box-shadow:none}.pill{border-radius:5px}
-.menu{border-radius:8px;box-shadow:0 8px 28px #0002}
-#sheet .chead h2{font-size:27px;font-weight:650;letter-spacing:-.035em}
-#sheet :is(.card,#quotaSec,#stabs){border-radius:8px;box-shadow:none}
-#sheet .sec>h3{font:10px/1.6 var(--mono);letter-spacing:.1em;text-transform:uppercase}
-#sheet .stab[aria-selected=true]{background:var(--chip-on);box-shadow:inset 2px 0 var(--accent)}
-#sheet .themes{gap:10px;grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
-#sheet .sw{border-radius:7px;overflow:hidden;background:var(--panel);padding:6px;text-align:left}
-#sheet .sw .pv{height:68px;border-radius:4px;background-image:none;box-shadow:none}
-#sheet .sw.on{box-shadow:0 0 0 1px var(--accent)}
-#sheet .sw .nm{font-weight:600;font-size:12px}#sheet .sw .ds{font-size:10px}
-.more-themes{margin-top:14px}.more-themes summary{cursor:pointer;color:var(--muted);font-size:12px;padding:8px 0}.more-themes[open] summary{margin-bottom:8px}
-#companionSeg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;width:100%}
-#companionRow{flex-direction:column;align-items:stretch}#companionRow .rc{width:100%;justify-content:stretch}
-.companion-choice{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 3px;border-radius:7px;border:1px solid var(--line);background:var(--bg);font-size:11px;cursor:pointer;min-width:0}
-.companion-choice canvas{display:block;image-rendering:pixelated}.companion-choice[data-kind=panda] canvas{image-rendering:pixelated}
-.companion-choice.on{border-color:var(--accent);background:var(--chip-on)}.companion-choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-#workspaceNav{display:none}
+.msg.user{background:var(--user);border-radius:18px 18px 6px 18px;padding:11px 16px;max-width:88%}
+.msg .h{font-family:var(--display);font-size:1.12em;font-weight:700;letter-spacing:-.1px;margin-top:1.1em;margin-bottom:.35em}
+.msg .h:first-child{margin-top:0}
+.msg pre{background:var(--code);border:0;border-radius:var(--r-md)}
+.msg :not(pre)>code{background:var(--code);border-radius:6px;padding:1px 5px}
+.msg blockquote{border-left:3px solid var(--chip-on);color:var(--muted);padding-left:12px}
+.msg .tw{border-radius:var(--r-md);box-shadow:0 0 0 1px var(--line);width:max-content;max-width:100%}
+.msg table{border-style:hidden}
+.msg th{background:var(--tint)}
+.msg a{text-underline-offset:2px;text-decoration-thickness:1px}
+.msg.err .body{color:var(--text)}
+.msg.err .body>p:last-child{color:var(--err)}
+.cite{min-width:20px;height:20px;font-size:11.5px}
+@media (pointer:coarse){.cite{min-width:24px;height:24px}}
+@media (pointer:coarse) and (min-width:421px){.ib{width:40px;height:40px}}
+.tags{font-size:12px}
+.meta{font-size:12px;margin-top:8px;display:flow-root}
+.msg .acts{opacity:1}
+.acts{gap:4px}
+.act{height:30px;min-width:30px;padding:0 9px;border-radius:var(--r-pill);background:var(--tint);color:var(--text);gap:5px;font-size:12.5px;display:inline-flex;align-items:center}
+.act:hover{background:var(--chip-on)}
+.act svg{width:15px;height:15px}
+.cc{opacity:.8;border:0;background:var(--tint);border-radius:var(--r-pill);padding:3px 11px;font-size:12px;color:var(--text)}
+.mini{font-size:12px}
+.src{font-size:12.5px;gap:6px}
+.src a{border:0;background:var(--tint);border-radius:var(--r-pill);padding:3px 11px}
+.src a:hover{background:var(--chip-on)}
+.steps{font-size:12.5px}
+.note{font-size:12.5px}
+.thumb{border-radius:var(--r-md);border:0}
+.fchip{border-radius:var(--r-pill);border:0;background:var(--tint);padding:4px 12px}
+.acard{border:0;border-radius:var(--r-md);background:var(--tint)}
+.acard button{border-radius:var(--r-pill);border:0;background:var(--panel);padding:5px 12px}
+/* back to the newest message: a small round-ended button at the right edge, off the reading column */
+#jump{left:auto;right:14px;transform:none;height:34px;padding:0 13px 0 10px;border:0;border-radius:var(--r-pill);background:var(--panel);box-shadow:var(--pop-shadow);animation-name:jumpIn2}
+@keyframes jumpIn2{from{opacity:0;transform:translateY(4px)}}
+
+/* ---- the message box: a soft rounded box with a warm outline (3:1), round + and Send, pills that keep their words */
+#composer{padding-bottom:16px}
+.box{background:var(--panel);border:1.5px solid var(--edge);border-radius:var(--r-xl);box-shadow:var(--lift)}
+.box:focus-within{border-color:var(--accent);box-shadow:var(--ring),var(--lift)}
+#q{padding:14px 16px 4px;min-height:56px;line-height:1.5}
+.bar{padding:5px 8px 8px}
+.tb{height:32px;min-width:32px;border-radius:var(--r-pill);color:var(--text)}
+#addBtn{background:var(--tint);width:32px;padding:0}
+#addBtn:hover,#addBtn.on{background:var(--chip-on)}
+.tb.model{padding:0 10px 0 12px;color:var(--muted);font-weight:550}
+.tb.model:hover,.tb.model.on{color:var(--text);background:var(--tint)}
+.go{width:36px;height:36px;border-radius:50%;box-shadow:none}
+.go svg{width:17px;height:17px}
+@media (min-width:560px){.tb{height:34px;min-width:34px}#addBtn{width:34px}.go{width:40px;height:40px}.go svg{width:18px;height:18px}}
+.pill{height:28px;padding:0 6px 0 10px;border:0;border-radius:var(--r-pill);background:var(--chip-on);color:var(--text);font-size:12.5px;gap:5px}
+.pill i{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;font-size:13px}
+.pill:hover i{background:color-mix(in srgb,var(--text) 14%,transparent)}
+@media (min-width:560px){.pill{height:28px}}
+#att img{border-radius:var(--r-sm);border:0;box-shadow:0 0 0 1px var(--line)}
+#inkBtn{border:0;height:28px;padding:0 12px}
+@media (pointer:coarse){.tb,#addBtn,.go{min-width:40px;height:40px}#addBtn{width:40px}.go{width:40px}.pill{height:32px}#att #rmAtt{width:26px;height:26px}.act{height:34px;min-width:34px}}
+
+/* ---- menus (+, model, slash): soft rounded rows, two groups in +, real switches for what stays on */
+.menu{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--pop-shadow);padding:6px}
+.menu button{border-radius:var(--r-md);padding:8px 10px;gap:11px}
+.menu button:hover:not(:disabled){background:var(--tint)}
+.menu .mi{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--tint);font-size:15px}
+.menu button:hover .mi{background:var(--panel)}
+.menu .md{font-size:12.5px;line-height:1.35;margin-top:1px}
+.menu .tip{border-top:1px solid var(--line);font-size:12.5px;padding:8px 10px 4px}
+.menu .mgh{padding:8px 10px 4px;font-size:12.5px;font-weight:650;color:var(--muted)}
+.menu .mgh:not(:first-child){margin-top:4px;border-top:1px solid var(--line);padding-top:10px}
+.menu [role=menuitemcheckbox] .ck{visibility:visible;flex:none;position:relative;width:36px;height:22px;border-radius:var(--r-pill);background:var(--tint);box-shadow:inset 0 0 0 1.5px var(--edge);font-size:0;color:transparent}
+.menu [role=menuitemcheckbox] .ck::after{content:"";position:absolute;top:4px;left:4px;width:14px;height:14px;border-radius:50%;background:var(--muted);transition:transform .15s ease}
+.menu [role=menuitemcheckbox][aria-checked=true] .ck{background:var(--accent);box-shadow:none}
+.menu [role=menuitemcheckbox][aria-checked=true] .ck::after{background:var(--on-accent);transform:translateX(14px)}
+.slash .mh{font-size:12px;text-transform:none;letter-spacing:0;padding:8px 10px 3px}
+.slash .mi{width:24px;height:24px;font-size:14px}
+.menu.slash .sl button[aria-selected=true]{background:var(--tint)}
+
+/* ---- banners: one soft card each, compact, with the icon in a round bubble */
+#ann,#rst,#upd{border:0;border-radius:var(--r-lg);margin:10px 12px 0;padding:7px 8px 7px 9px;align-items:center;font-size:13px}
+#ann{background:var(--chip-on)}
+#rst{background:var(--warn-tint)}
+#upd{background:var(--tint)}
+#ann .ai,#rst .ai{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--panel);font-size:14px}
+#annText{max-height:66px}
+#annMeta,#rstMeta{font-size:12px}
+#annX,#updGo{border-radius:var(--r-pill);padding:7px 14px;font-size:12.5px}
+#rstX,#updX{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;padding:0}
+#rstX:hover,#updX:hover{background:color-mix(in srgb,var(--text) 10%,transparent)}
+@media (min-width:560px){#ann,#rst,#upd{margin-inline:max(12px,calc(var(--gut) - 8px))}}
+
+/* ---- sheets: Settings, history and your PDFs share one header look (title left, Done right) */
+.sh,.hhead,.phead{border-bottom:1px solid var(--line)}
+.sh h2,.hhead b,.phead b{font:700 calc(17px + var(--grow)*.6)/1.2 var(--display);letter-spacing:-.2px}
+.hhead,.phead{flex:none;display:flex;align-items:center;gap:8px;height:52px;padding:0 max(14px,var(--gut))}
+.hhead b,.phead b{flex:1;min-width:0}
+#shDone,#histDone,#pdfsDone{min-height:34px;padding:0 16px;border:0;border-radius:var(--r-pill);background:var(--tint);color:var(--text);font-weight:600;font-size:13.5px;text-decoration:none;cursor:pointer}
+#shDone:hover,#histDone:hover,#pdfsDone:hover{background:var(--chip-on)}
+#sheet .chead h2{font:700 calc(22px + var(--grow)*1.2)/1.2 var(--display);letter-spacing:-.3px}
+#sheet h3,#sheet .sec>h3{font:650 13px/1.4 var(--font);letter-spacing:0;text-transform:none;color:var(--text);margin:0 0 8px 4px}
+#quotaSec h3{font-size:var(--fs)}
+#sheet :is(.card,#quotaSec){border:0;border-radius:var(--r-lg);background:var(--panel);box-shadow:0 0 0 1px var(--line)}
+.row+.row{border-top-color:var(--line)}
+#sheet .stab{border-radius:var(--r-md)}
+#sheet .stab[aria-selected=true]{background:var(--chip-on);box-shadow:none}
+.stab:hover{background:var(--tint)}
+.chip{border:0;background:var(--tint);color:var(--text);font-size:12px;padding:3px 10px}
+.chip.on{background:var(--chip-on);color:var(--text)}
+.kh{font-size:12.5px;text-transform:none;letter-spacing:0;color:var(--text)}
+.tg{background:var(--tint);border:1.5px solid var(--edge)}
+.tg::after{top:3px;left:3px;width:17px;height:17px;background:var(--muted);opacity:1}
+.tg[aria-checked=true]{background:var(--accent);border-color:var(--accent)}
+.tg[aria-checked=true]::after{transform:translateX(18px)}
+#sheet .seg{border:0;border-radius:var(--r-pill);background:var(--tint);padding:3px}
+#sheet .seg button{border-radius:var(--r-pill)}
+#sheet .seg button.on{background:var(--panel);box-shadow:inset 0 0 0 1.5px var(--accent),0 1px 2px rgb(0 0 0 / .08)}
+#sheet .ghost{border:0;border-radius:var(--r-pill);background:var(--tint)}
+#sheet .ghost:hover:not(:disabled){background:var(--chip-on);border:0}
+#sheet .ghost.pri{background:var(--accent);color:var(--on-accent)}
+#sheet .ghost.bad{color:var(--err)}
+#sheet .ghost.bad:hover:not(:disabled){background:var(--err-tint)}
+#sheet :is(input[type=text],input[type=password],textarea,select){background:var(--panel);border:1.5px solid var(--edge);border-radius:var(--r-md)}
+#sheet :is(input[type=text],input[type=password],textarea,select):focus{border-color:var(--accent);box-shadow:var(--ring)}
+.callout,.awarn{border:0;border-radius:var(--r-md);background:var(--warn-tint)}
+#sheet .aopt{border:0;border-radius:var(--r-lg);box-shadow:0 0 0 1px var(--line)}
+#sheet .aopt.on{box-shadow:0 0 0 2px var(--accent);background:var(--chip-on)}
+.aopt.on::before{box-shadow:inset 0 0 0 3px var(--chip-on)}
+.qbar{background:var(--tint);height:10px}
+kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
+.av{background:var(--chip-on);color:var(--text)}
+/* Wrapped: flat colour only */
+.wcta,#sheet .wcta{border:0;background:var(--chip-on);border-radius:var(--r-lg);box-shadow:none}
+.wcta::before,.wcta::after{display:none}
+.wgrid div{border:0;background:var(--tint);border-radius:var(--r-md)}
+/* the theme gallery: see-through looks drawn over a checked backing so the see-through shows */
+#sheet .themes{gap:12px;grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+#sheet .sw{border:0;border-radius:var(--r-lg);background:var(--panel);box-shadow:0 0 0 1px var(--line);padding:7px;overflow:hidden;text-align:left}
+#sheet .sw .pv{border-radius:var(--r-md);height:64px;background-image:none}
+#sheet .sw[data-t=auto] .pv{background:linear-gradient(135deg,#1f1915 50%,#fbf5ec 50%)}
+#sheet .sw:is([data-t=glass],[data-t=clear]) .pv{background:repeating-conic-gradient(#d9c8b8 0 25%,#f3e9de 0 50%) 0 0/12px 12px}
+#sheet .sw[data-t=glass] .pv::before{background:rgb(60 40 30 / .45)}
+#sheet .sw.on{box-shadow:0 0 0 2px var(--accent)}
+#sheet .sw .nm{font-weight:650;font-size:13px}#sheet .sw .ds{font-size:12px;color:var(--muted)}
+.more-themes{margin-top:14px}.more-themes summary{cursor:pointer;font-size:13px;color:var(--text);font-weight:600;padding:10px 4px}.more-themes[open] summary{margin-bottom:8px}
+/* your companion: four tiles at the top of Look & feel */
+#companionRow{flex-direction:column;align-items:stretch;padding:14px 16px}#companionRow .rc{width:100%;justify-content:stretch}
+#companionSeg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;width:100%}
+.companion-choice{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px 10px;border:0;border-radius:var(--r-lg);background:var(--tint);font-size:12.5px;color:var(--text);cursor:pointer;min-width:0}
+.companion-choice canvas{display:block;image-rendering:pixelated}
+.companion-choice.on{background:var(--chip-on);box-shadow:0 0 0 2px var(--accent)}
+@media (max-width:559.98px){#stabs{border:0;box-shadow:0 0 0 1px var(--line);border-radius:var(--r-lg)}.stab+.stab{border-top-color:var(--line)}}
+
+/* ---- history and your PDFs: cards in the reading column, titles on up to two lines, remove always visible but quiet */
+#histQ{background:var(--panel);border:1.5px solid var(--edge);border-radius:var(--r-pill);padding:10px 16px}
+#histQ:focus{border-color:var(--accent);box-shadow:var(--ring)}
+.hday{font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);font-weight:650}
+.hrow{border-radius:var(--r-lg)}
+#histList>.hrow,#pdfList>.hrow{border:0;background:var(--tint);border-radius:var(--r-lg);margin-bottom:6px}
+#histList>.hrow:hover,#histList>.hrow:focus-within,#pdfList>.hrow:hover{background:var(--chip-on);border:0}
+@media (min-width:560px){#histList>.hrow{margin:0;border:0;background:var(--tint)}}
+.htitle{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.35;overflow:hidden}
+.hsub{font-size:12px}
+.hdel{opacity:.6}
+.hrow:hover .hdel,.hdel:focus-visible{opacity:1}
+#pdfs .pstore{padding:12px max(14px,var(--gut)) 6px;font-size:12.5px}
+#pdfList{padding-inline:max(8px,calc(var(--gut) - 4px))}
+.prow .ghost,.hask .ghost{border:0;border-radius:var(--r-pill);background:var(--panel)}
+.prow .ghost.bad{color:var(--text)}
+.hask .ghost.bad{background:var(--err-tint);color:var(--err)}
+
+/* ---- the screens before the chat: sign in, ask to join, waiting, the passcode, a paused account */
+#login{gap:10px}
+#login .lk{width:56px;height:56px;border-radius:50%;background:var(--chip-on);margin-bottom:4px}
+#login h2,#wait h2,#ban h2{font:700 22px/1.25 var(--display);letter-spacing:-.3px}
+#login p,#wait p{font-size:14px;line-height:1.5;max-width:330px}
+.fields,.pwrow{max-width:320px;gap:10px}
+.fields label{align-self:flex-start;margin:4px 0 -6px 4px;font-size:13px;font-weight:600;color:var(--text)}
+.fields input,.fields textarea,.pwrow input,#banAppealText{background:var(--panel);border:1.5px solid var(--edge);border-radius:var(--r-md);padding:11px 14px;font-size:14.5px}
+.fields input:focus,.fields textarea:focus,.pwrow input:focus,#banAppealText:focus{border-color:var(--accent);box-shadow:var(--ring)}
+.send{height:44px;border-radius:var(--r-pill);font-size:15px;font-weight:650;padding:0 20px}
+#lockLinks,#waitLinks{gap:8px;margin-top:4px}
+.link,.plink{color:var(--text);font-size:13.5px;text-underline-offset:3px}
+#loginErr{font-size:13.5px}
+.pad button{border:0;background:var(--tint)}
+.pad button:hover{background:var(--chip-on)}
+#wait{gap:12px}
+#wait p b{color:var(--text)}
+.hg{border-radius:50%}
+.hg::after{border-radius:50%}
+#ban .bk{font-size:12.5px;letter-spacing:0;text-transform:none;padding:4px 12px;border-radius:var(--r-pill);background:var(--err-tint)}
+.bi{border-radius:50%}
+.bfacts,#banAppealState{border:0;border-radius:var(--r-lg);background:var(--panel);box-shadow:0 0 0 1px var(--line)}
+.bfacts div{border-top-color:var(--line)}
+.bagree{font-size:13px}
+
+/* ---- the opening mark: a still round blob */
 #boot .bg{background:var(--bg)}#boot .bg::after{display:none}
 #boot .orb{width:32px;height:36px;overflow:hidden;animation:none!important;transform:none!important}
 #boot .orb>*{display:none!important}
-#boot .orb::before{content:'';position:absolute;inset:5px 7px;border-radius:3px;background:var(--accent);clip-path:polygon(0 0,100% 0,100% 75%,65% 75%,65% 100%,0 100%)}
-#boot .word{font:600 25px var(--font);letter-spacing:-1px}#boot .word span{animation:none;opacity:1;transform:none}
-#boot .tag{font:11px var(--mono);color:var(--muted);letter-spacing:.03em}#boot .meter{height:2px;border-radius:0}
-/* Compact is a real density change, including at the wider breakpoint. */
-:root.dense .msg{padding-block:6px;line-height:1.5}:root.dense .empty b{font-size:26px}
+#boot .orb::before{content:'';position:absolute;inset:6px;border-radius:50%;background:var(--accent)}
+#boot .word{font:700 26px var(--display);letter-spacing:-.5px}#boot .word span{animation:none;opacity:1;transform:none}
+#boot .tag{font:13px var(--font);color:var(--muted)}#boot .meter{height:2px;border-radius:0}
+
+/* ---- Compact: the same shapes in smaller steps (buttons keep their heights) */
+:root.dense .msg{padding-block:6px;line-height:1.5}
+:root.dense .empty{padding-block:10px}
+:root.dense .buddy{width:72px;height:64px;padding-bottom:8px}
+:root.dense .empty b{font-size:22px}
+:root.dense .empty p{margin-top:8px}
+:root.dense .starters{gap:6px;margin-top:12px}
+:root.dense .starters button{padding:9px 12px}
+:root.dense :is(.hhead,.phead){height:44px}
+:root.dense #ann,:root.dense #rst,:root.dense #upd{padding:4px 6px 4px 7px}
+@media (max-width:559.98px),(max-height:600px){:root.dense .buddy{width:52px;height:48px}:root.dense .empty b{font-size:19px}:root.dense .starters button{padding:4px 12px 4px 4px}}
+
+/* ---- /chat: the rail uses the panel's words, and the companion sits at its foot */
+#workspaceNav{display:none}
 @media(min-width:1100px){
   body.standalone.workspace{padding-left:208px;--gut:max(24px,calc((100vw - 208px - var(--col))/2))}
-  .standalone.workspace #workspaceNav{position:fixed;inset:0 auto 0 0;width:208px;display:flex;flex-direction:column;gap:6px;padding:23px 16px;border-right:1px solid var(--line);background:var(--panel);z-index:5}
-  .workspace-brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:650;letter-spacing:-.5px;padding:0 9px 30px}
-  .workspace-kicker{padding:10px 10px 8px;font:10px var(--mono);letter-spacing:.1em;color:var(--muted)}
-  #workspaceNav button{display:flex;align-items:center;gap:10px;text-align:left;border:0;border-radius:6px;padding:10px;color:var(--muted);background:none;font-size:12px;cursor:pointer}
-  #workspaceNav button:hover{color:var(--text);background:var(--chip-on)}
-  #workspaceNav button:first-of-type{background:var(--chip-on);color:var(--text)}
-  #workspaceNav svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
-  .workspace-foot{margin-top:auto;border-top:1px solid var(--line);padding:16px 10px 0;color:var(--muted);font-size:11px;line-height:1.7}
-  .workspace-foot strong{display:block;color:var(--text);font-weight:500;margin-bottom:4px}
+  .standalone.workspace #workspaceNav{position:fixed;inset:0 auto 0 0;width:208px;display:flex;flex-direction:column;gap:4px;padding:20px 14px;background:var(--tint);z-index:5}
+  .workspace-brand{display:flex;align-items:center;gap:10px;font:700 18px/1 var(--display);letter-spacing:-.3px;padding:4px 8px 26px}
+  #workspaceNav button{display:flex;align-items:center;gap:12px;text-align:left;border:0;border-radius:var(--r-md);padding:10px 12px;color:var(--text);background:none;font-size:14.5px;cursor:pointer}
+  #workspaceNav button:hover{background:var(--chip-on)}
+  #workspaceNav button[aria-current=page]{background:var(--panel);box-shadow:0 0 0 1px var(--line);font-weight:650}
+  #workspaceNav svg{width:18px;height:18px;fill:none;stroke:var(--accent);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .workspace-foot{margin-top:auto;padding:14px;border-radius:var(--r-lg);background:var(--panel);color:var(--muted);font-size:13px;line-height:1.5}
+  .workspace-foot strong{display:block;font:700 14px/1.3 var(--display);color:var(--text);margin-bottom:6px}
   .workspace :is(#sheet,#hist,#pdfs){left:208px}
-  body.standalone.workspace header{padding-inline:24px 14px}
-  .workspace header .title .name{font-size:12px;font-weight:500;letter-spacing:.01em;color:var(--muted)}
-  .workspace header .title .name::after{content:' / conversation';color:var(--text)}
-  .workspace .empty{max-width:560px}
+  body.standalone.workspace header{padding-inline:24px 14px;border-bottom-color:transparent}
+  .workspace header .title{visibility:hidden} /* the rail already shows the name */
+  .workspace header .ib.words{width:36px;padding:0;background:none;color:var(--muted)} /* the rail says these in words already */
+  .workspace header .ib .lbl{display:none}
+  .workspace-foot .buddy{width:64px;height:54px;padding-bottom:6px;margin-bottom:10px;background:var(--chip-on)}
+  .workspace-foot .buddy canvas{width:40px!important;height:40px!important}
+  .workspace .empty{max-width:640px}
   .workspace #composer{padding-bottom:24px}
 }
-@media(max-width:559px){.empty{padding:18px 4px}.empty b{font-size:29px}.starters{grid-template-columns:1fr;gap:7px;margin-top:24px}.starters button{display:grid;grid-template-columns:22px 1fr;padding:11px 13px;gap:2px 8px}.starters .starter-num{grid-row:1/3;padding-top:2px}.starters .starter-desc{grid-column:2}.starters button:has(.starter-name){gap:2px 8px}}
-@media(max-width:420px){header{padding-left:12px}.ib{width:29px}#sheet .themes{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:420px){#sheet .themes{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </head>
 <body class="booting" tabindex="-1">
@@ -1255,29 +1497,28 @@ header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
   </div>
 </div>
 
-<nav id="workspaceNav" aria-label="Workspace" hidden>
+<nav id="workspaceNav" aria-label="pagebot" hidden>
   <div class="workspace-brand"><span class="dot" aria-hidden="true"></span>pagebot</div>
-  <div class="workspace-kicker">WORKSPACE</div>
-  <button id="workspaceNew" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New conversation</button>
-  <button id="workspaceHistory" type="button"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></svg>Conversations</button>
-  <button id="workspaceFiles" type="button"><svg viewBox="0 0 24 24"><path d="M5 3h9l5 5v13H5zM14 3v6h5"/></svg>Documents</button>
-  <button id="workspaceSettings" type="button"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 17h16M8 4v6M16 14v6"/></svg>Preferences</button>
-  <div class="workspace-foot"><strong>A little room to think.</strong>Add a PDF with +.<br>Type / for your shortcuts.</div>
+  <button id="workspaceNew" type="button"><svg viewBox="0 0 24 24"><path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M17.5 2.5a2.1 2.1 0 0 1 3 3L12 14l-4 1 1-4Z"/></svg>New chat</button>
+  <button id="workspaceHistory" type="button"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>Your chats</button>
+  <button id="workspaceFiles" type="button"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>Your PDFs</button>
+  <button id="workspaceSettings" type="button"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 17h16M8 4v6M16 14v6"/></svg>Settings</button>
+  <div class="workspace-foot"><span class="buddy" aria-hidden="true"></span><strong>Good to know</strong>Press + to add a PDF or a screenshot.<br>Type / for quick commands.</div>
 </nav>
 <header>
   <div class="title"><span class="dot"></span><span class="name">pagebot</span><span class="mstat" id="mstat"><span class="typing"><i></i><i></i><i></i></span></span></div>
-  <button class="ib hide-min" id="newBtn" title="New chat" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
-  <button class="ib hide-min" id="histBtn" title="Chat history" aria-label="Chat history" aria-controls="hist" aria-expanded="false" hidden><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></button>
-  <button class="ib hide-min" id="setBtn" title="Settings" hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+  <button class="ib words hide-min" id="newBtn" title="New chat" hidden><svg viewBox="0 0 24 24"><path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M17.5 2.5a2.1 2.1 0 0 1 3 3L12 14l-4 1 1-4Z"/></svg><span class="lbl">New chat</span></button>
+  <button class="ib words hide-min" id="histBtn" title="Chat history" aria-label="Chat history" aria-controls="hist" aria-expanded="false" hidden><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg><span class="lbl">History</span></button>
+  <button class="ib words hide-min" id="setBtn" title="Settings" hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="lbl">Settings</span></button>
   <button class="ib hide-min" id="lockBtn" title="Lock" hidden><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button>
   <button class="ib hide-min" id="dockBtn" title="Dock to the side" hidden><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
   <button class="ib" id="minBtn" title="Minimize" hidden><svg class="mn" viewBox="0 0 24 24"><path d="M6 12h12"/></svg><svg class="ex" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button>
-  <button class="ib" id="closeBtn" title="Close (Esc)"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  <button class="ib" id="closeBtn" title="Hide (Esc). Your chat stays."><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
 </header>
 <button id="pet" type="button" aria-label="Open pagebot" hidden><canvas id="petCv"></canvas><span id="petLock" hidden aria-hidden="true">🔒</span></button><div id="petSay" role="status" hidden></div><!-- the pet (v13) -->
 <div class="grip gl" data-g="l" aria-hidden="true"></div><div class="grip gt" data-g="t" aria-hidden="true"></div><div class="grip gc" data-g="c" aria-hidden="true"></div>
 
-<div id="upd" role="status" hidden><span>✨ A new version of pagebot is out.</span><a id="updGo" href="/?update" target="_blank" rel="noopener">Get it ↗</a><button id="updX" type="button" title="Not now" aria-label="Not now">×</button></div>
+<div id="upd" role="status" hidden><span>✨ There’s a newer pagebot. Updating takes a minute.</span><a id="updGo" href="/?update" target="_blank" rel="noopener">Get it ↗</a><button id="updX" type="button" title="Not now" aria-label="Not now">×</button></div>
 <div id="rst" role="status" hidden><span class="ai" aria-hidden="true">⚠️</span><div class="ab"><div id="rstText"></div><div id="rstMeta"></div></div><button id="rstX" type="button" title="Hide" aria-label="Hide">×</button></div>
 <div id="ann" role="status" hidden><span class="ai" aria-hidden="true">📣</span><div class="ab"><div id="annText"></div><div id="annMeta"></div></div><button id="annX" type="button">Got it</button></div>
 
@@ -1291,10 +1532,14 @@ header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
   <div class="pad" id="pad" hidden></div>
   <div class="pwrow" id="pwRow"><input id="pw" type="password" placeholder="Password" autocomplete="current-password"><button class="send" type="submit">Unlock</button></div>
   <div class="fields" id="acct" hidden>
+    <label for="uName">Username</label>
     <input id="uName" placeholder="Username" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="24" aria-label="Username">
+    <label for="uPass">Password</label>
     <input id="uPass" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password">
+    <label for="uPass2" hidden>Password again</label>
     <input id="uPass2" type="password" placeholder="Type the password again" autocomplete="new-password" aria-label="Confirm password" hidden>
-    <textarea id="uNote" rows="2" maxlength="300" placeholder="Who are you? (optional, the owner sees this)" aria-label="Note for the owner" hidden></textarea>
+    <label for="uNote" hidden>A note for the owner (optional)</label>
+    <textarea id="uNote" rows="2" maxlength="300" placeholder="Say who you are, so the owner knows it’s you (the owner sees this)" aria-label="Note for the owner" hidden></textarea>
     <button class="send" id="uGo" type="submit">Sign in</button>
   </div>
   <div id="loginErr" role="alert"></div>
@@ -1305,7 +1550,7 @@ header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
   <div class="wl"><canvas id="waitPbl"></canvas></div><!-- the loader, while you wait; the check mark below takes over once you're in -->
   <div class="hg"><svg id="hgIcon" viewBox="0 0 24 24"></svg></div>
   <h2 id="waitTitle">You’re on the list</h2>
-  <p id="waitText">Thanks for signing up, <b id="waitName"></b>. You’re waiting to be accepted into the program. This panel opens up by itself as soon as the owner approves you.</p>
+  <p id="waitText">Thanks for signing up, <b id="waitName"></b>. Now let the person who invited you know, so they can let you in. This opens by itself as soon as they do, and you can close it and come back any time.</p>
   <p id="waitDone" hidden>The owner accepted you. Opening pagebot…</p>
   <div class="links" id="waitLinks"><button class="link" id="waitCheck" type="button">Check now</button> · <button class="link" id="waitOut" type="button">Sign out</button></div>
 </div>
@@ -1319,7 +1564,7 @@ header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
     <div><dt>Account</dt><dd id="banName"></dd></div>
     <div><dt>Reason</dt><dd id="banReason"></dd></div>
     <div id="banNoteRow"><dt>Note</dt><dd id="banNote"></dd></div>
-    <div><dt>Reviewed</dt><dd id="banAt"></dd></div>
+    <div><dt>Decided</dt><dd id="banAt"></dd></div>
     <div id="banEndRow"><dt id="banEndL">Ends</dt><dd id="banEnd"></dd></div>
   </dl>
   <p id="banLeft" hidden></p>
@@ -1353,35 +1598,35 @@ header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
       <div id="spane">
 
         <div class="cat" id="cat-general" role="tabpanel" aria-labelledby="tab-general" tabindex="-1" hidden>
-          <div class="chead"><h2>General</h2><p>What pagebot starts from on every question. You can still change the model or web search for one question from the message box.</p></div>
+          <div class="chead"><h2>Answers</h2><p>Your usual setup. You can still switch the model or web search for a single question, right from the message box.</p></div>
           <section class="sec">
-            <h3>Model and search</h3>
+            <h3>How it answers</h3>
             <div class="card">
-              <div class="row s"><div class="rt"><b class="rl" id="modelLbl">Model</b><span class="rh">Haiku is quick and cheap. Sonnet takes a little longer and thinks harder.</span></div><div class="rc"><div class="seg" id="modelSeg" role="radiogroup" aria-labelledby="modelLbl"></div></div></div>
+              <div class="row s"><div class="rt"><b class="rl" id="modelLbl">Model</b><span class="rh">Haiku is quick and good for most questions. Sonnet takes a little longer and thinks harder.</span></div><div class="rc"><div class="seg" id="modelSeg" role="radiogroup" aria-labelledby="modelLbl"></div></div></div>
               <div class="row"><div class="rt"><b class="rl" id="webLbl">Web search</b><span class="rh" id="webTogNote">Let pagebot look things up online while it answers.</span></div><div class="rc"><button class="tg" id="webTog" type="button" role="switch" aria-checked="false" aria-labelledby="webLbl"></button></div></div>
             </div>
           </section>
           <section class="sec" id="tokSec">
             <h3>Answer length</h3>
-            <div class="card"><div class="row s"><div class="rt"><b class="rl" id="tokLbl">Longest reply</b><span class="rh">Maximum tokens per reply. Higher limits allow longer answers and use more of your allowance.</span></div><div class="rc"><div class="seg" id="tokSeg" role="group" aria-labelledby="tokLbl"></div></div></div></div>
+            <div class="card"><div class="row s"><div class="rt"><b class="rl" id="tokLbl">Longest reply</b><span class="rh" id="tokHelp">The longest a reply can be, in tokens (a token is about three quarters of a word). Longer answers cost a little more.</span></div><div class="rc"><div class="seg" id="tokSeg" role="group" aria-labelledby="tokLbl"></div></div></div></div>
             <p class="fine" id="tokNote" hidden></p>
           </section>
         </div>
 
         <div class="cat" id="cat-appearance" role="tabpanel" aria-labelledby="tab-appearance" tabindex="-1" hidden>
-          <div class="chead"><h2>Appearance</h2><p>How pagebot looks, and how the panel sits on your screen.</p></div>
+          <div class="chead"><h2>Look &amp; feel</h2><p>Who keeps you company, how pagebot looks, and how the panel sits on your screen.</p></div>
+          <section class="sec card row s" id="companionRow"><div class="rt"><b class="rl" id="companionLbl">Your companion</b><span class="rh">Choose who keeps you company between questions. Saved on this browser.</span></div><div class="rc"><div id="companionSeg" role="radiogroup" aria-labelledby="companionLbl"></div></div></section>
           <section class="sec" id="themeGallery" role="radiogroup" aria-label="Theme"><h3>Theme</h3>
             <div class="themes" id="themes"></div>
             <p class="fine" id="glassNote" hidden>To make <span id="glassName">Glass</span> see-through on every site, including dark-mode ones, drag the button from the pagebot homepage to your bookmarks bar again.</p></section>
           <section class="sec"><h3>Motion</h3>
-            <div class="card"><div class="row s"><div class="rt"><b class="rl" id="motLbl">Animations</b><span class="rh">Less turns off fades, slides and companion movement to save power. System follows your device’s setting.</span></div><div class="rc"><div class="seg" id="motionSeg" role="radiogroup" aria-labelledby="motLbl"></div></div></div></div></section>
-          <section class="sec"><h3>Spacing</h3>
-            <div class="card"><div class="row s"><div class="rt"><b class="rl" id="denLbl">Density</b><span class="rh">Compact fits more on screen: tighter spacing and slightly smaller text.</span></div><div class="rc"><div class="seg" id="densitySeg" role="radiogroup" aria-labelledby="denLbl"></div></div></div></div></section>
-          <section class="sec" id="panelSec" hidden><h3>Panel</h3>
+            <div class="card"><div class="row s"><div class="rt"><b class="rl" id="motLbl">Movement</b><span class="rh">Less turns off fades, slides and companion movement to save power. “Match my device” follows your device’s setting.</span></div><div class="rc"><div class="seg" id="motionSeg" role="radiogroup" aria-labelledby="motLbl"></div></div></div></div></section>
+          <section class="sec"><h3>Reading</h3>
+            <div class="card"><div class="row s"><div class="rt"><b class="rl" id="denLbl">Text and spacing</b><span class="rh">Compact fits more on screen: tighter spacing and slightly smaller text.</span></div><div class="rc"><div class="seg" id="densitySeg" role="radiogroup" aria-labelledby="denLbl"></div></div></div></div></section>
+          <section class="sec" id="panelSec" hidden><h3>The panel</h3>
             <div class="card">
               <div class="row" id="dockRow"><div class="rt"><b class="rl" id="dockLbl">Dock to the side</b><span class="rh">Pins pagebot to the right edge of the window, full height. It opens that way next time too.</span></div><div class="rc"><button class="tg" id="dockTog" type="button" role="switch" aria-checked="false" aria-labelledby="dockLbl"></button></div></div>
-              <div class="row s" id="miniRow"><div class="rt"><b class="rl" id="miniLbl">Minimize to</b><span class="rh" id="miniNote">A little red panda you can drag around and click to open, or the small bar.</span></div><div class="rc"><div class="seg" id="miniSeg" role="radiogroup" aria-labelledby="miniLbl"></div></div></div>
-              <div class="row s" id="companionRow"><div class="rt"><b class="rl" id="companionLbl">Companion</b><span class="rh">Choose who keeps you company between questions. Saved on this browser.</span></div><div class="rc"><div id="companionSeg" role="radiogroup" aria-labelledby="companionLbl"></div></div></div>
+              <div class="row s" id="miniRow"><div class="rt"><b class="rl" id="miniLbl">When minimized, show</b><span class="rh" id="miniNote">A little red panda you can drag around and click to open, or the small bar.</span></div><div class="rc"><div class="seg" id="miniSeg" role="radiogroup" aria-labelledby="miniLbl"></div></div></div>
               <div class="row" id="roamRow"><div class="rt"><b class="rl" id="roamLbl">Let the pet explore</b><span class="rh">Turn off to keep it where you leave it. It can still blink and react.</span></div><div class="rc"><button class="tg" id="roamTog" type="button" role="switch" aria-checked="true" aria-labelledby="roamLbl"></button></div></div>
               <div class="row"><div class="rt"><b class="rl">Size and position</b><span class="rh" id="panelMsg" role="status" aria-live="polite">Drag the header to move the panel and its left or top edge to resize it. This puts it back where it started.</span></div><div class="rc"><button class="ghost" id="panelReset" type="button">Reset</button></div></div>
             </div>
@@ -1389,34 +1634,34 @@ header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
         </div>
 
         <div class="cat" id="cat-memory" role="tabpanel" aria-labelledby="tab-memory" tabindex="-1" hidden>
-          <div class="chead"><h2>Memory &amp; commands</h2><p>Instructions pagebot remembers for you, and shortcuts for the prompts you send most.</p></div>
+          <div class="chead"><h2>Site notes &amp; shortcuts</h2><p>Notes pagebot remembers for each website, and shortcuts for the things you ask most.</p></div>
           <section id="memorySec" class="sec" aria-labelledby="memoryTitle">
-            <h3 id="memoryTitle">Website memory</h3>
-            <p class="fine lead" id="memoryHint">Save instructions for a website. Pagebot uses them on every visit, even when Page text is off. Each subdomain has its own instructions.</p>
+            <h3 id="memoryTitle">Notes for websites</h3>
+            <p class="fine lead" id="memoryHint">Tell pagebot how to help on a website and it remembers every time you open it there, even with the page’s text left out. Each address is separate: docs.example.com and example.com have their own.</p>
             <form class="memory-form card pd" id="memoryForm">
               <label for="memorySites">Saved websites</label>
               <select id="memorySites"><option value="">Choose a saved website…</option></select>
               <label for="memorySite">Website</label>
               <input id="memorySite" type="text" placeholder="example.com or https://example.com" autocapitalize="off" autocomplete="off" spellcheck="false" aria-describedby="memoryScope">
-              <div class="acct"><button class="ghost" id="memoryLoad" type="button">Load website</button><button class="ghost" id="memoryCurrent" type="button" hidden>Use current website</button></div>
+              <div class="acct"><button class="ghost" id="memoryLoad" type="button">Show its instructions</button><button class="ghost" id="memoryCurrent" type="button" hidden>Use this website</button></div>
               <p class="fine" id="memoryScope">Instructions are private to your account and apply across this website’s pages.</p>
               <label for="memoryInstructions">Instructions</label>
               <textarea id="memoryInstructions" rows="4" maxlength="4000" placeholder="For example: Explain unfamiliar terms and keep summaries brief." aria-describedby="memoryCount" disabled></textarea>
               <p class="fine" id="memoryCount">0 / 4,000 characters</p>
-              <div class="acct"><button class="ghost pri" id="memorySave" type="submit" disabled>Save instructions</button><button class="ghost bad" id="memoryDelete" type="button" disabled>Delete saved instructions</button></div>
+              <div class="acct"><button class="ghost pri" id="memorySave" type="submit" disabled>Save instructions</button><button class="ghost bad" id="memoryDelete" type="button" disabled>Delete these instructions</button></div>
               <p class="fine" id="memoryStatus" role="status" aria-live="polite"></p>
             </form>
           </section>
           <section id="cmdSec" class="sec" aria-labelledby="cmdTitle">
-            <h3 id="cmdTitle">Slash commands</h3>
-            <p class="fine lead">Type / in the message box for a list of commands. Save your own for prompts you send a lot. Put {input} where the words you type after the command should go; without it, they go at the end.</p>
+            <h3 id="cmdTitle">Your / commands</h3>
+            <p class="fine lead">Type / in the message box to see your commands. Make your own for things you ask a lot. Write {input} where the words you type after the command should go; leave it out and they go at the end.</p>
             <form class="memory-form card pd" id="cmdForm" autocomplete="off">
               <label for="cmdList">Your commands</label>
               <select id="cmdList"><option value="">New command…</option></select>
               <label for="cmdName">Name</label>
               <input id="cmdName" type="text" maxlength="25" placeholder="tldr" autocapitalize="off" autocomplete="off" spellcheck="false" aria-describedby="cmdNameHint">
               <p class="fine" id="cmdNameHint">Letters, numbers, - and _, starting with a letter (up to 24).</p>
-              <label for="cmdPrompt">Prompt</label>
+              <label for="cmdPrompt">What it sends</label>
               <textarea id="cmdPrompt" rows="4" maxlength="2000" placeholder="For example: Translate the highlighted text into {input}." aria-describedby="cmdCount"></textarea>
               <p class="fine" id="cmdCount">0 / 2,000 characters</p>
               <label class="bagree cmdst"><input type="checkbox" id="cmdStarter"> Show on new chats <span class="fine" id="cmdStarterNote"></span></label>
@@ -1427,36 +1672,36 @@ header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
         </div>
 
         <div class="cat" id="cat-actions" role="tabpanel" aria-labelledby="tab-actions" tabindex="-1" hidden>
-          <div class="chead"><h2>Page actions</h2><p>Let pagebot click, type and choose on the page for you. Turn them on for a question from the + menu; this is where you decide how much it asks first.</p></div>
+          <div class="chead"><h2>Clicking for you</h2><p>pagebot can click, type and choose on the page for you. Turn it on for a question from the + menu; this is where you decide how much it asks first.</p></div>
           <div class="callout" id="actAvail" role="status" hidden></div>
           <section id="actSec" class="sec">
-            <h3>Permissions</h3>
+            <h3>How much it asks</h3>
             <div class="aopts" role="radiogroup" aria-label="Page actions permissions">
               <button class="aopt" id="actAsk" type="button" role="radio"><b>Ask before each click or edit</b>pagebot shows what it’s about to do and waits for you. Reading, scrolling and highlighting the page don’t ask.</button>
-              <button class="aopt" id="actSkip" type="button" role="radio"><b>Skip all permissions</b>Clicks, typing and choices run without asking, on every site.</button>
+              <button class="aopt" id="actSkip" type="button" role="radio"><b>Don’t ask before clicking</b>Clicks, typing and choices run without asking, on every site.</button>
             </div>
             <div class="awarn" id="actWarn" role="alertdialog" aria-labelledby="actWarnText" hidden>
-              <p id="actWarnText"><b>⚠ Only if you trust the pages you use it on.</b> A web page can hide instructions meant to steer pagebot. With permissions skipped, pagebot clicks, types and picks options on any page without checking with you first.</p>
-              <div class="acct"><button class="ghost warnb" id="actYes" type="button">Skip permissions</button><button class="ghost" id="actNo" type="button">Cancel</button></div>
+              <p id="actWarnText"><b>⚠ Only if you trust the pages you use it on.</b> A web page can hide instructions meant to steer pagebot. With this on, pagebot clicks, types and picks options on any page without checking with you first.</p>
+              <div class="acct"><button class="ghost warnb" id="actYes" type="button">Don’t ask first</button><button class="ghost" id="actNo" type="button">Cancel</button></div>
             </div>
           </section>
-          <section class="sec"><h3>Always, even when skipping</h3>
+          <section class="sec"><h3>Always, even when it doesn’t ask</h3>
             <div class="card">
               <div class="row"><div class="rt"><b class="rl">Protected fields</b><span class="rh">pagebot never reads or types into password, payment card or file fields.</span></div></div>
               <div class="row"><div class="rt"><b class="rl">A step limit</b><span class="rh">A question takes at most 40 steps.</span></div></div>
               <div class="row"><div class="rt"><b class="rl">Leaving the page</b><span class="rh">It asks before a click that leaves the page or opens another site.</span></div></div>
             </div>
-            <p class="fine" id="actHow">Turn page actions on from the + menu, next to Web search.</p>
+            <p class="fine" id="actHow">Turn it on from the + menu: “Click and type for me”.</p>
           </section>
         </div>
 
         <div class="cat" id="cat-files" role="tabpanel" aria-labelledby="tab-files" tabindex="-1" hidden>
-          <div class="chead"><h2>Files &amp; chats</h2><p>What pagebot keeps for you, and how to clear it out.</p></div>
+          <div class="chead"><h2>Your chats &amp; files</h2><p>What pagebot keeps for you, and how to clear it out.</p></div>
           <section class="sec"><h3>What’s saved</h3>
             <div class="card">
               <div class="row"><div class="rt"><b class="rl">Chats</b><span class="rh" id="dsChats"></span></div></div>
-              <div class="row"><div class="rt"><b class="rl">Website memory</b><span class="rh" id="dsMem"></span></div><div class="rc"><button class="ghost" type="button" data-go="memory">Open</button></div></div>
-              <div class="row"><div class="rt"><b class="rl">Slash commands</b><span class="rh" id="dsCmd"></span></div><div class="rc"><button class="ghost" type="button" data-go="memory">Open</button></div></div>
+              <div class="row"><div class="rt"><b class="rl">Notes for websites</b><span class="rh" id="dsMem"></span></div><div class="rc"><button class="ghost" type="button" data-go="memory">Open</button></div></div>
+              <div class="row"><div class="rt"><b class="rl">Your / commands</b><span class="rh" id="dsCmd"></span></div><div class="rc"><button class="ghost" type="button" data-go="memory">Open</button></div></div>
               <div class="row" id="dsPdfRow"><div class="rt"><b class="rl">PDFs</b><span class="rh" id="dsPdf"></span></div></div>
             </div>
           </section>
@@ -1468,7 +1713,7 @@ header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
             </div>
             <p class="fine">PDFs are deleted on their own 30 days after you upload them.</p>
           </section>
-          <section class="sec"><h3>Chat history</h3>
+          <section class="sec"><h3>Your chats</h3>
             <div class="card">
               <div class="row"><div class="rt"><b class="rl">Your chats</b><span class="rh">Search them, reopen one to keep going, or remove it.</span></div><div class="rc"><button class="ghost" id="fsHist" type="button">Open history</button></div></div>
               <div class="row" id="fsClearRow"><div class="rt"><b class="rl">Remove all from history</b><span class="rh" id="fsClearHelp"></span></div><div class="rc"><button class="ghost bad" id="fsClear" type="button">Remove all</button></div></div>
@@ -1496,9 +1741,9 @@ header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
           <section class="sec"><h3>Signed in</h3>
             <div class="card">
               <div class="row"><span class="av" id="acctAv" aria-hidden="true">?</span><div class="rt"><b class="rl"><span id="acctName" hidden></span><span id="acctOwner" hidden>Signed in as the owner</span></b><span class="rh" id="acctInfo"></span></div></div>
-              <div class="row"><div class="rt"><b class="rl">This device</b><span class="rh" id="acctDevice"></span></div><div class="rc"><button class="ghost" id="lockNow" type="button" hidden>Lock now</button><button class="ghost bad" id="outBtn" type="button">Log out</button></div></div>
+              <div class="row"><div class="rt"><b class="rl">This device</b><span class="rh" id="acctDevice"></span></div><div class="rc"><button class="ghost" id="lockNow" type="button" hidden>Lock now</button><button class="ghost bad" id="outBtn" type="button">Sign out</button></div></div>
             </div>
-            <p class="fine" id="acctElse">Other devices stay signed in until you log out there. Changing your password signs them all out.</p>
+            <p class="fine" id="acctElse">Other devices stay signed in until you sign out there. Changing your password signs them all out.</p>
           </section>
           <section class="sec" id="pwSec"><h3>Password</h3>
             <div class="card pd">
@@ -1511,7 +1756,7 @@ header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
             </div>
           </section>
           <section id="pcSec" class="sec" hidden>
-            <h3>Quick unlock</h3>
+            <h3>Passcode</h3>
             <div class="card pd">
               <p class="rh pcs" id="pcState"></p>
               <form class="pwform" id="pcForm" autocomplete="off" hidden>
@@ -1526,20 +1771,20 @@ header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
         </div>
 
         <div class="cat" id="cat-usage" role="tabpanel" aria-labelledby="tab-usage" tabindex="-1" hidden>
-          <div class="chead"><h2>Usage</h2><p id="usageSub">How much of today’s limit you’ve used, and your year with pagebot.</p></div>
+          <div class="chead"><h2>Your usage</h2><p id="usageSub">How much of today’s limit you’ve used, and your year with pagebot.</p></div>
   <section id="quotaSec" hidden>
-    <h3>Usage today</h3>
+    <h3>Today’s limit</h3>
     <div class="qbar"><i id="quotaFill"></i></div>
     <p class="qtext"><b id="quotaText"></b> <span id="quotaSub"></span></p>
   </section>
           <section id="wrapSec" class="sec"><button class="wcta" id="wrapBtn" type="button"><b>✨ Your pagebot Wrapped</b><span>Your year in questions, sites, hours and streaks</span></button></section>
           <section class="sec" id="adminSec" hidden><h3>Everyone’s usage</h3>
-            <div class="card"><div class="row"><div class="rt"><b class="rl">Usage &amp; admin</b><span class="rh">People, limits, activity and costs.</span></div><div class="rc"><a class="ghost alink" id="adminLink" href="/admin" target="_blank" rel="noopener">Open ↗</a></div></div></div>
+            <div class="card"><div class="row"><div class="rt"><b class="rl">Your dashboard</b><span class="rh">Who’s using pagebot, their limits, and what it costs.</span></div><div class="rc"><a class="ghost alink" id="adminLink" href="/admin" target="_blank" rel="noopener">Open ↗</a></div></div></div>
           </section>
         </div>
 
         <div class="cat" id="cat-about" role="tabpanel" aria-labelledby="tab-about" tabindex="-1" hidden>
-          <div class="chead"><h2>About</h2><p>Which version you’re on, and the keys that get you around.</p></div>
+          <div class="chead"><h2>Help &amp; shortcuts</h2><p>Which version you’re on, and the keys that get you around.</p></div>
           <section class="sec"><h3>pagebot</h3>
             <div class="card">
               <div class="row"><div class="rt"><b class="rl">Version</b><span class="rh" id="verLine"></span></div></div>
@@ -1559,7 +1804,8 @@ header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
 
 <div id="wrap" hidden></div>
 
-<div id="hist" role="region" aria-label="Chat history" hidden>
+<div id="hist" role="region" aria-label="Your chats" hidden>
+  <div class="hhead"><b>Your chats</b><button class="link" id="histDone" type="button">Done</button></div>
   <div class="hsearch"><input id="histQ" type="search" placeholder="Search your chats" aria-label="Search your chats" maxlength="100" autocomplete="off" spellcheck="false"></div>
   <div id="histList"></div>
 </div>
@@ -1603,12 +1849,12 @@ header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
     <div id="att" hidden><span class="atp"><img alt="" title="Click to draw on it"><button id="rmAtt" type="button" title="Remove image" aria-label="Remove image">×</button></span><button id="inkBtn" type="button" title="Draw on this screenshot before you send it">✏ Annotate</button></div>
     <textarea id="q" rows="1" placeholder="Ask about this page…" aria-label="Message"></textarea>
     <div class="bar">
-      <button class="tb" id="addBtn" type="button" title="Screenshot, page text, web search" aria-label="Add" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="tb" id="addBtn" type="button" title="Add a screenshot or a PDF, or choose what goes with your message" aria-label="Add" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
       <div class="pills">
         <button class="pill pdf" id="pdfPill" type="button" hidden><span class="pi">📄</span><span class="pl"></span><i>×</i></button>
-        <button class="pill" id="pagePill" type="button" title="This page's text goes with your next message. Click to leave it out." hidden>📄<span class="pl">Page</span><i>×</i></button>
+        <button class="pill" id="pagePill" type="button" title="This page's text goes with your next message. Click to leave it out." hidden>📃<span class="pl">Page</span><i>×</i></button>
         <button class="pill sel" id="selPill" type="button" hidden><span></span><i>×</i></button>
-        <button class="pill" id="areaPill" type="button" title="Every message sends a new screenshot of the area you picked. Click to turn it off." hidden><span class="pi">⛶</span><span class="pl">Region</span><i>×</i></button>
+        <button class="pill" id="areaPill" type="button" title="Every message sends a new screenshot of the area you picked. Click to turn it off." hidden><span class="pi">⛶</span><span class="pl">Area</span><i>×</i></button>
         <button class="pill" id="webPill" type="button" title="Web search is on. Click to turn it off." hidden>🌐<span class="pl">Web</span><i>×</i></button>
         <button class="pill" id="actPill" type="button" hidden>🖱<span class="pl">Actions</span><b class="au" id="actTag" hidden>auto</b><i>×</i></button>
       </div>
@@ -1616,15 +1862,17 @@ header{height:var(--hd);padding-inline:16px 8px;background:var(--bg)}
       <button class="go" id="sendBtn" type="button" title="Send (Enter)" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
     </div>
   </div>
-  <div class="menu" id="addMenu" role="menu" hidden>
+  <div class="menu" id="addMenu" role="menu" aria-label="Add to your message" hidden>
+    <div class="mgh" role="presentation">Add to this message</div>
     <button type="button" role="menuitem" id="shotBtn"><span class="mi">📷</span><span class="mt">Screenshot this tab<span class="md" id="shotNote" hidden>On for every message</span></span></button>
-    <button type="button" role="menuitem" id="areaBtn"><span class="mi">⛶</span><span class="mt">Screenshot a region<span class="md" id="areaNote" hidden>On for every message · pick again to change it</span></span></button>
+    <button type="button" role="menuitem" id="areaBtn"><span class="mi">⛶</span><span class="mt">Screenshot part of the page<span class="md" id="areaNote" hidden>On for every message · pick again to change it</span></span></button>
     <button type="button" role="menuitem" id="pdfBtn"><span class="mi">📎</span><span class="mt">Upload a PDF<span class="md" id="pdfNote">Up to 10 MB and 100 pages</span></span></button>
-    <button type="button" role="menuitemcheckbox" id="pageBtn" aria-checked="false"><span class="mi">📄</span><span class="mt">Page text</span><span class="ck">✓</span></button>
-    <button type="button" role="menuitemcheckbox" id="webBtn" aria-checked="false"><span class="mi">🌐</span><span class="mt">Web search<span class="md" id="webNote" hidden>Not turned on for your account</span></span><span class="ck">✓</span></button>
-    <button type="button" role="menuitemcheckbox" id="actBtn" aria-checked="false"><span class="mi">🖱</span><span class="mt">Page actions<span class="md" id="actNote"></span></span><span class="ck">✓</span></button>
+    <div class="mgh" role="presentation">pagebot can also</div>
+    <button type="button" role="menuitemcheckbox" id="pageBtn" aria-checked="false"><span class="mi">📃</span><span class="mt">Include this page’s text<span class="md">Its words go with your message</span></span><span class="ck">✓</span></button>
+    <button type="button" role="menuitemcheckbox" id="webBtn" aria-checked="false"><span class="mi">🌐</span><span class="mt">Search the web<span class="md" id="webNote" hidden>Not on for you. Ask the owner.</span></span><span class="ck">✓</span></button>
+    <button type="button" role="menuitemcheckbox" id="actBtn" aria-checked="false"><span class="mi">🖱</span><span class="mt">Click and type for me<span class="md" id="actNote"></span></span><span class="ck">✓</span></button>
     <button type="button" role="menuitem" id="stopBtn" hidden><span class="mi">⏹</span><span class="mt">Stop sharing this tab</span></button>
-    <div class="tip">You can also paste an image, or drop a PDF on the panel. <button type="button" class="link" id="pdfManage">Manage PDFs</button></div>
+    <div class="tip">You can also paste an image, or drop a PDF on the panel. <button type="button" class="link" id="pdfManage">Your PDFs</button></div>
   </div>
   <input type="file" id="pdfFile" accept="application/pdf,.pdf" hidden>
   <div class="menu right" id="modelMenu" role="menu" hidden></div>
@@ -1778,17 +2026,17 @@ if (popup && pageV7) ask('page', { max: 1 }).then(r => { if (r) setSel(r.selecti
 // ---- themes ----
 const THEMES = [
   ['auto', 'Auto'],
-  ['ember', 'Carbon', '#161b21', '#a6c4f4', '#27364b', '#edf0f4'],
-  ['paper', 'Porcelain', '#f6f7f9', '#365c99', '#e8eef8', '#202a37'],
-  ['midnight', 'Tide', '#111e28', '#93d0da', '#243f4b', '#e4eef1'],
-  ['forest', 'Fern', '#18211e', '#b7d0ac', '#324434', '#e6ede6'],
-  ['dusk', 'Mulberry', '#242028', '#d2b8de', '#413249', '#eee8f1'],
-  ['sakura', 'Terracotta', '#f8f3ee', '#7e422c', '#f0dfd2', '#3a3028'],
-  ['terminal', 'Field notes', '#171d19', '#b8d3bd', '#2d3e32', '#dbeade'],
-  ['pond', 'Grove', '#18211e', '#b7d0ac', '#324434', '#e6ede6'],
-  ['orbit', 'Blueprint', '#1b2028', '#b9c9e6', '#344359', '#e7ecf5'],
-  ['void', 'Olive', '#25251f', '#d0d4a4', '#3e4430', '#edeede'],
-  ['arcade', 'Iris', '#242028', '#d2b8de', '#413249', '#eee8f1'],
+  ['ember', 'Cocoa', '#1f1915', '#f4a882', '#3d2e25', '#f6ece2'],
+  ['paper', 'Cream', '#fbf5ec', '#933d1a', '#f8e1cf', '#3a2a20'],
+  ['midnight', 'Tide', '#13222a', '#8fd6df', '#25404d', '#e7f1f3'],
+  ['forest', 'Forest', '#161f19', '#a6d99d', '#2c3f31', '#e8f0e6'],
+  ['dusk', 'Plum', '#221a24', '#eab4dc', '#432f47', '#f3e9f3'],
+  ['sakura', 'Blossom', '#fdf4f5', '#982d54', '#fbdde4', '#3e2229'],
+  ['terminal', 'Terminal', '#0c110c', '#6ae884', '#1a2b1b', '#bff5bc'],
+  ['pond', 'Pond', '#13211f', '#8ddcc2', '#24423c', '#e5f2ee'],
+  ['orbit', 'Blueprint', '#142238', '#93c8ff', '#28426a', '#eaf2ff'],
+  ['void', 'Olive', '#21221a', '#d8dc96', '#3c3f2d', '#f0f0e2'],
+  ['arcade', 'Arcade', '#1a1730', '#ff9ad2', '#352f5c', '#f1efff'],
   ['glass', 'Glass', 'transparent', '#ffffff', 'rgba(255,255,255,.55)', '#ffffff'],
   ['clear', 'Clear', 'transparent', '#9cc2ff', 'transparent', '#ffffff'],
 ];
@@ -1829,9 +2077,9 @@ function syncGlass(recheck) {
   });
 }
 light.addEventListener('change', () => { if (prefs.theme === 'auto') applyTheme('auto', true); });
-const THEME_NOTE = { auto: 'Follows your device', ember: 'Graphite & ice', paper: 'White & ink', midnight: 'Deep sea & mist', forest: 'Evergreen & lichen', dusk: 'Aubergine & orchid', sakura: 'Chalk & rust', terminal: 'Monospace & sage', pond: 'Woodland dark', orbit: 'Steel & blue', void: 'Stone & olive', arcade: 'Muted iris', glass: 'See-through, blurred', clear: 'No panel at all' };
+const THEME_NOTE = { auto: 'Follows your device', ember: 'Warm dark', paper: 'Warm light', midnight: 'Deep sea', forest: 'Leafy green', dusk: 'Soft purple', sakura: 'Cherry pink', terminal: 'Green on black', pond: 'Lily-pad teal', orbit: 'Drafting blue', void: 'Olive and lime', arcade: 'Indigo and pink', glass: 'See-through, blurred', clear: 'No panel at all' };
 const moreThemes = document.createElement('details'); moreThemes.className = 'more-themes';
-moreThemes.innerHTML = '<summary>More finishes &amp; transparent modes</summary><div class=themes></div>';
+moreThemes.innerHTML = '<summary>More themes, and two see-through ones</summary><div class=themes></div>';
 $('#themes').after(moreThemes);
 moreThemes.querySelector('summary').addEventListener('keydown', e => {
   if (e.key !== 'ArrowDown') return;
@@ -2034,7 +2282,7 @@ function markQuotes(out, text, ev) {
 // the list where it can never work. No command ever changes a permission setting. Other features add theirs with one
 // line here, as /history, /pdf and /actions do below; the name must also go in BUILTIN_COMMANDS in server.js.
 const canShoot = !!navigator.mediaDevices?.getDisplayMedia;
-const noShot = () => canShoot ? '' : 'Screenshots aren’t supported in this browser — paste one instead.';
+const noShot = () => canShoot ? '' : 'This browser can’t take screenshots for pagebot. You can paste one instead (Ctrl/Cmd+V).';
 const BUILTINS = [
   { name: 'summarize', icon: '📝', hint: standalone ? 'Summarize what you add or paste' : 'Summarize this page', starter: 'Summarize this page', prompt: w => `Summarize ${w}.` },
   { name: 'keypoints', icon: '🔑', hint: 'The key points', starter: 'Key points', prompt: w => `What are the key points of ${w}?` },
@@ -2046,32 +2294,60 @@ const BUILTINS = [
   { name: 'page', icon: '📄', hint: 'Send the page text with one message, or turn it on or off', mod: 'page', run: () => $('#pageBtn').click(),
     why: () => standalone ? 'Needs the bookmark: open pagebot on a page to send its text.' : '' },
   { name: 'screenshot', icon: '📷', hint: standalone ? 'Screenshot a tab or window' : 'Screenshot this tab', run: () => $('#shotBtn').click(), why: noShot },
-  { name: 'region', icon: '⛶', hint: 'Screenshot a region', run: () => $('#areaBtn').click(), why: noShot },
+  { name: 'region', icon: '⛶', hint: 'Screenshot part of the page', run: () => $('#areaBtn').click(), why: noShot },
   { name: 'pdf', icon: '📎', hint: 'Attach a PDF', run: () => pickPdf(),
-    why: () => view !== 'chat' ? 'PDFs go with a message in a chat.' : pdfOk() ? '' : cfg?.restriction?.limits?.noPdf ? 'PDF uploads are off while your account is restricted.' : 'PDF uploads aren’t turned on for your account.' }, // ◆ isn't a reason: picking one switches the chat to Haiku, as the + menu does
+    why: () => view !== 'chat' ? 'PDFs go with a message in a chat.' : pdfOk() ? '' : cfg?.restriction?.limits?.noPdf ? 'PDF uploads are off while your account is restricted.' : 'PDFs aren’t turned on for your account. The owner can switch them on.' }, // ◆ isn't a reason: picking one switches the chat to Haiku, as the + menu does
   { name: 'actions', icon: '🖱', hint: 'Turn page actions on or off', takes: true, run: a => toggleActions(a === 'on' ? true : a === 'off' ? false : undefined),
     why: () => { const w = actWhy(); return w ? `Page actions: ${w.charAt(0).toLowerCase() + w.slice(1)}.` : ''; } },
   { name: 'settings', icon: '⚙', hint: 'Open settings', run: () => { openSheet(); $('#setBtn').focus(); } }, // like clicking ⚙, so typing doesn't go to the hidden box
   { name: 'help', icon: '❔', hint: 'Show every command', alone: true, takes: true, run: () => slashHelp() }, // "/help me with…" is a question
 ];
-// one click to ask the usual first questions about a page (the same text as /summarize, /keypoints and /simple)
-const STARTERS = BUILTINS.filter(c => c.starter).map(c => [c.starter, c.prompt('this page')]);
+// one click to ask the usual first questions about a page (the same text as /summarize, /keypoints and /simple): icon, name, what you get, what it sends
+const STARTER_ABOUT = { summarize: 'The short version.', keypoints: 'The main things to know.', simple: 'In plain words, no jargon.' };
+const STARTERS = standalone ? [
+  ['💬', 'Explain something', 'A topic, an article, anything confusing.', 'Help me understand something. Before you explain, ask me what it is and how much I already know.'],
+  ['⚖️', 'Help me choose', 'Weigh up a few options together.', 'Help me choose between a few options. First ask me what they are and what matters most to me.'],
+  ['✏️', 'Help me write', 'Turn rough notes into a clean draft.', 'Help me turn rough notes into a clean draft. First ask me what I’m writing, who it’s for, and what I’ve got so far.'],
+] : BUILTINS.filter(c => c.starter).map(c => [c.icon, c.starter, STARTER_ABOUT[c.name], c.prompt('this page')]);
+// a new chat says hello: the companion (drawn still, after start-up), your name, one line of help, then the starters
 function empty() {
   stick = true; jump.hidden = true;
-  log.innerHTML = standalone
-    ? '<div class="empty"><span class="desk-label">YOUR WORKSPACE</span><b>What are we working on?</b><p>Bring a question, a document, or a half-formed idea. We’ll take it from there.</p></div>'
-    : '<div class="empty"><span class="desk-label">PAGE COMPANION</span><b>Go a little deeper.</b><p>Read the essentials, question a claim, or make sense of a passage. This page is included with your first message.</p></div>';
+  log.innerHTML = '<div class="empty"><div class="hello"><span class="buddy" aria-hidden="true"></span><div><span class="hi"></span><b></b></div></div><p></p></div>';
+  const e = log.firstChild, name = isUser() ? cfg.user?.name : '';
+  e.querySelector('.hi').textContent = name ? `Hi, ${name}.` : 'Hi there.';
+  e.querySelector('b').textContent = standalone ? 'What’s on your mind?' : 'Want a hand with this page?';
+  e.querySelector('p').textContent = standalone ? 'Ask a question, or paste a screenshot and ask about that.' : 'Ask anything about it, or start with one of these. The page’s text goes along with your first message.';
   const box = el('div', 'starters');
-  for (const [label, text] of (standalone ? [['Understand', 'Help me understand a topic or document. Ask what I am working with and how familiar I am with it before explaining.'], ['Compare', 'Help me compare options. First ask what the options are, what I care about, and what constraints matter.'], ['Draft', 'Help me turn rough notes into a clear draft. First ask what I am writing, who it is for, and what notes I have.']] : STARTERS)) {
-    const b = el('button'); b.type = 'button'; b.textContent = label;
-    const title = el('span', 'starter-name'); title.textContent = label; b.replaceChildren(title);
-    const number = el('span', 'starter-num'); number.textContent = String(box.children.length + 1).padStart(2, '0'); b.prepend(number);
-    const desc = el('span', 'starter-desc'); desc.textContent = standalone ? ({Understand: 'Unpack an idea or document.', Compare: 'Find the tradeoffs that matter.', Draft: 'Give rough notes a clear shape.'}[label] || '') : ({'Summarize this page': 'The essentials, without the detour.', 'Key points': 'See what matters most.', 'Explain it simply': 'Make the complicated clearer.'}[label] || 'Work with this page.'); b.append(desc);
+  for (const [icon, label, about, text] of STARTERS) {
+    const b = el('button'); b.type = 'button';
+    const parts = [el('span', 'ico'), el('span', 'starter-name'), el('span', 'starter-desc')];
+    parts[0].setAttribute('aria-hidden', 'true'); parts[0].textContent = icon; parts[1].textContent = label; parts[2].textContent = about;
+    b.append(...parts);
     b.onclick = () => { if (busy) return; if (!standalone) setPage(true); q.value = text; autosize(); send(); };
     box.appendChild(b);
   }
-  log.querySelector('.empty').appendChild(box);
+  e.appendChild(box);
   slashStarters(box); // slash commands: yours that you chose to show on new chats
+  drawBuddies();
+}
+// The chosen companion, drawn once and still, into every empty .buddy (the hello and the /chat rail). Never at start-up: it waits
+// until the browser is idle after boot, and the drawing is kept and moved, not redrawn, until you pick another companion.
+let buddy = null, buddyWait = 0;
+function drawBuddies() {
+  if (buddyWait) return;
+  const go = () => {
+    buddyWait = 0;
+    const kind = companionKind();
+    if (buddy?.dataset.kind !== kind) {
+      buddy = document.createElement('canvas');
+      if (kind === 'panda') pandaSprite(buddy, { w: 26, h: 26, scale: 2, ox: 0, oy: 0, natural: true, still: true, shadow: false });
+      else companionSprite(buddy, kind, { size: 52, still: true });
+      buddy.dataset.kind = kind;
+    }
+    const spots = document.querySelectorAll('.buddy');
+    [...spots].forEach((s, i) => { if (s.firstChild !== buddy) s.replaceChildren(i ? buddy.cloneNode() : buddy); if (i) s.firstChild.getContext('2d').drawImage(buddy, 0, 0); });
+  };
+  buddyWait = window.requestIdleCallback ? requestIdleCallback(go, { timeout: 1500 }) : setTimeout(go, 300);
 }
 
 // ---- views: the chat, the lock screen (owner passcode/password, account sign-in or sign-up), and waiting for approval ----
@@ -2151,15 +2427,15 @@ function renderLock(msg) {
   else if (lockMode !== 'pin') lockMode = !accountsOn() ? 'owner' : lockMode === 'owner' ? 'signin' : lockMode;
   const who = lockMode === 'pin' ? pinWho() : null, usePin = !!who, owner = lockMode === 'owner', signup = lockMode === 'signup';
   $('#lockIcon').innerHTML = usePin || owner ? ICONS.lock : signup ? ICONS.add : ICONS.user;
-  $('#lockTitle').textContent = usePin || owner ? 'Locked' : signup ? 'Request access' : 'Sign in';
-  $('#lockSub').textContent = usePin ? (who.name ? `Enter your passcode, ${who.name}.` : 'Enter your 5-digit passcode.')
-    : owner ? (lock === 'none' ? 'No password is set yet — set one in /admin.' : 'Enter your pagebot password.')
-    : signup ? 'Pick a username and password. You can start once the owner accepts you. The owner can see your questions and usage.' : 'Sign in to your pagebot account.';
+  $('#lockTitle').textContent = usePin && who.name ? `Welcome back, ${who.name}` : usePin || owner ? 'Unlock pagebot' : signup ? 'Ask to join' : 'Sign in';
+  $('#lockSub').textContent = usePin ? (who.name ? 'Enter your passcode to carry on.' : 'Enter your 5-digit passcode.')
+    : owner ? (lock === 'none' ? 'pagebot isn’t set up yet. If it’s yours, set a password in /admin first.' : 'Enter your pagebot password.')
+    : signup ? 'Pick a username and a password. You can start as soon as the owner lets you in. The owner can see your questions and usage.' : 'Sign in to ask pagebot about the page you’re on.';
   $('#pin').hidden = $('#pad').hidden = !usePin;
   $('#pwRow').hidden = !owner || lock === 'none';
   $('#acct').hidden = usePin || owner;
-  $('#uPass2').hidden = $('#uNote').hidden = !signup;
-  $('#uGo').textContent = signup ? 'Request access' : 'Sign in';
+  for (const id of ['uPass2', 'uNote']) $('#' + id).hidden = $(`label[for=${id}]`).hidden = !signup; // (each with its label)
+  $('#uGo').textContent = signup ? 'Ask to join' : 'Sign in';
   $('#uPass').autocomplete = signup ? 'new-password' : 'current-password';
   if (lockFill != null) $('#uName').value = lockFill;
   else if (!usePin && !owner && !$('#uName').value && store.get('pb_who') === 'user') $('#uName').value = store.get('pb_user') || '';
@@ -2172,7 +2448,7 @@ function renderLock(msg) {
     if (lock === 'passcode') links.push(['Use passcode', () => { pwMode = false; showLogin('', 'pin'); }]);
   } else if (signup) links.push(['I already have an account', () => showLogin('', 'signin')]);
   else {
-    if (cfg?.accounts?.signup) links.push(['Create an account', () => showLogin('', 'signup')]);
+    if (cfg?.accounts?.signup) links.push(['New here? Ask to join', () => showLogin('', 'signup')]);
     if (pinWho()) links.push(['Use passcode', () => { pwMode = false; showLogin('', 'pin'); }]);
     // an owner who only has a passcode can't sign in here with a password (even where an account's pad comes up)
     if (cfg?.lock === 'passcode' && !cfg?.passwordSet && !pinWho()?.owner) links.push(['Owner? Use passcode', () => { store.set('pb_who', 'owner'); pwMode = false; showLogin('', 'pin'); }]);
@@ -2242,14 +2518,14 @@ $('#login').addEventListener('submit', async e => {
   let r;
   if (lockMode === 'signup') {
     if (!name || !pass) return void ($('#loginErr').textContent = 'Enter a username and a password.');
-    if (pass !== $('#uPass2').value) return void ($('#loginErr').textContent = 'The passwords don’t match.');
+    if (pass !== $('#uPass2').value) return void ($('#loginErr').textContent = 'Those two passwords don’t match. Type them again.');
     r = await login('/api/signup', { username: name, password: pass, note: $('#uNote').value });
   } else if (!name) {
     // the owner signs in here too: no username, just the owner password
     if (!pass) return void ($('#loginErr').textContent = 'Enter your username and password.');
     r = await login('/api/login', { password: pass });
     if (r.ok) { $('#uPass').value = ''; return unlocked('owner'); }
-    return void ($('#loginErr').textContent = r.status === 401 ? 'Wrong username or password.' : r.error);
+    return void ($('#loginErr').textContent = r.status === 401 ? 'That username and password don’t match. Check them and try again.' : r.error);
   } else {
     if (!pass) return void ($('#loginErr').textContent = 'Enter your password.');
     r = await login('/api/login', { username: name, password: pass });
@@ -2267,7 +2543,7 @@ async function login(path, data) {
     resetSiteMemory(); token = j.token; store.set('pb_token', token); pwMode = false;
     await loadBoot().catch(() => {});
     return { ok: true };
-  } catch { return { error: 'Network error' }; }
+  } catch { return { error: 'Can’t reach pagebot right now. Check your connection and try again.' }; }
 }
 async function unlocked(who) {
   store.set('pb_who', who); lockMode = null;
@@ -2295,7 +2571,7 @@ async function checkWait(manual) {
   try { await loadBoot(); } catch {}
   if (manual) { b.textContent = 'Check now'; b.disabled = false; }
   if (view !== 'wait') return;
-  if (!token) return showLogin('Your request isn’t active anymore. You can ask again or sign in.', 'signin');
+  if (!token) return showLogin('That request isn’t on the list anymore; the owner may have turned it down. You can ask again, or sign in with another account.', 'signin');
   if (cfg?.user?.status === 'trusted') {
     stopWaitPoll();
     $('#wait').classList.add('in');
@@ -2333,12 +2609,12 @@ function renderBan() {
   const term = b.state === 'terminated', over = b.state === 'ended';
   $('#ban').className = term ? 'term' : over ? 'over' : '';
   $('#banIcon').innerHTML = BAN_ICONS[term ? 'term' : over ? 'over' : 'ban'];
-  $('#banKicker').textContent = term ? 'Account terminated' : over ? 'Your ban is over' : 'Account banned';
-  $('#banTitle').textContent = term ? 'Your account has been terminated' : `Banned ${b.hours == null ? 'permanently' : 'for ' + banDur(b.hours)}`;
-  $('#banText').textContent = term ? 'Our review found that your use of pagebot seriously broke its rules. Signing in shows this notice until the account is deleted.'
+  $('#banKicker').textContent = term ? 'Account closed' : over ? 'Your ban is over' : 'Account paused';
+  $('#banTitle').textContent = term ? 'Your account has been closed' : b.hours == null ? 'Your account is banned' : `Paused for ${banDur(b.hours)}`;
+  $('#banText').textContent = term ? 'The owner has closed this account because of how it was used. You’ll see this notice when you sign in, until the account is deleted.'
     : over ? 'Agree to follow the rules to re-activate your account.'
-    : b.endsAt ? 'Our review found that your use of pagebot broke its rules. You can come back once the ban ends.'
-    : 'Our review found that your use of pagebot broke its rules. Your account is disabled for good.';
+    : b.endsAt ? 'The owner has paused this account because of how it was used. You can come back when the ban ends.'
+    : 'The owner has banned this account because of how it was used. This ban has no end date.';
   $('#banName').textContent = b.name;
   $('#banReason').textContent = b.reason;
   $('#banNote').textContent = b.note; $('#banNoteRow').hidden = !b.note;
@@ -2394,7 +2670,7 @@ $('#banAppealForm').onsubmit = async e => {
     const j = await r.json().catch(() => ({}));
     if (!r.ok) $('#banErr').textContent = j.error || 'That didn’t work — try again.';
     else { $('#banAppealText').value = ''; b.appeal = j.appeal; }
-  } catch { $('#banErr').textContent = 'Network error'; }
+  } catch { $('#banErr').textContent = 'Can’t reach pagebot right now. Check your connection and try again.'; }
   $('#banAppealSend').disabled = false;
   await checkBan();
 };
@@ -2406,7 +2682,7 @@ $('#banReact').onclick = async () => {
     const r = await fetch('/api/ban-notice/reactivate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: b.key, agree: true }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) $('#banErr').textContent = j.error || 'That didn’t work — try again.';
-  } catch { $('#banErr').textContent = 'Network error'; }
+  } catch { $('#banErr').textContent = 'Can’t reach pagebot right now. Check your connection and try again.'; }
   await checkBan();
   if (view === 'ban') $('#banReact').disabled = !$('#banAgree').checked;
 };
@@ -2479,7 +2755,7 @@ async function loadBoot() {
   return cfg;
 }
 const lockedMsg = () => pinWho() ? 'Locked — enter your passcode to pick up where you left off.'
-  : store.get('pb_who') === 'user' ? 'You were signed out. Sign in again to keep going.' : 'Session expired — log in again.';
+  : store.get('pb_who') === 'user' ? 'You were signed out. Sign in again to keep going.' : 'You were signed out after a while. Sign in again to pick up where you left off.';
 
 // ---- private website instructions; drafts stay local until explicitly saved ----
 let currentSite = '', memorySite = '', memoryRecords = [], memoryLoaded = false, memorySaving = false;
@@ -2522,7 +2798,7 @@ function renderMemorySites() {
 }
 function selectMemorySite(value) {
   const site = normalizeMemorySite(value);
-  if (!site) { memoryMessage('Enter a website hostname or an http(s) URL.', true); renderMemoryControls(); return false; }
+  if (!site) { memoryMessage('Type a website address, like example.com.', true); renderMemoryControls(); return false; }
   if (site !== memorySite) rememberMemoryDraft();
   memorySite = site;
   $('#memorySite').value = site;
@@ -2609,7 +2885,7 @@ $('#memorySites').onchange = () => { if ($('#memorySites').value) selectMemorySi
 $('#memorySite').addEventListener('input', renderMemoryControls);
 $('#memorySite').addEventListener('change', () => selectMemorySite($('#memorySite').value));
 $('#memoryInstructions').addEventListener('input', () => { rememberMemoryDraft(); renderMemoryControls(); memoryMessage('Unsaved changes. Save to apply these instructions.'); });
-if (standalone) $('#memoryHint').textContent = 'Manage instructions for your websites here. They apply when you open Pagebot on that website. Each subdomain has its own instructions.';
+if (standalone) $('#memoryHint').textContent = 'Your saved website instructions live here. They kick in when you open pagebot on that website. Each address is separate: docs.example.com and example.com have their own.';
 
 // ---- the owner's announcement, until it's closed ----
 let annGone = 0;
@@ -2691,7 +2967,7 @@ function renderQuota() {
 function usageLine(ev) {
   const u = ev.usage || {};
   if (u.pct != null) return u.pct > 0 ? `used ${u.pct < 0.1 ? '<0.1' : +u.pct.toFixed(1)}% of today’s limit` : '';
-  return u.in != null ? `${fmt(u.in)} in · ${fmt(u.out)} out` : '';
+  return u.in != null ? `${fmt(u.in)} tokens in · ${fmt(u.out)} out` : '';
 }
 const leftToday = q => q.kind === 'usd' ? `$${q.left.toFixed(2)} left today` : `${fmt(Math.round(q.left))} left today`;
 $('#pwChange').onclick = () => { $('#pwForm').hidden = false; $('#pwChange').hidden = true; $('#pwMsg').textContent = ''; $('#pwCur').focus(); };
@@ -3056,7 +3332,7 @@ function showPast({ chat, messages, earlier }, here) {
       if (m.pdf) { u.appendChild(pdfChip(m.pdf)); if (!m.pdf.gone) anyPdf = true; } // pdf uploads
       continue;
     }
-    const bot = pastMsg(box, 'bot', m.text ? md(m.text) : m.stopped ? '<span class="stp">Stopped</span>' : '<i>(empty reply)</i>'), out = bot.querySelector('.body');
+    const bot = pastMsg(box, 'bot', m.text ? md(m.text) : m.stopped ? '<span class="stp">Stopped</span>' : '<i>(Nothing came back. Try asking again.)</i>'), out = bot.querySelector('.body');
     finish(bot, out, { model: m.model || 'Claude', fallback: !!m.fallback, usage: m.usage, searches: m.searches, sources: m.sources, stop: m.stop,
       ...('refusal' in m && { refusal: m.refusal }) }, m.text);
     if (m.steps?.length) { // page actions: what it did on the page, as read-only lines
@@ -3089,6 +3365,7 @@ function historyGone(u) { const n = el('div', 'note'); n.textContent = 'That cha
 const searchText = v => { const q = oneLine(v); return q.length < 2 ? '' : q; }; // one letter would match nearly everything
 function searchHist() { clearTimeout(histTimer); const q = searchText($('#histQ').value); if (q !== histQ) { histQ = q; loadHist(); } }
 $('#histBtn').onclick = () => histOpen ? closeHistory(true) : openHistory();
+$('#histDone').onclick = () => closeHistory(true);
 $('#histQ').addEventListener('input', () => { clearTimeout(histTimer); histTimer = setTimeout(searchHist, 250); });
 $('#histQ').addEventListener('keydown', e => {
   if (e.isComposing) return;
@@ -3116,7 +3393,7 @@ for (const [n, label] of TOK) {
   b.onclick = () => savePrefs({ maxTokens: n });
   $('#tokSeg').appendChild(b);
 }
-const MODEL_INFO = { haiku: ['⚡', 'Fast and cheap'], sonnet: ['✦', 'Smarter, a little slower'], openrouter: ['◆', 'Via OpenRouter'] };
+const MODEL_INFO = { haiku: ['⚡', 'Quick. Good for most questions'], sonnet: ['✦', 'Thinks harder, a little slower'], openrouter: ['◆', 'An extra model, through OpenRouter'] };
 function renderPrefs() {
   const webOk = !isUser() || !!cfg.user?.allowWeb;
   if (!webOk) prefs.web = false;
@@ -3133,7 +3410,7 @@ function renderPrefs() {
     b.type = 'button'; b.setAttribute('role', 'menuitemradio'); b.setAttribute('aria-checked', String(x.key === m.key));
     b.querySelector('.mt').textContent = x.label;
     const noPdf = x.key === 'openrouter' && pdfInChat(); // pdf uploads: it can't read PDFs
-    b.querySelector('.mt').appendChild(el('span', 'md')).textContent = x.locked ? 'Not turned on for your account' : noPdf ? 'Can’t read PDFs. Use Haiku or Sonnet in this chat' : desc;
+    b.querySelector('.mt').appendChild(el('span', 'md')).textContent = x.locked ? 'Not on for you. Ask the owner.' : noPdf ? 'Can’t read PDFs. Use Haiku or Sonnet in this chat' : desc;
     b.disabled = !!x.locked || noPdf;
     b.onclick = () => { closeMenus(); if (x.key !== prefs.model) savePrefs({ model: x.key }); q.focus(); };
     menu.appendChild(b);
@@ -3143,8 +3420,8 @@ function renderPrefs() {
   const preset = TOK.some(([n]) => n === limits.maxTokens);
   $('#tokNote').hidden = preset;
   if (!preset) $('#tokNote').textContent = isUser() ? 'Right now it’s set to a custom length. Pick a size above to change it.' : `Right now it’s ${limits.maxTokens.toLocaleString()} tokens (set in /admin). Pick a size above to change it.`;
-  const tokHelp = $('#tokSec .fine:not(#tokNote)'); // (the owner's wording talks about tokens)
-  if (tokHelp) tokHelp.textContent = isUser() ? 'How long replies can be. Longer answers use more of your daily limit.' : 'Maximum tokens per reply. Higher limits allow longer answers and use more of your allowance.';
+  const tokHelp = $('#tokHelp'); // (only the owner's wording talks about tokens)
+  tokHelp.textContent = isUser() ? 'How long answers can be. Longer answers use more of today’s limit.' : 'The longest a reply can be, in tokens (a token is about three quarters of a word). Longer answers cost a little more.';
   syncThemes(prefs.theme);
   $('#glassNote').hidden = !(embedded && (prefs.theme === 'glass' && !hostV5 || prefs.theme === 'clear' && !hostV6));
   $('#glassName').textContent = prefs.theme === 'clear' ? 'Clear' : 'Glass';
@@ -3174,20 +3451,20 @@ $('#webPill').onclick = () => { savePrefs({ web: false }); q.focus(); };
 // payment card and file fields by itself.
 let actRun = null; // the answer that's acting on the page right now
 function actWhy() { // why page actions can't be used here ('' when they can)
-  if (standalone) return 'They need a web page: open pagebot with the bookmark on a site';
-  if (isUser() && cfg.user?.allowActions === false) return 'Not turned on for your account';
+  if (standalone) return 'They need a web page. Open pagebot from your bookmark while you’re on one';
+  if (isUser() && cfg.user?.allowActions === false) return 'Not on for you. Ask the owner';
   if (!pageV12) return 'Drag the new bookmark from the homepage to use them';
-  if (prefs.model === 'openrouter') return 'They work with the Claude models only';
+  if (prefs.model === 'openrouter') return 'They only work with Haiku and Sonnet';
   return '';
 }
 const actsOn = () => !!prefs.actions && !actWhy();
 function renderActs() {
   const why = actWhy(), b = $('#actBtn'), p = $('#actPill'), auto = !!prefs.actionsAuto;
   b.hidden = standalone; b.disabled = !!why;
-  $('#actNote').textContent = why || (auto ? 'Skip all permissions is on' : 'Asks before each click or edit');
+  $('#actNote').textContent = why || (auto ? 'Doesn’t ask first (see Settings)' : 'Asks before each click or edit');
   b.setAttribute('aria-checked', String(actsOn()));
   p.hidden = !actsOn(); p.classList.toggle('auto', auto); $('#actTag').hidden = !auto;
-  p.title = `Page actions are on: pagebot can click and type on this page${auto ? ' without asking (Skip all permissions)' : ', asking you first'}. Click to turn them off.`;
+  p.title = `Page actions are on: pagebot can click and type on this page${auto ? ' without asking first' : ', asking you first'}. Click to turn them off.`;
   $('#actSec').hidden = isUser() && cfg.user?.allowActions === false;
   // Settings: the same reason the + menu gives, and no permission choices to make where they can't apply (an old bookmark, or /chat)
   const gone = standalone || !pageV12, av = $('#actAvail');
@@ -3343,7 +3620,7 @@ function shareCard(run, line, wait) {
     card.appendChild(q);
     card.appendChild(el('div', 'ad')).textContent = (embedded ? 'Share this tab once and pagebot can take screenshots of it while you chat; the panel hides for each one.'
       : 'Pick the tab you opened pagebot from, and pagebot can take screenshots of it while you chat.') + ' Stop sharing any time from the + menu.';
-    if (prefs.actionsAuto || run.all) card.appendChild(el('div', 'ad')).textContent = 'Skip all permissions is on, but your browser needs this one click from you before a tab can be shared.';
+    if (prefs.actionsAuto || run.all) card.appendChild(el('div', 'ad')).textContent = '“Don’t ask before clicking” is on, but your browser needs this one click from you before a tab can be shared.';
     const done = v => { if (!run.asks.delete(done)) return; clearTimeout(late); card.remove(); line.hidden = false; resolve(v); };
     yes.type = no.type = 'button'; yes.textContent = 'Share this tab'; no.textContent = 'Not now';
     // getDisplayMedia straight from the click, while the browser still counts it as one
@@ -3474,15 +3751,15 @@ document.addEventListener('pointerdown', e => { if (openMenu && !e.target.closes
 let sheetOpen = false;
 const SVG = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
 const CATS = [ // key, title, icon
-  ['general', 'General', '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>'],
-  ['appearance', 'Appearance', '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'],
-  ['memory', 'Memory & commands', '<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>'],
-  ['actions', 'Page actions', '<path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51z"/>'],
-  ['files', 'Files & chats', '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>'],
+  ['general', 'Answers', '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>'],
+  ['appearance', 'Look & feel', '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'],
+  ['memory', 'Site notes & shortcuts', '<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>'],
+  ['actions', 'Clicking for you', '<path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51z"/>'],
+  ['files', 'Your chats & files', '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>'],
   ['privacy', 'Privacy', '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'],
   ['account', 'Account', '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'],
-  ['usage', 'Usage', '<path d="M18 20V10M12 20V4M6 20v-6"/>'],
-  ['about', 'About', '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>'],
+  ['usage', 'Your usage', '<path d="M18 20V10M12 20V4M6 20v-6"/>'],
+  ['about', 'Help & shortcuts', '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>'],
 ];
 let setCat = 'general', setDeep = false; // the category you were last in, and (on a narrow panel) whether it is open rather than the list
 const wideQ = matchMedia('(min-width:560px)');
@@ -3498,9 +3775,9 @@ function catSummary(key) { // the grey line under a category's name in the narro
   const m = models.find(x => x.key === prefs.model) || models[0];
   switch (key) {
     case 'general': return `${m.label} · web search ${prefs.web ? 'on' : 'off'}`;
-    case 'appearance': return THEMES.find(t => t[0] === prefs.theme)?.[1] || 'Ember';
-    case 'memory': return memoryLoaded ? `${plural(memoryRecords.length, 'website')} · ${plural(commands.length, 'command')}` : 'Site instructions and slash commands';
-    case 'actions': return actWhy() ? 'Not available here' : prefs.actionsAuto ? 'Skipping permissions' : 'Asks before each click';
+    case 'appearance': return THEMES.find(t => t[0] === prefs.theme)?.[1] || 'Cocoa';
+    case 'memory': return memoryLoaded ? `${plural(memoryRecords.length, 'website')} · ${plural(commands.length, 'command')}` : 'Notes for websites and / commands';
+    case 'actions': return actWhy() ? 'Not available here' : prefs.actionsAuto ? 'Doesn’t ask first' : 'Asks before each click';
     case 'files': return 'PDFs and chat history';
     case 'privacy': return 'What pagebot can see';
     case 'account': return isUser() ? `Signed in as ${cfg.user.name}` : 'Owner';
@@ -3617,10 +3894,10 @@ function renderModelSeg() {
     const x = models.find(m => m.key === b.dataset.key), noPdf = x.key === 'openrouter' && pdfInChat(), on = x.key === (models.find(m => m.key === prefs.model) || models[0]).key;
     b.textContent = x.label; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on));
     b.disabled = !!x.locked || noPdf;
-    b.title = x.locked ? 'Not turned on for your account' : noPdf ? 'Can’t read PDFs. Use Haiku or Sonnet in this chat' : (MODEL_INFO[x.key] || [])[1] || '';
+    b.title = x.locked ? 'Not on for you. Ask the owner.' : noPdf ? 'Can’t read PDFs. Use Haiku or Sonnet in this chat' : (MODEL_INFO[x.key] || [])[1] || '';
   }
 }
-const MOTIONS = [['system', 'System'], ['less', 'Less'], ['full', 'Full']];
+const MOTIONS = [['system', 'Match my device'], ['less', 'Less'], ['full', 'Full']];
 for (const [key, label] of MOTIONS) {
   const b = el('button', '', label); b.type = 'button'; b.dataset.m = key; b.setAttribute('role', 'radio');
   b.onclick = () => { store.set('pb_motion', key === 'system' ? null : key); applyMotion(); renderSheetPrefs(); };
@@ -3630,7 +3907,7 @@ function renderSheetPrefs() {
   renderModelSeg();
   const webOk = !isUser() || !!cfg.user?.allowWeb;
   $('#webTog').disabled = !webOk; $('#webTog').setAttribute('aria-checked', String(!!prefs.web && webOk));
-  $('#webTogNote').textContent = webOk ? 'Let pagebot look things up online while it answers. You can also turn it on for one question from the + menu.' : 'Not turned on for your account.';
+  $('#webTogNote').textContent = webOk ? 'Let pagebot look things up online while it answers. You can also turn it on for one question from the + menu.' : 'Not on for you. Ask the owner.';
   for (const b of $('#motionSeg').children) { const on = b.dataset.m === motionPref(); b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); }
   $('#panelSec').hidden = !(embedded && hostV2); $('#dockRow').hidden = !hostV7;
   renderMini();
@@ -3657,7 +3934,7 @@ function renderSheetAccount() {
   $('#acctAv').textContent = user ? name.charAt(0) || '?' : 'O';
   $('#acctInfo').textContent = user ? 'Your own settings, chats and instructions.' : 'You run this pagebot. Your password and passcode are set in /admin.';
   $('#acctDevice').textContent = pin ? (mins ? `Locks after ${lockName(mins)} without activity. You unlock it with your passcode.` : 'Locks when you press the lock button. You unlock it with your passcode.')
-    : 'Stays signed in until you log out.';
+    : 'Stays signed in until you sign out.';
   $('#acctElse').hidden = !user;
   $('#pwSec').hidden = !user; $('#adminSec').hidden = user;
   $('#usageSub').textContent = user ? 'How much of today’s limit you’ve used, and your year with pagebot.' : 'Your year with pagebot. Everyone’s usage is in /admin.';
@@ -3718,7 +3995,7 @@ function renderSees() {
       !pdfAllowed ? ['Not on for you', ''] : pdfInChat() ? ['In this chat', 'on'] : ['None attached', ''], pdfAllowed ? '#pdfBtn' : ''],
     ['Web search', 'pagebot can search the web for facts, writing the search itself. The page isn’t sent to a search engine.',
       !web ? ['Not on for you', ''] : prefs.web ? ['On', 'on'] : ['Off', ''], web ? '#webBtn' : ''],
-    ['Page actions', 'It can click, type and choose on the page. It asks first unless you skip permissions, and never touches password, card or file fields.',
+    ['Page actions', 'It can click, type and choose on the page. It asks first unless you’ve told it not to, and never touches password, card or file fields.',
       acts ? ['Not available', ''] : actsOn() ? ['On', 'on'] : ['Off', ''], standalone ? '' : '#actBtn'],
   ];
   const list = $('#seeList'); list.replaceChildren();
@@ -3961,7 +4238,7 @@ const COMPANION_ART = {"cat":{"source":{"artist":"Elthen","url":"https://elthen.
 // END SOURCED COMPANION FRAMES
 const COMPANIONS = { panda: 'Red panda', cat: 'Cat', fox: 'Fox', frog: 'Frog' };
 const companionKind = () => Object.hasOwn(COMPANIONS, store.get('pb_companion')) ? store.get('pb_companion') : 'panda';
-for (const [key, label] of [['panda', 'Pet'], ['pill', 'Bar']]) {
+for (const [key, label] of [['panda', 'Companion'], ['pill', 'Small bar']]) {
   const b = el('button', '', label); b.type = 'button'; b.dataset.m = key; b.setAttribute('role', 'radio');
   b.onclick = () => { store.set('pb_mini', key === 'pill' ? 'pill' : null); renderMini(); };
   $('#miniSeg').appendChild(b);
@@ -3987,7 +4264,7 @@ function renderCompanions() {
     const b = el('button', 'companion-choice'); b.type = 'button'; b.dataset.kind = kind;
     b.setAttribute('role', 'radio'); b.setAttribute('aria-label', label);
     const cv = document.createElement('canvas'); b.append(cv, document.createTextNode(label));
-    if (kind === 'panda') pandaSprite(cv, { w: 26, h: 26, scale: 2, natural: true, still: true, shadow: false });
+    if (kind === 'panda') pandaSprite(cv, { w: 26, h: 26, scale: 2, ox: 0, oy: 0, natural: true, still: true, shadow: false });
     else companionSprite(cv, kind, { size: 52, still: true });
     b.onclick = () => {
       store.set('pb_companion', kind); pet?.stop(); pet = null;
@@ -4210,11 +4487,12 @@ function fitPills() {
   if (fitFrame) return;
   fitFrame = requestAnimationFrame(() => {
     fitFrame = 0;
-    const p = $('.pills'), bar = p.parentNode, wraps = () => p.offsetHeight > 26; // taller than one pill: it wrapped
+    const p = $('.pills'), bar = p.parentNode, one = p.querySelector('.pill:not([hidden])')?.offsetHeight || 26;
+    const wraps = (rows = 1) => p.offsetHeight > rows * one + (rows - 1) * 6 + 2; // taller than that many rows of pills
     bar.classList.remove('stack'); p.classList.remove('tight');
     if (!p.clientWidth || !wraps()) return;
-    p.classList.add('tight');
-    if (wraps()) { bar.classList.add('stack'); p.classList.add('tight'); }
+    bar.classList.add('stack'); // a row of their own under the buttons first, keeping their words
+    if (wraps(2)) p.classList.add('tight'); // more than two rows: icons only
   });
 }
 addEventListener('resize', () => { fitPills(); scroll(); }); // a resized panel stays at the newest message if you were there
@@ -4277,9 +4555,9 @@ function nextFrame(ms) {
 }
 function shotFailed(e) {
   if (embedded) tell('show');
-  note(e?.code === 'unsupported' ? 'Screenshots aren’t supported in this browser — paste one instead.'
+  note(e?.code === 'unsupported' ? 'This browser can’t take screenshots for pagebot. You can paste one instead (Ctrl/Cmd+V).'
     : e?.name === 'NotAllowedError' ? 'Screenshot cancelled or blocked on this site. You can paste one instead (Win+Shift+S / Cmd+Ctrl+Shift+4, then Ctrl/Cmd+V).'
-    : 'Screenshot failed: ' + (e?.message || e));
+    : 'The screenshot didn’t work: ' + (e?.message || e));
 }
 $('#shotBtn').onclick = async () => {
   closeMenus();
@@ -4368,7 +4646,7 @@ $('#q').addEventListener('paste', async e => {
   if (!it || [...(e.clipboardData?.files || [])].some(isPdfFile)) return; // pdf uploads take a pasted PDF
   e.preventDefault();
   try { const bmp = await createImageBitmap(it.getAsFile()); setImg(toJpeg(bmp, bmp.width, bmp.height), 'paste'); }
-  catch { note('Couldn’t read that image.'); }
+  catch { note('That image wouldn’t open. Try another one, or take a screenshot instead.'); }
 });
 
 // ---- screenshot annotation ----
@@ -4773,7 +5051,7 @@ const pdfInChat = () => chatPdf || !!pdfAtt || !!pdfUp;
 const pdfWhere = pg => pg.to > pg.from ? `pp. ${pg.from}–${pg.to}` : `p. ${pg.from}`;
 function renderPdf() {
   const ok = pdfOk(), p = $('#pdfPill');
-  $('#pdfBtn').disabled = !ok; $('#pdfNote').textContent = ok ? PDF_LIMITS : 'Not turned on for your account';
+  $('#pdfBtn').disabled = !ok; $('#pdfNote').textContent = ok ? PDF_LIMITS : 'Not on for you. Ask the owner.';
   p.hidden = !pdfAtt && !pdfUp;
   const pi = p.firstElementChild, pl = p.querySelector('.pl'); // the icon turns into a spinner while it uploads
   if (pdfUp) {
@@ -4794,7 +5072,7 @@ $('#pdfPill').onclick = () => { clearPdf(); $('#q').focus(); };
 // the + menu's "Upload a PDF", and /pdf in the slash-command registry
 function pickPdf() {
   if (view !== 'chat') return;
-  if (!pdfOk()) return void note('PDF uploads aren’t turned on for your account.');
+  if (!pdfOk()) return void note('PDFs aren’t turned on for your account. The owner can switch them on.');
   closeMenus(); $('#pdfFile').click();
 }
 $('#pdfBtn').onclick = pickPdf;
@@ -4802,12 +5080,12 @@ $('#pdfFile').onchange = () => { const f = $('#pdfFile').files[0]; $('#pdfFile')
 async function addPdf(file) {
   if (view !== 'chat' || !file) return;
   const name = file.name || 'document.pdf';
-  if (!pdfOk()) return void note('PDF uploads aren’t turned on for your account.');
+  if (!pdfOk()) return void note('PDFs aren’t turned on for your account. The owner can switch them on.');
   if (!isPdfFile(file)) return void note(`Only PDFs can be added here, and “${name}” isn’t one.`);
   if (file.size > PDF_MAX) return void note(`“${name}” is ${fmtMB(file.size)}. PDFs can be up to 10 MB.`);
   let head = '';
   try { head = await file.slice(0, 5).text(); } catch {}
-  if (head !== '%PDF-') return void note(`“${name}” isn’t really a PDF (or it’s damaged), so it can’t be added.`);
+  if (head !== '%PDF-') return void note(`“${name}” won’t open as a PDF. It may be damaged, or another kind of file with a .pdf name.`);
   if (view !== 'chat') return;
   if (prefs.model === 'openrouter') { // ◆ can't read PDFs
     const h = models.find(x => x.key === 'haiku');
@@ -4934,7 +5212,7 @@ function pdfRow(p) {
   row.dataset.id = p.id;
   box.appendChild(el('span', 'htitle')).textContent = p.name;
   const d = new Date(p.createdAt);
-  box.appendChild(el('span', 'hsub')).textContent = [p.pages && `${p.pages} p.`, fmtMB(p.size), d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(d.getFullYear() !== new Date().getFullYear() && { year: 'numeric' }) })].filter(Boolean).join(' · ');
+  box.appendChild(el('span', 'hsub')).textContent = [p.pages && `${p.pages} page${p.pages === 1 ? '' : 's'}`, fmtMB(p.size), d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(d.getFullYear() !== new Date().getFullYear() && { year: 'numeric' }) })].filter(Boolean).join(' · ');
   box.appendChild(el('span', 'hsub chat')).textContent = p.inChat ? `In chat: ${p.chatTitle || 'Chat'}` : 'Not sent in a chat yet';
   box.title = p.name;
   const del = el('button', 'ghost bad', 'Delete'); del.type = 'button'; del.setAttribute('aria-label', `Delete “${p.name}”`);
@@ -5075,7 +5353,7 @@ function finish(bot, out, ev, text) {
   bot.querySelectorAll('.step.live').forEach(s => s.remove());
   if ('refusal' in ev) {
     bot.classList.add('err');
-    out.innerHTML = '<p>⚠ The model declined to answer this' + (ev.refusal ? ` (${esc(String(ev.refusal))})` : '') + '. Try rephrasing it.</p>';
+    out.innerHTML = '<p>⚠ The model wouldn’t answer that one' + (ev.refusal ? ` (${esc(String(ev.refusal))})` : '') + '. Asking it another way might help.</p>';
   } else if ((pageV7 || ev.pdfPages) && ev.cites?.length && ev.quotes?.length) markQuotes(out, text, ev); // PDF quotes work everywhere
   const srcs = (ev.sources || []).filter(s => /^https?:\/\//.test(s.url));
   if (srcs.length) {
@@ -5088,11 +5366,11 @@ function finish(bot, out, ev, text) {
   }
   const m = el('div', 'meta');
   if (ev.quota && cfg) { cfg.quota = ev.quota; renderQuota(); }
-  m.textContent = [ev.model + (ev.fallback ? ' (fallback)' : ''), usageLine(ev),
+  m.textContent = [ev.model + (ev.fallback ? ' (stepped in)' : ''), usageLine(ev),
     ev.searches ? `${ev.searches} search${ev.searches === 1 ? '' : 'es'}` : '', ev.quota && ev.usage?.pct == null ? leftToday(ev.quota) : ''].filter(Boolean).join(' · ');
   if (ev.stop === 'max_tokens') {
-    m.append(' · cut off · ');
-    const b = el('button', 'mini', 'raise limit'); b.type = 'button'; b.onclick = () => openSheet(true); m.appendChild(b);
+    m.append(' · ran out of room · ');
+    const b = el('button', 'mini', 'allow longer answers'); b.type = 'button'; b.onclick = () => openSheet(true); m.appendChild(b);
   }
   if (text && !('refusal' in ev)) copyAct(m, text);
   bot.appendChild(m);
@@ -5209,7 +5487,7 @@ async function send() {
       }
     }
     renderer.flush();
-    if (!acc && !refused) out.innerHTML = '<i>(empty reply)</i>';
+    if (!acc && !refused) out.innerHTML = '<i>(Nothing came back. Try asking again.)</i>';
   } catch (e) {
     renderer.cancel();
     if (stale()) return;
@@ -5455,7 +5733,7 @@ function resetCommands() {
 // what's wrong with the form, or what saving it will do
 function cmdProblem() {
   const { name, prompt } = cmdFields(), saved = commands.some(c => c.name === name), no = error => ({ error, block: true });
-  if (!name) return { block: true, info: 'Name your command and write the prompt it sends.' };
+  if (!name) return { block: true, info: 'Give it a name, then write what it should send.' };
   if (!CMD_NAME.test(name)) return no('Start the name with a letter, then use letters, numbers, - or _ (up to 24).');
   if (isBuiltin(name) || cmdLimits.reserved?.includes(name)) return no(`/${name} is a built-in command. Pick another name.`);
   if (cmdSlot && name !== cmdSlot && saved) return no(`You already have /${name}. Pick another name.`);
@@ -5495,7 +5773,7 @@ function selectCmd(slot) {
   $('#cmdName').value = d ? d.name : s?.name || '';
   $('#cmdPrompt').value = d ? d.prompt : s?.prompt || '';
   $('#cmdStarter').checked = d ? d.starter : !!s?.starter;
-  cmdMessage(d ? 'Unsaved changes.' : !s ? 'Name your command and write the prompt it sends.'
+  cmdMessage(d ? 'Unsaved changes.' : !s ? 'Give it a name, then write what it should send.'
     : isBuiltin(s.name) ? `A built-in command now uses /${s.name}. Rename this one to keep using it.` : `Editing /${s.name}. Changes apply after saving.`);
   renderCmdList();
 }
@@ -6000,7 +6278,7 @@ renderPrefs();
 if (embedded && !hostV3) claim(); // older bookmarks don't say when they open the panel, but it only loads when you click one
 (async () => {
   const ready = loadBoot().catch(() => {});
-  await endSplash(ready, () => { if (token) route(); else showLogin(cfg ? '' : 'Can’t reach the pagebot server.'); });
+  await endSplash(ready, () => { if (token) route(); else showLogin(cfg ? '' : 'Can’t reach pagebot right now. Check your connection, then open it again.'); });
   ready.then(() => { if (!token && view !== 'lock') showLogin(lockedMsg()); else if (token) route(); });
 })();
 })();

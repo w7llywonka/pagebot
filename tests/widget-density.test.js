@@ -125,7 +125,7 @@ browserTest('the default is Comfortable: no class on <html>, nothing saved, and 
   assert.equal(await f.frame.locator('#densitySeg .on').innerText(), 'Comfortable');
   assert.equal(await f.frame.locator('#densitySeg').getAttribute('role'), 'radiogroup');
   assert.deepEqual(await f.frame.locator('#densitySeg button').evaluateAll(bs => bs.map(b => [b.getAttribute('role'), b.getAttribute('aria-checked')])), [['radio', 'true'], ['radio', 'false']]);
-  assert.equal(await f.frame.locator('#denLbl').innerText(), 'Density');
+  assert.equal(await f.frame.locator('#denLbl').innerText(), 'Text and spacing');
   assert.match(await f.frame.locator('#denLbl').locator('xpath=following-sibling::span').innerText(), /Compact fits more on screen/, 'one line of help');
   assert.equal(await f.frame.locator('#densitySeg').evaluate(e => e.classList.contains('seg') && e.parentElement.parentElement.classList.contains('row')), true, 'the same control as Animations');
   assert.equal(await f.frame.locator('#motionSeg').count(), 1, 'the rest of Appearance is untouched');

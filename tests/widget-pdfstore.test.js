@@ -106,8 +106,8 @@ browserTest('the + menu opens Your PDFs: name, pages, size, date, a used-of-cap 
   assert.equal(await f.frame.locator('#pdfStore .qbar').getAttribute('aria-valuenow'), '38');
   assert.equal(await rowsOf(f).count(), 2);
   const first = rowsOf(f).first();
-  assert.match(await first.innerText(), /Q3 report with a really quite long[\s\S]*12 p\. · 3\.5 MB · Oct 1[\s\S]*In chat: What happened to revenue\?/);
-  assert.match(await rowsOf(f).nth(1).innerText(), /notes\.pdf[\s\S]*2 p\. · 0\.25 MB · Sep 20[\s\S]*Not sent in a chat yet/);
+  assert.match(await first.innerText(), /Q3 report with a really quite long[\s\S]*12 pages · 3\.5 MB · Oct 1[\s\S]*In chat: What happened to revenue\?/);
+  assert.match(await rowsOf(f).nth(1).innerText(), /notes\.pdf[\s\S]*2 pages · 0\.25 MB · Sep 20[\s\S]*Not sent in a chat yet/);
   // a long name is cut off, never pushing Delete out of the panel
   const fits = await f.frame.evaluate(() => { const s = document.querySelector('#pdfs').getBoundingClientRect(), d = document.querySelector('#pdfList .prow button').getBoundingClientRect(); return d.right <= s.right && d.left >= s.left; });
   assert.equal(fits, true, 'Delete stays inside the panel');

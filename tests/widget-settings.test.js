@@ -18,7 +18,7 @@ after(async () => { await browser?.close(); });
 
 const ORIGIN = 'https://pagebot.example.test';
 const CATS = ['general', 'appearance', 'memory', 'actions', 'files', 'privacy', 'account', 'usage', 'about'];
-const TITLES = ['General', 'Appearance', 'Memory & commands', 'Page actions', 'Files & chats', 'Privacy', 'Account', 'Usage', 'About'];
+const TITLES = ['Answers', 'Look & feel', 'Site notes & shortcuts', 'Clicking for you', 'Your chats & files', 'Privacy', 'Account', 'Your usage', 'Help & shortcuts'];
 const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', 'pond', 'orbit', 'void', 'arcade', 'glass', 'clear'];
 const done = { t: 'done', conversationId: 42, model: 'haiku', usage: { in: 50, out: 20 }, stop: 'end_turn' };
 const cmd = (name, prompt, starter = false) => ({ name, prompt, starter, updatedAt: '2026-01-01T00:00:00.000Z' });
@@ -138,7 +138,7 @@ for (const [width, name] of [[300, 'a 300px panel'], [420, 'a 420px docked panel
   await f.frame.locator('#tab-memory').click();
   assert.equal(await f.vis('#cat-memory'), true);
   assert.equal(await f.vis('#snav'), false);
-  assert.equal(await f.frame.locator('#shTitle').innerText(), 'Memory & commands');
+  assert.equal(await f.frame.locator('#shTitle').innerText(), 'Site notes & shortcuts');
   assert.equal(await f.frame.evaluate(() => document.activeElement.id), 'cat-memory', 'the keyboard moves into the category');
   await f.frame.locator('#shBack').click();
   assert.equal(await f.vis('#snav'), true);
@@ -223,7 +223,7 @@ browserTest('General: model, web search and answer length are saved as preferenc
   const g = await fixture(t, { width: 720, user: { allowWeb: false } });
   await g.opens();
   assert.equal(await g.frame.locator('#webTog').isDisabled(), true);
-  assert.match(await g.frame.locator('#webTogNote').innerText(), /Not turned on for your account/);
+  assert.match(await g.frame.locator('#webTogNote').innerText(), /Not on for you\. Ask the owner\./);
 });
 
 browserTest('Appearance: theme changes persist through the prefs route, with names, previews and keyboard control', async t => {
@@ -253,14 +253,14 @@ browserTest('Appearance: Animations overrides the system setting, and is remembe
   const f = await fixture(t, { width: 720, reduced: false });
   const dur = () => f.frame.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.cat:not([hidden])')).animationDuration));
   await f.opens(); await f.go('appearance');
-  assert.equal(await f.frame.locator('#motionSeg .on').innerText(), 'System');
+  assert.equal(await f.frame.locator('#motionSeg .on').innerText(), 'Match my device');
   assert.ok(await dur() > 0.05, 'the category fades in normally');
   await f.frame.locator('#motionSeg button', { hasText: 'Less' }).click();
   assert.equal(await f.frame.evaluate(() => localStorage.getItem('pb_motion')), 'less');
   assert.equal(await f.frame.evaluate(() => document.documentElement.classList.contains('calm')), true);
   assert.ok(await dur() < 0.001, 'Less turns the animation off');
   assert.equal(f.reqs('/api/prefs').length, 0, 'nothing is sent to the server');
-  await f.frame.locator('#motionSeg button', { hasText: 'System' }).click();
+  await f.frame.locator('#motionSeg button', { hasText: 'Match my device' }).click();
   assert.equal(await f.frame.evaluate(() => localStorage.getItem('pb_motion')), null);
   // the other way: a device that asks for less motion, and Full
   const g = await fixture(t, { width: 720, reduced: true });
@@ -358,7 +358,7 @@ browserTest('on an old bookmark Page actions is unavailable, with the reason the
   assert.equal(await f.frame.locator('#actAsk').isDisabled(), true);
   assert.equal(await f.frame.locator('#actSkip').isDisabled(), true);
   assert.equal(await f.vis('#actWarn'), false);
-  assert.doesNotMatch(await f.frame.locator('#cat-actions').innerText(), /Turn page actions on from the \+ menu/, 'no instruction to use a menu item that is greyed out');
+  assert.doesNotMatch(await f.frame.locator('#cat-actions').innerText(), /Turn it on from the \+ menu/, 'no instruction to use a menu item that is greyed out');
   assert.match(await f.frame.locator('#tab-actions small').innerText(), /Not available/);
   // /chat has no page to act on
   const chat = await fixture(t, { width: 900, standalone: true });
@@ -369,7 +369,7 @@ browserTest('on an old bookmark Page actions is unavailable, with the reason the
   const ok = await fixture(t, { width: 720 });
   await ok.opens(); await ok.go('actions');
   assert.equal(await ok.frame.locator('#actSkip').isEnabled(), true);
-  assert.match(await ok.frame.locator('#actHow').innerText(), /Turn page actions on from the \+ menu/);
+  assert.match(await ok.frame.locator('#actHow').innerText(), /Turn it on from the \+ menu/);
 });
 
 browserTest('Files & chats: PDF storage bar, Manage PDFs, history, and Remove all from history asks first', async t => {
