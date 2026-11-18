@@ -15,6 +15,59 @@
   try { var q = /[?&]density=(compact|comfortable)/.exec(location.search); if (q) localStorage.setItem('pb_density', q[1]); if (localStorage.getItem('pb_density') === 'compact') document.documentElement.classList.add('dense'); } catch (e) {} // Settings > Appearance > Density (?density= is for tests and debugging)
   if (window.parent === window) document.documentElement.classList.add('nohost');
 })();
+// Two things start here, because the main script at the end of the page can't run until the whole page has arrived:
+//  - /api/boot goes out now, so its answer travels while the rest downloads. loadBoot() takes it for the first boot
+//    only, so a load still asks once.
+//  - In the bookmark's frame, 'ready' goes out as soon as there is a <body> to paint. That is what makes the bookmark
+//    show the panel (until then the frame is invisible, and a second click after four seconds takes it for blocked and
+//    opens a pop-up instead), so the loading mark is up while the rest arrives. What the bookmark says back before the
+//    main script is listening is kept in `heard` for it.
+(function () {
+  var E = window.__pbEarly = { token: null, device: null, boot: null, msg: {}, ready: false, heard: [], hear: null, dock: false, dockW: 0, screenSize: null };
+  var get = function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  var json = function (k) { try { return JSON.parse(get(k)); } catch (e) { return null; } };
+  E.token = get('pb_token'); E.device = get('pb_dev');
+  // a random id for this browser, so the owner can keep a terminated account's browser from signing up again
+  if (!/^[A-Za-z0-9_-]{16,64}$/.test(E.device || '')) {
+    E.device = Array.from(crypto.getRandomValues(new Uint8Array(18)), function (x) { return x.toString(16).padStart(2, '0'); }).join('');
+    try { localStorage.setItem('pb_dev', E.device); } catch (e) {}
+  }
+  try {
+    var h = { 'X-Pagebot-Device': E.device }; if (E.token) h.Authorization = 'Bearer ' + E.token;
+    E.boot = fetch('/api/boot', { headers: h })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (cfg) { return { cfg: cfg }; }, function (err) { return { err: err }; }); // never rejects: loadBoot() reads the error
+  } catch (e) {}
+  // ---- 'ready' carries where the panel was left on this site, and its default size: about half the window; a saved size always wins ----
+  // A v11 bookmark works the default out from its window and just keeps it unless we send one. Older bookmarks can't, so for
+  // them (and only when nothing is saved) we send a size worked out from the screen: 50% wide, and 72% of the screen's height
+  // since the browser's own bars take the rest of it. The bookmark clamps whatever it's sent to the window.
+  var embedded = window.parent !== window, hostV = embedded ? Number(new URLSearchParams(location.search).get('v')) || 1 : 0;
+  E.screenSize = function () {
+    var aw = screen.availWidth || 0, ah = screen.availHeight || 0;
+    if (!(aw > 0 && ah > 0)) return null;
+    return {
+      w: Math.min(Math.max(Math.round(aw * .5), 360), Math.max(aw - 32, 300)), h: Math.min(Math.max(Math.round(ah * .72), 420), Math.max(ah - 32, 360)),
+      dw: Math.min(Math.max(Math.round(aw * .4), 420), Math.max(aw - 40, 300)),
+    };
+  };
+  var pos = json('pb_pos'), size = json('pb_size'), old = hostV < 11 ? E.screenSize() : null, m = E.msg;
+  E.dock = hostV >= 7 && get('pb_dock') === '1'; E.dockW = Number(get('pb_dockw')) || 0; // 0: nothing saved
+  if (hostV >= 2 && pos) m.pos = pos; // (2: a bookmark that can move the panel; 7: one that can resize and dock it; 11: one that sizes it itself)
+  if (hostV >= 7 && size && size.w > 0 && size.h > 0) m.size = size; else if (old) m.size = { w: old.w, h: old.h }; else if (hostV < 11) m.size = { w: 400, h: 600 };
+  if (hostV >= 7) { m.dock = E.dock; if (E.dockW) m.dw = E.dockW; else if (old) m.dw = old.dw; }
+  if (!embedded || !window.MutationObserver) return; // the pop-up window and /chat: the main script says 'ready'
+  E.hear = function (e) { if (e.source === parent) E.heard.push(e); };
+  addEventListener('message', E.hear);
+  var seen = new MutationObserver(function () {
+    if (!document.body) return;
+    seen.disconnect();
+    if (E.ready) return; // (the main script got there first: it is said once)
+    E.ready = true;
+    try { parent.postMessage(Object.assign({ type: 'ready' }, m), '*'); } catch (e) {}
+  });
+  seen.observe(document.documentElement, { childList: true });
+})();
 </script>
 <style>
 :root{--font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--hd:46px;
@@ -1658,6 +1711,7 @@ const sysCalm = matchMedia('(prefers-reduced-motion: reduce)');
 let calm = sysCalm.matches; // Settings > Appearance > Animations can override it (see applyMotion)
 const body = document.body;
 const wait = ms => new Promise(r => setTimeout(r, ms));
+const early = window.__pbEarly; // what the head script started while the page was still arriving: the first boot and 'ready'
 
 const store = {
   get(k){ try { return localStorage.getItem(k); } catch { return null; } },
@@ -1689,9 +1743,7 @@ for (const [key, label] of [['comfortable', 'Comfortable'], ['compact', 'Compact
 applyDensity(); addEventListener('storage', e => { if (e.key === 'pb_density') applyDensity(true); }); // another tab changed it
 
 let token = store.get('pb_token');
-// a random id for this browser, so the owner can keep a terminated account's browser from signing up again
-let device = store.get('pb_dev');
-if (!/^[A-Za-z0-9_-]{16,64}$/.test(device || '')) { device = Array.from(crypto.getRandomValues(new Uint8Array(18)), x => x.toString(16).padStart(2, '0')).join(''); store.set('pb_dev', device); }
+const device = early.device; // this browser's random id, made by the head script
 let cfg = null; // /api/boot
 let prefs = { theme: store.get('pb_theme') || 'ember', model: 'haiku', web: false };
 let limits = { maxTokens: 2048, pageTokens: 5000, maxSearches: 3 };
@@ -1739,39 +1791,24 @@ function ask(type, extra = {}, ms = 2500) {
   });
 }
 function tell(type, extra = {}) { if (target) try { target.postMessage({ ...extra, type }, '*'); } catch {} }
-addEventListener('message', e => {
+// The bookmark answers 'ready' with 'open'. That first one is this load's own opening, whose boot is already here or on
+// its way, so it doesn't ask for another (boots are limited to 60 a minute). Any later 'open' is a reopen.
+let opening = hostV3;
+const fromHost = e => {
   if (!target || e.source !== target) return;
   const d = e.data || {};
   if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); }
   else if (d.type === 'restore') { setMin(false); claim(); }
-  else if (d.type === 'open') { petHostVisible(true); claim(); refreshOnOpen(); if (histOpen) loadHist(); } // history left open while the panel was hidden gets fresh
-  else if (d.type === 'hidden') { petHostVisible(false); release(); }
+  else if (d.type === 'open') { petHostVisible(true); claim(); if (opening) opening = false; else refreshOnOpen(); if (histOpen) loadHist(); } // history left open while the panel was hidden gets fresh
+  else if (d.type === 'hidden') { opening = false; petHostVisible(false); release(); }
   else if (d.type === 'sel') setSel(String(d.text || ''));
-});
-let savedPos = null, savedSize = null;
-try { savedPos = JSON.parse(store.get('pb_pos')); } catch {}
-try { savedSize = JSON.parse(store.get('pb_size')); } catch {}
-// ---- default panel size (redesign): about half the window; a size the person saved always wins ----
-// A v11 bookmark works the default out from its window and just keeps it unless we send one. Older bookmarks can't, so for
-// them (and only when nothing is saved) we send a size worked out from the screen: 50% wide, and 72% of the screen's height
-// since the browser's own bars take the rest of it. The bookmark clamps whatever it's sent to the window.
-const hostSized = hostV >= 11;
-const screenSize = () => {
-  const aw = screen.availWidth || 0, ah = screen.availHeight || 0;
-  if (!(aw > 0 && ah > 0)) return null;
-  return {
-    w: Math.min(Math.max(Math.round(aw * .5), 360), Math.max(aw - 32, 300)), h: Math.min(Math.max(Math.round(ah * .72), 420), Math.max(ah - 32, 360)),
-    dw: Math.min(Math.max(Math.round(aw * .4), 420), Math.max(aw - 40, 300)),
-  };
 };
-let docked = hostV7 && store.get('pb_dock') === '1', dockW = Number(store.get('pb_dockw')) || 0; // 0: nothing saved
-const savedBox = hostV7 && savedSize?.w > 0 && savedSize?.h > 0;
-const oldDefault = !hostSized ? screenSize() : null;
-tell('ready', {
-  ...(hostV2 && savedPos ? { pos: savedPos } : {}),
-  ...(savedBox ? { size: savedSize } : oldDefault ? { size: { w: oldDefault.w, h: oldDefault.h } } : !hostSized ? { size: { w: 400, h: 600 } } : {}),
-  ...(hostV7 ? { dock: docked, ...(dockW ? { dw: dockW } : oldDefault ? { dw: oldDefault.dw } : {}) } : {}),
-});
+addEventListener('message', fromHost);
+removeEventListener('message', early.hear); // what the head script kept is handled at the very end, once everything it touches exists
+// 'ready' (the panel's saved place, size and docking) is worked out, and normally already sent, by the head script
+const screenSize = early.screenSize;
+let docked = early.dock, dockW = early.dockW; // 0: nothing saved
+if (!early.ready) { early.ready = true; tell('ready', early.msg); }
 // the pop-up window only hears about highlights made after it opened, so ask for the current one
 if (popup && pageV7) ask('page', { max: 1 }).then(r => { if (r) setSel(r.selection || ''); });
 
@@ -2462,9 +2499,15 @@ async function apiGet(path) {
 }
 async function loadBoot() {
   const session = token, cmdSeen = cmdWrites; // slash commands: a save made meanwhile is newer than this boot's list
-  const r = await fetch('/api/boot', { headers: { 'X-Pagebot-Device': device, ...(session ? { Authorization: 'Bearer ' + session } : {}) } });
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  const next = await r.json();
+  // the first boot of a load is the one the head script sent (for this session), usually back already; later ones ask again
+  const sent = early.boot; early.boot = null;
+  let next;
+  if (sent && early.token === session) { const first = await sent; if (first.err) throw first.err; next = first.cfg; }
+  else {
+    const r = await fetch('/api/boot', { headers: { 'X-Pagebot-Device': device, ...(session ? { Authorization: 'Bearer ' + session } : {}) } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    next = await r.json();
+  }
   if (session !== token) return cfg; // a refresh from the previous login must not replace the current account
   cfg = next;
   prefs.theme = cfg.theme;
@@ -3644,7 +3687,7 @@ $('#webTog').onclick = () => savePrefs({ web: !prefs.web });
 $('#dockTog').onclick = () => $('#dockBtn').click(); // the same thing the header's dock button does
 $('#panelReset').onclick = () => {
   for (const k of ['pb_pos', 'pb_petpos', 'pb_size', 'pb_dock', 'pb_dockw']) store.set(k, null);
-  savedPos = savedSize = null; docked = false; dockW = 0; syncDock();
+  docked = false; dockW = 0; syncDock();
   // 'ready' is how the bookmark takes a position, size and dock state; a v11 one would keep its own size, so send the screen-based default too
   const d = screenSize();
   tell('ready', { pos: { r: 16, b: 16 }, dock: false, size: d ? { w: d.w, h: d.h } : { w: 400, h: 600 }, ...(d && { dw: d.dw }) });
@@ -6003,6 +6046,7 @@ if (embedded && !hostV3) claim(); // older bookmarks don't say when they open th
   await endSplash(ready, () => { if (token) route(); else showLogin(cfg ? '' : 'Can’t reach the pagebot server.'); });
   ready.then(() => { if (!token && view !== 'lock') showLogin(lockedMsg()); else if (token) route(); });
 })();
+for (const e of early.heard.splice(0)) fromHost(e); // what the bookmark said while this script was still on its way: 'open', and the highlight
 })();
 </script>
 </body>
