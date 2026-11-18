@@ -252,7 +252,7 @@ Under the hood it's Anthropic's **browser use toolset** (`browser_toolset_202608
 - **Daily limits hold**:
   - Each account gets one answer at a time.
   - An answer that's stopped partway (you press stop, close the panel, or reload the page) stops there, but what it used still counts: the whole question, the answer so far, and any web searches it ran.
-  - A question that wouldn't fit in what's left of the day is turned down ("That's more than what's left of today"), and the answer length is capped to fit. Accounts are only ever told this in words and percentages, never in tokens or dollars.
+  - A question that wouldn't fit in what's left of the day is turned down ("There isn’t enough of today’s limit left for that one"), and the answer length is capped to fit. Accounts are only ever told this in words and percentages, never in tokens or dollars.
 - **Chat history**: you only ever see your own chats; asking for someone else's looks the same as asking for one that doesn't exist. Removing a chat hides it from your history only (the owner can still read it under Activity), and a removed chat can't be continued. Search is limited (30 a minute, one at a time per person, three seconds at most) so a long history can't slow everyone else down.
 - **Logins**:
   - Each address gets 10 tries a minute and 30 wrong logins an hour, and 20 wrong admin tokens every 10 minutes.
