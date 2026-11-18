@@ -164,7 +164,7 @@ test('a copy whose compression failed is made on the next request for the page, 
   assert.equal(failures, -1, 'with both copies made, nothing more is asked for');
 });
 
-test('a copy asked for on a version that was already replaced is skipped, and the copies after it are still made', async () => {
+test('a copy asked for on a version that was already replaced is skipped, and the copies after it are still made', { timeout: 10_000 }, async () => {
   write('stale.html', '<!doctype html><a href="{{HREF}}">old</a>' + '<p>Some text to compress. </p>'.repeat(200));
   const pages = createPages(dir), old = pages.get('stale.html');
   await settled();
