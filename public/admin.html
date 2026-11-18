@@ -4,183 +4,233 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>pagebot admin</title>
+<title>pagebot dashboard</title>
 <style>
+/* Warm paper by day, cocoa by night: one accent, soft tinted surfaces, round shapes. Data colours are tuned to each. */
 :root{
-  --page:#0f0f0e;--panel:#1a1a19;--panel2:#222220;--hover:#242422;--line:#2c2c2a;--line2:#3a3a37;
-  --text:#f0efec;--text2:#c3c2b7;--muted:#898781;--accent:#d97757;--wash:rgba(217,119,87,.14);
-  --ok:#7fc99a;--warn:#fab219;--err:#ff8a7a;
-  /* data colors: categorical slots 1-3 (dark steps), a neutral for magnitude bars, and the blue sequential ramp for the heatmap */
-  --s-haiku:#3987e5;--s-sonnet:#d95926;--s-router:#a06ee0;--s-other:#199e70;--bar:#6b6a65;
-  --h0:#242422;--h1:#104281;--h2:#1c5cab;--h3:#2a78d6;--h4:#5598e7;--h5:#86b6ef;
-  font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color-scheme:dark}
+  color-scheme:light;
+  --page:#fbf5ec;--panel:#fffbf5;--panel2:#f5eadc;--hover:#f1e3d1;--line:#ecdccb;--line2:#9f826c;
+  --text:#3a2a20;--text2:#55402f;--muted:#735a4a;--accent:#933d1a;--on-accent:#fff;--wash:#f6dcc8;--focus:#933d1a;
+  --ok:#2c6a34;--ok-tint:#e3efdc;--warn:#875000;--warn-tint:#f9ead0;--err:#b0261c;--err-tint:#fae3dc;
+  --bad:#b0261c;--on-bad:#fff;--warnb:#875000;--on-warnb:#fff;--worst:#3a2a20;--on-worst:#fffbf5;
+  --shadow:rgba(80,50,30,.16);--scrim:rgba(45,30,20,.42);
+  --s-haiku:#2f6fc4;--s-sonnet:#c8571d;--s-router:#8a52c9;--s-other:#1b8a63;--bar:#a48d7a;
+  --h0:#f1e4d3;--h1:#cfe0f4;--h2:#a2c3ea;--h3:#6c9fdd;--h4:#3a7bcc;--h5:#1d5aa6;
+  --round:ui-rounded,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --toph:61px;
+  font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+@media (prefers-color-scheme:dark){:root{
+  color-scheme:dark;
+  --page:#1f1915;--panel:#28201b;--panel2:#31271f;--hover:#3a2e26;--line:#3a2e27;--line2:#8a7263;
+  --text:#f6ece2;--text2:#e3d3c5;--muted:#c8b4a4;--accent:#f4a882;--on-accent:#2c160b;--wash:#45332a;--focus:#f4a882;
+  --ok:#8fd19e;--ok-tint:#25311f;--warn:#f2bd66;--warn-tint:#3a2d1a;--err:#ffab9c;--err-tint:#3f2420;
+  --bad:#ffab9c;--on-bad:#2c160b;--warnb:#f2bd66;--on-warnb:#2c160b;--worst:#f6ece2;--on-worst:#1f1915;
+  --shadow:rgba(0,0,0,.45);--scrim:rgba(0,0,0,.55);
+  --s-haiku:#5d9cf0;--s-sonnet:#f08a4b;--s-router:#b48ae8;--s-other:#3cbf8c;--bar:#8a7263;
+  --h0:#33291f;--h1:#1e3c62;--h2:#28568f;--h3:#3372bf;--h4:#5c9be6;--h5:#97c2f3}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--page);color:var(--text)}
 body.noscroll{overflow:hidden}
 [hidden]{display:none!important}
 a{color:var(--accent)}
 button{font:inherit;color:inherit}
-h2{font-size:13px;margin:0;color:var(--text2);font-weight:650;letter-spacing:.2px}
+h2,h3,.brand,.kpi .v,.big,.dwhead h3{font-family:var(--round)}
+h2{font-size:15px;margin:0;color:var(--text);font-weight:650}
 .sub,.muted{color:var(--muted)}
 .sub{font-size:12.5px}
 .wrap{max-width:1320px;margin:0 auto;padding:0 20px}
-input,select,textarea{background:var(--page);color:var(--text);border:1px solid var(--line2);border-radius:9px;padding:7px 10px;font:inherit;font-size:13.5px;outline:none}
-input:focus,select:focus,textarea:focus{border-color:#6a6964}
-input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;margin:0;vertical-align:middle;cursor:pointer}
-:focus-visible{outline:2px solid #6a6964;outline-offset:2px}
-.btn{background:var(--accent);color:#fff;border:0;border-radius:9px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
-.btn.ghost{background:none;border:1px solid var(--line2);color:var(--text)}
-.btn.ghost:hover{background:var(--panel2)}
-.btn.sm{padding:5px 10px;font-size:12.5px;border-radius:8px}
+input,select,textarea{background:var(--panel);color:var(--text);border:1px solid var(--line2);border-radius:12px;padding:7px 12px;font:inherit;font-size:14px;outline:none;min-height:38px}
+::placeholder{color:var(--muted);opacity:1}
+input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;min-height:0;margin:0;vertical-align:middle;cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline-offset:0}
+.btn{background:var(--accent);color:var(--on-accent);border:0;border-radius:999px;padding:8px 16px;min-height:38px;font-weight:600;font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;transition:transform .12s,background-color .12s}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn.ghost{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
+.btn.ghost:hover{background:var(--hover)}
+.btn.sm{padding:5px 13px;min-height:32px;font-size:13px}
 .btn.danger{color:var(--err)}
-.btn:disabled{opacity:.5;cursor:default}
-.btns{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.btn.bad{background:var(--bad);color:var(--on-bad)}
+.btn.warnb{background:var(--warnb);color:var(--on-warnb)}
+.btn.worst{background:var(--worst);color:var(--on-worst)}
+.btn:disabled{opacity:.55;cursor:default}
+.btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .msg{font-size:13px;min-height:0}.msg:not(:empty){margin-top:8px}.msg.ok{color:var(--ok)}.msg.err{color:var(--err)}
 
 /* sign-in gate */
-.gate{max-width:380px;margin:14vh auto 0;padding:24px;background:var(--panel);border:1px solid var(--line);border-radius:16px;display:flex;flex-direction:column;gap:10px}
-.gate label{font-size:12.5px;color:var(--muted)}
-.brand{display:flex;align-items:center;gap:9px;font-weight:700;color:var(--text);text-decoration:none;white-space:nowrap}
-.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(217,119,87,.16)}
+.gate{max-width:400px;margin:14vh auto 0;padding:28px;background:var(--panel);border-radius:20px;box-shadow:0 0 0 1px var(--line),0 14px 34px -16px var(--shadow);display:flex;flex-direction:column;gap:10px}
+.gate label{font-size:13px;font-weight:600;color:var(--text2)}
+.gate input,.gate .btn{min-height:44px}
+.gate .hint{font-size:12.5px;color:var(--muted);margin:-2px 0 4px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:18px;color:var(--text);text-decoration:none;white-space:nowrap}
+.brand .dot{width:20px;height:18px;border-radius:10px 10px 10px 3px;background:var(--accent);flex:none}
 .brand .ad{color:var(--muted);font-weight:500}
-.gate .brand{font-size:18px;margin-bottom:8px}
+.gate .brand{font-size:20px;margin-bottom:8px}
 
-/* top bar */
-.top{position:sticky;top:0;z-index:20;background:rgba(15,15,14,.92);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-.top .wrap{display:flex;align-items:center;gap:18px;height:56px}
-.tabs{display:flex;gap:2px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+/* top bar: solid, no blur */
+.top{position:sticky;top:0;z-index:20;background:var(--page);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:18px;height:60px}
+.tabs{display:flex;gap:4px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
-.tab{background:none;border:0;border-radius:8px;padding:7px 12px;color:var(--muted);font-weight:600;font-size:13.5px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
-.tab:hover{color:var(--text);background:var(--panel)}
-.tab[aria-selected=true]{color:var(--text);background:var(--panel2)}
-.badge{min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:inline-grid;place-items:center;line-height:1}
+.tab{background:none;border:0;border-radius:999px;padding:7px 14px;min-height:38px;color:var(--muted);font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.tab:hover{color:var(--text);background:var(--panel2)}
+.tab[aria-selected=true]{color:var(--accent);background:var(--wash)}
+.badge{min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--accent);color:var(--on-accent);font-size:12px;font-weight:700;display:inline-grid;place-items:center;line-height:1}
 .tools{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12.5px;white-space:nowrap}
-.icon{width:30px;height:30px;padding:0}
-main.wrap{padding-top:20px;padding-bottom:64px}
+.icon{width:36px;height:36px;padding:0}
+main.wrap{padding-top:20px;padding-bottom:96px}
 .tabpanel{display:flex;flex-direction:column;gap:16px}
+.loaderr{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--err-tint);color:var(--text);border-radius:16px;padding:12px 16px;font-size:13.5px}
 
 /* layout */
 .grid{display:grid;gap:16px}
 .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .g-chart{grid-template-columns:minmax(0,2.1fr) minmax(280px,1fr)}
-.g-dev{grid-template-columns:minmax(0,2fr) minmax(300px,1fr);align-items:start}
+.g-dev{grid-template-columns:minmax(0,1.6fr) minmax(320px,1fr);align-items:start}
 @media (max-width:1000px){.g2,.g-chart,.g-dev{grid-template-columns:minmax(0,1fr)}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;min-width:0}
-.card.flush{padding:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px;min-width:0}
+.card.flush{padding:0;overflow:hidden}
+.card,.bulk{scroll-margin-top:calc(var(--toph) + 12px)}
+.secwrap{margin:14px -20px 0}
+.dt td.ipc{white-space:normal;overflow-wrap:anywhere}
 .cardhead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-.card.flush .cardhead{padding:14px 18px 0;margin-bottom:8px}
-.pad{padding-left:18px;padding-right:18px}
-.msg.pad:not(:empty){padding-bottom:12px}
+.card.flush .cardhead{padding:16px 20px 0;margin-bottom:8px}
 .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .filters .grow{flex:1}
 .filters input[type=search]{min-width:220px}
-.seg{display:inline-flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden;background:var(--page)}
-.seg button{background:none;border:0;border-left:1px solid var(--line2);color:var(--muted);padding:6px 11px;font-weight:600;font-size:12.5px;cursor:pointer;white-space:nowrap}
-.seg button:first-child{border-left:0}
-.seg button.on{background:var(--wash);color:var(--text)}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:var(--panel2);box-shadow:inset 0 0 0 1px var(--line2)}
+.seg button{background:none;border:0;border-radius:999px;color:var(--muted);padding:5px 13px;min-height:30px;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--panel);color:var(--text);box-shadow:0 0 0 1px var(--line2)}
+.tokhint{margin:-6px 0 0;font-size:12.5px;color:var(--muted)}
 .loading .fade{opacity:.5;transition:opacity .15s}
 .fade{transition:opacity .15s}
+
+/* what needs you, first */
+.needs{display:flex;flex-direction:column;gap:14px}
+.needs .cardhead{margin:0}
+#needsBody{display:flex;flex-direction:column;gap:16px}
+#needsBody>p.sub{margin:0}
+#t-overview.fresh>:not(.needs):not(.loaderr){display:none}
+.nitem .btn.ghost{background:var(--panel)}
+.nitem .btn.ghost:hover{background:var(--hover)}
+.ngroup h3{margin:0 0 6px;font-size:14px;font-weight:650;color:var(--text2)}
+.nitem{display:flex;align-items:center;justify-content:space-between;gap:8px 14px;flex-wrap:wrap;padding:10px 12px;border-radius:12px;background:var(--panel2);margin-top:6px}
+.nitem .nwho{min-width:0;flex:1 1 240px;overflow-wrap:anywhere}
+.nitem .nnote{margin-top:2px}
+.calm{margin:0;color:var(--text2)}
+.steps{margin:6px 0 0;padding-left:22px;display:flex;flex-direction:column;gap:10px}
+.steps li b{display:block}
+.steps li.done b::after{content:" ✓";color:var(--ok)}
+.steps .btn{margin-top:6px}
+.pwnote{background:var(--warn-tint);border-radius:16px;padding:14px 18px;display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.pwnote form{display:flex;gap:8px;flex-wrap:wrap}
+.pwnote input{flex:1 1 180px;min-width:0}
 
 /* stat tiles */
 .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
 @media (max-width:1150px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
-.kpi .l{font-size:12px;color:var(--muted)}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px;min-width:0}
+.kpi .l{font-size:12.5px;color:var(--muted);font-weight:600}
 .kpi .v{font-size:24px;font-weight:650;line-height:1.25;margin:3px 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi .d{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.kpi .s{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .s{font-size:12px;color:var(--muted)}
 
 /* tables */
 .tablewrap{overflow-x:auto}
-table.dt{width:100%;border-collapse:collapse;font-size:13px}
-.dt th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line2);white-space:nowrap;background:var(--panel)}
-.dt td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+table.dt{width:100%;border-collapse:collapse;font-size:13.5px}
+.dt th{font-size:12.5px;font-weight:600;color:var(--muted);text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--panel)}
+.dt td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
 .dt tbody tr:last-child td{border-bottom:0}
-.dt th:first-child,.dt td:first-child{padding-left:18px}
-.dt th:last-child,.dt td:last-child{padding-right:18px}
+.dt th:first-child,.dt td:first-child{padding-left:20px}
+.dt th:last-child,.dt td:last-child{padding-right:20px}
 .dt .num{text-align:right;font-variant-numeric:tabular-nums}
 .dt .right{text-align:right}
 .dt .muted{color:var(--muted)}
-.dt .mono{font:12.5px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--text2)}
+.dt .mono{font:13px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--text2)}
 .dt tbody tr.click{cursor:pointer}
 .dt tbody tr.click:hover>td,.dt tbody tr.click:focus-visible>td{background:var(--hover)}
 .dt tbody tr.click:focus-visible{outline:none}
+.dt tbody tr.click:focus-visible>td:first-child{box-shadow:inset 3px 0 var(--focus)}
 .dt th button{background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .dt th button:hover,.dt th[aria-sort] button{color:var(--text)}
 .dt th .arr{font-size:9px}
 .dt .selcol{width:34px;padding-right:0}
 .dt .wrapcell{white-space:normal;min-width:180px;max-width:360px}
 .dt .trunc{max-width:220px;overflow:hidden;text-overflow:ellipsis}
-.dt td.empty{text-align:center;color:var(--muted);padding:28px 10px}
-.dt tr.owner>td{background:rgba(217,119,87,.045)}
-.pname b{font-weight:650}
-.pname .n{display:block;font-size:12px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis}
-.pname b{display:block;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.dt .ph{display:none}
+.dt td.empty{text-align:center;color:var(--muted);padding:28px 10px;white-space:normal}
+.dt tr.owner>td{background:var(--panel2)}
+.pname b{font-weight:650;display:block;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.pname .n,.dvn{display:block;font-size:12px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.dvn{max-width:340px}
 #peopleTbl th.num{white-space:normal;max-width:84px;line-height:1.3}
 #peopleTbl th.num button{white-space:normal;text-align:right;justify-content:flex-end}
-.chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;border-radius:99px;padding:1px 8px;border:1px solid var(--line2);color:var(--text2);white-space:nowrap}
+#peopleTbl td.acc{white-space:normal;min-width:110px;max-width:150px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;border-radius:99px;padding:2px 9px;background:var(--panel2);color:var(--text2);white-space:nowrap}
 .chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
-.chip.ok{color:var(--ok);border-color:rgba(127,201,154,.35)}
-.chip.err{color:var(--err);border-color:rgba(255,138,122,.35)}
-.chip.warn{color:var(--warn);border-color:rgba(250,178,25,.35)}
-.chip.owner{color:var(--accent);border-color:rgba(217,119,87,.4)}
+.chip.ok{color:var(--ok);background:var(--ok-tint)}
+.chip.err{color:var(--err);background:var(--err-tint)}
+.chip.warn,.chip.over{color:var(--warn);background:var(--warn-tint)}
+.chip.owner{color:var(--accent);background:var(--wash)}
 .chip.mute{color:var(--muted)}
-.chip.banned{color:#fff;background:#b4432f;border-color:#b4432f}
-.chip.term{color:#141414;background:var(--text);border-color:var(--text)}
-.chip.over{color:var(--warn);border-color:rgba(250,178,25,.45)}
-.banbox{background:rgba(180,67,47,.1);border:1px solid rgba(255,138,122,.35);border-radius:10px;padding:10px 12px;font-size:13px}
-.banbox.term{background:rgba(235,232,225,.06);border-color:#5a5650}
-.banbox .sub{margin-top:4px}
-.banbox.rst{background:rgba(250,178,25,.07);border-color:rgba(250,178,25,.4)}
-.banbox+.banform{margin-top:10px}
-.banform{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.chip.banned{color:var(--on-bad);background:var(--bad)}
+.chip.term{color:var(--on-worst);background:var(--worst)}
+.banbox{background:var(--err-tint);border-radius:14px;padding:12px 14px;font-size:13.5px}
+.banbox.term{background:var(--panel2)}
+.banbox.rst{background:var(--warn-tint)}
+.banbox .sub{margin-top:4px;color:var(--text2)}
+.banbox+.banfold,.linked+.banfold{margin-top:10px}
+.banfold>summary{cursor:pointer;font-weight:600;font-size:13.5px;color:var(--text2);padding:8px 0;min-height:36px}
+.banform{background:var(--panel2);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;margin-top:6px}
 .banform input,.banform textarea{width:100%}
-.banform input[type=checkbox]{width:15px}
+.banform input[type=checkbox]{width:16px}
 /* what a restriction takes away */
 .rform{display:flex;flex-direction:column;gap:8px}
 .rform .inl input{width:120px}
-.btn.bad{background:#b4432f}
-.btn.worst{background:var(--text);color:#141414}
-.btn.warnb{background:#94650f}
 /* shared a browser with a terminated account */
-.linked{font-size:12.5px;color:var(--warn);margin-bottom:10px;overflow-wrap:anywhere}
-/* appeals waiting, at the top of the Moderation card */
-.subh{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:650;padding:4px 18px 8px}
-.appeal{padding:12px 18px;border-top:1px solid var(--line);font-size:13px}
+.linked{font-size:13px;color:var(--warn);margin-bottom:10px;overflow-wrap:anywhere}
+/* appeals waiting, at the top of the bans card */
+.subh{font-size:13px;color:var(--text2);font-weight:650;padding:4px 20px 8px}
+.appeal{padding:12px 20px;border-top:1px solid var(--line);font-size:13.5px}
 .appeal:last-child{border-bottom:1px solid var(--line)}
-.appeal .quote{font-size:13px;color:var(--text)}
+.appeal .quote{font-size:13.5px;color:var(--text)}
 .areply{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
 .areply input{flex:1 1 220px;min-width:0}
 .hist{font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.6;overflow-wrap:anywhere}
 textarea{display:block;resize:vertical;min-height:64px;width:100%}
-.annbox{background:var(--page);border:1px solid rgba(217,119,87,.45);border-radius:10px;padding:10px 12px;margin-bottom:10px;white-space:pre-wrap;overflow-wrap:anywhere}
-.swatch{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:8px;vertical-align:-1px;flex:none}
-.share{display:inline-flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums;color:var(--text2);font-size:12.5px}
+.annbox{background:var(--panel2);border-radius:12px;padding:10px 12px;margin-bottom:10px;white-space:pre-wrap;overflow-wrap:anywhere}
+.swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;vertical-align:-1px;flex:none}
+.share{display:inline-flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums;color:var(--text2);font-size:13px}
 .share i{display:block;height:6px;border-radius:0 3px 3px 0;background:var(--bar)}
 .share .track{width:64px;height:6px;flex:none}
-.meter{display:inline-block;width:64px;height:6px;border-radius:99px;background:rgba(217,119,87,.18);overflow:hidden;vertical-align:middle;flex:none}
+.meter{display:inline-block;width:64px;height:6px;border-radius:99px;background:var(--wash);overflow:hidden;vertical-align:middle;flex:none}
 .meter i{display:block;height:100%;border-radius:99px;background:var(--accent)}
 .meter i.warn{background:var(--warn)}.meter i.full{background:var(--err)}
 .today{display:inline-flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
-.tag{display:inline-block;font-size:11px;line-height:16px;border:1px solid var(--line2);border-radius:5px;padding:0 5px;color:var(--text2);margin-left:6px;vertical-align:1px}
-.tag.warn{color:var(--warn);border-color:rgba(250,178,25,.35)}
-.qcell{max-width:440px;overflow:hidden;text-overflow:ellipsis}
+.tag{display:inline-block;font-size:12px;line-height:18px;border-radius:99px;padding:0 8px;background:var(--panel2);color:var(--text2);margin:0 6px 0 0;white-space:nowrap}
+.tag.warn{color:var(--warn);background:var(--warn-tint)}
+.dt tr.open .tag:not(.warn){background:var(--panel)}
+td>.tag,.pname+.tag,b+.tag{margin-left:6px}
+.qcell{white-space:normal!important;min-width:220px}
+.qcell .qt{display:block;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qcell .qtags{display:block;max-width:380px;margin-top:3px;white-space:normal;line-height:22px}
 .dt tr.open>td{background:var(--panel2)}
-.dt tr.detail>td{background:var(--panel2);white-space:normal;padding:4px 18px 18px}
-.more{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px;border-top:1px solid var(--line)}
+.dt tr.detail>td{background:var(--panel2);white-space:normal;padding:4px 20px 18px}
+.more{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 20px;border-top:1px solid var(--line)}
 
 /* chart */
 .legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
-.legend i{width:10px;height:10px;border-radius:2px}
-.sum{margin:0 0 12px;font-size:13px;color:var(--muted)}
+.legend i{width:10px;height:10px;border-radius:3px}
+.sum{margin:0 0 12px;font-size:13.5px;color:var(--muted)}
 .sum b{color:var(--text);font-weight:650}
 figure{margin:0}
 .chart{position:relative}
 .chart svg{display:block;width:100%;height:auto;overflow:visible;outline:none}
-.chart svg:focus-visible{outline:1px solid #6a6964;outline-offset:4px;border-radius:4px}
-.chart text{fill:var(--muted);font:11px system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.chart svg:focus-visible{outline:2px solid var(--focus);outline-offset:4px;border-radius:6px}
+.chart text{fill:var(--muted);font:12px system-ui,sans-serif;font-variant-numeric:tabular-nums}
 .chart .peak{fill:var(--text);font-weight:600}
 .chart .grid{stroke:var(--line);stroke-width:1}
 .chart .base{stroke:var(--line2);stroke-width:1}
@@ -188,167 +238,297 @@ figure{margin:0}
 .chart .nodata{fill:var(--muted);font-size:13px}
 .chart rect.cell{cursor:default}
 .chart rect.cell.on{stroke:var(--text);stroke-width:1.5}
-.tip{position:absolute;pointer-events:none;background:#0c0c0b;border:1px solid var(--line2);border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.5;min-width:150px;box-shadow:0 8px 24px rgba(0,0,0,.5);opacity:0;transition:opacity .1s;z-index:5}
+.tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 11px;font-size:12.5px;line-height:1.5;min-width:150px;box-shadow:0 10px 26px var(--shadow);opacity:0;transition:opacity .1s;z-index:5}
 .tip.on{opacity:1}
 .tip .d{color:var(--muted)}
 .tip .t{font-size:15px;font-weight:650}
 .tip .r{display:flex;align-items:center;gap:7px}
-.tip .r i{width:10px;height:2px;border-radius:1px}
+.tip .r i{width:10px;height:3px;border-radius:2px}
 .tip .r b{font-weight:600;min-width:42px}
 .tip .x{color:var(--muted);margin-top:3px}
 details.tv{margin-top:10px}
 details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
 .tvwrap{max-height:280px;overflow:auto;margin-top:8px}
 .tvwrap .dt td,.tvwrap .dt th{padding:4px 8px}
-.scale{display:inline-flex;align-items:center;gap:3px;font-size:12px;color:var(--muted)}
-.scale i{width:14px;height:10px;border-radius:2px;display:inline-block}
+.scale{display:inline-flex;align-items:center;gap:3px;font-size:12.5px;color:var(--muted)}
+.scale i{width:14px;height:10px;border-radius:3px;display:inline-block}
 .scale span{margin:0 4px}
 
 /* budget and fact lists */
 .big{font-size:30px;font-weight:650;line-height:1.2;margin:2px 0 10px}
-.big span{font-size:14px;font-weight:500;color:var(--muted)}
+.big span{font-size:14px;font-weight:500;color:var(--muted);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .meter.wide{width:100%;height:8px;margin-bottom:14px}
-.facts{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;margin:0;font-size:13px}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;margin:0;font-size:13.5px}
 .facts dt{color:var(--muted)}
 .facts dd{margin:0;color:var(--text2);min-width:0;overflow-wrap:anywhere}
 
 /* people */
-.switch{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer;user-select:none}
-.switch input{appearance:none;-webkit-appearance:none;width:34px;height:20px;margin:0;padding:0;border-radius:99px;background:var(--line2);border:0;position:relative;cursor:pointer;transition:background .15s}
-.switch input::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:var(--text);transition:transform .15s}
+.switch{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text2);cursor:pointer;user-select:none}
+.switch input{appearance:none;-webkit-appearance:none;width:36px;height:22px;min-height:0;margin:0;padding:0;border-radius:99px;background:var(--line2);border:0;position:relative;cursor:pointer;transition:background .15s}
+.switch input::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:var(--panel);transition:transform .15s}
 .switch input:checked{background:var(--accent)}
-.switch input:checked::after{transform:translateX(14px);background:#fff}
-.bulk{display:flex;flex-wrap:wrap;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:8px 12px;position:sticky;top:64px;z-index:10}
-.bulk b{margin-right:6px;font-size:13px}
+.switch input:checked::after{transform:translateX(14px);background:var(--on-accent)}
+.bulk{display:flex;flex-wrap:wrap;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line2);border-radius:16px;padding:8px 12px;position:sticky;top:calc(var(--toph) + 8px);z-index:10;box-shadow:0 8px 20px -12px var(--shadow)}
+.bulk b{margin-right:6px;font-size:13.5px}
 .bulk .msg{margin:0 0 0 6px}
-.bulklimit{display:flex;gap:8px;align-items:center;flex-basis:100%;padding-top:6px}
+.bulklimit{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-basis:100%;padding-top:6px}
 .bulklimit input{width:120px}
+.bulkuse{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px 16px;flex-basis:100%;padding-top:6px}
+.bulkuse>div{display:flex;align-items:center;gap:6px}
+.bulkuse .bl{font-size:13px;color:var(--text2);min-width:92px}
 .field{margin-top:12px}
-.field>label:not(.ck),.field>.fl{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+.field>label:not(.ck),.field>.fl{display:block;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px}
 .inl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .inl input{width:130px}
-.inl .unit{font-size:12.5px;color:var(--muted)}
-.ck{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;margin-right:16px;cursor:pointer}
+.inl .unit{font-size:13px;color:var(--muted)}
+.ck{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;margin-right:16px;cursor:pointer;min-height:30px}
 
-/* drawer */
-.scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:30;opacity:0;pointer-events:none;transition:opacity .2s}
+/* one person, in a side panel */
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:30;opacity:0;pointer-events:none;transition:opacity .2s}
 .scrim.on{opacity:1;pointer-events:auto}
-.drawer{position:fixed;top:0;right:0;bottom:0;width:min(500px,100vw);background:var(--panel);border-left:1px solid var(--line);z-index:31;transform:translateX(102%);visibility:hidden;transition:transform .22s cubic-bezier(.2,.8,.2,1),visibility 0s linear .22s;display:flex;flex-direction:column;box-shadow:-20px 0 50px rgba(0,0,0,.4)}
-.drawer.on{transform:none;visibility:visible;transition:transform .22s cubic-bezier(.2,.8,.2,1)}
-.dwhead{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
-.dwhead h3{margin:0;font-size:18px;overflow-wrap:anywhere}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100vw);background:var(--panel);border-radius:20px 0 0 20px;z-index:31;transform:translateX(102%);visibility:hidden;transition:transform .2s cubic-bezier(.2,.8,.2,1),visibility 0s linear .2s;display:flex;flex-direction:column;box-shadow:-20px 0 50px var(--shadow)}
+.drawer.on{transform:none;visibility:visible;transition:transform .2s cubic-bezier(.2,.8,.2,1)}
+.dwhead{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
+.dwhead h3{margin:0;font-size:20px;overflow-wrap:anywhere}
 .dwhead .sub{margin-top:4px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
 .dwhead .btn{margin-left:auto}
-.dwbody{overflow:auto;padding:16px 18px 40px;display:flex;flex-direction:column;gap:22px}
-.dwbody h4{margin:0 0 10px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:650}
+.dwbody{overflow:auto;padding:16px 20px 40px;display:flex;flex-direction:column;gap:22px}
+.dwbody h4{margin:0 0 10px;font-size:13px;color:var(--text2);font-weight:650}
 .trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.trio>div{background:var(--page);border:1px solid var(--line);border-radius:10px;padding:9px 11px;min-width:0}
-.trio .l{font-size:11.5px;color:var(--muted)}
+.trio>div{background:var(--panel2);border-radius:12px;padding:9px 11px;min-width:0}
+.trio .l{font-size:12px;color:var(--muted)}
 .trio .v{font-size:17px;font-weight:650}
-.trio .s{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.limitline{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:12.5px;color:var(--text2)}
+.trio .s{font-size:12px;color:var(--muted)}
+.limitline{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:13px;color:var(--text2)}
 .limitline .meter{flex:1;width:auto;height:8px}
 .list{display:flex;flex-direction:column}
-.list .it{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.list .it{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
 .list .it:last-child{border-bottom:0}
 .list .it .q{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .list .it .m{font-size:12px;color:var(--muted);grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .list .it .act{grid-row:1/3;grid-column:2;align-self:center}
-.note{background:var(--page);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--text2);overflow-wrap:anywhere}
+.note{background:var(--panel2);border-radius:12px;padding:10px 12px;font-size:13.5px;color:var(--text2);overflow-wrap:anywhere}
 .np{display:flex;gap:8px;margin-top:10px}
-.np input{flex:1}
-.linkbtn{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;font-size:12.5px}
+.np input{flex:1;min-width:0}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;font-size:13px;font-weight:600;text-align:left}
+.linkbtn:hover{text-decoration:underline}
+.kinds{margin:14px 0 0;display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:12.5px;color:var(--muted)}
+.kinds dt{font-weight:650;color:var(--text2)}
+.kinds dd{margin:0}
 
 /* activity detail */
 .dgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;padding-top:12px}
 @media (max-width:800px){.dgrid{grid-template-columns:minmax(0,1fr)}}
-.dgrid h5{margin:0 0 6px;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.55;margin:0;max-height:340px;overflow:auto;background:var(--page);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
-.quote{border-left:3px solid var(--line2);padding:2px 0 2px 10px;color:var(--text2);font-size:12.5px;margin:10px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.dgrid h5{margin:0 0 6px;font-size:13px;color:var(--text2);font-weight:650}
+.pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13.5px;line-height:1.55;margin:0;max-height:340px;overflow:auto;background:var(--panel);border-radius:12px;padding:10px 12px}
+.quote{border-left:3px solid var(--line2);padding:2px 0 2px 10px;color:var(--text2);font-size:13px;margin:10px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
 .dmeta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);margin-top:12px}
 .dmeta a{color:var(--text2)}
 
 /* settings */
 .form{display:flex;flex-direction:column;gap:8px}
-.form label.f{font-size:12.5px;color:var(--muted)}
-.form .hint{font-size:12px;color:var(--muted);margin:-2px 0 4px}
+.form label.f{font-size:13px;font-weight:600;color:var(--text2)}
+.form .hint{font-size:12.5px;color:var(--muted);margin:-2px 0 4px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .row2>div{display:flex;flex-direction:column;gap:6px}
-.pill{display:inline-block;font-size:11.5px;font-weight:600;border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:1px}
-.pill.on{background:rgba(127,201,154,.14);color:var(--ok)}
-.pill.off{color:var(--muted);border:1px solid var(--line2)}
+.pill{display:inline-block;font-size:12px;font-weight:600;border-radius:99px;padding:1px 9px;margin-left:6px;vertical-align:1px}
+.pill.on{background:var(--ok-tint);color:var(--ok)}
+.pill.off{color:var(--muted);background:var(--panel2)}
 
+/* what just happened, in one place, with Undo where there is one */
+.toast{position:fixed;left:0;right:0;bottom:18px;z-index:40;display:flex;justify-content:center;pointer-events:none;padding:0 16px}
+.tcard{pointer-events:auto;display:flex;align-items:center;gap:10px;max-width:620px;background:var(--worst);color:var(--on-worst);border-radius:16px;padding:10px 10px 10px 16px;box-shadow:0 12px 30px -10px var(--shadow);font-size:13.5px}
+.tcard.err{background:var(--bad);color:var(--on-bad)}
+.tcard .tt{flex:1;min-width:0}
+.tcard .btn{background:var(--on-worst);color:var(--worst)}
+.tcard .tx{background:none;border:0;color:inherit;width:36px;height:36px;border-radius:50%;cursor:pointer;flex:none;font-size:14px}
+.tcard .tx:focus-visible,.tcard .btn:focus-visible{outline-color:currentColor}
+
+/* asking before something that is hard or impossible to undo */
+.ask{border:0;border-radius:20px;padding:22px;max-width:min(440px,calc(100vw - 32px));background:var(--panel);color:var(--text);box-shadow:0 20px 50px -12px var(--shadow)}
+.ask::backdrop{background:var(--scrim)}
+.ask h3{margin:0 0 8px;font-size:18px;overflow-wrap:anywhere}
+.ask p{margin:0 0 10px;font-size:14px;color:var(--text2)}
+.ask .noundo{color:var(--err);font-weight:650}
+.ask .btns{justify-content:flex-end;margin-top:16px}
+
+/* narrower than a laptop: the tabs get a row of their own, five equal ones, so every tab is always in view */
+@media (max-width:1000px){
+  :root{--toph:105px}
+  .top .wrap{flex-wrap:wrap;height:auto;gap:4px 10px;padding-top:6px}
+  .top .brand{flex:1}
+  .tabs{order:3;flex:1 1 100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;padding-bottom:6px}
+  /* the bans history: each one a short card, everything still in it */
+  #modTbl,#modTbl tbody{display:block}
+  #modTbl thead{display:none}
+  #modTbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;padding:12px 20px;border-bottom:1px solid var(--line);align-items:center}
+  #modTbl tr:last-child{border-bottom:0}
+  #modTbl td{border:0;padding:0!important;white-space:normal;max-width:none;min-width:0;background:none!important;box-shadow:none!important}
+  #modTbl tr.click:hover,#modTbl tr.click:focus-visible{background:var(--hover)}
+  #modTbl tr.click:focus-visible{box-shadow:inset 3px 0 var(--focus)}
+  #modTbl td:nth-child(1){grid-column:1;grid-row:1}
+  #modTbl td:nth-child(4){grid-column:2;grid-row:1;color:var(--muted);font-size:12.5px}
+  #modTbl td:nth-child(2){grid-column:1/-1;grid-row:2}
+  #modTbl td:nth-child(3){grid-column:1/-1;grid-row:3;color:var(--text2)}
+  #modTbl td:nth-child(5){grid-column:1;grid-row:4;font-size:12.5px}
+  #modTbl td:nth-child(6){grid-column:2;grid-row:4}
+  #actTbl td:nth-child(2){white-space:normal;overflow-wrap:anywhere}
+}
+/* wide tables lose the columns whose numbers are also in the person's panel or the opened row; a sort menu keeps every order */
+.psort{display:none;gap:6px;align-items:center}
+@media (max-width:1360px){
+  .psort{display:inline-flex}
+  #peopleTbl th:nth-child(10),#peopleTbl td:nth-child(10),#peopleTbl th:nth-child(12),#peopleTbl td:nth-child(12){display:none}
+  .qcell .qt{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  #actTbl .trunc{max-width:160px}
+  .dvn{white-space:normal;overflow-wrap:anywhere;max-width:260px}
+  #modTbl td:nth-child(5){white-space:normal;min-width:150px}
+}
+@media (max-width:1250px){#t-overview .g2{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:1200px){
+  #peopleTbl th:nth-child(8),#peopleTbl td:nth-child(8),#peopleTbl th:nth-child(9),#peopleTbl td:nth-child(9){display:none}
+  #actTbl th:nth-child(6),#actTbl td:nth-child(6),#actTbl th:nth-child(7),#actTbl td:nth-child(7){display:none}
+}
+@media (max-width:1020px){
+  #peopleTbl th:nth-child(4),#peopleTbl td:nth-child(4),#peopleTbl th:nth-child(6),#peopleTbl td:nth-child(6),#peopleTbl th:nth-child(7),#peopleTbl td:nth-child(7){display:none}
+}
+@media (max-width:1000px){
+  #actTbl th:nth-child(3),#actTbl td:nth-child(3),#actTbl th:nth-child(4),#actTbl td:nth-child(4){display:none}
+}
 @media (max-width:700px){
-  .wrap{padding:0 12px}
-  .top .wrap{gap:10px;height:52px}
-  .top .brand .bt,.top .brand .ad,#updated{display:none}
-  .card{padding:14px}
-  .card.flush .cardhead{padding:12px 14px 0}
-  .dt th:first-child,.dt td:first-child{padding-left:14px}
-  .dt th:last-child,.dt td:last-child{padding-right:14px}
+  .wrap{padding:0 16px}
+  .top .brand .ad,#updated{display:none}
+  .tab{padding:6px 2px;font-size:13px;gap:4px}
+  .tab .badge{min-width:18px;height:18px;padding:0 4px}
+  main.wrap{padding-top:14px}
+  .gate{margin:8vh 16px 0}
+  .card{padding:16px}
+  .secwrap{margin:14px -16px 0}
+  .card.flush .cardhead{padding:14px 16px 0}
+  .dt th:first-child,.dt td:first-child{padding-left:16px}
+  .dt th:last-child,.dt td:last-child{padding-right:16px}
   .filters input[type=search]{min-width:0;flex:1 1 100%}
   .row2{grid-template-columns:1fr}
-  .bulk{top:58px}
-  #pendTbl thead{display:none}
-  #pendTbl tr{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 14px;border-bottom:1px solid var(--line)}
-  #pendTbl tr:last-child{border-bottom:0}
-  #pendTbl td{border:0;padding:0!important;white-space:normal;max-width:none;min-width:0}
+  .share .track{width:36px}
+  .kpi .d{white-space:normal}
+  .subh,.appeal{padding-left:16px;padding-right:16px}
+  .drawer{border-radius:0}
+  .dwhead{padding:14px 16px}.dwbody{padding:14px 16px 40px}
+  .bulkuse{grid-template-columns:1fr}
+  /* a table row becomes a short card: who and how they are on top, the number that matters under it, tap for the rest */
+  #pendTbl,#pendTbl tbody,#peopleTbl,#peopleTbl thead,#peopleTbl tbody,#actTbl,#actTbl tbody,#devTbl,#devTbl tbody{display:block}
+  #pendTbl thead,#actTbl thead,#devTbl thead{display:none}
+  #modTbl tr{padding:12px 16px}
+  #pendTbl tr,#peopleTbl tbody tr,#actTbl tbody tr:not(.detail),#devTbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;padding:12px 16px;border-bottom:1px solid var(--line);align-items:center}
+  #pendTbl tr:last-child,#peopleTbl tbody tr:last-child,#devTbl tr:last-child{border-bottom:0}
+  #pendTbl td,#peopleTbl td,#actTbl td,#devTbl td{border:0;padding:0!important;white-space:normal;max-width:none;min-width:0;background:none!important;box-shadow:none!important}
+  #peopleTbl tbody tr.click:hover,#peopleTbl tbody tr.click:focus-visible,#actTbl tbody tr.click:hover,#actTbl tbody tr.click:focus-visible,#devTbl tr.click:hover,#devTbl tr.click:focus-visible{background:var(--hover)}
+  #peopleTbl tbody tr.click:focus-visible,#actTbl tbody tr.click:focus-visible,#devTbl tr.click:focus-visible{box-shadow:inset 3px 0 var(--focus)}
+  #actTbl tbody tr.open,#actTbl tbody tr.open:hover,#actTbl tr.detail{background:var(--panel2)}
   #pendTbl td:nth-child(2){grid-column:1/-1;grid-row:2}
-  #pendTbl td:nth-child(3){grid-column:1/-1;grid-row:3;font-size:12px;color:var(--muted)}
+  #pendTbl td:nth-child(3){grid-column:1/-1;grid-row:3;font-size:12.5px;color:var(--muted)}
   #pendTbl td:nth-child(4){grid-column:2;grid-row:1}
-  #actTbl th:nth-child(3),#actTbl td:nth-child(3),#actTbl th:nth-child(4),#actTbl td:nth-child(4){display:none}
-  .qcell{max-width:260px}
+  #peopleTbl thead tr{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 16px 6px}
+  #peopleTbl thead th{border:0;padding:0!important;background:none}
+  #peopleTbl thead th:nth-child(4),#peopleTbl thead th:nth-child(n+6):not(:nth-child(11)){display:none}
+  #peopleTbl thead th button{padding:0 14px;border-radius:999px;background:var(--panel2)}
+  #peopleTbl thead th.selcol{width:auto;padding-right:6px!important}
+  #peopleTbl tbody tr{grid-template-columns:auto minmax(0,1fr) auto}
+  #peopleTbl tr.owner{background:var(--panel2)}
+  #peopleTbl tr.owner>td{background:none}
+  .dt th{white-space:normal}
+  #featTbl td:first-child,#modelTbl td:first-child,#topTbl td:first-child{white-space:normal}
+  #peopleTbl td{display:none}
+  #peopleTbl td:nth-child(1){display:flex;align-items:center;justify-content:center;grid-row:1/3;min-width:44px;min-height:44px;margin-left:-10px}
+  #peopleTbl td:nth-child(2),#peopleTbl td:nth-child(5){display:block;grid-column:2}
+  #peopleTbl td:nth-child(3){display:block;grid-column:3;grid-row:1;justify-self:end}
+  #peopleTbl td:nth-child(11){display:block;grid-column:3;grid-row:2;justify-self:end;color:var(--muted);font-size:12.5px}
+  #peopleTbl td.empty,#actTbl td.empty,#devTbl td.empty{display:block;grid-column:1/-1;padding:20px 0!important}
+  .pname b,.pname .n{max-width:none}
+  #actTbl tbody tr:not(.detail){grid-template-columns:minmax(0,1fr) auto auto}
+  #actTbl td:nth-child(3),#actTbl td:nth-child(4),#actTbl td:nth-child(6),#actTbl td:nth-child(7){display:none}
+  #actTbl td:nth-child(1){grid-column:2;grid-row:1;color:var(--muted);font-size:12.5px}
+  #actTbl td:nth-child(2){grid-column:1;grid-row:1;font-weight:600}
+  #actTbl td:nth-child(5){grid-column:1/-1;grid-row:2}
+  #actTbl td:nth-child(8){grid-column:3;grid-row:1;color:var(--muted);font-size:12.5px}
+  #actTbl tr.detail{display:block}
+  #actTbl tr.detail>td{display:block;padding:4px 16px 16px!important}
+  .qcell .qt{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  #devTbl td:nth-child(1){grid-column:1;grid-row:1;font-weight:600}
+  #devTbl td:nth-child(2){grid-column:1;grid-row:2}
+  #devTbl td:nth-child(3){grid-column:1;grid-row:3;color:var(--muted);font-size:12.5px}
+  #devTbl td:nth-child(3)::before{content:"Last used "}
+  #devTbl td:nth-child(4){grid-column:2;grid-row:1;justify-self:end}
+  #devTbl td:nth-child(5){grid-column:2;grid-row:2/4;justify-self:end}
+  .dvn{max-width:none}
+  #modelTbl th:nth-child(4),#modelTbl td:nth-child(4),#modelTbl th:nth-child(6),#modelTbl td:nth-child(6),
+  #topTbl th:nth-child(3),#topTbl td:nth-child(3),#topTbl th:nth-child(5),#topTbl td:nth-child(5),
+  #siteTbl th:nth-child(3),#siteTbl td:nth-child(3),#siteTbl th:nth-child(4),#siteTbl td:nth-child(4){display:none}
+  #siteTbl .trunc{max-width:150px}
+  .dt .ph{display:block;font-size:12px;color:var(--muted);white-space:normal}
+  .toast{bottom:12px;padding:0 12px}
+}
+/* comfortable targets on touch screens and phones */
+@media (pointer:coarse),(max-width:700px){
+  .btn,.btn.sm,.tab,input:not([type=checkbox]),select,.seg button,.dt th button,.top .brand{min-height:44px}
+  details.tv summary{min-height:44px;display:flex;align-items:center}
+  .tcard .tx{width:44px;height:44px}
+  .btn.sm{padding:8px 14px}
+  .icon{width:44px;height:44px}
+  input[type=checkbox]{width:22px;height:22px}
+  .switch input{width:44px;height:28px}.switch input::after{width:22px;height:22px}.switch input:checked::after{transform:translateX(16px)}
+  .linkbtn{min-height:44px}
+  .ck{min-height:44px}
+  .banfold>summary{min-height:44px;padding:11px 0}
 }
 .dwrap{position:sticky;left:0;max-width:calc(100vw - 72px)}
-@media (prefers-reduced-motion:reduce){.drawer,.scrim,.fade,.tip{transition:none}}
-/* Matching desk finish; solid sticky navigation avoids a full-width blur on older GPUs. */
-:root{--page:#161b21;--panel:#1e252e;--panel2:#293443;--hover:#2f3d4f;--line:#333d49;--line2:#4c5f76;--text:#edf0f4;--text2:#c3cfdf;--muted:#a2afbf;--accent:#a6c4f4;--wash:#a6c4f41a}
-.top{background:var(--page);backdrop-filter:none;-webkit-backdrop-filter:none}
-.brand{font-family:inherit;font-weight:650;font-size:18px;letter-spacing:-.5px}
-.brand .dot{border-radius:2px 6px 2px 2px;height:15px;box-shadow:none}
-.btn,.badge{color:#142640}
-.btn.ghost{color:var(--text)}
-.btn.danger{color:var(--err)}
-.card{border-radius:10px}
-.tab{border-radius:5px}
-.tab[aria-selected=true]{color:var(--accent);box-shadow:inset 0 -2px var(--accent)}
-.gate{border-radius:12px}
-h2{letter-spacing:.01em}
+@media (max-width:700px){.dwrap{max-width:none;position:static}}
+@media (prefers-reduced-motion:reduce){.drawer,.scrim,.fade,.tip,.btn,.switch input,.switch input::after{transition:none}.btn:active:not(:disabled){transform:none}}
 </style>
 </head>
 <body>
 <form class="gate" id="unlock" autocomplete="off">
-  <div class="brand"><span class="dot"></span><span class="bt">pagebot</span><span class="ad">admin</span></div>
-  <label for="tok">Admin token</label>
-  <input id="tok" type="password" placeholder="ADMIN_TOKEN">
-  <button class="btn" type="submit">Unlock</button>
+  <div class="brand"><span class="dot" aria-hidden="true"></span><span class="bt">pagebot</span><span class="ad">dashboard</span></div>
+  <label for="tok">Your admin token</label>
+  <input id="tok" type="password" placeholder="Paste it here" aria-describedby="tokHint">
+  <p class="hint" id="tokHint">It’s the long secret you saved as ADMIN_TOKEN when you set pagebot up.</p>
+  <button class="btn" type="submit">Open my dashboard</button>
   <div class="msg err" id="unlockMsg"></div>
 </form>
 
 <div id="app" hidden>
 <header class="top"><div class="wrap">
-  <a class="brand" href="/" title="pagebot home"><span class="dot"></span><span class="bt">pagebot</span><span class="ad">admin</span></a>
-  <nav class="tabs" role="tablist" aria-label="Admin sections">
+  <a class="brand" href="/" title="pagebot home"><span class="dot" aria-hidden="true"></span><span class="bt">pagebot</span><span class="ad">dashboard</span></a>
+  <nav class="tabs" role="tablist" aria-label="Dashboard sections">
     <button class="tab" type="button" role="tab" data-tab="overview" aria-controls="t-overview">Overview</button>
-    <button class="tab" type="button" role="tab" data-tab="people" aria-controls="t-people">People <span class="badge" id="pendBadge" title="Waiting to be accepted" hidden></span></button>
+    <button class="tab" type="button" role="tab" data-tab="people" aria-controls="t-people">People <span class="badge" id="pendBadge" title="Waiting to be let in" hidden></span></button>
     <button class="tab" type="button" role="tab" data-tab="activity" aria-controls="t-activity">Activity</button>
     <button class="tab" type="button" role="tab" data-tab="devices" aria-controls="t-devices">Devices</button>
     <button class="tab" type="button" role="tab" data-tab="settings" aria-controls="t-settings">Settings</button>
   </nav>
-  <div class="tools"><span id="updated"></span><button class="btn ghost sm icon" id="refresh" type="button" title="Refresh" aria-label="Refresh">↻</button><button class="btn ghost sm" id="lock" type="button">Lock</button></div>
+  <div class="tools"><span id="updated"></span><button class="btn ghost sm icon" id="refresh" type="button" title="Refresh" aria-label="Refresh">↻</button><button class="btn ghost sm" id="lock" type="button" title="Lock this dashboard; it asks for the token again">Lock</button></div>
 </div></header>
 
 <main class="wrap">
+  <p class="sub" id="booting" role="status" hidden>Loading your dashboard…</p>
+  <div class="pwnote" id="pwNote" hidden>
+    <h2>No password yet</h2>
+    <p class="sub" style="margin:0;color:var(--text2)">Set one here first: it’s what you’ll type when you open pagebot from your bookmark.</p>
+    <form id="pwQuick" autocomplete="off"><input id="q1" type="password" placeholder="New password (8 characters or more)" autocomplete="new-password" aria-label="New password"><input id="q2" type="password" placeholder="Confirm" autocomplete="new-password" aria-label="Confirm password"><button class="btn" type="submit">Set password</button></form>
+    <div class="msg" id="pwQuickMsg"></div>
+  </div>
   <!-- ===== overview ===== -->
   <section class="tabpanel" id="t-overview" role="tabpanel" aria-label="Overview">
+    <section class="card needs" id="needs" aria-labelledby="needsHead"><div class="cardhead"><h2 id="needsHead">Needs you</h2></div><div id="needsBody"></div></section>
     <div class="filters">
       <div class="seg" id="ovRange" role="group" aria-label="Date range">
         <button type="button" data-d="1">Today</button><button type="button" data-d="7">7 days</button><button type="button" data-d="30" class="on">30 days</button><button type="button" data-d="90">90 days</button>
       </div>
       <select id="ovWho" aria-label="Whose usage"></select>
       <span class="grow"></span>
-      <div class="seg" id="ovUnit" role="group" aria-label="Show tokens or dollars"><button type="button" data-u="tokens" class="on">Tokens</button><button type="button" data-u="usd">Dollars</button></div>
+      <div class="seg" id="ovUnit" role="group" aria-label="Show dollars or tokens"><button type="button" data-u="usd" class="on">Dollars</button><button type="button" data-u="tokens">Tokens</button></div>
     </div>
+    <p class="tokhint">Dollars are an estimate of what it cost you, at list prices. Tokens are how the models count text, roughly ¾ of a word each.</p>
     <div class="kpis fade" id="kpis"></div>
     <div class="grid g-chart">
       <div class="card">
@@ -379,45 +559,42 @@ h2{letter-spacing:.01em}
   <section class="tabpanel" id="t-people" role="tabpanel" aria-label="People" hidden>
     <div class="filters">
       <input id="pSearch" type="search" placeholder="Search names and notes" aria-label="Search people">
-      <div class="seg" id="pStatus" role="group" aria-label="Show"><button type="button" data-s="all" class="on">All</button><button type="button" data-s="trusted">Active</button><button type="button" data-s="blocked">Blocked</button></div>
+      <div class="seg" id="pStatus" role="group" aria-label="Show"><button type="button" data-s="all" class="on">All</button><button type="button" data-s="trusted">Active</button><button type="button" data-s="blocked">Turned off</button></div>
+      <span class="psort"><select id="pSort" aria-label="Sort people by"></select><button class="btn ghost sm icon" id="pSortDir" type="button" aria-label="Reverse the order" title="Reverse the order">⇅</button></span>
       <span class="grow"></span>
       <label class="switch"><input type="checkbox" id="signup"><span id="signupState">Sign-ups open</span></label>
-      <button class="btn ghost sm" id="pExport" type="button">Export CSV</button>
+      <button class="btn ghost sm" id="pExport" type="button">Download as a spreadsheet</button>
     </div>
     <div class="card flush" id="pendingCard" hidden>
-      <div class="cardhead"><h2>Waiting to be accepted <span class="badge" id="pendCount"></span></h2><div class="btns"><button class="btn sm" id="acceptAll" type="button">Accept all</button><button class="btn ghost sm" id="denyAll" type="button">Deny all</button></div></div>
+      <div class="cardhead"><h2>Waiting to be let in <span class="badge" id="pendCount"></span></h2><div class="btns"><button class="btn sm" id="acceptAll" type="button">Let everyone in</button><button class="btn ghost sm" id="denyAll" type="button">Turn everyone down</button></div></div>
       <div class="tablewrap"><table class="dt" id="pendTbl"></table></div>
-      <div class="msg pad" id="pendMsg"></div>
     </div>
     <div class="bulk" id="bulk" hidden>
       <b id="bulkCount"></b>
-      <button class="btn ghost sm" type="button" data-b="limit">Set daily limit…</button>
-      <button class="btn ghost sm" type="button" data-b="sonnet-on">Allow Sonnet</button>
-      <button class="btn ghost sm" type="button" data-b="sonnet-off">No Sonnet</button>
-      <button class="btn ghost sm" type="button" data-b="web-on">Allow web</button>
-      <button class="btn ghost sm" type="button" data-b="web-off">No web</button>
-      <button class="btn ghost sm" type="button" data-b="pdf-on">Allow PDF</button>
-      <button class="btn ghost sm" type="button" data-b="pdf-off">No PDF</button>
-      <button class="btn ghost sm" type="button" data-b="actions-on">Allow page actions</button>
-      <button class="btn ghost sm" type="button" data-b="actions-off">No page actions</button>
+      <button class="btn ghost sm" type="button" data-b="limit" aria-expanded="false" aria-controls="bulkLimit">Daily limit…</button>
+      <button class="btn ghost sm" type="button" data-b="use" aria-expanded="false" aria-controls="bulkUse">Can use…</button>
       <button class="btn ghost sm" type="button" data-b="signout">Sign out</button>
-      <button class="btn ghost sm danger" type="button" data-b="block">Block</button>
-      <button class="btn ghost sm" type="button" data-b="unblock">Unblock</button>
+      <button class="btn ghost sm" type="button" data-b="unblock">Turn back on</button>
+      <button class="btn ghost sm danger" type="button" data-b="block">Turn off</button>
       <button class="btn ghost sm" type="button" data-b="clear">Clear selection</button>
       <span class="msg" id="bulkMsg"></span>
+      <div class="bulkuse" id="bulkUse" hidden>
+        <div><span class="bl">Sonnet</span><button class="btn ghost sm" type="button" data-b="sonnet-on" data-l="Allow Sonnet">Allow</button><button class="btn ghost sm" type="button" data-b="sonnet-off" data-l="No Sonnet">Take away</button></div>
+        <div><span class="bl">Web search</span><button class="btn ghost sm" type="button" data-b="web-on" data-l="Allow web search">Allow</button><button class="btn ghost sm" type="button" data-b="web-off" data-l="No web search">Take away</button></div>
+        <div><span class="bl">PDF uploads</span><button class="btn ghost sm" type="button" data-b="pdf-on" data-l="Allow PDF uploads">Allow</button><button class="btn ghost sm" type="button" data-b="pdf-off" data-l="No PDF uploads">Take away</button></div>
+        <div><span class="bl">Page actions</span><button class="btn ghost sm" type="button" data-b="actions-on" data-l="Allow page actions">Allow</button><button class="btn ghost sm" type="button" data-b="actions-off" data-l="No page actions">Take away</button></div>
+      </div>
       <div class="bulklimit" id="bulkLimit" hidden>
-        <div class="seg" id="bKind"><button type="button" data-k="tokens" class="on">Tokens</button><button type="button" data-k="usd">Dollars</button><button type="button" data-k="none">No limit</button></div>
+        <div class="seg" id="bKind" role="group" aria-label="Kind of daily limit"><button type="button" data-k="tokens" class="on">Tokens</button><button type="button" data-k="usd">Dollars</button><button type="button" data-k="none">No limit</button></div>
         <input id="bValue" type="number" min="0" step="any" value="100000" aria-label="Daily limit"><span class="sub" id="bUnit">tokens a day</span>
         <button class="btn sm" type="button" id="bApply">Apply</button>
       </div>
     </div>
     <div class="card flush"><div class="tablewrap"><table class="dt" id="peopleTbl"></table></div></div>
     <div class="card flush" id="modCard" hidden>
-      <div class="cardhead"><h2>Moderation <span class="badge" id="appealCount" title="Appeals waiting" hidden></span></h2><span class="sub" id="modHint"></span></div>
-      <div class="msg pad" id="appealMsg"></div>
-      <div id="appeals" hidden><div class="subh">Appeals waiting</div><div id="appealList"></div><div class="subh" style="padding-top:14px">Log</div></div>
+      <div class="cardhead"><h2>Bans and limits <span class="badge" id="appealCount" title="Appeals waiting for your answer" hidden></span></h2><span class="sub" id="modHint"></span></div>
+      <div id="appeals" hidden><div class="subh">Waiting for your answer</div><div id="appealList"></div><div class="subh" style="padding-top:14px">History</div></div>
       <div class="tablewrap"><table class="dt" id="modTbl"></table></div>
-      <div class="msg pad" id="modMsg"></div>
     </div>
     <datalist id="banReasons"><option value="Spamming"><option value="Harassment or bullying"><option value="Inappropriate content"><option value="Abusing pagebot"><option value="Sharing your account"><option value="Breaking the rules"></datalist>
     <div class="grid g2">
@@ -434,9 +611,9 @@ h2{letter-spacing:.01em}
       <div class="msg" id="annMsg"></div>
     </form>
     <div class="card" id="defaults">
-      <div class="cardhead"><h2>New people start with</h2><span class="sub">Applied when you accept someone</span></div>
+      <div class="cardhead"><h2>New people start with</h2><span class="sub">Applied when you let someone in</span></div>
       <div class="field" style="margin-top:0"><span class="fl">Daily limit</span>
-        <div class="inl"><div class="seg" id="dKind"><button type="button" data-k="tokens">Tokens</button><button type="button" data-k="usd">Dollars</button><button type="button" data-k="none">No limit</button></div>
+        <div class="inl"><div class="seg" id="dKind" role="group" aria-label="Kind of daily limit for new people"><button type="button" data-k="tokens">Tokens</button><button type="button" data-k="usd">Dollars</button><button type="button" data-k="none">No limit</button></div>
         <input id="dValue" type="number" min="0" step="any" aria-label="Daily limit for new people"><span class="unit" id="dUnit"></span></div>
       </div>
       <div class="field"><span class="fl">Can use</span><label class="ck"><input type="checkbox" id="dSonnet"> Sonnet 5.5</label><label class="ck"><input type="checkbox" id="dWeb"> Web search</label><label class="ck"><input type="checkbox" id="dPdf"> PDF uploads</label><label class="ck"><input type="checkbox" id="dActions"> Page actions</label></div>
@@ -456,11 +633,11 @@ h2{letter-spacing:.01em}
       <select id="aModel" aria-label="Model"><option value="">All models</option><option value="haiku">Haiku</option><option value="sonnet">Sonnet</option><option value="router" hidden>OpenRouter</option></select>
       <select id="aFlag" aria-label="Show">
         <option value="">Everything</option><option value="page">With page text</option><option value="highlight">With highlighted text</option><option value="image">With a screenshot</option>
-        <option value="web">Used web search</option><option value="refused">Declined</option><option value="stopped">Stopped early</option><option value="fallback">Fell back to another model</option>
+        <option value="web">Used web search</option><option value="refused">Declined</option><option value="stopped">Stopped early</option><option value="fallback">Another model stepped in</option>
       </select>
       <input id="aSearch" type="search" placeholder="Search questions or sites" aria-label="Search questions or sites">
       <span class="grow"></span>
-      <button class="btn ghost sm" id="aExport" type="button">Export CSV</button>
+      <button class="btn ghost sm" id="aExport" type="button">Download as a spreadsheet</button>
     </div>
     <div class="card flush">
       <div class="tablewrap fade"><table class="dt" id="actTbl"></table></div>
@@ -473,15 +650,13 @@ h2{letter-spacing:.01em}
     <div class="grid g-dev">
       <div class="card flush">
         <div class="cardhead"><h2>Signed-in devices</h2>
-          <div class="btns"><div class="seg" id="devWho" role="group" aria-label="Show"><button type="button" data-w="all" class="on">All</button><button type="button" data-w="owner">Yours</button><button type="button" data-w="accounts">Accounts</button></div>
+          <div class="btns"><div class="seg" id="devWho" role="group" aria-label="Show"><button type="button" data-w="all" class="on">Everyone</button><button type="button" data-w="owner">Yours</button><button type="button" data-w="accounts">Other people</button></div>
           <button class="btn ghost sm danger" id="signoutAll" type="button">Sign out everyone</button></div></div>
         <div class="tablewrap fade"><table class="dt" id="devTbl"></table></div>
-        <div class="msg pad" id="devMsg"></div>
       </div>
       <div class="card">
-        <div class="cardhead"><h2>Login security</h2><button class="btn ghost sm" id="secClear" type="button">Clear lockouts</button></div>
+        <div class="cardhead"><h2>Wrong sign-in tries</h2><button class="btn ghost sm" id="secClear" type="button">Let everyone try again</button></div>
         <div id="secBody"></div>
-        <div class="msg" id="secMsg"></div>
       </div>
     </div>
   </section>
@@ -491,11 +666,11 @@ h2{letter-spacing:.01em}
     <div class="grid g2">
       <form class="card form" id="limForm" autocomplete="off">
         <div class="cardhead"><h2>Limits per question</h2></div>
-        <label class="f" for="lMax">Max tokens per answer</label>
+        <label class="f" for="lMax">Longest answer (in tokens)</label>
         <input id="lMax" type="number" step="1" inputmode="numeric">
-        <p class="hint">Any number from 256 to 100,000. Includes the model's thinking. The panel's ⚙ settings have presets up to 8k, and accounts can choose less, never more.</p>
+        <p class="hint">Any number from 256 to 100,000. Includes the model's thinking. The panel’s ⚙ settings have presets up to 8k, and people can choose less, never more.</p>
         <div class="row2">
-          <div><label class="f" for="lPage">Page text per question (tokens)</label><input id="lPage" type="number" step="500"></div>
+          <div><label class="f" for="lPage">How much of a page to read (in tokens)</label><input id="lPage" type="number" step="500"></div>
           <div><label class="f" for="lSearch">Web searches per question</label><input id="lSearch" type="number" step="1"></div>
         </div>
         <p class="hint" id="lPageHint">About 4 characters per token.</p>
@@ -516,13 +691,13 @@ h2{letter-spacing:.01em}
         <p class="hint">With a passcode set, the panel shows a number pad instead of the password box, on every site. Wrong passcodes count for 24 hours; after 10, only the password can unlock it.</p>
       </form>
       <form class="card form" id="pwForm" autocomplete="off">
-        <div class="cardhead"><h2>Access password</h2></div>
+        <div class="cardhead"><h2>Your password</h2></div>
         <p class="sub" id="pwState" style="margin:0"></p>
-        <input id="p1" type="password" placeholder="New password (min 8)" autocomplete="new-password" aria-label="New password">
+        <input id="p1" type="password" placeholder="New password (8 characters or more)" autocomplete="new-password" aria-label="New password">
         <input id="p2" type="password" placeholder="Confirm" autocomplete="new-password" aria-label="Confirm password">
-        <div><button class="btn" type="submit">Change password</button></div>
+        <div><button class="btn" type="submit" id="pwSave">Change password</button></div>
         <div class="msg" id="pwMsg"></div>
-        <p class="hint">Changing it signs out every device you're logged in on. Accounts stay signed in.</p>
+        <p class="hint" id="pwHint">Changing it signs you out on every device. Other people stay signed in.</p>
       </form>
       <div class="card"><div class="cardhead"><h2>This server</h2></div><dl class="facts" id="about"></dl></div>
     </div>
@@ -531,6 +706,11 @@ h2{letter-spacing:.01em}
 </div>
 
 <div class="scrim" id="scrim"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog class="ask" id="ask" aria-labelledby="askTitle" aria-describedby="askBody askWarn">
+  <form method="dialog"><h3 id="askTitle"></h3><p id="askBody"></p><p class="noundo" id="askWarn" hidden></p>
+  <div class="btns"><button class="btn ghost" value="no" id="askNo">Cancel</button><button class="btn" value="yes" id="askYes"></button></div></form>
+</dialog>
 <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dwName">
   <div class="dwhead"><div style="min-width:0"><h3 id="dwName"></h3><div class="sub" id="dwSub"></div></div><button class="btn ghost sm icon" id="dwClose" type="button" aria-label="Close">✕</button></div>
   <div class="dwbody" id="dwBody"></div>
@@ -549,7 +729,7 @@ let tok = ss.get('pb_admin');
 const nf = new Intl.NumberFormat();
 const short = n => { n = +n || 0; return n >= 1e6 ? (n / 1e6).toFixed(n >= 1e8 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace(/\.0$/, '') + 'K' : String(Math.round(n)); };
 const money = (v, dp) => { v = +v || 0; return v > 0 && v < 0.01 && dp == null ? '<$0.01' : '$' + v.toFixed(dp ?? 2); };
-const cost = v => money(v, v > 0 && v < 0.01 ? 4 : 2);
+const cost = v => v > 0 && v < 0.01 ? '<1¢' : money(v);
 const plural = (n, one, many = one + 's') => `${nf.format(n)} ${n === 1 ? one : many}`;
 const frac = (a, b) => b ? a / b : 0;
 const pctText = f => f >= 0.995 && f <= 1.005 ? '100%' : f > 0 && f < 0.01 ? '<1%' : Math.round(f * 100) + '%';
@@ -610,7 +790,11 @@ function table(el, cols, opts = {}) {
   return el.createTBody();
 }
 function emptyRow(tb, span, text) { const c = tb.insertRow().insertCell(); c.colSpan = span; c.className = 'empty'; c.textContent = text; }
-function rowLink(tr, fn) { tr.classList.add('click'); tr.tabIndex = 0; tr.onclick = e => { if (!e.target.closest('input,button,a')) fn(); }; tr.onkeydown = e => { if (e.key === 'Enter' && e.target === tr) fn(); }; }
+function rowLink(tr, fn) { tr.classList.add('click'); tr.tabIndex = 0; tr.onclick = e => {
+  if (e.target.closest('input,button,a')) return;
+  const tick = e.target.closest('td.selcol')?.querySelector('input'); if (tick) return tick.click(); // a near miss on the tick box ticks it
+  fn();
+}; tr.onkeydown = e => { if (e.key === 'Enter' && e.target === tr) fn(); }; }
 function chip(text, cls) { return mk('span', 'chip ' + (cls || ''), text); }
 function swatch(color) { const s = mk('i', 'swatch'); s.style.background = color; return s; }
 function meter(f, wide) {
@@ -630,7 +814,60 @@ function facts(rows) {
   return dl;
 }
 function say(el, ok, text) { el.classList.remove('ok', 'err'); el.classList.add(ok ? 'ok' : 'err'); el.textContent = text; }
-function setSeg(seg, attr, value) { $$('button', seg).forEach(b => b.classList.toggle('on', b.dataset[attr] === String(value))); }
+// what just happened, in one place at the bottom of the screen, with Undo where there is one
+// It stays while the pointer or the keyboard is on it; one with Undo takes the focus (opts.back says where it goes after).
+let toastT = 0, toastMs = 0, toastBack = null;
+function hideToast() {
+  clearTimeout(toastT);
+  const box = $('#toast'), had = box.contains(document.activeElement), back = toastBack;
+  toastBack = null; box.replaceChildren();
+  if (had) (typeof back === 'function' ? back() : back)?.focus();
+}
+const toastTimer = () => { clearTimeout(toastT); toastT = setTimeout(hideToast, toastMs); };
+function toast(text, ok = true, undo, opts = {}) {
+  const card = mk('div', 'tcard' + (ok ? '' : ' err'));
+  card.appendChild(mk('span', 'tt', text));
+  let u = null;
+  if (undo) { u = button('Undo', 'btn sm'); u.onclick = () => { toastBack = null; hideToast(); undo(); }; card.appendChild(u); }
+  const x = button('✕', 'tx'); x.setAttribute('aria-label', 'Dismiss'); x.onclick = hideToast; card.appendChild(x);
+  const held = () => card.matches(':hover') || card.contains(document.activeElement);
+  card.addEventListener('pointerenter', () => clearTimeout(toastT));
+  card.addEventListener('focusin', () => clearTimeout(toastT));
+  card.addEventListener('pointerleave', () => { if (!held()) toastTimer(); });
+  card.addEventListener('focusout', e => { if (!card.contains(e.relatedTarget) && !card.matches(':hover')) toastTimer(); });
+  card.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); hideToast(); } });
+  toastBack = opts.back || (u ? document.activeElement : null);
+  $('#toast').replaceChildren(card);
+  toastMs = undo || !ok ? 12000 : 7000; toastTimer();
+  if (u) u.focus();
+}
+// asks in the page instead of the browser's confirm box: what will happen, and plainly when there's no undo
+function ask({ title, body = '', yes, danger = false, warn = '' }) {
+  const d = $('#ask');
+  $('#askTitle').textContent = title; $('#askBody').textContent = body; $('#askBody').hidden = !body;
+  $('#askWarn').textContent = warn; $('#askWarn').hidden = !warn;
+  $('#askYes').textContent = yes; $('#askYes').className = 'btn' + (danger ? ' bad' : '');
+  d.returnValue = '';
+  d.showModal(); $('#askNo').focus();
+  return new Promise(res => d.addEventListener('close', () => res(d.returnValue === 'yes'), { once: true }));
+}
+// a tab that couldn't load says so where its content would be, with a way to try again
+function loadErr(t, err) {
+  const panel = $('#t-' + t); if (!panel) return;
+  let box = panel.querySelector(':scope > .loaderr');
+  if (!err || err.status === 401) { box?.remove(); return; }
+  console.warn(err);
+  if (!box) { box = mk('div', 'loaderr'); box.setAttribute('role', 'alert'); panel.prepend(box); }
+  const again = button('Try again', 'btn sm'); again.onclick = () => showTab(t);
+  box.replaceChildren(mk('span', '', 'Couldn’t load this just now. Check the connection, then try again.'), again);
+}
+const tryLoad = (t, p) => p.then(() => loadErr(t), e => loadErr(t, e));
+// a form you've changed but not saved yet is left alone by the 30-second refresh
+const dirty = new Set();
+// the chosen one is marked for screen readers too (aria-pressed), not only by its look
+function setSeg(seg, attr, value) { $$('button', seg).forEach(b => { const on = b.dataset[attr] === String(value); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); }); }
+$$('.seg').forEach(seg => $$('button', seg).forEach(b => b.setAttribute('aria-pressed', String(b.classList.contains('on')))));
+const segBox = label => { const s = mk('div', 'seg'); s.setAttribute('role', 'group'); s.setAttribute('aria-label', label); return s; };
 function onSeg(seg, attr, fn) { seg.addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.dataset[attr] == null) return; setSeg(seg, attr, b.dataset[attr]); fn(b.dataset[attr]); }); }
 
 // ---- CSV ----
@@ -652,7 +889,7 @@ async function api(path, opts = {}) {
   const j = await r.json().catch(() => ({}));
   if (!r.ok) {
     if (r.status === 401 && tok && started) lockOut('Your admin token stopped working. Enter it again.');
-    throw Object.assign(new Error(j.error || 'HTTP ' + r.status), { status: r.status });
+    throw Object.assign(new Error(j.error || 'Something went wrong. Try again in a moment.'), { status: r.status });
   }
   return j;
 }
@@ -667,7 +904,10 @@ async function loadStats() {
   if (m[1]) N.sonnet = m[1].label;
   N.router = m.find(x => x.openrouter)?.label || 'OpenRouter';
   const o = $('#aModel option[value="router"]'); o.textContent = N.router; o.hidden = !routerOn() && !S.routerUsed;
+  syncPwNote();
 }
+// until a password exists, every tab but Settings (which has its own box) opens with one
+const syncPwNote = () => { $('#pwNote').hidden = !S.stats || S.stats.passwordSet || S.tab === 'settings'; };
 // past use keeps the OpenRouter filter in Activity, even after its key is removed
 function routerSeen() { S.routerUsed = true; $('#aModel option[value="router"]').hidden = false; }
 async function loadUsers() {
@@ -675,8 +915,9 @@ async function loadUsers() {
   const n = S.users.users.filter(u => u.status === 'pending').length;
   const ap = (S.users.appeals || []).length; // appeals wait for an answer too
   $('#pendBadge').hidden = !(n + ap); $('#pendBadge').textContent = n + ap;
-  $('#pendBadge').title = [n && `${n} waiting to be accepted`, ap && `${plural(ap, 'appeal')} waiting`].filter(Boolean).join(', ');
+  $('#pendBadge').title = [n && `${n} waiting to be let in`, ap && `${plural(ap, 'appeal')} waiting`].filter(Boolean).join(', ');
   fillWho();
+  if (started && S.tab === 'overview') renderNeeds(); // Overview draws it itself when it loads
 }
 const people = () => (S.users?.users || []).filter(u => u.status !== 'pending').sort((a, b) => a.name.localeCompare(b.name));
 const nameOf = id => id === 'owner' || id == null ? 'You (owner)' : S.users?.users.find(u => u.id === +id)?.name || 'Someone';
@@ -694,9 +935,10 @@ function showTab(t) {
   if (!TABS.includes(t)) t = 'overview';
   S.tab = t;
   $$('.tab').forEach(b => { const on = b.dataset.tab === t; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
-  $$('.tabpanel').forEach(p => { p.hidden = p.id !== 't-' + t; });
+  $$('.tabpanel').forEach(p => { p.hidden = p.id !== 't-' + t || !started; });
+  syncPwNote();
   if (location.hash !== '#' + t) history.replaceState(null, '', '#' + t);
-  loadTab(t).catch(e => console.warn(e));
+  if (started) tryLoad(t, loadTab(t)); // before that, start() opens it once the first numbers are in
 }
 async function loadTab(t) {
   if (t === 'overview') await loadOverview();
@@ -719,7 +961,8 @@ async function refresh() {
   await Promise.all([loadStats(), loadUsers()]);
   await loadTab(S.tab);
 }
-$('#refresh').onclick = () => refresh().catch(e => console.warn(e));
+const refreshNow = () => tryLoad(S.tab, refresh());
+$('#refresh').onclick = refreshNow;
 // keeps itself current, except while you're typing, have a person open, or are reading far down the activity log
 const busy = () => {
   const a = document.activeElement;
@@ -729,12 +972,12 @@ let timers = [];
 function startTimers() {
   stopTimers();
   timers.push(setInterval(() => stamp(), 10_000));
-  timers.push(setInterval(() => { if (document.visibilityState === 'visible' && !busy()) refresh().catch(() => {}); }, 30_000));
+  timers.push(setInterval(() => { if (document.visibilityState === 'visible' && !busy()) refreshNow(); }, 30_000));
 }
 function stopTimers() { timers.forEach(clearInterval); timers = []; }
 
 // ================= overview =================
-const ov = { days: 30, who: 'all', unit: 'tokens', data: null, series: [], by: 'day' };
+const ov = { days: 30, who: 'all', unit: 'usd', data: null, series: [], by: 'day' };
 const N = { haiku: 'Haiku 5.5', sonnet: 'Sonnet 5.5', router: 'OpenRouter' };
 const SERIES = [['haiku', 'var(--s-haiku)'], ['sonnet', 'var(--s-sonnet)'], ['router', 'var(--s-router)']];
 // the OpenRouter model only gets a color once it's set up or has been used
@@ -758,12 +1001,12 @@ async function loadOverview() {
     ov.data = o; ov.by = u.by;
     ov.series = toSeries(u.days);
     if (o.models?.some(m => m.family === 'router')) routerSeen();
-    renderKpis(); drawUsage(); renderBudget(); renderModels(); renderTop(); renderSites(); renderFeatures(); drawHeat();
+    renderNeeds(); renderKpis(); drawUsage(); renderBudget(); renderModels(); renderTop(); renderSites(); renderFeatures(); drawHeat();
   } finally { box.classList.remove('loading'); }
 }
-onSeg($('#ovRange'), 'd', v => { ov.days = +v; loadOverview().catch(() => {}); });
+onSeg($('#ovRange'), 'd', v => { ov.days = +v; tryLoad('overview', loadOverview()); });
 onSeg($('#ovUnit'), 'u', v => { ov.unit = v; drawUsage(); });
-$('#ovWho').addEventListener('change', e => { ov.who = e.target.value; loadOverview().catch(() => {}); });
+$('#ovWho').addEventListener('change', e => { ov.who = e.target.value; tryLoad('overview', loadOverview()); });
 
 const prevName = () => ov.days === 1 ? 'yesterday' : `the ${ov.days} days before`;
 function change(cur, prev) {
@@ -777,14 +1020,14 @@ function renderKpis() {
   const t = ov.data.totals, b = ov.data.before;
   const withAccounts = (S.users?.users || []).filter(u => u.status !== 'pending').length + 1;
   const tiles = [
+    { l: 'Estimated cost', v: money(t.usd), d: change(t.usd, b.usd), s: t.questions ? `${cost(t.usd / t.questions)} a question` : 'at list prices' },
     { l: 'Questions', v: nf.format(t.questions), d: change(t.questions, b.questions), s: `in ${plural(t.chats, 'chat')}` },
-    { l: 'Tokens', v: short(t.tokens), d: change(t.tokens, b.tokens), s: `${short(t.input)} in · ${short(t.output)} out` },
-    { l: 'Estimated cost', v: money(t.usd), d: change(t.usd, b.usd), s: t.questions ? `${money(t.usd / t.questions, 4)} a question` : 'at list prices' },
     ov.who === 'all'
       ? { l: 'People asking', v: nf.format(t.people), d: change(t.people, b.people), s: `out of ${nf.format(withAccounts)}, counting you` }
-      : { l: 'Chats', v: nf.format(t.chats), s: t.chats ? `${(t.questions / t.chats).toFixed(1)} questions each` : 'none in this range' },
-    { l: 'Web searches', v: nf.format(t.searches), s: t.searches ? `in ${plural(t.web, 'answer')} · ${money(t.searches * 0.01)}` : 'none in this range' },
-    { l: 'Average answer', v: t.questions ? short(Math.round(t.output / t.questions)) : '—', s: t.questions ? `tokens out · prompt ~${short(Math.round(t.input / t.questions))} in` : 'no answers yet' },
+      : { l: 'Chats', v: nf.format(t.chats), s: t.chats ? `${(t.questions / t.chats).toFixed(1)} questions each` : 'none on these days' },
+    { l: 'Tokens', v: short(t.tokens), d: change(t.tokens, b.tokens), s: `${short(t.input)} read · ${short(t.output)} written` },
+    { l: 'Web searches', v: nf.format(t.searches), s: t.searches ? `in ${plural(t.web, 'answer')} · ${money(t.searches * 0.01)}` : 'none on these days' },
+    { l: 'Typical answer', v: t.questions ? `${short(Math.round(t.output / t.questions))} tokens` : '—', s: t.questions ? `plus about ${short(Math.round(t.input / t.questions))} of page and chat sent with each question` : 'no answers yet' },
   ];
   $('#kpis').replaceChildren(...tiles.map(x => {
     const k = mk('div', 'kpi');
@@ -812,10 +1055,13 @@ function drawBars(o) {
   const n = series.length, plotW = W - left - right, band = plotW / n, keys = shownSeries(series);
   const barW = Math.max(1, Math.min(24, band - 2)); // 2px surface gap between neighbours
   const peak = series.reduce((a, d) => val(d, 'total') > val(a, 'total') ? d : a, series[0]);
-  const max = niceMax(peak ? val(peak, 'total') : 0, unit), tickDp = max < 0.1 ? 3 : max < 10 ? 2 : 0;
+  const max = niceMax(peak ? val(peak, 'total') : 0, unit);
+  // a 1, 2.5, 5 or 10 top splits into 5 steps of 1 or 2 (×10ⁿ), a 2 into 4 steps of 5: every tick prints exactly
+  const steps = Math.abs(max / Math.pow(10, Math.floor(Math.log10(max) + 1e-9)) - 2) < 1e-9 ? 4 : 5, step = max / steps;
+  const tickDp = Math.max(max < 10 ? 2 : 0, -Math.floor(Math.log10(step) + 1e-9));
   const y = v => top + plotH - v / max * plotH;
-  for (let i = 0; i <= 4; i++) {
-    const v = max * i / 4, yy = Math.round(y(v)) + .5;
+  for (let i = 0; i <= steps; i++) {
+    const v = step * i, yy = Math.round(y(v)) + .5;
     el('line', { class: i ? 'grid' : 'base', x1: left, x2: W - right, y1: yy, y2: yy });
     el('text', { x: left - 6, y: yy + 4, 'text-anchor': 'end' }).textContent = unit === 'usd' ? money(v, tickDp) : short(v);
   }
@@ -841,7 +1087,7 @@ function drawBars(o) {
   if (peak && val(peak, 'total') > 0) {
     const i = series.indexOf(peak), cx = left + band * i + band / 2;
     el('text', { class: 'peak', x: Math.min(W - right - 2, Math.max(left + 2, cx)), y: y(val(peak, 'total')) - 5, 'text-anchor': cx < left + 30 ? 'start' : cx > W - right - 30 ? 'end' : 'middle' }).textContent = fmtV(val(peak, 'total'));
-  } else el('text', { class: 'nodata', x: left + plotW / 2, y: top + plotH / 2, 'text-anchor': 'middle' }).textContent = o.empty || 'No usage in this range';
+  } else el('text', { class: 'nodata', x: left + plotW / 2, y: top + plotH / 2, 'text-anchor': 'middle' }).textContent = o.empty || 'Nothing yet for these days.';
   let active = -1;
   const show = i => {
     const d = series[i]; if (!d) return;
@@ -909,12 +1155,12 @@ const lasts = days => days < 1 ? 'less than a day' : days < 60 ? plural(Math.rou
 function renderBudget() {
   const s = S.stats; if (!s) return;
   const left = Math.max(0, s.budget - s.total), f = frac(s.total, s.budget), perDay = s.week / 7;
-  const head = mk('div', 'cardhead'); head.append(mk('h2', '', 'Token budget'), mk('span', 'sub', 'All of pagebot'));
+  const head = mk('div', 'cardhead'); head.append(mk('h2', '', 'Your token budget'), mk('span', 'sub', 'everyone’s use, counted together'));
   const big = mk('div', 'big'); big.append(short(left), mk('span', '', ' tokens left'));
   $('#budgetCard').replaceChildren(head, big, meter(f, true), facts([
     ['Used', `${short(s.total)} of ${short(s.budget)} (${pctText(f)})`],
-    ['7-day pace', perDay ? `about ${short(Math.round(perDay))} tokens a day` : 'nothing in the last week'],
-    ['At that pace', perDay ? `lasts ${lasts(left / perDay)}` : '—'],
+    ['Lately', perDay ? `about ${short(Math.round(perDay))} tokens a day` : 'nothing in the last week'],
+    ['So it should last', perDay ? `about ${lasts(left / perDay)}` : '—'],
     ['Spent', `${money(s.today_usd)} today · ${money(s.week_usd)} this week · ${money(s.total_usd)} in all`],
     ['Questions', `${nf.format(s.questions_today)} today · ${nf.format(s.questions)} in all`],
     ['Signed in', plural(s.sessions, 'device')],
@@ -924,11 +1170,12 @@ const modelIds = () => (S.stats?.models || []).map(m => m.id);
 function renderModels() {
   const rows = ov.data.models, total = rows.reduce((a, r) => a + r.questions, 0), ids = modelIds();
   const tb = table($('#modelTbl'), [{ label: 'Model' }, { label: 'Answers', num: 1 }, { label: 'Share' }, { label: 'Tokens', num: 1 }, { label: 'Est. cost', num: 1 }, { label: 'Per answer', num: 1 }]);
-  if (!rows.length) return emptyRow(tb, 6, 'No answers in this range.');
+  if (!rows.length) return emptyRow(tb, 6, 'Nothing yet for these days.');
   for (const r of rows) {
     const tr = tb.insertRow(), fallback = !!r.model && !ids.includes(r.model), name = mk('span');
-    name.append(swatch(famColor(r.model)), r.label + (fallback ? ' (fallback)' : ''));
-    td(tr, name); td(tr, nf.format(r.questions), 'num'); td(tr, shareBar(frac(r.questions, total)));
+    name.append(swatch(famColor(r.model)), r.label + (fallback ? ' (stepped in)' : ''));
+    td(tr, name).appendChild(mk('span', 'ph', `${short(r.input + r.output)} tokens · ${cost(frac(r.usd, r.questions))} an answer`));
+    td(tr, nf.format(r.questions), 'num'); td(tr, shareBar(frac(r.questions, total)));
     td(tr, short(r.input + r.output), 'num'); td(tr, money(r.usd), 'num'); td(tr, cost(frac(r.usd, r.questions)), 'num');
     rowLink(tr, () => goActivity(fallback ? { flag: 'fallback' } : { model: ['haiku', 'sonnet', 'router'].includes(r.family) ? r.family : '' }));
   }
@@ -936,10 +1183,10 @@ function renderModels() {
 function renderTop() {
   const rows = ov.data.people, total = ov.data.totals.usd;
   const tb = table($('#topTbl'), [{ label: 'Person' }, { label: 'Questions', num: 1 }, { label: 'Tokens', num: 1 }, { label: 'Est. cost', num: 1 }, { label: 'Share of cost' }, { label: 'Last asked' }]);
-  if (!rows.length) return emptyRow(tb, 6, 'No one asked anything in this range.');
+  if (!rows.length) return emptyRow(tb, 6, 'Nothing yet for these days.');
   for (const r of rows) {
     const tr = tb.insertRow();
-    td(tr, r.user ? r.user.name : 'You (owner)', r.user ? '' : 'muted');
+    td(tr, r.user ? r.user.name : 'You (owner)', r.user ? '' : 'muted').appendChild(mk('span', 'ph', `${short(r.tokens)} tokens · ${pctText(frac(r.usd, total))} of the cost`));
     td(tr, nf.format(r.questions), 'num'); td(tr, short(r.tokens), 'num'); td(tr, money(r.usd), 'num'); td(tr, shareBar(frac(r.usd, total))); td(tr, ago(r.last));
     rowLink(tr, () => openPerson(r.user ? r.user.id : 'owner'));
   }
@@ -947,10 +1194,10 @@ function renderTop() {
 function renderSites() {
   const rows = ov.data.sites;
   const tb = table($('#siteTbl'), [{ label: 'Site' }, { label: 'Questions', num: 1 }, { label: 'People', num: 1 }, { label: 'Tokens', num: 1 }, { label: 'Est. cost', num: 1 }]);
-  if (!rows.length) return emptyRow(tb, 5, 'Nothing in this range.');
+  if (!rows.length) return emptyRow(tb, 5, 'Nothing yet for these days.');
   for (const r of rows) {
     const tr = tb.insertRow();
-    td(tr, r.host || 'No page (web chat or pop-up)', 'trunc' + (r.host ? '' : ' muted'));
+    td(tr, r.host || 'No page (web chat or pop-up)', 'trunc' + (r.host ? '' : ' muted')).appendChild(mk('span', 'ph', `${plural(r.people, 'person', 'people')} · ${short(r.tokens)} tokens`));
     td(tr, nf.format(r.questions), 'num'); td(tr, nf.format(r.people), 'num'); td(tr, short(r.tokens), 'num'); td(tr, money(r.usd), 'num');
     if (r.host) rowLink(tr, () => goActivity({ q: r.host }));
   }
@@ -958,7 +1205,7 @@ function renderSites() {
 const FEATS = [
   ['page', 'Page text', 'pages'], ['highlight', 'Highlighted text', 'highlights'], ['image', 'A screenshot or image', 'images'],
   ['web', 'Used web search', 'web'], ['refused', 'Declined by the model', 'refused'], ['stopped', 'Stopped before it finished', 'stopped'],
-  ['fallback', 'Answered by a fallback model', 'fallbacks'],
+  ['fallback', 'Another model stepped in', 'fallbacks'],
 ];
 function renderFeatures() {
   const t = ov.data.totals;
@@ -1015,7 +1262,7 @@ function drawHeat() {
   sc.appendChild(mk('span', '', 'More'));
   $('#heatSum').textContent = best.n
     ? `Busiest: ${dayLong.format(DAYS[best.r])}s around ${hourName(best.h)} (${plural(best.n, 'question')}). Times are in ${ov.data.timezone}.`
-    : `No questions in this range. Times are in ${ov.data.timezone}.`;
+    : `Nothing yet for these days. Times are in ${ov.data.timezone}.`;
   const tb = table($('#heatTbl'), [{ label: 'Day' }, ...Array.from({ length: 24 }, (_, h) => ({ label: hourTick(h), num: 1 }))]);
   grid.forEach((row, r) => { const tr = tb.insertRow(); td(tr, dayShort.format(DAYS[r])); row.forEach(n => td(tr, n ? nf.format(n) : '·', 'num')); });
 }
@@ -1053,7 +1300,7 @@ function banChip(b) {
   return c;
 }
 // a restriction shows in place of "Active"; a ban or a block outranks it
-const statusChip = u => u.ban ? banChip(u.ban) : u.status === 'blocked' ? chip('Blocked', 'err') : u.status === 'pending' ? chip('Waiting', 'warn')
+const statusChip = u => u.ban ? banChip(u.ban) : u.status === 'blocked' ? chip('Turned off', 'err') : u.status === 'pending' ? chip('Waiting', 'warn')
   : u.restriction ? banChip(u.restriction) : chip('Active', 'ok');
 // what an account works with right now: its own settings with the restriction in force on top, as the server applies it
 function eff(u) {
@@ -1068,27 +1315,28 @@ function eff(u) {
 // accounts that used the same browser as a terminated account
 const linkedText = u => u.linked?.length ? `Used the same browser as ${u.linked.join(', ')} (terminated)` : '';
 function linkedTag(u) { if (!u.linked?.length) return null; const t = mk('span', 'tag warn', '⚠ shared browser'); t.title = linkedText(u); return t; }
-async function lift(u, b, msgEl) {
+async function lift(u, b) {
   const term = b.kind === 'terminate', rst = b.kind === 'restrict';
-  if (!confirm(term ? `Reverse ${u.name}’s termination? Their account won’t be deleted and they can use pagebot again.` : rst ? `Lift ${u.name}’s restriction now?` : `Unban ${u.name}?`)) return;
+  if (!await ask({ title: term ? `Reverse ${u.name}’s termination?` : rst ? `Lift ${u.name}’s restriction now?` : `Unban ${u.name}?`,
+    body: term ? 'Their account won’t be deleted and they can use pagebot again.' : rst ? 'They get back what it took away.' : 'They can use pagebot again.', yes: term ? 'Reverse it' : rst ? 'Lift it' : 'Unban' })) return;
   let ok = true, text = term ? `${u.name}’s termination is reversed.` : rst ? `${u.name}’s restriction is lifted.` : `${u.name} is unbanned.`;
   try { await send(`/api/admin/users/${u.id}/ban${rst ? '?kind=restrict' : ''}`, undefined, 'DELETE'); }
   catch (err) { ok = false; text = err.message; }
   await loadUsers(); renderPeople(); if (dw.id != null) renderDrawer();
-  say(msgEl(), ok, text); // after the redraw, which replaces the panel's message line
+  toast(text, ok);
 }
 // answering an appeal: accepting lifts the ban, denying keeps it; either way the reply shows in their panel
-function appealForm(a, msgEl) {
+function appealForm(a) {
   const b = a.ban, row = mk('div', 'areply'), reply = mk('input'), yes = button('Accept & unban', 'btn sm'), no = button('Deny', 'btn ghost sm');
   reply.maxLength = 1000; reply.placeholder = 'Reply (optional, they see it)'; reply.setAttribute('aria-label', `Reply to ${b.name}`);
   const answer = async decision => {
-    if (decision === 'deny' && !confirm(`Deny ${b.name}’s appeal? The ${b.kind === 'terminate' ? 'termination' : 'ban'} stays, and they can’t appeal it again.`)) return;
+    if (decision === 'deny' && !await ask({ title: `Deny ${b.name}’s appeal?`, body: `The ${b.kind === 'terminate' ? 'termination' : 'ban'} stays, and they can’t appeal it again.`, yes: 'Deny the appeal', danger: true })) return;
     yes.disabled = no.disabled = true;
     let ok = true, text = decision === 'deny' ? `${b.name}’s appeal is denied.` : b.kind === 'terminate' ? `${b.name}’s appeal is accepted and the termination is reversed.` : `${b.name}’s appeal is accepted and they’re unbanned.`;
     try { await send(`/api/admin/appeals/${a.id}`, { decision, reply: reply.value }); }
     catch (err) { ok = false; text = err.message; }
     await loadUsers(); renderPeople(); if (dw.id != null) renderDrawer();
-    say(msgEl(), ok, text);
+    toast(text, ok);
   };
   yes.onclick = () => answer('accept'); no.onclick = () => answer('deny');
   row.append(reply, yes, no);
@@ -1103,8 +1351,8 @@ function renderMod() {
   $('#appealList').replaceChildren(...appeals.map(a => {
     const b = a.ban, it = mk('div', 'appeal'), head = mk('div');
     head.append(mk('b', '', b.name), ' ', mk('span', 'sub', `${banWhat(b)} · ${banStatus(b)} · appealed ${ago(a.at)}`));
-    it.append(head, mk('div', 'sub', `Reason: ${b.reason}${b.note ? ` — ${b.note}` : ''}`), mk('div', 'quote', `“${a.body}”`), appealForm(a, () => $('#appealMsg')));
-    if (b.userId != null && S.users.users.some(u => u.id === b.userId)) { const o = button('Open their panel', 'linkbtn'); o.style.marginTop = '8px'; o.onclick = () => openPerson(b.userId); it.appendChild(o); }
+    it.append(head, mk('div', 'sub', `Reason: ${b.reason}${b.note ? ` — ${b.note}` : ''}`), mk('div', 'quote', `“${a.body}”`), appealForm(a));
+    if (b.userId != null && S.users.users.some(u => u.id === b.userId)) { const o = button(`Open ${b.name}’s details`, 'linkbtn'); o.style.marginTop = '8px'; o.onclick = () => openPerson(b.userId); it.appendChild(o); }
     return it;
   }));
   const tb = table($('#modTbl'), [{ label: 'Person' }, { label: 'What' }, { label: 'Reason' }, { label: 'When' }, { label: 'Status' }, { label: '' }]);
@@ -1116,7 +1364,7 @@ function renderMod() {
     td(tr, banStatus(b) + (b.kind === 'restrict' ? '' : b.seenAt ? ` · seen ${ago(b.seenAt)}` : ' · not seen yet') + (b.appeal ? ` · ${appealText(b.appeal)}` : ''), 'muted');
     if (LIVE.includes(b.state) && b.userId != null) {
       const x = button(b.kind === 'terminate' ? 'Reverse' : b.kind === 'restrict' ? 'Lift' : 'Unban', 'btn ghost sm');
-      x.onclick = () => lift({ id: b.userId, name: b.name }, b, () => $('#modMsg'));
+      x.onclick = () => lift({ id: b.userId, name: b.name }, b);
       td(tr, x, 'right');
     } else td(tr, '');
     if (b.userId != null && S.users.users.some(u => u.id === b.userId)) rowLink(tr, () => openPerson(b.userId));
@@ -1136,10 +1384,10 @@ function liveBox(u, b) {
     bb.appendChild(mk('div', 'quote', `Their appeal (${appealText(a)}): “${a.body}”`));
     if (a.reply) bb.appendChild(mk('div', 'sub', `You replied: “${a.reply}”`));
     const w = !a.decision && (S.users.appeals || []).find(x => x.id === a.id);
-    if (w) bb.appendChild(appealForm(w, () => $('#dwMod')));
+    if (w) bb.appendChild(appealForm(w));
   }
   const undo = button(b.kind === 'terminate' ? 'Reverse termination' : b.kind === 'restrict' ? 'Lift restriction' : 'Unban', 'btn ghost sm'); undo.style.marginTop = '10px';
-  undo.onclick = () => lift(u, b, () => $('#dwMod'));
+  undo.onclick = () => lift(u, b);
   bb.appendChild(undo);
   return bb;
 }
@@ -1150,7 +1398,9 @@ function moderationBox(u) {
   if (u.ban) box.appendChild(liveBox(u, u.ban));
   else if (u.restriction) box.appendChild(liveBox(u, u.restriction));
   if (!u.ban) {
-    const form = mk('div', 'banform'), inl = mk('div', 'inl'), seg = mk('div', 'seg'), len = mk('select');
+    // closed until you open it: the everyday things come first
+    const fold = mk('details', 'banfold'), form = mk('div', 'banform'), inl = mk('div', 'inl'), seg = segBox('What to do'), len = mk('select');
+    fold.appendChild(mk('summary', '', `${u.restriction ? 'Change the restriction, ban' : 'Restrict, ban'} or terminate ${u.name}…`));
     let kind = 'ban';
     // only a ban can be permanent; a restriction always ends
     const setLens = perm => {
@@ -1163,7 +1413,7 @@ function moderationBox(u) {
     const rbox = mk('div', 'rform'), cks = mk('div'), cb = label => { const l = mk('label', 'ck'), c = mk('input'); c.type = 'checkbox'; l.append(c, label); return [l, c]; };
     const [ls, cs] = cb('Take away Sonnet'), [lw, cw] = cb('Take away web search'), [lpd, cpd] = cb('Take away PDF uploads'), [la, ca] = cb('Take away page actions');
     cks.append(ls, lw, lpd, la);
-    const lim = mk('div', 'inl'), lseg = mk('div', 'seg'), lval = mk('input'), lunit = mk('span', 'unit');
+    const lim = mk('div', 'inl'), lseg = segBox('Daily limit while restricted'), lval = mk('input'), lunit = mk('span', 'unit');
     let lkind = 'none';
     lval.type = 'number'; lval.min = '0'; lval.step = 'any'; lval.setAttribute('aria-label', 'Daily limit while restricted');
     const setL = k => {
@@ -1176,7 +1426,7 @@ function moderationBox(u) {
     rbox.append(cks, lim);
     const reason = mk('input'), note = mk('textarea'), go = button('', 'btn bad'), hint = mk('p', 'sub');
     reason.setAttribute('list', 'banReasons'); reason.maxLength = 120; reason.placeholder = 'Reason (they see it)'; reason.setAttribute('aria-label', 'Reason');
-    note.maxLength = 1000; note.rows = 2; note.placeholder = 'Moderator note (optional, they see it too)'; note.setAttribute('aria-label', 'Moderator note');
+    note.maxLength = 1000; note.rows = 2; note.placeholder = 'A note for them (optional, they see it too)'; note.setAttribute('aria-label', 'A note for them');
     hint.style.margin = '0';
     const setK = k => {
       kind = k; setSeg(seg, 'k', k); len.hidden = k === 'terminate'; setLens(k === 'ban'); rbox.hidden = k !== 'restrict';
@@ -1192,19 +1442,20 @@ function moderationBox(u) {
       if (kind === 'restrict' && !cs.checked && !cw.checked && !cpd.checked && !ca.checked && lkind === 'none') return say(msg, false, 'Pick at least one thing to take away.');
       if (kind === 'restrict' && lkind !== 'none' && !(+lval.value > 0)) { lval.focus(); return say(msg, false, 'Enter a number above zero for the daily limit.'); }
       if (!reason.value.trim()) { reason.focus(); return say(msg, false, 'Give a reason. They see it.'); }
-      if (kind === 'terminate' && !confirm(`Terminate ${u.name}? They’ll see the termination notice every time they sign in, and the account is deleted in ${S.users.terminateDays} days.`)) return;
+      if (kind === 'terminate' && !await ask({ title: `Terminate ${u.name}?`, body: `They’ll see a notice with your reason every time they sign in, and the account is deleted in ${S.users.terminateDays} days. You can reverse this until then.`, yes: 'Terminate', danger: true })) return;
       const body = { kind, reason: reason.value, note: note.value, ...(kind !== 'terminate' && { hours: +len.value }),
         ...(kind === 'restrict' && { noSonnet: cs.checked, noWeb: cw.checked, noPdf: cpd.checked, noActions: ca.checked, limitKind: lkind, limitValue: +lval.value }) };
       try {
         await send(`/api/admin/users/${u.id}/ban`, body);
         await loadUsers(); renderPeople(); renderDrawer();
-        say($('#dwMod'), true, kind === 'ban' ? `${u.name} is banned ${len.value === '0' ? 'permanently' : 'for ' + banDur(+len.value)}.`
+        toast(kind === 'ban' ? `${u.name} is banned ${len.value === '0' ? 'permanently' : 'for ' + banDur(+len.value)}.`
           : kind === 'restrict' ? `${u.name} is restricted for ${banDur(+len.value)}.` : `${u.name}’s account is terminated.`);
       } catch (err) { say(msg, false, err.message); }
     };
     const btns = mk('div', 'btns'); btns.appendChild(go);
     form.append(inl, rbox, reason, note, btns, hint);
-    box.appendChild(form);
+    fold.appendChild(form);
+    box.appendChild(fold);
   }
   const past = (S.users.bans || []).filter(x => x.userId === u.id && x.id !== u.ban?.id && x.id !== u.restriction?.id);
   if (past.length) {
@@ -1286,12 +1537,13 @@ function renderPeople() {
   all.onchange = () => { list.forEach(u => all.checked ? ppl.sel.add(u.id) : ppl.sel.delete(u.id)); renderPeople(); };
   const tb = table($('#peopleTbl'), [{ node: all, cls: 'selcol' }, ...PCOLS.map(c => ({ label: c.label, num: c.num, sortKey: c.key }))], {
     sort: ppl.sort,
-    onSort: k => { const c = PCOLS.find(x => x.key === k); ppl.sort = { key: k, dir: ppl.sort.key === k ? -ppl.sort.dir : c.num || ['last', 'today', 'joined'].includes(k) ? -1 : 1 }; renderPeople(); },
+    onSort: sortBy,
   });
+  $('#pSort').value = col.key;
   if (!q && ppl.status !== 'blocked') ownerRow(tb, d.owner);
   for (const u of list) personRow(tb, u);
   if (!list.length) emptyRow(tb, PCOLS.length + 1, d.users.some(u => u.status !== 'pending')
-    ? 'No one matches.' : 'No accounts yet. People create one from the pagebot panel (“Create an account”) and show up here for you to accept.');
+    ? 'No one matches.' : 'No one has an account yet. People sign up from the pagebot panel and show up here for you to let in.');
   renderBulk();
 }
 function ownerRow(tb, o) {
@@ -1314,16 +1566,21 @@ function personRow(tb, u) {
   if (rl.limitKind) lc.appendChild(rTag(u, limitText(u.limitKind, u.limitValue)));
   td(tr, todayCell(u));
   td(tr, nf.format(u.week.questions), 'num'); td(tr, money(u.week.usd), 'num'); td(tr, money(u.total.usd), 'num');
-  const ac = td(tr, accessText(e)); if (rl.noSonnet || rl.noWeb || rl.noPdf || rl.noActions) ac.appendChild(rTag(u, accessText(u)));
+  const ac = td(tr, accessText(e), 'acc'); if (rl.noSonnet || rl.noWeb || rl.noPdf || rl.noActions) ac.appendChild(rTag(u, accessText(u)));
   td(tr, nf.format(u.devices), 'num');
   const la = td(tr, ago(u.lastSeen)); if (u.lastSeen) la.title = fullFmt.format(new Date(u.lastSeen));
-  td(tr, dayYFmt.format(new Date(u.createdAt)));
+  const jd = new Date(u.createdAt), jc = td(tr, jd.getFullYear() === new Date().getFullYear() ? dayFmt.format(jd) : dayYFmt.format(jd)); jc.title = dayYFmt.format(jd);
   rowLink(tr, () => openPerson(u.id));
 }
+// a column you click again turns around; a new one starts with the biggest, newest or A first
+function sortBy(k) { const c = PCOLS.find(x => x.key === k); ppl.sort = { key: k, dir: ppl.sort.key === k ? -ppl.sort.dir : c.num || ['last', 'today', 'joined'].includes(k) ? -1 : 1 }; renderPeople(); }
+$('#pSort').append(...PCOLS.map(c => new Option('Sort by ' + c.label.toLowerCase(), c.key)));
+$('#pSort').addEventListener('change', e => sortBy(e.target.value));
+$('#pSortDir').onclick = () => sortBy(ppl.sort.key);
 $('#pSearch').addEventListener('input', e => { ppl.q = e.target.value; renderPeople(); });
 onSeg($('#pStatus'), 's', v => { ppl.status = v; renderPeople(); });
 $('#signup').addEventListener('change', async () => {
-  try { await send('/api/admin/accounts', { signup: $('#signup').checked }); } catch (err) { alert(err.message); }
+  try { await send('/api/admin/accounts', { signup: $('#signup').checked }); } catch (err) { toast(err.message, false); }
   await loadUsers(); renderPeople();
 });
 $('#pExport').onclick = () => {
@@ -1346,28 +1603,35 @@ function renderPending(list) {
     const nc = td(tr, mk('b', '', u.name)), lt = linkedTag(u); if (lt) nc.appendChild(lt);
     td(tr, u.note ? `“${u.note}”` : '—', 'wrapcell' + (u.note ? '' : ' muted'));
     const a = td(tr, ago(u.createdAt)); a.title = fullFmt.format(new Date(u.createdAt));
-    const btns = mk('div', 'btns'), yes = button('Accept', 'btn sm'), no = button('Deny', 'btn ghost sm');
+    const btns = mk('div', 'btns'), yes = button('Let in', 'btn sm'), no = button('Turn down', 'btn ghost sm');
+    yes.setAttribute('aria-label', 'Let in ' + u.name); no.setAttribute('aria-label', 'Turn down ' + u.name);
     btns.style.justifyContent = 'flex-end';
     yes.onclick = () => accept([u]); no.onclick = () => deny([u]);
     btns.append(yes, no); td(tr, btns, 'right');
   }
 }
 const pendingList = () => (S.users?.users || []).filter(u => u.status === 'pending');
-$('#acceptAll').onclick = () => accept(pendingList());
+$('#acceptAll').onclick = async () => {
+  const list = pendingList(), flagged = list.filter(u => u.linked?.length);
+  if (flagged.length && !await ask({ title: `Let all ${list.length} in?`, body: `${flagged.map(u => u.name).join(', ')} used the same browser as a terminated account (marked “⚠ shared browser”). You can let the others in one by one instead.`, yes: 'Let everyone in' })) return;
+  accept(list);
+};
 $('#denyAll').onclick = () => deny(pendingList());
+// the result goes to the toast: the waiting card hides itself once the last person is answered
 async function accept(list) {
-  const m = $('#pendMsg');
   try {
     for (const u of list) await send('/api/admin/users/' + u.id, { status: 'trusted' });
-    say(m, true, list.length === 1 ? `${list[0].name} is in, with the defaults for new people.` : `${list.length} people are in, with the defaults for new people.`);
-  } catch (err) { say(m, false, err.message); }
+    toast(list.length === 1 ? `${list[0].name} is in. They start with your usual limit; open their row to change it.` : `${list.length} people are in. They start with your usual limit; open a row to change it.`);
+  } catch (err) { toast(err.message, false); }
   await loadUsers(); renderPeople();
 }
 async function deny(list) {
-  if (!list.length || !confirm(list.length === 1 ? `Turn down ${list[0].name}? Their request is deleted.` : `Turn down all ${list.length} requests? They're deleted.`)) return;
-  const m = $('#pendMsg');
-  try { for (const u of list) await send('/api/admin/users/' + u.id, undefined, 'DELETE'); say(m, true, list.length === 1 ? `${list[0].name} was turned down.` : `${list.length} requests were turned down.`); }
-  catch (err) { say(m, false, err.message); }
+  if (!list.length) return;
+  const one = list.length === 1;
+  if (!await ask({ title: one ? `Turn down ${list[0].name}?` : `Turn down all ${list.length} requests?`, yes: 'Turn down', danger: true,
+    body: one ? 'Their request is deleted. They’ll see that it’s no longer on the list, and they can ask again.' : 'The requests are deleted. They’ll see that they’re no longer on the list, and they can ask again.' })) return;
+  try { for (const u of list) await send('/api/admin/users/' + u.id, undefined, 'DELETE'); toast(one ? `${list[0].name} was turned down.` : `${list.length} requests were turned down.`); }
+  catch (err) { toast(err.message, false); }
   await loadUsers(); renderPeople();
 }
 // bulk changes to the selected people
@@ -1376,7 +1640,12 @@ function renderBulk() {
   const n = ppl.sel.size;
   $('#bulk').hidden = !n;
   $('#bulkCount').textContent = `${plural(n, 'person', 'people')} selected`;
-  if (!n) $('#bulkLimit').hidden = true;
+  if (!n) $('#bulkLimit').hidden = $('#bulkUse').hidden = true;
+  syncBulkExp();
+}
+function syncBulkExp() {
+  $('#bulk [data-b="limit"]').setAttribute('aria-expanded', String(!$('#bulkLimit').hidden));
+  $('#bulk [data-b="use"]').setAttribute('aria-expanded', String(!$('#bulkUse').hidden));
 }
 onSeg($('#bKind'), 'k', v => { bKind = v; $('#bValue').hidden = v === 'none'; $('#bUnit').textContent = v === 'usd' ? 'dollars a day' : v === 'tokens' ? 'tokens a day' : 'they can use as much as they like'; $('#bValue').value = v === 'usd' ? 0.5 : 100000; });
 async function bulk(body, label) {
@@ -1389,18 +1658,25 @@ async function bulk(body, label) {
     try { await send('/api/admin/users/' + id, body); done++; } catch { failed++; }
     m.className = 'msg'; m.textContent = `${label}… ${done + failed} of ${ids.length}`;
   }
-  say(m, !failed, (failed ? `${done} updated, ${failed} failed.` : `${label}: done for ${plural(done, 'person', 'people')}.`) +
-    (held.length ? ` ${held.length === 1 ? held[0].name + ' is' : plural(held.length, 'person', 'people') + ' are'} restricted right now, so it applies once that ends.` : ''));
+  m.textContent = '';
+  toast((failed ? `${done} updated, ${failed} failed.` : `${label}: done for ${plural(done, 'person', 'people')}.`) +
+    (held.length ? ` ${held.length === 1 ? held[0].name + ' is' : plural(held.length, 'person', 'people') + ' are'} restricted right now, so it applies once that ends.` : ''), !failed);
   await loadUsers(); renderPeople();
 }
 $('#bulk').addEventListener('click', async e => {
   const b = e.target.closest('button[data-b]'); if (!b) return;
   const a = b.dataset.b;
   if (a === 'clear') { ppl.sel.clear(); $('#bulkMsg').textContent = ''; renderPeople(); return; }
-  if (a === 'limit') { $('#bulkLimit').hidden = !$('#bulkLimit').hidden; if (!$('#bulkLimit').hidden) $('#bValue').focus(); return; }
+  if (a === 'limit' || a === 'use') {
+    const box = $(a === 'limit' ? '#bulkLimit' : '#bulkUse');
+    box.hidden = !box.hidden; $(a === 'limit' ? '#bulkUse' : '#bulkLimit').hidden = true; syncBulkExp();
+    if (a === 'limit' && !box.hidden) $('#bValue').focus();
+    return;
+  }
   const bodies = { 'sonnet-on': { allowSonnet: true }, 'sonnet-off': { allowSonnet: false }, 'web-on': { allowWeb: true }, 'web-off': { allowWeb: false }, 'pdf-on': { allowPdf: true }, 'pdf-off': { allowPdf: false }, 'actions-on': { allowActions: true }, 'actions-off': { allowActions: false }, signout: { signout: true }, block: { status: 'blocked' }, unblock: { status: 'trusted' } };
-  if (a === 'block' && !confirm(`Block ${plural(ppl.sel.size, 'person', 'people')}? They're signed out right away.`)) return;
-  await bulk(bodies[a], b.textContent);
+  if (a === 'block' && !await ask({ title: `Turn off ${plural(ppl.sel.size, 'person', 'people')}?`, yes: 'Turn off', danger: true,
+    body: 'They’re signed out right away and can’t use pagebot until you turn them back on. They’re told the account has been turned off, with no reason.' })) return;
+  await bulk(bodies[a], b.dataset.l || b.textContent);
 });
 $('#bApply').onclick = async () => {
   const v = +$('#bValue').value;
@@ -1411,7 +1687,7 @@ $('#bApply').onclick = async () => {
 // what newly accepted accounts start with
 let dKind = 'tokens';
 function renderDefaults(d) {
-  if ($('#defaults').contains(document.activeElement)) return;
+  if (dirty.has('#defaults') || $('#defaults').contains(document.activeElement)) return;
   setDKind(d.limitKind || 'none', d.limitValue);
   $('#dSonnet').checked = d.allowSonnet; $('#dWeb').checked = d.allowWeb; $('#dPdf').checked = d.allowPdf; $('#dActions').checked = d.allowActions;
 }
@@ -1421,11 +1697,13 @@ function setDKind(k, v) {
   $('#dUnit').textContent = k === 'usd' ? 'dollars a day' : k === 'tokens' ? 'tokens a day' : 'they can use as much as they like';
   if (v != null) $('#dValue').value = v; else if (k !== 'none') $('#dValue').value = k === 'usd' ? 0.5 : 100000;
 }
-$('#dKind').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setDKind(b.dataset.k); });
+$('#dKind').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { setDKind(b.dataset.k); dirty.add('#defaults'); } });
+for (const id of ['#limForm', '#defaults']) for (const ev of ['input', 'change']) $(id).addEventListener(ev, () => dirty.add(id));
 $('#dSave').onclick = async () => {
   try {
     await send('/api/admin/accounts', { defaults: { limitKind: dKind, limitValue: +$('#dValue').value, allowSonnet: $('#dSonnet').checked, allowWeb: $('#dWeb').checked, allowPdf: $('#dPdf').checked, allowActions: $('#dActions').checked } });
-    say($('#dMsg'), true, 'Saved. People you accept from now on start with these.');
+    dirty.delete('#defaults');
+    say($('#dMsg'), true, 'Saved. People you let in from now on start with these.');
   } catch (err) { say($('#dMsg'), false, err.message); }
 };
 
@@ -1453,7 +1731,7 @@ function closeDrawer() {
 }
 $('#dwClose').onclick = closeDrawer;
 $('#scrim').onclick = closeDrawer;
-addEventListener('keydown', e => { if (e.key === 'Escape' && dw.id != null) closeDrawer(); });
+addEventListener('keydown', e => { if (e.key === 'Escape' && dw.id != null && !$('#ask').open) closeDrawer(); });
 const section = (title, ...kids) => { const s = mk('section'); s.append(mk('h4', '', title), ...kids); return s; };
 function renderDrawer() {
   const owner = dw.id === 'owner', u = owner ? null : S.users.users.find(x => x.id === dw.id);
@@ -1477,11 +1755,18 @@ function renderDrawer() {
     ll.append(meter(f), `${pctText(f)} of today’s ${limitText(e.limitKind, e.limitValue)}` + (u.restriction?.limits?.limitKind ? ' (while restricted)' : ''));
     nums.appendChild(ll);
   }
-  if (st.pdfs) { // pdf storage: what they keep stored, against the cap
-    const mb = n => `${(n / 1048576).toFixed(n < 1048576 ? 2 : 1)} MB`;
-    nums.appendChild(mk('p', 'sub', `PDFs stored: ${st.pdfs.count} (${mb(st.pdfs.bytes)} of ${mb(S.users.pdfCap)} cap)`));
+  if (st.pdfs?.count) { // pdf storage: what they keep stored, against what they may keep
+    const mb = n => `${(n / 1048576).toFixed(n < 1048576 ? 2 : 1).replace(/\.0$/, '')} MB`;
+    nums.appendChild(mk('p', 'sub', `${plural(st.pdfs.count, 'PDF')} saved, using ${mb(st.pdfs.bytes)} of their ${mb(S.users.pdfCap)}`));
   }
   body.appendChild(nums);
+  // a ban or restriction in force (and its appeal) shows right away; otherwise the bans come last
+  const mod = u && u.status !== 'pending' ? section('Bans and limits', moderationBox(u)) : null;
+  if (mod && (u.ban || u.restriction)) body.appendChild(mod);
+  // the everyday favours (a new password, signing out) come before the charts
+  if (u) body.appendChild(section('Account', accountBox(u)));
+  else body.appendChild(section('Account', mk('p', 'sub', 'You have no limit. Your password and passcode are under Settings.')));
+  if (u && u.status !== 'pending') body.appendChild(section('Daily limit and access', editor(u)));
   // their last 30 days
   const fig = mk('figure', 'chart'), NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'), tip = mk('div', 'tip');
   svg.setAttribute('role', 'img'); svg.setAttribute('tabindex', '0');
@@ -1495,8 +1780,6 @@ function renderDrawer() {
     label: (d, i, n) => i === 0 || i === n - 1 || i === Math.floor(n / 2) ? utcDay.format(asDate(d.day)) : null,
     title: d => utcLong.format(asDate(d.day)),
   }));
-  // settings for an account
-  if (u && u.status !== 'pending') body.appendChild(section('Daily limit and access', editor(u)));
   // recent questions
   const rq = mk('div', 'list');
   if (!dw.recent) rq.appendChild(mk('p', 'sub', dw.error || 'Loading…'));
@@ -1525,14 +1808,12 @@ function renderDrawer() {
     dl.appendChild(it);
   }
   body.appendChild(section('Devices', dl));
-  if (u && u.status !== 'pending') body.appendChild(section('Moderation', moderationBox(u)));
-  if (u) body.appendChild(section('Account', accountBox(u)));
-  else body.appendChild(section('Account', mk('p', 'sub', 'You have no limit. Your password and passcode are under Settings.')));
+  if (mod && !mod.isConnected) body.appendChild(mod);
 }
 function editor(u) {
   const ed = mk('div');
   let kind = u.limitKind || 'none';
-  const inl = mk('div', 'inl'), seg = mk('div', 'seg'), input = mk('input'), unitL = mk('span', 'unit');
+  const inl = mk('div', 'inl'), seg = segBox('Kind of daily limit'), input = mk('input'), unitL = mk('span', 'unit');
   input.type = 'number'; input.min = '0'; input.step = 'any'; input.setAttribute('aria-label', 'Daily limit'); input.value = u.limitValue ?? '';
   const setKind = k => {
     kind = k; setSeg(seg, 'k', k); input.hidden = k === 'none';
@@ -1568,8 +1849,10 @@ function accountBox(u) {
     : u.lockMinutes ? `Passcode on: their panel locks after ${lockName(u.lockMinutes)} without activity.` : 'Passcode on, with no auto-lock.');
   pc.style.margin = u.note ? '10px 0 0' : '0'; box.appendChild(pc);
   const msg = mk('div', 'msg'), row = mk('div', 'btns'); row.style.marginTop = '12px';
+  const off = u.status === 'blocked';
   const reset = button('Reset password', 'btn ghost sm'), out = button('Sign out everywhere', 'btn ghost sm'),
-    blk = button(u.status === 'blocked' ? 'Unblock' : 'Block', 'btn ghost sm' + (u.status === 'blocked' ? '' : ' danger')), rm = button('Delete', 'btn ghost sm danger');
+    blk = button(off ? 'Turn back on' : 'Turn off account', 'btn ghost sm' + (off ? '' : ' danger')), rm = button('Delete account…', 'btn ghost sm danger');
+  blk.dataset.acct = 'toggle';
   row.append(reset, out, blk, rm);
   const np = mk('div', 'np'); np.hidden = true;
   const npIn = mk('input'), npGo = button('Set', 'btn sm'); npIn.type = 'text'; npIn.placeholder = 'New password (6+ characters)'; npIn.setAttribute('aria-label', 'New password');
@@ -1582,13 +1865,36 @@ function accountBox(u) {
   npGo.onclick = () => act1({ password: npIn.value }, `Password changed and ${u.name} was signed out.` + (u.passcode ? ' Their passcode was turned off too.' : '') + ' Tell them the new password.');
   npIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); npGo.click(); } });
   out.onclick = () => act1({ signout: true }, `${u.name} was signed out everywhere.`);
-  blk.onclick = () => act1({ status: u.status === 'blocked' ? 'trusted' : 'blocked' }, u.status === 'blocked' ? `${u.name} can use pagebot again.` : `${u.name} is blocked and signed out.`);
+  const was = u.status, toggle = () => $('#dwBody [data-acct="toggle"]') || $('#dwClose');
+  const setOn = async (on, undo) => {
+    const status = on ? (undo ? was : 'trusted') : 'blocked';
+    let undoIt = null;
+    try {
+      await send('/api/admin/users/' + u.id, { status });
+      if (!on) undoIt = () => setOn(true, true);
+      else toast(!undo ? `${u.name} can use pagebot again.` : was === 'pending' ? `${u.name} is waiting to be let in again.` : `${u.name} is back on. They’ll need to sign in again.`);
+    } catch (err) { toast(err.message, false); }
+    await loadUsers(); S.sessions = await api('/api/admin/sessions'); renderPeople(); if (dw.id != null) renderDrawer();
+    if (undoIt) toast(`${u.name} is turned off and signed out.`, true, undoIt, { back: toggle });
+    else if (dw.id != null && !$('#toast').contains(document.activeElement)) toggle()?.focus();
+  };
+  blk.onclick = () => setOn(off);
   rm.onclick = async () => {
-    if (!confirm(`Delete ${u.name}? They're signed out and the account is gone. Their past usage stays in the totals.`)) return;
-    try { await send('/api/admin/users/' + u.id, undefined, 'DELETE'); closeDrawer(); await loadUsers(); renderPeople(); } catch (err) { say(msg, false, err.message); }
+    if (!await ask({ title: `Delete ${u.name} for good?`, warn: 'This can’t be undone.', yes: 'Delete', danger: true,
+      body: 'They’re signed out and the account, with its saved instructions and commands, is gone. Their past questions stay in Activity and in your totals.' })) return;
+    try { await send('/api/admin/users/' + u.id, undefined, 'DELETE'); closeDrawer(); toast(`${u.name} is deleted.`); await loadUsers(); renderPeople(); } catch (err) { say(msg, false, err.message); }
   };
   msg.id = 'dwAcct';
-  box.append(row, np, msg);
+  // the five ways to stop someone, from gentlest to final, said once where you choose
+  const kinds = mk('dl', 'kinds');
+  for (const [k, v] of [
+    ['Restrict', 'They keep using pagebot with less (no Sonnet, web search, PDFs or page actions, or a lower daily limit) for a set time, with your reason.'],
+    ['Turn off', 'They can’t use pagebot until you turn it back on. They’re told it’s been turned off, with no reason.'],
+    ['Ban', 'Locked out for a set time or for good, with your reason. They can appeal.'],
+    ['Terminate', `Locked out with your reason, and the account is deleted in ${S.users.terminateDays} days unless you reverse it. They can appeal; that name and browser can’t sign up again.`],
+    ['Delete', 'Gone right away, and it can’t be undone. They could sign up again.'],
+  ]) kinds.append(mk('dt', '', k), mk('dd', '', v));
+  box.append(row, np, msg, kinds);
   return box;
 }
 
@@ -1614,11 +1920,11 @@ async function loadActivity(reset) {
     renderActivity();
   } finally { act.loading = false; $('#t-activity').classList.remove('loading'); }
 }
-onSeg($('#aRange'), 'd', v => { act.days = +v; loadActivity(true).catch(() => {}); });
-for (const [sel, key] of [['#actWho', 'who'], ['#aModel', 'model'], ['#aFlag', 'flag']]) $(sel).addEventListener('change', e => { act[key] = e.target.value; loadActivity(true).catch(() => {}); });
+onSeg($('#aRange'), 'd', v => { act.days = +v; tryLoad('activity', loadActivity(true)); });
+for (const [sel, key] of [['#actWho', 'who'], ['#aModel', 'model'], ['#aFlag', 'flag']]) $(sel).addEventListener('change', e => { act[key] = e.target.value; tryLoad('activity', loadActivity(true)); });
 let searchT = 0;
-$('#aSearch').addEventListener('input', e => { clearTimeout(searchT); searchT = setTimeout(() => { act.q = e.target.value.trim(); loadActivity(true).catch(() => {}); }, 300); });
-$('#actMore').onclick = () => loadActivity(false).catch(() => {});
+$('#aSearch').addEventListener('input', e => { clearTimeout(searchT); searchT = setTimeout(() => { act.q = e.target.value.trim(); tryLoad('activity', loadActivity(true)); }, 300); });
+$('#actMore').onclick = () => tryLoad('activity', loadActivity(false));
 function tags(r) {
   const t = [];
   if (r.page) t.push(['Page']);
@@ -1628,7 +1934,7 @@ function tags(r) {
   if (r.pdf) t.push(['📄 ' + (r.pdf.length > 40 ? r.pdf.slice(0, 40) + '…' : r.pdf), '', r.pdf]); // pdf uploads
   if (r.searches) t.push([`Web ×${r.searches}`]);
   if (r.acted) t.push(['🖱 Page actions']); // page actions
-  if (r.fallback) t.push(['Fallback']);
+  if (r.fallback) t.push(['Stepped in']);
   if (r.refused) t.push(['Declined', 'warn']);
   if (r.stopped) t.push(['Stopped', 'warn']);
   if (!r.answered) t.push(['No answer', 'warn']);
@@ -1636,7 +1942,7 @@ function tags(r) {
   return t.map(([text, cls, title]) => { const e = mk('span', 'tag' + (cls ? ' ' + cls : ''), text); if (title) e.title = title; return e; });
 }
 function renderActivity() {
-  const cols = [{ label: 'When' }, { label: 'Person' }, { label: 'Model' }, { label: 'Site' }, { label: 'Question' }, { label: 'In', num: 1, title: 'Tokens in' }, { label: 'Out', num: 1, title: 'Tokens out' }, { label: 'Cost', num: 1, title: 'Estimated cost' }];
+  const cols = [{ label: 'When' }, { label: 'Person' }, { label: 'Model' }, { label: 'Site' }, { label: 'Question' }, { label: 'Tokens in', num: 1 }, { label: 'Tokens out', num: 1 }, { label: 'Cost', num: 1, title: 'Estimated cost' }];
   const tb = table($('#actTbl'), cols);
   if (!act.rows.length) emptyRow(tb, cols.length, act.q || act.flag || act.model || act.who !== 'all' ? 'No questions match these filters.' : 'No questions in this range yet.');
   for (const r of act.rows) {
@@ -1645,7 +1951,9 @@ function renderActivity() {
     td(tr, r.user ? r.user.name : 'You', r.user ? '' : 'muted');
     const m = mk('span'); if (r.model) m.append(swatch(famColor(r.model))); m.append(r.modelLabel || '—'); td(tr, m);
     const site = td(tr, r.host || '—', 'trunc' + (r.host ? '' : ' muted')); if (r.title) site.title = r.title;
-    const qc = td(tr, null, 'qcell'); qc.append(r.question || '(no text)', ...tags(r)); qc.title = r.question;
+    // what came with it on its own line, so a long question can't hide it
+    const qc = td(tr, null, 'qcell'), tg = tags(r); qc.appendChild(mk('span', 'qt', r.question || '(no text)')); qc.title = r.question;
+    if (tg.length) { const w = mk('span', 'qtags'); w.append(...tg); qc.appendChild(w); }
     td(tr, short(r.in), 'num'); td(tr, short(r.out), 'num'); td(tr, cost(r.usd), 'num');
     rowLink(tr, () => { act.open.has(r.id) ? act.open.delete(r.id) : act.open.add(r.id); renderActivity(); });
     tr.setAttribute('aria-expanded', String(act.open.has(r.id)));
@@ -1686,17 +1994,17 @@ function detailRow(tb, r, span) {
   g.append(qcol, acol);
   const meta = mk('div', 'dmeta');
   const bits = [fullFmt.format(new Date(x.at)), `Question ${x.turn.n} of ${x.turn.total} in chat #${x.conversationId}`,
-    x.modelLabel && `${x.modelLabel}${x.fallback ? ' (fallback)' : ''}`, `${nf.format(x.in)} tokens in · ${nf.format(x.out)} out`, `${money(x.usd, 4)} estimated`,
+    x.modelLabel && `${x.modelLabel}${x.fallback ? ' (stepped in)' : ''}`, `${nf.format(x.in)} tokens in · ${nf.format(x.out)} out`, `${money(x.usd, 4)} estimated`,
     x.searches && plural(x.searches, 'web search', 'web searches'), x.refused && 'Declined by the model', x.stopped && 'Stopped before it finished'];
   meta.append(...bits.filter(Boolean).map(b => mk('span', '', b)));
-  const who = button(x.user ? `Open ${x.user.name}` : 'Open your usage', 'linkbtn');
+  const who = button(x.user ? `Open ${x.user.name}’s details` : 'Open your details', 'linkbtn');
   who.onclick = () => openPerson(x.user ? x.user.id : 'owner');
   meta.appendChild(who);
   const wrap = mk('div', 'dwrap'); wrap.append(g, meta);
   cell.appendChild(wrap);
 }
 $('#aExport').onclick = async () => {
-  const b = $('#aExport'); b.disabled = true; b.textContent = 'Exporting…';
+  const b = $('#aExport'); b.disabled = true; b.textContent = 'Preparing…';
   try {
     const rows = []; let before = '';
     for (let i = 0; i < 25; i++) { // up to 5,000 questions
@@ -1711,8 +2019,8 @@ $('#aExport').onclick = async () => {
       ...rows.map(r => [new Date(r.at).toISOString(), r.user ? r.user.name : 'owner', r.modelLabel || '', r.host || '', r.title || '', r.question, r.in, r.out, r.usd.toFixed(6), r.searches,
         r.page ? 'yes' : '', r.highlight ? 'yes' : '', r.image ? 'yes' : '', r.pdf || '', r.refused ? 'yes' : '', r.stopped ? 'yes' : '', r.fallback ? 'yes' : '', r.conversationId]),
     ]);
-  } catch (err) { alert(err.message); }
-  finally { b.disabled = false; b.textContent = 'Export CSV'; }
+  } catch (err) { toast(err.message, false); }
+  finally { b.disabled = false; b.textContent = 'Download as a spreadsheet'; }
 };
 
 // ================= devices =================
@@ -1728,14 +2036,15 @@ async function loadDevices() {
 onSeg($('#devWho'), 'w', v => { devs.who = v; renderDevices(); });
 function renderDevices() {
   const list = S.sessions.sessions.filter(x => devs.who === 'all' || (devs.who === 'owner' ? !x.user : !!x.user));
-  const tb = table($('#devTbl'), [{ label: 'Person' }, { label: 'Device' }, { label: 'Address' }, { label: 'Signed in' }, { label: 'Last used' }, { label: 'Status' }, { label: '' }]);
-  if (!list.length) emptyRow(tb, 7, 'No devices are signed in.');
+  const tb = table($('#devTbl'), [{ label: 'Person' }, { label: 'Device' }, { label: 'Last used' }, { label: 'Status' }, { label: '' }]);
+  if (!list.length) emptyRow(tb, 5, 'No devices are signed in.');
   for (const x of list) {
     const tr = tb.insertRow();
     td(tr, x.user ? x.user.name : 'You (owner)', x.user ? '' : 'muted');
-    const dv = td(tr, device(x.ua)); if (x.ua) dv.title = x.ua;
-    td(tr, x.ip || '—', 'mono');
-    const si = td(tr, when(x.createdAt)); si.title = fullFmt.format(new Date(x.createdAt));
+    // the address and when it signed in go under the device, so the Sign out button stays in view
+    const dv = mk('span'), dn = mk('span', 'dvn', `${x.ip || 'unknown address'} · signed in ${when(x.createdAt)}`);
+    dv.append(device(x.ua), dn); dn.title = `${x.ip || ''} · signed in ${fullFmt.format(new Date(x.createdAt))}`;
+    const dc = td(tr, dv); if (x.ua) dc.title = x.ua;
     const lu = td(tr, ago(x.lastUsed)); lu.title = fullFmt.format(new Date(x.lastUsed));
     const status = x.active ? chip('Active', 'ok') : chip(x.user ? 'Expired' : 'Locked', 'mute');
     if (!x.active) status.title = x.user ? 'Unused for too long; it has to sign in again' : 'Idle past the passcode lock; it asks for the passcode again';
@@ -1743,8 +2052,8 @@ function renderDevices() {
     td(tr, status);
     const b = button('Sign out', 'btn ghost sm');
     b.onclick = async () => {
-      try { await send('/api/admin/sessions/' + x.id, undefined, 'DELETE'); say($('#devMsg'), true, `Signed out ${device(x.ua)} (${x.user ? x.user.name : 'you'}).`); }
-      catch (err) { say($('#devMsg'), false, err.message); }
+      try { await send('/api/admin/sessions/' + x.id, undefined, 'DELETE'); toast(`Signed out ${device(x.ua)} (${x.user ? x.user.name : 'you'}).`); }
+      catch (err) { toast(err.message, false); }
       await loadDevices(); loadStats().catch(() => {});
     };
     td(tr, b, 'right');
@@ -1752,31 +2061,31 @@ function renderDevices() {
   }
 }
 $('#signoutAll').onclick = async () => {
-  if (!confirm('Sign out every device, yours and everyone else’s? People keep their accounts and can sign in again.')) return;
-  try { const r = await send('/api/admin/signout-all', {}); say($('#devMsg'), true, `Signed out ${plural(r.signedOut, 'device')}.`); }
-  catch (err) { say($('#devMsg'), false, err.message); }
+  if (!await ask({ title: 'Sign out every device?', body: 'Yours and everyone else’s. People keep their accounts and can sign in again.', yes: 'Sign out everyone', danger: true })) return;
+  try { const r = await send('/api/admin/signout-all', {}); toast(`Signed out ${plural(r.signedOut, 'device')}.`); }
+  catch (err) { toast(err.message, false); }
   await loadDevices(); loadStats().catch(() => {});
 };
 function renderSecurity() {
   const s = S.security, box = $('#secBody');
   const pc = s.passcode;
   box.replaceChildren(facts([
-    ['Wrong logins', s.failsLastHour ? `${nf.format(s.failsLastHour)} in the last hour, from ${plural(s.addressCount, 'address', 'addresses')}` : 'none in the last hour'],
-    ['Each address', `gets ${s.perAddress} wrong logins an hour, then has to wait`],
-    ['Owner password', s.ownerPaused ? chip(`Paused: ${s.ownerFails} wrong tries this hour`, 'err') : `open · ${s.ownerFails} of ${s.ownerPauseAt} wrong tries before logins pause`],
+    ['In the last hour', s.failsLastHour ? `${plural(s.failsLastHour, 'wrong try', 'wrong tries')}, from ${plural(s.addressCount, 'address', 'addresses')}` : 'no wrong tries'],
+    ['Each address', `gets ${s.perAddress} wrong tries an hour, then has to wait`],
+    ['Your password', s.ownerPaused ? chip(`Paused: ${s.ownerFails} wrong tries this hour`, 'err') : `open · ${s.ownerFails} of ${s.ownerPauseAt} wrong tries before sign-ins pause`],
     ['Passcode', !pc.on ? 'not set' : pc.locked ? chip(`Locked after ${pc.max} wrong tries; the password unlocks it`, 'warn') : `${pc.fails} of ${pc.max} wrong tries on record (they count for 24 hours)`],
     ['Admin token', s.adminFails ? `${plural(s.adminFails, 'wrong try', 'wrong tries')} in the last 10 minutes (20 per address, then it waits)` : 'no wrong tries in the last 10 minutes'],
   ]));
   if (s.addresses.length) {
-    const wrap = mk('div', 'tablewrap'), t = mk('table', 'dt'); wrap.style.margin = '14px -18px 0'; wrap.appendChild(t);
+    const wrap = mk('div', 'tablewrap secwrap'), t = mk('table', 'dt'); wrap.appendChild(t);
     const tb = table(t, [{ label: 'Address' }, { label: 'Wrong tries', num: 1 }, { label: 'Last try' }, { label: '' }]);
-    for (const a of s.addresses) { const tr = tb.insertRow(); td(tr, a.ip, 'mono'); td(tr, nf.format(a.fails), 'num'); td(tr, ago(a.last)); td(tr, a.blocked ? chip('Waiting', 'warn') : '', 'right'); }
+    for (const a of s.addresses) { const tr = tb.insertRow(); td(tr, a.ip, 'mono ipc'); td(tr, nf.format(a.fails), 'num'); td(tr, ago(a.last)); td(tr, a.blocked ? chip('Waiting', 'warn') : '', 'right'); }
     box.appendChild(wrap);
   }
-  box.appendChild(mk('p', 'sub', 'These counters reset when the server restarts. “Clear lockouts” resets them now, along with wrong passcodes.'));
+  box.appendChild(mk('p', 'sub', 'These counters reset when the server restarts. “Let everyone try again” resets them now, along with wrong passcodes.'));
 }
 $('#secClear').onclick = async () => {
-  try { await send('/api/admin/security/clear', {}); say($('#secMsg'), true, 'Lockouts cleared.'); } catch (err) { say($('#secMsg'), false, err.message); }
+  try { await send('/api/admin/security/clear', {}); toast('Lockouts cleared. Everyone can try again.'); } catch (err) { toast(err.message, false); }
   await loadDevices();
 };
 
@@ -1787,7 +2096,7 @@ function renderSettings() {
   const R = s.limitRanges;
   for (const [id, key] of [['#lMax', 'maxTokens'], ['#lSearch', 'maxSearches'], ['#lPage', 'pageTokens']]) {
     const i = $(id); i.min = R[key][0]; i.max = R[key][1];
-    if (document.activeElement !== i) i.value = s.limits[key];
+    if (document.activeElement !== i && !dirty.has('#limForm')) i.value = s.limits[key];
   }
   $('#lPageHint').textContent = `About ${nf.format(s.limits.pageTokens * 4)} characters. Longer pages are cut off at this point.`;
   const L = s.lock;
@@ -1800,20 +2109,23 @@ function renderSettings() {
     : L.fails >= L.maxFails ? `Passcode entry is blocked after ${L.maxFails} wrong tries. Unlock once with the password (or set a new passcode) to turn it back on.`
     : `On — panels lock ${L.minutes ? 'after ' + lockName(L.minutes) + ' without activity' : 'only when you lock them'}.` + (L.fails ? ` ${plural(L.fails, 'wrong try', 'wrong tries')} on record.` : '');
   $('#pc1').required = $('#pc2').required = !L.on;
-  $('#pwState').textContent = s.passwordSet ? 'A password is set.' : 'No password set yet — the bookmarklet can’t log in until you set one.';
+  $('#pwState').textContent = s.passwordSet ? 'A password is set.' : 'No password yet. Set one here first: it’s what you’ll type when you open pagebot from your bookmark.';
+  $('#pwSave').textContent = s.passwordSet ? 'Change password' : 'Set password';
+  $('#pwHint').hidden = !s.passwordSet;
   $('#about').replaceChildren(...facts([
     ['Models', s.models.map(m => `${m.label} (${m.id})`).join(' · ')],
     ['Thinking effort', s.effort],
     ['Time zone', S.users?.timezone || '—'],
     ['Token budget', `${nf.format(s.budget)} tokens (TOKEN_BUDGET)`],
     ['Signed-in devices', nf.format(s.sessions)],
-    ['Accounts', `${nf.format(people().length)} · ${S.users?.signup ? 'sign-ups open' : 'sign-ups closed'}`],
+    ['People', `${nf.format(people().length)} · ${S.users?.signup ? 'sign-ups open' : 'sign-ups closed'}`],
   ]).childNodes);
 }
 $('#limForm').addEventListener('submit', async e => {
   e.preventDefault(); const m = $('#limMsg');
   try {
     const r = await send('/api/admin/limits', { maxTokens: $('#lMax').value, maxSearches: $('#lSearch').value, pageTokens: $('#lPage').value });
+    dirty.delete('#limForm');
     say(m, true, `Saved: ${nf.format(r.limits.maxTokens)} tokens per answer, ${plural(r.limits.maxSearches, 'search', 'searches')}, ${nf.format(r.limits.pageTokens)} tokens of page text.`);
     await loadStats(); renderSettings();
   } catch (err) { say(m, false, err.message); }
@@ -1852,11 +2164,82 @@ $('#pwForm').addEventListener('submit', async e => {
   } catch (err) { say(m, false, err.message); }
 });
 
+// the same request as Settings › Your password, at the top of every tab until a password exists
+$('#pwQuick').addEventListener('submit', async e => {
+  e.preventDefault(); const m = $('#pwQuickMsg'), a = $('#q1').value, b = $('#q2').value;
+  if (a !== b) return say(m, false, 'Passwords don’t match.');
+  try {
+    await send('/api/admin/password', { password: a });
+    $('#q1').value = $('#q2').value = ''; m.textContent = '';
+    toast('Password set. Use it when you open pagebot from your bookmark.');
+    await loadStats(); renderNeeds(); if (S.tab === 'settings') renderSettings();
+  } catch (err) { say(m, false, err.message); }
+});
+
+// ---- what needs you, at the top of Overview: people waiting, appeals, anyone at today's limit ----
+function renderNeeds() {
+  if (!S.users) return;
+  const wait = pendingList(), appeals = S.users.appeals || [], everyone = people();
+  const full = everyone.filter(u => u.status === 'trusted' && !u.ban && eff(u).limitKind && frac(usedToday(u), eff(u).limitValue) >= 1);
+  const groups = [], group = title => { const g = mk('div', 'ngroup'); g.appendChild(mk('h3', '', title)); groups.push(g); return g; };
+  if (wait.length) {
+    const g = group(wait.length === 1 ? '1 person is waiting to be let in' : `${wait.length} people are waiting to be let in`);
+    for (const u of wait.slice(0, 5)) {
+      const it = mk('div', 'nitem'), who = mk('div', 'nwho'), lt = linkedTag(u);
+      who.appendChild(mk('b', '', u.name)); if (lt) who.appendChild(lt); who.appendChild(mk('span', 'sub', ` · asked ${ago(u.createdAt)}`));
+      if (u.note) who.appendChild(mk('div', 'sub nnote', `“${u.note}”`));
+      const btns = mk('div', 'btns'), yes = button('Let in', 'btn sm'), no = button('Turn down', 'btn ghost sm');
+      yes.setAttribute('aria-label', 'Let in ' + u.name); no.setAttribute('aria-label', 'Turn down ' + u.name);
+      yes.onclick = () => accept([u]); no.onclick = () => deny([u]);
+      btns.append(yes, no); it.append(who, btns); g.appendChild(it);
+    }
+    if (wait.length > 5) { const more = button(`See all ${wait.length} on People`, 'linkbtn'); more.onclick = () => showTab('people'); g.appendChild(more); }
+  }
+  if (appeals.length) {
+    const g = group(appeals.length === 1 ? '1 appeal is waiting for your answer' : `${appeals.length} appeals are waiting for your answer`);
+    const it = mk('div', 'nitem'), go = button('Answer', 'btn sm');
+    go.onclick = () => { showTab('people'); requestAnimationFrame(() => $('#modCard').scrollIntoView({ block: 'start' })); };
+    it.append(mk('div', 'nwho', appeals.map(a => a.ban.name).join(', ')), go); g.appendChild(it);
+  }
+  if (full.length) {
+    const g = group(full.length === 1 ? '1 person has used all of today’s limit' : `${full.length} people have used all of today’s limit`);
+    for (const u of full) {
+      const it = mk('div', 'nitem'), o = button(`Open ${u.name}’s details`, 'linkbtn'), e = eff(u);
+      o.onclick = () => openPerson(u.id);
+      it.append(mk('div', 'nwho', `${u.name} · ${limitText(e.limitKind, e.limitValue)} a day`), o); g.appendChild(it);
+    }
+  }
+  const nopw = S.stats && !S.stats.passwordSet, fresh = !!S.stats && !+S.stats.questions;
+  if (!groups.length) groups.push(mk('p', 'calm', nopw ? 'Just one thing: set your password in the box above.' : 'Nothing needs you right now.'));
+  if (!everyone.length) groups.push(firstSteps());
+  if (fresh) groups.push(mk('p', 'sub', 'Your numbers and charts show up here after the first question.'));
+  $('#t-overview').classList.toggle('fresh', fresh);
+  $('#needsBody').replaceChildren(...groups);
+}
+// a brand-new server: three plain steps, and words to send a friend (the homepage itself explains nothing)
+const invite = () => `I set up pagebot for us: a helper that reads the page you’re on and answers your questions about it. Open ${location.origin} on a computer, drag the button to your bookmarks bar, then click that bookmark on any page and sign up. I’ll let you in.`;
+function firstSteps() {
+  const g = mk('div', 'ngroup'), ol = mk('ol', 'steps'), pw = !!S.stats?.passwordSet, open = !!S.users?.signup;
+  const step = (done, title, text, extra) => { const li = mk('li', done ? 'done' : ''); li.append(mk('b', '', title), mk('span', 'sub', text)); if (extra) { const d = mk('div'); d.appendChild(extra); li.appendChild(d); } ol.appendChild(li); };
+  const copy = button('Copy an invitation to send', 'btn ghost sm');
+  copy.onclick = async () => {
+    try { await navigator.clipboard.writeText(invite()); toast('Copied. Paste it into a message to a friend.'); }
+    catch { toast(`Couldn’t copy here. Send them this address instead: ${location.origin}`, false); }
+  };
+  step(pw, pw ? 'Your password is set' : 'Set your password', pw ? 'It’s what you type when you open pagebot from your bookmark.' : 'Use the box at the top of this page.');
+  step(false, 'Send people your address', open ? `They add the bookmark from ${location.origin}, open pagebot on any page and sign up.` : `Sign-ups are closed right now: open them on People first, then send them ${location.origin}.`, open ? copy : null);
+  step(false, 'Let them in here', 'When someone signs up, they show up at the top of this page with Let in and Turn down.');
+  g.append(mk('h3', '', 'Getting started'), ol);
+  return g;
+}
+
 // ================= sign in / out =================
 async function start() {
+  const t0 = tok;
   await Promise.all([loadStats(), loadUsers()]);
+  if (tok !== t0) return; // locked while it was loading
   started = true;
-  $('#unlock').hidden = true; $('#app').hidden = false;
+  $('#unlock').hidden = true; $('#app').hidden = false; $('#booting').hidden = true;
   showTab((location.hash || '#overview').slice(1));
   startTimers();
 }
@@ -1870,7 +2253,10 @@ $('#unlock').addEventListener('submit', async e => {
   catch (err) { tok = null; $('#unlockMsg').textContent = err.message; }
 });
 $('#lock').onclick = () => lockOut();
-if (tok) start().catch(() => lockOut());
+if (tok) { // a saved token goes straight in: the header and tabs show at once, without flashing the sign-in box
+  $('#unlock').hidden = true; $('#app').hidden = false; $('#booting').hidden = false; showTab((location.hash || '#overview').slice(1));
+  start().catch(() => { if (!started) { lockOut(); $('#tok').focus(); } });
+}
 else $('#tok').focus();
 })();
 </script>
