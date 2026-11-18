@@ -610,7 +610,7 @@ function take(key, max, win) { // counts a hit unless the window is already full
 }
 const recent = key => { const e = hits.get(key), now = Date.now(); return e ? e.t.filter(t => now - t < e.win).length : 0; };
 const limit = (max, bucket, win = 60_000) => (req, res, next) => take(bucket + ':' + req.ip, max, win) ? next()
-  : res.status(429).json({ error: win > 60_000 ? 'Too many requests from here — try again later.' : 'Too many requests — wait a minute.' });
+  : res.status(429).json({ error: win > 60_000 ? 'Too many tries from this connection for now. Try again in a while.' : 'That’s a lot at once. Give it a minute, then try again.' });
 setInterval(() => { const now = Date.now(); for (const [k, e] of hits) if (!e.t.some(t => now - t < e.win)) hits.delete(k); }, 300_000).unref();
 
 // wrong passwords and passcodes: each address gets LOGIN_FAILS_PER_IP an hour, and a flood of wrong owner
@@ -620,7 +620,7 @@ function noteFail(req, owner) {
   take('fail:' + req.ip, Infinity, 3600_000);
   if (owner) take('fail:owner', Infinity, 3600_000);
 }
-const FAILS_MSG = 'Too many wrong tries from here. Try again later.';
+const FAILS_MSG = 'Too many wrong tries from this connection. Wait a while (it clears within an hour), then try again.';
 
 const bearer = req => (req.get('authorization') || '').replace(/^Bearer\s+/i, '').trim();
 
@@ -667,7 +667,7 @@ function trusted(req, res, next) {
   const u = req.user;
   if (!u || u.status === 'trusted') return next();
   res.status(403).json({
-    error: u.status === 'blocked' ? 'Your access has been turned off.' : 'You’re waiting to be accepted into the program.',
+    error: u.status === 'blocked' ? 'The owner has turned this account off. If that’s a surprise, ask them about it.' : 'The owner hasn’t let you in yet.',
     status: u.status,
   });
 }
@@ -677,7 +677,7 @@ function admin(req, res, next) {
   if (recent('adminfail:' + req.ip) >= 20) return res.status(429).json({ error: 'Too many wrong admin tokens from here. Try again in a few minutes.' });
   if (adminOk(req)) return next();
   if (ADMIN_TOKEN.length >= 16) take('adminfail:' + req.ip, Infinity, 600_000);
-  res.status(401).json({ error: ADMIN_TOKEN.length < 16 ? 'ADMIN_TOKEN env var is not set on the server (min 16 chars).' : 'Wrong admin token' });
+  res.status(401).json({ error: ADMIN_TOKEN.length < 16 ? 'The admin token isn’t set up yet. Set ADMIN_TOKEN (16 characters or more) in your server’s variables, restart the server, then reload this page.' : 'That token didn’t match. Check for a missing character at either end and try again.' });
 }
 
 setInterval(() => {
@@ -795,7 +795,7 @@ app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
 // anyone can ask to join; the account waits until the owner approves it in /admin
 app.post('/api/signup', limit(5, 'signup'), limit(30, 'signup-hour', 3600_000), async (req, res) => {
   const cfg = await loadConfig();
-  if (!cfg.signup) return res.status(403).json({ error: 'Sign-ups are closed right now.' });
+  if (!cfg.signup) return res.status(403).json({ error: 'Sign-ups are closed right now. If you know the owner, ask them to open them.' });
   const b = req.body || {};
   const name = String(b.username || '').trim();
   const pw = String(b.password || '');
@@ -824,8 +824,8 @@ app.post('/api/signup', limit(5, 'signup'), limit(30, 'signup-hour', 3600_000), 
 function wrongPasscode(res, n) {
   const left = MAX_PASSCODE_FAILS - n;
   return res.status(401).json({
-    error: left <= 0 ? 'Too many wrong passcodes. Unlock with your password.'
-      : left <= 3 ? `Wrong passcode — ${left} ${left === 1 ? 'try' : 'tries'} left.` : 'Wrong passcode',
+    error: left <= 0 ? 'Too many wrong passcodes, so it’s the password this time.'
+      : left <= 3 ? `That passcode didn’t match. ${left} ${left === 1 ? 'try' : 'tries'} left, then you’ll need your password.` : 'That passcode didn’t match.',
     left, usePassword: left <= 0,
   });
 }
@@ -857,9 +857,9 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
       await pool.query('UPDATE users SET passcode_fails = GREATEST(passcode_fails - 1, 0) WHERE id = $1', [u.id]);
     } else {
       const ok = await verifyPw(String(b.password || ''), u?.password_hash || await dummyHash);
-      if (!u || !ok) { noteFail(req); return res.status(401).json({ error: 'Wrong username or password.' }); }
+      if (!u || !ok) { noteFail(req); return res.status(401).json({ error: 'That username and password don’t match. Check them and try again.' }); }
     }
-    if (u.status === 'blocked') return res.status(403).json({ error: 'This account has been turned off.' });
+    if (u.status === 'blocked') return res.status(403).json({ error: 'The owner has turned this account off. If that’s a surprise, ask them about it.' });
     if (b.passcode == null) await pool.query('UPDATE users SET passcode_fails = 0, passcode_fails_at = NULL WHERE id = $1', [u.id]); // the password clears wrong passcodes
     if (old) await pool.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(old)]);
     await noteDevice(req, String(b.username).trim());
@@ -893,8 +893,8 @@ app.post('/api/login', limit(10, 'login'), async (req, res) => {
       return res.status(429).json({ error: 'Password logins are paused after a lot of wrong tries. Try again later, or use your passcode.' });
     const password = String(b.password || '');
     const stored = await getSetting('password_hash');
-    if (!stored) return res.status(503).json({ error: 'No password set yet — set one at /admin.' });
-    if (!password || !(await verifyPw(password, stored))) { noteFail(req, true); return res.status(401).json({ error: 'Wrong password' }); }
+    if (!stored) return res.status(503).json({ error: 'pagebot isn’t set up yet. If it’s yours, set a password in /admin first.' });
+    if (!password || !(await verifyPw(password, stored))) { noteFail(req, true); return res.status(401).json({ error: 'That password didn’t match. Try again.' }); }
     await setSetting('passcode_fails', '0'); // the password clears wrong passcodes
   }
   if (old) await pool.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(old)]);
@@ -940,7 +940,7 @@ app.get('/api/site-memory', limit(60, 'memory-read'), auth, trusted, async (req,
   const bounds = { maxSites: MAX_MEMORY_SITES, maxInstructions: MAX_MEMORY_INSTRUCTIONS };
   if (req.query.site != null) {
     const site = memorySite(req.query.site);
-    if (!site) return res.status(400).json({ error: 'Enter a website hostname or an http(s) URL.' });
+    if (!site) return res.status(400).json({ error: 'Type a website address, like example.com.' });
     return res.json({ site, memory: await getMemory(uid, site), ...bounds });
   }
   const r = await pool.query('SELECT site, instructions, updated_at FROM site_memories WHERE COALESCE(user_id, 0)=$1 ORDER BY site', [uid ?? 0]);
@@ -949,7 +949,7 @@ app.get('/api/site-memory', limit(60, 'memory-read'), auth, trusted, async (req,
 
 app.put('/api/site-memory', limit(60, 'memory-write'), auth, trusted, async (req, res) => {
   const site = memorySite(req.body?.site), raw = req.body?.instructions;
-  if (!site) return res.status(400).json({ error: 'Enter a website hostname or an http(s) URL.' });
+  if (!site) return res.status(400).json({ error: 'Type a website address, like example.com.' });
   if (typeof raw !== 'string') return res.status(400).json({ error: 'Instructions must be text.' });
   if (raw.length > MAX_MEMORY_INSTRUCTIONS) return res.status(400).json({ error: `Use at most ${MAX_MEMORY_INSTRUCTIONS} characters for this website.` });
   const instructions = raw.trim(), uid = req.user?.id ?? null;
@@ -981,7 +981,7 @@ app.put('/api/site-memory', limit(60, 'memory-write'), auth, trusted, async (req
 
 app.delete('/api/site-memory', limit(60, 'memory-write'), auth, trusted, async (req, res) => {
   const site = memorySite(req.query.site);
-  if (!site) return res.status(400).json({ error: 'Enter a website hostname or an http(s) URL.' });
+  if (!site) return res.status(400).json({ error: 'Type a website address, like example.com.' });
   await pool.query('DELETE FROM site_memories WHERE COALESCE(user_id, 0)=$1 AND site=$2', [req.user?.id ?? 0, site]);
   res.json({ ok: true });
 });
@@ -1501,7 +1501,7 @@ async function chat(req, res) {
   const used = u?.limitKind ? await usageToday(u.id) : null;
   const q0 = used && quota(u, used);
   if (q0 && q0.left <= 0)
-    return res.status(429).json({ error: 'You’ve used today’s limit. It resets at midnight.', quota: quotaOut(u, q0) });
+    return res.status(429).json({ error: 'That’s today’s limit used up. It starts fresh at midnight, so pick this up tomorrow.', quota: quotaOut(u, q0) });
 
   // PostgreSQL text can't hold a NUL, and the rows are only saved once the answer is in: one in a question would lose its usage
   const str = v => String(v || '').replaceAll('\0', '');
@@ -1516,19 +1516,19 @@ async function chat(req, res) {
   const explicitSite = hasSite && b.site != null && b.site !== '';
   // An explicit null clears context (for example when the bookmarklet cannot read the current site).
   let site = explicitSite ? memorySite(b.site) : hasSite ? null : page ? memorySite(page.url) : null;
-  if (explicitSite && !site) return res.status(400).json({ error: 'Enter a website hostname or an http(s) URL.' });
+  if (explicitSite && !site) return res.status(400).json({ error: 'Type a website address, like example.com.' });
 
   let image = null;
   if (b.image) {
     const mt = /^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/=]+)$/.exec(String(b.image));
-    if (!mt) return res.status(400).json({ error: 'Bad image data' });
-    if (mt[2].length > 8_000_000) return res.status(413).json({ error: 'Screenshot too large' });
+    if (!mt) return res.status(400).json({ error: 'That picture couldn’t be read. Try taking the screenshot again.' });
+    if (mt[2].length > 8_000_000) return res.status(413).json({ error: 'That screenshot is too big to send. Try a smaller area.' });
     image = { media_type: mt[1], data: mt[2] };
   }
   const annotated = b.annotated === true && !!image; // screenshot annotation: the panel says the screenshot carries marks
   const pdfId = Number.isSafeInteger(b.pdf) && b.pdf > 0 ? b.pdf : null; // pdf uploads: the id from /api/pdf
   if (b.pdf != null && !pdfId) return res.status(400).json({ error: 'Bad PDF id' });
-  if (!message && !image && !page && !selection && !pdfId) return res.status(400).json({ error: 'Empty message' });
+  if (!message && !image && !page && !selection && !pdfId) return res.status(400).json({ error: 'Type a question first, or add a screenshot or a PDF.' });
 
   // load the conversation (only your own)
   const uid = u?.id ?? null; // null = the owner
@@ -1605,7 +1605,7 @@ async function chat(req, res) {
       room = (q0.left - estIn * p.in / 1e6 - (web ? limits.maxSearches * SEARCH_USD : 0)) / (p.out / 1e6);
     }
     if (room < 256) {
-      return res.status(429).json({ quota: quotaOut(u, q0), error: 'That’s more than what’s left of today. ' +
+      return res.status(429).json({ quota: quotaOut(u, q0), error: 'There isn’t enough of today’s limit left for that one. ' +
         (pdf.tokens > estIn / 2 ? pdfLimitHint(pdf, history.length > 0) : history.length ? 'Start a new chat (+ at the top), or ask something shorter.' : 'Try a shorter question, or leave out the page or web search.') });
     }
     maxTokens = Math.min(maxTokens, Math.floor(room));
@@ -1778,12 +1778,12 @@ async function chat(req, res) {
 function friendly(e, model, u) { // u: the account asking (null = the owner, who sees the API's own wording)
   const s = e?.status;
   if (e?.router && s === 401) return 'OpenRouter API key is invalid (check OPENROUTER_API_KEY).';
-  if (e?.router && s === 402) return 'Your OpenRouter account is out of credits.';
+  if (e?.router && s === 402) return 'The OpenRouter account pagebot uses is out of credits. Pick another model for now.';
   if (e?.router && s === 404) return `Model "${model}" not found on OpenRouter (check OPENROUTER_MODEL).`;
   if (s === 401) return 'Anthropic API key is invalid (check ANTHROPIC_API_KEY).';
   if (s === 404) return `Model "${model}" not found (check HAIKU_MODEL / SONNET_MODEL).`;
-  if (s === 429) return 'Rate limited by the API — try again in a moment.';
-  if (s === 529 || s === 503) return 'The API is overloaded — try again in a moment.';
+  if (s === 429) return 'The model is getting a lot of questions right now. Try again in a moment.';
+  if (s === 529 || s === 503) return 'The model is very busy right now. Try again in a moment.';
   const msg = (e?.error?.error?.message || e?.message || 'Something went wrong').slice(0, 300);
   // accounts never see amounts, and the API's own errors carry token counts ("prompt is too long: 250000 tokens > 200000 maximum")
   if (u && /\d[\d,.]*\s*[kKmM]?\s*tokens?\b|\$\s*\d/.test(msg)) return /too long|too large|exceed/i.test(msg) ? 'That’s too long for the model. Try a shorter question, or start a new chat.' : 'Something went wrong. Try again in a moment.';
@@ -1911,7 +1911,7 @@ app.get('/api/chats', limit(120, 'chats-read'), auth, trusted, async (req, res) 
     await db.query('COMMIT');
   } catch (e) {
     await db.query('ROLLBACK').catch(() => {});
-    if (e.code === '57014') return res.status(400).json({ error: 'That search took too long. Try more words.' });
+    if (e.code === '57014') return res.status(400).json({ error: 'That search took too long. Try something more specific.' });
     throw e;
   } finally { db.release(); if (q) searching.delete(who); }
   const rows = r.rows.slice(0, CHATS_PAGE);
@@ -2028,11 +2028,11 @@ async function pdfTurn(pdfId, uid, u, convId, history, m) {
     if (!cur) return { error: [404, 'That PDF isn’t here anymore. Upload it again.'] };
     if (cur.conversation_id != null && Number(cur.conversation_id) !== convId) return { error: [409, 'That PDF went with a different chat. Upload it again to use it here.'] };
     if (!cur.bytes) return { error: [410, 'That PDF is no longer stored. Upload it again.'] };
-    if (u && !u.allowPdf) return { error: [400, 'PDF uploads aren’t turned on for your account.'] };
+    if (u && !u.allowPdf) return { error: [400, 'PDFs aren’t turned on for your account. The owner can switch them on.'] };
   }
   const live = [...prior.values(), ...(cur ? [cur] : [])].filter(p => p.bytes);
   // PDFs already in the chat go with every follow-up, so turning PDFs off (or a noPdf restriction) has to stop those too
-  if (u && !u.allowPdf && live.length) return { error: [400, 'PDF uploads aren’t turned on for your account, and this chat has a PDF in it. Start a new chat (+ at the top).'] };
+  if (u && !u.allowPdf && live.length) return { error: [400, 'PDFs aren’t turned on for your account, and this chat has a PDF in it. Start a new chat (+ at the top).'] };
   if (m.openrouter && live.length) return { error: [400, `${m.label} can’t read PDFs. Pick Haiku or Sonnet for a chat with a PDF.`] };
   if (cur && (live.length > MAX_CHAT_PDFS || live.reduce((n, p) => n + p.size, 0) > MAX_CHAT_PDF_BYTES))
     return { error: [400, `A chat can hold ${MAX_CHAT_PDFS} PDFs, ${MB(MAX_CHAT_PDF_BYTES)} in all. Start a new chat (+ at the top) for this one.`] };
@@ -2046,7 +2046,7 @@ const pdfLimitHint = (pdf, followUp) => (pdf.n === 1 ? 'The PDF in this chat is'
 // to be "%PDF-", whatever the browser says the file is.
 const pdfRaw = express.raw({ type: 'application/pdf', limit: MAX_PDF_BYTES });
 app.post('/api/pdf', limit(20, 'pdf'), limit(120, 'pdf-hour', 3600_000), auth, trusted, (req, res, next) => {
-  if (req.user && !req.user.allowPdf) return res.status(403).json({ error: 'PDF uploads aren’t turned on for your account.' });
+  if (req.user && !req.user.allowPdf) return res.status(403).json({ error: 'PDFs aren’t turned on for your account. The owner can switch them on.' });
   pdfRaw(req, res, e => e?.type === 'entity.too.large'
     ? res.status(413).json({ error: `That PDF is too big. PDFs can be up to ${MB(MAX_PDF_BYTES)}.` }) : next(e));
 }, async (req, res) => {
@@ -2519,7 +2519,7 @@ const pdfStored = a => ({ count: Number(a?.[0]) || 0, bytes: Number(a?.[1]) || 0
 app.post('/api/admin/users/:id', limit(300, 'admin'), admin, async (req, res) => {
   const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
   const cur = id && (await pool.query('SELECT * FROM users WHERE id=$1', [id])).rows[0];
-  if (!cur) return res.status(404).json({ error: 'No such user.' });
+  if (!cur) return res.status(404).json({ error: 'That person isn’t here anymore. Refresh the page to catch up.' });
   const b = req.body || {}, cfg = await loadConfig();
   const set = {};
   let signOut = !!b.signout;
@@ -2565,7 +2565,7 @@ app.delete('/api/admin/users/:id', limit(300, 'admin'), admin, async (req, res) 
   await pool.query(`UPDATE bans SET deleted_at = now() WHERE id IN (SELECT unnest(ARRAY[ban_id, restrict_id]) FROM users WHERE id = $1)
     AND lifted_at IS NULL AND deleted_at IS NULL`, [id]);
   const r = await pool.query('DELETE FROM users WHERE id=$1', [id]);
-  if (!r.rowCount) return res.status(404).json({ error: 'No such user.' });
+  if (!r.rowCount) return res.status(404).json({ error: 'That person isn’t here anymore. Refresh the page to catch up.' });
   res.json({ ok: true });
 });
 
@@ -2575,7 +2575,7 @@ app.delete('/api/admin/users/:id', limit(300, 'admin'), admin, async (req, res) 
 app.post('/api/admin/users/:id/ban', limit(60, 'moderate'), admin, async (req, res) => {
   const id = clampInt(req.params.id, 1, Number.MAX_SAFE_INTEGER);
   const cur = id && (await pool.query('SELECT id, username FROM users WHERE id=$1', [id])).rows[0];
-  if (!cur) return res.status(404).json({ error: 'No such user.' });
+  if (!cur) return res.status(404).json({ error: 'That person isn’t here anymore. Refresh the page to catch up.' });
   const b = req.body || {};
   const kind = ['ban', 'terminate', 'restrict'].includes(b.kind) ? b.kind : null;
   if (!kind) return res.status(400).json({ error: 'Pick a ban, a termination or a restriction.' });
@@ -2722,7 +2722,7 @@ app.post('/api/admin/signout-all', limit(300, 'admin'), admin, async (req, res) 
 app.use((err, req, res, next) => {
   console.error(err);
   if (res.headersSent) return res.end();
-  res.status(err.status || 500).json({ error: err.expose ? err.message : 'Server error' });
+  res.status(err.status || 500).json({ error: err.expose ? err.message : 'Something went wrong on pagebot’s side. Try again in a moment.' });
 });
 
 await initDb();

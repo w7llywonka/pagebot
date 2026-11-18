@@ -213,6 +213,6 @@ test('website memory integration', { skip: !database && 'Set PAGEBOT_TEST_DATABA
     const limited = await api('/api/chat', { token: alice, method: 'POST', body: { message: 'Hello.', site: 'quota.example' } });
     assert.equal(limited.status, 429);
     assert.equal(calls.length, count);
-    assert.match(limited.data.error, /left of today/);
+    assert.match(limited.data.error, /today’s limit left/);
   });
 });

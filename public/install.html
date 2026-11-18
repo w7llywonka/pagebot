@@ -6,44 +6,56 @@
 <meta name="robots" content="noindex,nofollow,noarchive,nosnippet">
 <title>pagebot</title>
 <style>
-:root{--bg:#f6f7f9;--ink:#202a37;--muted:#626f7f;--teal:#365c99;--teal-d:#274b84;--glow:rgba(54,92,153,.14);
+:root{--bg:#fbf5ec;--ink:#3a2a20;--muted:#735a4a;--tint:#f2e6d6;--btn:#b8441e;--btn-h:#a93d1a;--on-btn:#fff;--glow:rgba(150,70,30,.22);
   font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color-scheme:light dark}
-@media (prefers-color-scheme:dark){:root{--bg:#161b21;--ink:#edf0f4;--muted:#a2afbf;--teal:#365c99;--teal-d:#426daf;--glow:rgba(0,0,0,.4)}}
+@media (prefers-color-scheme:dark){:root{--bg:#1f1915;--ink:#f6ece2;--muted:#c8b4a4;--tint:#2e251f;--btn:#f4a882;--btn-h:#f8bb9c;--on-btn:#2c160b;--glow:rgba(0,0,0,.45)}}
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;min-height:100svh;display:grid;place-items:center;padding:24px;background:var(--bg);color:var(--ink)}
+body{margin:0;min-height:100vh;min-height:100svh;display:grid;place-items:center;padding:24px 16px;background:var(--bg);color:var(--ink)}
 main{display:flex;flex-direction:column;align-items:center;text-align:center}
-.btn{display:inline-flex;align-items:center;gap:10px;padding:15px 34px;border-radius:8px;background:var(--teal);color:#fff;font-size:18px;font-weight:600;text-decoration:none;cursor:grab;
-  box-shadow:0 2px 6px var(--glow);transition:transform .12s,background .15s;-webkit-user-select:none;user-select:none}
-.btn:hover{background:var(--teal-d);transform:translateY(-1px)}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:16px 34px 16px 26px;border-radius:999px;background:var(--btn);color:var(--on-btn);
+  font:700 20px/1.2 ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-decoration:none;cursor:grab;
+  box-shadow:0 6px 18px var(--glow);transition:transform .15s,background-color .15s;-webkit-user-select:none;user-select:none}
+/* a little grip, so it looks like something to pick up; drawn in CSS so the bookmark's name stays just "pagebot" */
+.btn::before{content:"";width:4px;height:4px;margin-right:6px;border-radius:50%;background:currentColor;opacity:.75;box-shadow:0 -6px,0 6px,6px -6px,6px 0,6px 6px}
+.btn:hover{background:var(--btn-h);transform:translateY(-2px)}
 .btn:active{cursor:grabbing;transform:translateY(1px)}
-.hint{max-width:26em;margin:18px 0 0;font-size:14px;color:var(--muted)}
+.hint{max-width:24em;margin:20px 0 0;font-size:15px;color:var(--muted)}
 .hint.up{color:var(--ink);font-weight:600}
-.copy{margin-top:4px;padding:6px 8px;border:0;background:none;font:inherit;font-size:13px;color:var(--muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
-.copy:hover{color:var(--ink)}
-.btn:focus-visible,.copy:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
-@media (prefers-reduced-motion:reduce){.btn{transition:none}}
+.copy{min-height:44px;margin-top:6px;padding:8px 16px;border:0;border-radius:999px;background:none;font:inherit;font-size:14px;color:var(--muted);
+  text-decoration:underline;text-underline-offset:3px;cursor:pointer;transition:background-color .15s}
+.copy:hover{color:var(--ink);background:var(--tint)}
+.touch .copy{margin-top:12px;padding:10px 22px;background:var(--tint);color:var(--ink);font-weight:600;text-decoration:none}
+.btn:focus-visible,.copy:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+@media (prefers-reduced-motion:reduce){.btn,.copy{transition:none}.btn:hover,.btn:active{transform:none}}
 </style>
 </head>
 <body>
 <main>
-  <a class="btn" id="bm" href="{{HREF}}" title="Drag me to your bookmarks bar" data-v="{{VERSION}}">pagebot</a>
-  <p class="hint" id="hint" role="status">Drag to your bookmarks bar.</p>
+  <a class="btn" id="bm" href="{{HREF}}" title="Drag me up to your bookmarks bar" data-v="{{VERSION}}">pagebot</a>
+  <p class="hint" id="hint" role="status">Drag this up to your bookmarks bar.</p>
   <button class="copy" id="copy" type="button">Can’t drag? Copy it instead</button>
 </main>
 <script>
 (() => {
-const $ = s => document.querySelector(s), bm = $('#bm'), hint = $('#hint');
+const $ = s => document.querySelector(s), bm = $('#bm'), hint = $('#hint'), v = bm.dataset.v;
+// a phone or tablet has no bookmarks bar to drag to, so there the copy button is the way in
+const touch = matchMedia('(hover:none) and (pointer:coarse)').matches;
+const onTouch = 'On a phone or tablet? Copy it, then save it as a bookmark’s address.';
+if (touch) { document.documentElement.classList.add('touch'); hint.textContent = onTouch; }
 // clicking the button here would just run it on this page; it's meant to be dragged to the bookmarks bar
 bm.addEventListener('click', e => {
   e.preventDefault();
-  hint.textContent = 'Drag it onto your bookmarks bar (Ctrl/Cmd+Shift+B shows it).';
+  hint.textContent = touch ? onTouch
+    : 'Don’t click it, drag it: pull the button up to your bookmarks bar. Can’t see the bar? Press Ctrl+Shift+B (⌘+Shift+B on a Mac).';
+  hint.classList.add('up');
 });
 // ?update: the bookmark in use is from an older version
 if (new URLSearchParams(location.search).has('update')) {
-  hint.textContent = `Drag this to your bookmarks bar again to get v${bm.dataset.v}. Then you can delete the old bookmark.`;
+  hint.textContent = touch ? `Time for the new one (v${v}). Copy it, save it as a bookmark’s address, then delete the old one.`
+    : `Time for the new one (v${v}). Drag this up to your bookmarks bar, then delete the old bookmark.`;
   hint.classList.add('up');
 }
-// for browsers with no bookmarks bar to drag to: the same link, to paste into a new bookmark's address
+// for browsers with no bookmarks bar to drag to: the same link, to paste into a bookmark's address
 $('#copy').addEventListener('click', async e => {
   const code = bm.getAttribute('href');
   let ok = false;
@@ -53,7 +65,10 @@ $('#copy').addEventListener('click', async e => {
     try { ok = document.execCommand('copy'); } catch { /* nothing else to try */ }
     t.remove();
   }
-  e.target.textContent = ok ? 'Copied. Make a new bookmark and paste it as the address.' : 'Couldn’t copy. Drag the button instead.';
+  e.target.textContent = ok ? 'Copied' : 'Couldn’t copy it here';
+  hint.textContent = ok ? 'Copied! Now bookmark any page, edit that bookmark, and paste this in as its address.'
+    : 'Try another browser, or drag the button on a computer.';
+  hint.classList.add('up');
 });
 })();
 </script>

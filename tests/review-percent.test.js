@@ -239,7 +239,7 @@ test('accounts see their daily limit as a percentage only', { skip: !database &&
     const base = calls.length;
     const r = await api('/api/chat', { method: 'POST', token: a.token, body: { message: 'Again' } });
     assert.equal(r.status, 429);
-    assert.deepEqual(r.data, { error: 'You’ve used today’s limit. It resets at midnight.', quota: { pct: 100 } });
+    assert.deepEqual(r.data, { error: 'That’s today’s limit used up. It starts fresh at midnight, so pick this up tomorrow.', quota: { pct: 100 } });
     noAmounts('429 body', r.data);
     assert.equal(calls.length, base, 'nothing reached the model');
     assert.deepEqual((await boot(a.token)).quota, { pct: 100 });
@@ -250,7 +250,7 @@ test('accounts see their daily limit as a percentage only', { skip: !database &&
       const base = calls.length;
       const r = await api('/api/chat', { method: 'POST', token: a.token, body: { message: 'x'.repeat(7000) } });
       assert.equal(r.status, 429, JSON.stringify(r.data));
-      assert.match(r.data.error, /^That’s more than what’s left of today\. /);
+      assert.match(r.data.error, /^There isn’t enough of today’s limit left for that one\. /);
       noAmounts('too-big 429', r.data);
       assert.doesNotMatch(r.data.error, /\d/);
       onlyPct('429 quota', r.data.quota);
