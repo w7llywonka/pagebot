@@ -206,11 +206,11 @@ browserTest('every category is reachable, and every old section and control is i
 browserTest('General: model, web search and answer length are saved as preferences', async t => {
   const f = await fixture(t, { width: 720 });
   await f.opens();
-  assert.equal(await f.frame.locator('#modelSeg .on').innerText(), 'Haiku');
+  assert.equal(await f.frame.locator('#modelSeg .on').innerText(), 'Quick Haiku');
   await f.frame.locator('#modelSeg button', { hasText: 'Sonnet' }).click();
-  await f.frame.waitForFunction(() => document.querySelector('#modelSeg .on')?.textContent === 'Sonnet');
+  await f.frame.waitForFunction(() => document.querySelector('#modelSeg .on')?.textContent === 'Thorough Sonnet');
   assert.deepEqual(f.reqs('/api/prefs').at(-1).body, { model: 'sonnet' });
-  assert.equal(await f.frame.locator('#modelName').innerText(), 'Sonnet', 'the message box follows');
+  assert.equal(await f.frame.locator('#modelName').innerText(), 'Thorough', 'the message box follows');
   assert.equal(await f.frame.locator('#webTog').getAttribute('aria-checked'), 'false');
   await f.frame.locator('#webTog').click();
   await f.frame.waitForFunction(() => document.querySelector('#webTog').getAttribute('aria-checked') === 'true');

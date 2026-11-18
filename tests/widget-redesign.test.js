@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { after, before, test } from 'node:test';
 import './widget-palette.test.js'; // the token contrast check for every theme (no browser)
+import './widget-friendly.test.js'; // the friendlier flows: hello, Try again, the daily limit, folding banners and more
 
 // Workspace navigation, finishes, responsive panel sizing, and fast static loading.
 // Like widget.test.js: Playwright and a local Chromium, every HTTP response a fixture, no server or database.

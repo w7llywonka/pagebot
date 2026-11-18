@@ -164,7 +164,7 @@ browserTest('a pasted PDF uploads; with ◆ picked it switches to Haiku; upload 
     document.querySelector('#q').dispatchEvent(new ClipboardEvent('paste', { clipboardData: d, bubbles: true, cancelable: true }));
   }, PDF.toString('latin1'));
   await f.frame.locator('#pdfPill .pl:text("pasted.pdf · 12 p.")').waitFor();
-  assert.equal(await f.frame.locator('#modelName').innerText(), 'Haiku 5.5');
+  assert.equal(await f.frame.locator('#modelName').innerText(), 'Quick'); // (what Haiku does; its name is in the menu)
   await f.frame.locator('.note', { hasText: 'Muse Spark 1.3 can’t read PDFs, so this chat uses Haiku 5.5.' }).waitFor();
   assert.deepEqual(f.state.requests.find(r => r.path === '/api/prefs').body, { model: 'haiku' });
   assert.equal(await f.frame.locator('#att').isVisible(), false, 'a PDF isn’t taken as an image');

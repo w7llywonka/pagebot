@@ -1476,6 +1476,47 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
   .workspace #composer{padding-bottom:24px}
 }
 @media (max-width:420px){#sheet .themes{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* ---- the friendlier flows: hello for a new browser, a calm limit, Try again, folding banners */
+.vh{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+#login.welcome>:not(#welcome):not(#loginErr){display:none!important}
+:root[data-theme=clear] :is(#login,#wait,#ban){background:var(--pop);text-shadow:none} /* nothing of the page runs through the words before the chat */
+#welcome{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
+#welcome .wbtns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:300px;margin-top:10px}
+.send.alt{background:var(--tint);color:var(--text);box-shadow:inset 0 0 0 1.5px var(--edge)}
+.send.alt:hover{background:var(--chip-on)}
+.msg.bot .think{margin-left:8px;color:var(--muted);font-size:13.5px}
+.retry{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.retry button,#limitCard .ghost,.heads button{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;border:0;border-radius:var(--r-pill);background:var(--tint);color:var(--text);font-size:13px;font-weight:600;cursor:pointer}
+.retry button:hover,#limitCard .ghost:hover,.heads button:hover{background:var(--chip-on)}
+.retry svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.msg.bot.limit .body{background:var(--warn-tint);border-radius:var(--r-lg);padding:10px 14px}
+.msg.bot.limit .body>p:last-child{color:var(--text)}
+.heads{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:10px;padding:6px 6px 6px 14px;border-radius:var(--r-lg);background:var(--warn-tint);font-size:13.5px;color:var(--text)}
+.heads button{height:28px;background:var(--panel)}
+#limitCard{display:flex;align-items:center;gap:10px;margin:0 0 8px;padding:8px 8px 8px 10px;border-radius:var(--r-lg);background:var(--warn-tint);font-size:13.5px;line-height:1.4;color:var(--text)}
+#limitCard p{flex:1;min-width:0;margin:0}
+#limitCard .ai{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--panel);font-size:14px}
+#limitCard .ghost{flex:none;background:var(--panel)}
+#limitCard.nudge{animation:limitNudge .3s ease}
+@keyframes limitNudge{40%{transform:translateY(-3px)}}
+#composer.limited .go{opacity:.5}
+#attOnce{flex:1;min-width:0;margin:0;font-size:12.5px;line-height:1.4;color:var(--muted)}
+#attOnce .link{font-size:12.5px}
+.chev{flex:none;display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;border-radius:50%;background:none;color:var(--muted);cursor:pointer}
+.chev:hover{background:color-mix(in srgb,var(--text) 10%,transparent);color:var(--text)}
+.chev svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transform:rotate(180deg);transition:transform .15s}
+.fold .chev svg{transform:none}
+:is(#ann,#rst).fold :is(#annMeta,#rstMeta){display:none}
+:is(#ann,#rst).fold :is(#annText,#rstText){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:is(#ann,#rst).fold .ab{cursor:pointer}
+.mchips{display:flex;flex-wrap:wrap;gap:6px;margin:-2px 0 8px}
+#sheet .mchips .chip{height:30px;padding:0 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+#sheet .mchips .chip:hover:not(:disabled){background:var(--chip-on)}
+#memoryInstructions:disabled~.mchips .chip{opacity:.5;cursor:default}
+#modelSeg .ms{font-size:12px;font-weight:400;color:var(--muted)}
+#att{flex-wrap:wrap}
+@media (pointer:coarse){.retry button,#limitCard .ghost,.chev{height:40px;min-width:40px}.heads button{height:36px}}
+:root.calm .chev svg,:root.calm #limitCard.nudge{transition:none;animation:none}
 </style>
 </head>
 <body class="booting" tabindex="-1">
@@ -1519,10 +1560,16 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
 <div class="grip gl" data-g="l" aria-hidden="true"></div><div class="grip gt" data-g="t" aria-hidden="true"></div><div class="grip gc" data-g="c" aria-hidden="true"></div>
 
 <div id="upd" role="status" hidden><span>✨ There’s a newer pagebot. Updating takes a minute.</span><a id="updGo" href="/?update" target="_blank" rel="noopener">Get it ↗</a><button id="updX" type="button" title="Not now" aria-label="Not now">×</button></div>
-<div id="rst" role="status" hidden><span class="ai" aria-hidden="true">⚠️</span><div class="ab"><div id="rstText"></div><div id="rstMeta"></div></div><button id="rstX" type="button" title="Hide" aria-label="Hide">×</button></div>
-<div id="ann" role="status" hidden><span class="ai" aria-hidden="true">📣</span><div class="ab"><div id="annText"></div><div id="annMeta"></div></div><button id="annX" type="button">Got it</button></div>
+<div id="rst" role="status" hidden><span class="ai" aria-hidden="true">⚠️</span><div class="ab" id="rstBody"><div id="rstText"></div><div id="rstMeta"></div></div><button class="chev" id="rstMore" type="button" aria-controls="rstBody" aria-expanded="true" aria-label="Show less"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button><button id="rstX" type="button" title="Hide" aria-label="Hide">×</button></div>
+<div id="ann" role="status" hidden><span class="ai" aria-hidden="true">📣</span><div class="ab" id="annBody"><div id="annText"></div><div id="annMeta"></div></div><button class="chev" id="annMore" type="button" aria-controls="annBody" aria-expanded="true" aria-label="Show less"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button><button id="annX" type="button">Got it</button></div>
 
 <form id="login" autocomplete="off" tabindex="-1">
+  <div id="welcome" hidden><!-- a browser that has never signed in here: say hello first -->
+    <span class="buddy" aria-hidden="true"></span>
+    <h2 id="welcomeTitle">Hi, I’m pagebot.</h2>
+    <p>I read the page you’re on and answer questions about it.</p>
+    <div class="wbtns"><button class="send" id="wNew" type="button">I’m new here</button><button class="send alt" id="wHave" type="button">I already have an account</button></div>
+  </div>
   <div class="lk"><svg id="lockIcon" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
   <h2 id="lockTitle">Locked</h2>
   <p id="lockSub">Enter your pagebot password.</p>
@@ -1552,7 +1599,7 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
   <h2 id="waitTitle">You’re on the list</h2>
   <p id="waitText">Thanks for signing up, <b id="waitName"></b>. Now let the person who invited you know, so they can let you in. This opens by itself as soon as they do, and you can close it and come back any time.</p>
   <p id="waitDone" hidden>The owner accepted you. Opening pagebot…</p>
-  <div class="links" id="waitLinks"><button class="link" id="waitCheck" type="button">Check now</button> · <button class="link" id="waitOut" type="button">Sign out</button></div>
+  <div class="links" id="waitLinks"><button class="link" id="waitCopy" type="button">Copy my username</button> · <button class="link" id="waitCheck" type="button">Check now</button> · <button class="link" id="waitOut" type="button">Sign out</button></div>
 </div>
 
 <div id="ban" hidden>
@@ -1584,6 +1631,7 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
 </div>
 
 <div id="log" hidden></div>
+<div id="live" class="vh" role="status" aria-live="polite"></div><!-- says "Thinking", then "Answer ready" (never the streamed text) -->
 
 <!-- ---- settings: a sticky header, a list of categories, and the chosen category (two panes on a wide panel, list and drill-in on a narrow one) ---- -->
 <div id="sheet" role="region" aria-label="Settings" hidden>
@@ -1648,6 +1696,7 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
               <label for="memoryInstructions">Instructions</label>
               <textarea id="memoryInstructions" rows="4" maxlength="4000" placeholder="For example: Explain unfamiliar terms and keep summaries brief." aria-describedby="memoryCount" disabled></textarea>
               <p class="fine" id="memoryCount">0 / 4,000 characters</p>
+              <div class="mchips" id="memoryChips" role="group" aria-label="Examples to add"><button type="button" class="chip">Keep answers short</button><button type="button" class="chip">Explain jargon</button><button type="button" class="chip">Answer in plain English</button></div>
               <div class="acct"><button class="ghost pri" id="memorySave" type="submit" disabled>Save instructions</button><button class="ghost bad" id="memoryDelete" type="button" disabled>Delete these instructions</button></div>
               <p class="fine" id="memoryStatus" role="status" aria-live="polite"></p>
             </form>
@@ -1845,8 +1894,9 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
 
 <div id="composer" hidden>
   <button id="jump" type="button" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>Jump to latest</button>
+  <div id="limitCard" role="status" hidden><span class="ai" aria-hidden="true">🌙</span><p><b>That’s today’s limit.</b> It starts again at midnight. Your chats stay here.</p><button class="ghost" id="limitUsage" type="button">See today’s usage</button></div>
   <div class="box">
-    <div id="att" hidden><span class="atp"><img alt="" title="Click to draw on it"><button id="rmAtt" type="button" title="Remove image" aria-label="Remove image">×</button></span><button id="inkBtn" type="button" title="Draw on this screenshot before you send it">✏ Annotate</button></div>
+    <div id="att" hidden><span class="atp"><img alt="" title="Click to draw on it"><button id="rmAtt" type="button" title="Remove image" aria-label="Remove image">×</button></span><button id="inkBtn" type="button" title="Draw on this screenshot before you send it">✏ Annotate</button><p id="attOnce" hidden>A fresh screenshot goes with each message. <button class="link" id="onceBtn" type="button">Just this once</button></p></div>
     <textarea id="q" rows="1" placeholder="Ask about this page…" aria-label="Message"></textarea>
     <div class="bar">
       <button class="tb" id="addBtn" type="button" title="Add a screenshot or a PDF, or choose what goes with your message" aria-label="Add" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -2207,9 +2257,11 @@ function copyAct(meta, text) {
   acts.appendChild(b); meta.prepend(acts); // first, so it floats to the right of the first line
 }
 function clearEmpty() { const e = log.querySelector('.empty'); if (e) e.remove(); }
+// (for screen readers: who is speaking; the words themselves stay as they are)
+const speaker = (m, role) => { m.setAttribute('role', 'article'); m.setAttribute('aria-label', role === 'user' ? 'You asked' : 'pagebot answered'); };
 function addMsg(role, html, tags) {
   clearEmpty();
-  const m = el('div', 'msg ' + role);
+  const m = el('div', 'msg ' + role); speaker(m, role);
   if (tags) { const t = el('div', 'tags'); t.textContent = tags; m.appendChild(t); }
   const b = el('div', 'body', html); m.appendChild(b);
   log.appendChild(m); scroll(true); return m;
@@ -2404,7 +2456,9 @@ const ICONS = {
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   add: '<circle cx="10" cy="8" r="4"/><path d="M2 21a8 8 0 0 1 13.4-5.9M19 14v6M16 17h6"/>',
 };
-const defaultLock = () => pinWho() && !pwMode ? 'pin' : accountsOn() ? 'signin' : 'owner';
+// a browser that has never signed in here (and could ask to join) opens on a hello instead of the form
+const newHere = () => !!cfg?.accounts?.signup && !store.get('pb_who') && !store.get('pb_user');
+const defaultLock = () => pinWho() && !pwMode ? 'pin' : accountsOn() ? (newHere() ? 'welcome' : 'signin') : 'owner';
 function showLogin(msg, mode) {
   hideViews(); view = 'lock'; closeSheet(); closeMenus();
   lockMode = mode || defaultLock();
@@ -2424,7 +2478,10 @@ function renderLock(msg) {
   const lock = cfg?.lock || 'password';
   // sign-ups or the remembered passcode may have changed since this screen opened
   if (lockMode === 'pin' && !pinWho()) lockMode = accountsOn() ? 'signin' : 'owner';
-  else if (lockMode !== 'pin') lockMode = !accountsOn() ? 'owner' : lockMode === 'owner' ? 'signin' : lockMode;
+  else if (lockMode !== 'pin') lockMode = !accountsOn() ? 'owner' : lockMode === 'owner' || (lockMode === 'welcome' && !cfg?.accounts?.signup) ? 'signin' : lockMode;
+  const hello = lockMode === 'welcome';
+  $('#login').classList.toggle('welcome', hello); $('#welcome').hidden = !hello;
+  if (hello) drawBuddies(); // the companion, drawn still once the browser is idle
   const who = lockMode === 'pin' ? pinWho() : null, usePin = !!who, owner = lockMode === 'owner', signup = lockMode === 'signup';
   $('#lockIcon').innerHTML = usePin || owner ? ICONS.lock : signup ? ICONS.add : ICONS.user;
   $('#lockTitle').textContent = usePin && who.name ? `Welcome back, ${who.name}` : usePin || owner ? 'Unlock pagebot' : signup ? 'Ask to join' : 'Sign in';
@@ -2463,10 +2520,13 @@ function renderLock(msg) {
   pin = ''; pinBusy = false; renderDots();
   // on a site the owner signed in on last, go straight to the password (the username stays blank)
   const pass = lockFocus === 'pass' || (lockFocus !== 'name' && ($('#uName').value || store.get('pb_who') === 'owner'));
-  lockTarget = usePin ? $('#login') : owner ? $('#pw') : !signup && pass ? $('#uPass') : $('#uName');
+  lockTarget = hello ? $('#wNew') : usePin ? $('#login') : owner ? $('#pw') : !signup && pass ? $('#uPass') : $('#uName');
   lockFill = lockFocus = null;
   setTimeout(focusView, 60);
 }
+
+$('#wNew').onclick = () => { lockFocus = 'name'; showLogin('', 'signup'); };
+$('#wHave').onclick = () => { lockFocus = 'name'; showLogin('', 'signin'); };
 
 // PIN pad
 for (const k of ['1','2','3','4','5','6','7','8','9','','0','del']) {
@@ -2583,6 +2643,10 @@ async function checkWait(manual) {
   }
 }
 $('#waitCheck').onclick = () => checkWait(true);
+$('#waitCopy').onclick = async () => { // so it's easy to tell the person who invited you
+  const b = $('#waitCopy'), ok = await copyText(cfg?.user?.name || '');
+  b.textContent = ok ? 'Copied' : 'Couldn’t copy'; setTimeout(() => { b.textContent = 'Copy my username'; }, 1600);
+};
 $('#waitOut').onclick = () => logout();
 
 // banned or terminated: the panel shows the notice instead of the chat. It checks back every 30 seconds, so an unban
@@ -2726,14 +2790,14 @@ async function api(path, data) {
   const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(data || {}) });
   const j = await r.json().catch(() => ({}));
   if (r.status === 403 && j.banned) onBanned();
-  if (!r.ok) throw Object.assign(new Error(j.error || 'HTTP ' + r.status), { status: r.status });
+  if (!r.ok) throw Object.assign(new Error(j.error || httpErr(r.status)), { status: r.status });
   return j;
 }
 async function apiGet(path) {
   const r = await fetch(path, { headers: { Authorization: 'Bearer ' + token } });
   const j = await r.json().catch(() => ({}));
   if (r.status === 403 && j.banned) onBanned();
-  if (!r.ok) throw Object.assign(new Error(j.error || 'HTTP ' + r.status), { status: r.status });
+  if (!r.ok) throw Object.assign(new Error(j.error || httpErr(r.status)), { status: r.status });
   return j;
 }
 async function loadBoot() {
@@ -2858,7 +2922,7 @@ async function writeSiteMemory(remove) {
     });
     const data = await r.json().catch(() => ({}));
     if (session !== token || epoch !== memoryEpoch) return;
-    if (!r.ok) throw Object.assign(new Error(data.error || 'HTTP ' + r.status), { status: r.status });
+    if (!r.ok) throw Object.assign(new Error(data.error || httpErr(r.status)), { status: r.status });
     memoryRequest++; // invalidate a settings refresh started before this write completed
     memoryRecords = memoryRecords.filter(m => m.site !== site);
     if (data.memory) memoryRecords.push(data.memory);
@@ -2885,6 +2949,12 @@ $('#memorySites').onchange = () => { if ($('#memorySites').value) selectMemorySi
 $('#memorySite').addEventListener('input', renderMemoryControls);
 $('#memorySite').addEventListener('change', () => selectMemorySite($('#memorySite').value));
 $('#memoryInstructions').addEventListener('input', () => { rememberMemoryDraft(); renderMemoryControls(); memoryMessage('Unsaved changes. Save to apply these instructions.'); });
+for (const c of $('#memoryChips').children) c.onclick = () => {
+  const t = $('#memoryInstructions'); if (t.disabled) return;
+  const v = t.value.trimEnd();
+  t.value = (v ? v + (/[.!?]$/.test(v) ? ' ' : '. ') : '') + c.textContent + '.';
+  t.dispatchEvent(new Event('input')); t.focus();
+};
 if (standalone) $('#memoryHint').textContent = 'Your saved website instructions live here. They kick in when you open pagebot on that website. Each address is separate: docs.example.com and example.com have their own.';
 
 // ---- the owner's announcement, until it's closed ----
@@ -2904,6 +2974,7 @@ function renderRst() {
   if (l.lowerLimit) lost.push('a lower daily limit'); // (how much lower is between you and the owner)
   $('#rstText').textContent = `Your account is restricted until ${RST_WHEN.format(new Date(r.endsAt))}: ${lost.join(', ')}.`;
   $('#rstMeta').textContent = `Reason: ${r.reason}` + (r.note ? `\n${r.note}` : '');
+  foldBanners();
 }
 $('#rstX').onclick = () => { rstGone = cfg?.restriction?.id || 0; renderRst(); $('#q').focus(); };
 
@@ -2913,6 +2984,28 @@ function renderAnn() {
   if (!a) return;
   $('#annText').innerHTML = linkify(a.body);
   $('#annMeta').textContent = `From the owner · ${ago(a.createdAt)}`;
+  foldBanners();
+}
+let rstWas; // the restriction an earlier panel load showed (read the first time one shows here)
+const bannerOpen = {}; // what you opened or folded yourself, until the panel reloads
+function setFold(box, fold) {
+  box.classList.toggle('fold', fold);
+  const b = box.querySelector('.chev'); b.setAttribute('aria-expanded', String(!fold)); b.setAttribute('aria-label', fold ? 'Show more' : 'Show less'); b.title = fold ? 'Show more' : 'Show less';
+}
+function foldBanners() {
+  const ann = $('#ann'), rst = $('#rst');
+  if (!rst.hidden && cfg?.restriction) {
+    const id = String(cfg.restriction.id);
+    if (rstWas === undefined) rstWas = store.get('pb_rstseen');
+    if (store.get('pb_rstseen') !== id) store.set('pb_rstseen', id);
+    setFold(rst, bannerOpen.rst ?? (!ann.hidden || rstWas === id));
+  }
+  if (!ann.hidden) setFold(ann, bannerOpen.ann ?? (!rst.hidden && innerHeight < 640)); // a short panel keeps both to a line, so the chat has room
+}
+for (const [k, box] of [['ann', $('#ann')], ['rst', $('#rst')]]) {
+  const flip = () => { bannerOpen[k] = !box.classList.contains('fold'); setFold(box, bannerOpen[k]); };
+  box.querySelector('.chev').onclick = flip;
+  box.querySelector('.ab').addEventListener('click', e => { if (box.classList.contains('fold') && !e.target.closest('a')) flip(); });
 }
 $('#annX').onclick = () => {
   const a = cfg?.announcement; if (!a) return;
@@ -2952,8 +3045,28 @@ function renderAccount() {
 // Usage today. Accounts get { pct } only (a share of their limit, never an amount); the full { kind, limit, used, left }
 // only ever comes for the owner. 80% turns the bar amber, 100% red.
 function pctText(p) { return p > 0 && p < 1 ? '<1%' : Math.round(p) + '%'; }
+const quotaPct = q => !q ? 0 : q.limit != null ? (q.limit ? Math.min(100, q.used / q.limit * 100) : 0) : Math.max(0, Math.min(100, +q.pct || 0));
+const quotaOut = q => !!q && (q.limit != null ? q.left <= 0 : quotaPct(q) >= 100);
+// at the limit: a quiet card above the message box instead of an error per try, and Send dimmed (the server still decides,
+// so the first question after midnight goes through and the card goes away with the new numbers)
+function renderLimit() {
+  const out = quotaOut(cfg?.quota);
+  $('#limitCard').hidden = !out; $('#composer').classList.toggle('limited', out);
+}
+function openUsage() { openSheet(); selectCat('usage', true, true); }
+$('#limitUsage').onclick = openUsage;
+// once a day, when an answer takes today's total past 80% (and again past 95%): one line under it
+function headsUp(bot, was, now) {
+  const level = now >= 95 ? 95 : now >= 80 ? 80 : 0, day = new Date().toDateString(), [seenDay, seen] = String(store.get('pb_heads') || '').split('|');
+  if (!level || now >= 100 || was >= level || (seenDay === day && +seen >= level)) return;
+  store.set('pb_heads', day + '|' + level);
+  const h = el('div', 'heads'), b = el('button', '', 'See usage'); b.type = 'button'; b.onclick = openUsage;
+  h.append(level === 95 ? 'Nearly at today’s limit.' : `Heads up: about ${100 - now > 14 ? 'a fifth' : 'a tenth'} of today’s limit is left.`, b);
+  bot.appendChild(h);
+}
 function renderQuota() {
   const q = cfg?.quota;
+  renderLimit();
   $('#quotaSec').hidden = !q;
   if (!q) return;
   const full = q.limit != null, pct = full ? (q.limit ? Math.min(100, q.used / q.limit * 100) : 0) : Math.max(0, Math.min(100, +q.pct || 0));
@@ -3144,7 +3257,7 @@ const daysAgo = t => Math.round((dayStart(Date.now()) - dayStart(t)) / 86400000)
 const histDay = t => { const n = daysAgo(t); return n <= 0 ? 'Today' : n === 1 ? 'Yesterday' : n < 7 ? 'Previous 7 days' : 'Older'; };
 function histWhen(t) {
   const n = daysAgo(t), d = new Date(t);
-  return n <= 0 ? ago(t) : n < 7 ? `${n}d ago` : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(d.getFullYear() !== new Date().getFullYear() && { year: 'numeric' }) });
+  return n <= 0 ? ago(t) : n < 7 ? d.toLocaleDateString(undefined, { weekday: 'long' }) : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(d.getFullYear() !== new Date().getFullYear() && { year: 'numeric' }) });
 }
 // the same page, give or take the #part
 const sameDoc = (a, b) => { try { const x = new URL(a), y = new URL(b); x.hash = y.hash = ''; return x.href === y.href; } catch { return false; } };
@@ -3156,7 +3269,7 @@ async function histApi(path, method = 'GET') {
   const r = await fetch(path, { method, headers: { Authorization: 'Bearer ' + token } });
   const j = await r.json().catch(() => ({}));
   if (r.status === 403) j.banned ? onBanned() : loadBoot().then(() => route()).catch(() => {}); // banned, or not accepted anymore
-  if (!r.ok) throw Object.assign(new Error(j.error || 'HTTP ' + r.status), { status: r.status });
+  if (!r.ok) throw Object.assign(new Error(j.error || httpErr(r.status)), { status: r.status });
   return j;
 }
 function histState(bold, text, retry) {
@@ -3303,7 +3416,7 @@ async function openChat(id, row) {
 }
 // like addMsg, but into a fragment, so a long chat is drawn (and scrolled) once
 function pastMsg(box, role, html, tags) {
-  const m = el('div', 'msg ' + role);
+  const m = el('div', 'msg ' + role); speaker(m, role);
   if (tags) m.appendChild(el('div', 'tags')).textContent = tags;
   m.appendChild(el('div', 'body', html));
   box.appendChild(m); return m;
@@ -3393,7 +3506,8 @@ for (const [n, label] of TOK) {
   b.onclick = () => savePrefs({ maxTokens: n });
   $('#tokSeg').appendChild(b);
 }
-const MODEL_INFO = { haiku: ['⚡', 'Quick. Good for most questions'], sonnet: ['✦', 'Thinks harder, a little slower'], openrouter: ['◆', 'An extra model, through OpenRouter'] };
+const MODEL_INFO = { haiku: ['⚡', 'Good for most questions', 'Quick'], sonnet: ['✦', 'Thinks harder, a little slower', 'Thorough'], openrouter: ['◆', 'An extra model, through OpenRouter'] };
+const modelWord = x => (MODEL_INFO[x.key] || [])[2] || x.label; // what it does; a model without one goes by its name
 function renderPrefs() {
   const webOk = !isUser() || !!cfg.user?.allowWeb;
   if (!webOk) prefs.web = false;
@@ -3401,16 +3515,17 @@ function renderPrefs() {
   $('#webPill').hidden = !prefs.web;
   $('#webBtn').setAttribute('aria-checked', String(!!prefs.web));
   const m = models.find(x => x.key === prefs.model) || models[0];
-  $('#modelName').textContent = m.label;
+  $('#modelName').textContent = modelWord(m);
   $('#modelBtn').title = `Model: ${m.label}`;
   const menu = $('#modelMenu'); menu.replaceChildren();
   for (const x of models) {
     const [icon, desc] = MODEL_INFO[x.key] || ['•', ''];
     const b = el('button', '', `<span class="mi">${icon}</span><span class="mt"></span><span class="ck">✓</span>`);
     b.type = 'button'; b.setAttribute('role', 'menuitemradio'); b.setAttribute('aria-checked', String(x.key === m.key));
-    b.querySelector('.mt').textContent = x.label;
+    b.querySelector('.mt').textContent = modelWord(x);
     const noPdf = x.key === 'openrouter' && pdfInChat(); // pdf uploads: it can't read PDFs
-    b.querySelector('.mt').appendChild(el('span', 'md')).textContent = x.locked ? 'Not on for you. Ask the owner.' : noPdf ? 'Can’t read PDFs. Use Haiku or Sonnet in this chat' : desc;
+    const named = modelWord(x) !== x.label ? x.label + ' · ' : '';
+    b.querySelector('.mt').appendChild(el('span', 'md')).textContent = x.locked ? named + 'Not on for you. Ask the owner.' : noPdf ? 'Can’t read PDFs. Use Haiku or Sonnet in this chat' : named + desc;
     b.disabled = !!x.locked || noPdf;
     b.onclick = () => { closeMenus(); if (x.key !== prefs.model) savePrefs({ model: x.key }); q.focus(); };
     menu.appendChild(b);
@@ -3892,7 +4007,8 @@ function renderModelSeg() {
   }
   for (const b of seg.children) {
     const x = models.find(m => m.key === b.dataset.key), noPdf = x.key === 'openrouter' && pdfInChat(), on = x.key === (models.find(m => m.key === prefs.model) || models[0]).key;
-    b.textContent = x.label; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on));
+    b.textContent = modelWord(x); if (modelWord(x) !== x.label) b.append(' ', el('span', 'ms', esc(x.label)));
+    b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on));
     b.disabled = !!x.locked || noPdf;
     b.title = x.locked ? 'Not on for you. Ask the owner.' : noPdf ? 'Can’t read PDFs. Use Haiku or Sonnet in this chat' : (MODEL_INFO[x.key] || [])[1] || '';
   }
@@ -4189,7 +4305,8 @@ function petAnswered(bot) {
   if (!petMode) return;
   petState();
   const text = (bot.querySelector('.body')?.textContent || '').replace(/\s+/g, ' ').trim();
-  if (bot.classList.contains('err')) { pet.play('shrug'); petSayShow('Hmm, that didn’t work. Open me to see why.'); }
+  if (bot.classList.contains('limit')) { pet.play('shrug'); petSayShow('That’s today’s limit. It starts again at midnight.'); }
+  else if (bot.classList.contains('err')) { pet.play('shrug'); petSayShow('Hmm, that didn’t work. Open me to see why.'); }
   else { pet.play('hop'); if (text && !bot.querySelector('.stp')) petSayShow('Done — ' + text.slice(0, 60) + (text.length > 60 ? '…' : '')); }
 }
 // the bubble is drawn inside the frame, so the frame grows while it shows and shrinks back after
@@ -4459,9 +4576,9 @@ function setImg(dataUrl, kind = 'shot', keepMarks) { // keepMarks: annotating (b
   if (!keepMarks) inkDrop();
   img = dataUrl; imgKind = kind; $('#att img').src = dataUrl;
   $('#att img').alt = kind === 'region' ? 'Region screenshot' : kind === 'paste' ? 'Pasted image' : 'Screenshot';
-  $('#att').hidden = false; inkLabel();
+  $('#att').hidden = false; inkLabel(); onceNote();
 }
-function clearImg() { img = null; $('#att').hidden = true; $('#att img').removeAttribute('src'); inkDrop(); }
+function clearImg() { img = null; $('#att').hidden = true; $('#att img').removeAttribute('src'); inkDrop(); onceNote(); }
 $('#rmAtt').onclick = () => { clearImg(); $('#q').focus(); };
 // region screenshots stay on until you turn them off with the ⛶ Region pill or stop sharing
 const WHOLE = { x: 0, y: 0, w: 1, h: 1, whole: true }; // "Screenshot this tab" keeps going the same way as a region
@@ -4469,19 +4586,22 @@ function setArea(a) {
   area = a;
   const p = $('#areaPill'); p.hidden = !a;
   if (a) {
-    p.querySelector('.pi').textContent = a.whole ? '📷' : '⛶'; p.querySelector('.pl').textContent = a.whole ? 'Screen' : 'Region';
+    p.querySelector('.pi').textContent = a.whole ? '📷' : '⛶'; p.querySelector('.pl').textContent = 'Every message';
     p.title = `Every message sends a new screenshot of ${a.whole ? 'the whole tab' : 'the area you picked'}. Click to turn it off.`;
   }
   $('#shotNote').hidden = !a?.whole; $('#areaNote').hidden = !a || !!a.whole;
-  fitPills();
+  onceNote(); fitPills();
 }
 // screenshots stay on after the first one, until you click the pill or stop sharing
 function keepShooting(a) {
-  if (!area) note(a.whole ? 'Screenshots stay on: every message sends a new shot of this tab. Click 📷 Screen to turn them off.'
-    : 'Region screenshots stay on: every message sends a new shot of this area. Click ⛶ Region to turn them off.');
+  if (!area) note(a.whole ? 'Screenshots stay on: each message sends a fresh shot of this tab. To stop, click 📷 Every message under the box.'
+    : 'Screenshots of this area stay on: each message sends a fresh shot of it. To stop, click ⛶ Every message under the box.');
   setArea(a);
 }
 $('#areaPill').onclick = () => { setArea(null); $('#q').focus(); };
+// beside a screenshot that will repeat: "Just this once" turns the repeat off and keeps this picture
+function onceNote() { $('#attOnce').hidden = !(img && area && imgKind !== 'paste'); }
+$('#onceBtn').onclick = () => { setArea(null); $('#q').focus(); };
 let fitFrame = 0;
 function fitPills() {
   if (fitFrame) return;
@@ -5107,7 +5227,7 @@ async function addPdf(file) {
       if (x.status === 401) { fail(); lock(lockedMsg()); return; }
       if (x.status === 403 && j.banned) { fail(); onBanned(); return; }
       if (x.status === 413 && j.storage) { fail(); return void pdfFull(`Couldn’t add “${name}”: ${j.error}`); } // pdf storage: the cap, with a way to free room
-      fail(`Couldn’t add “${name}”: ${j.error || 'HTTP ' + x.status}`);
+      fail(`Couldn’t add “${name}”: ${j.error || httpErr(x.status)}`);
     };
     x.onerror = () => fail(`Couldn’t upload “${name}”. Check your connection and try again.`);
     x.onabort = () => fail();
@@ -5364,17 +5484,32 @@ function finish(bot, out, ev, text) {
     }
     bot.appendChild(box);
   }
-  const m = el('div', 'meta');
+  const m = el('div', 'meta'), was = quotaPct(cfg?.quota);
   if (ev.quota && cfg) { cfg.quota = ev.quota; renderQuota(); }
   m.textContent = [ev.model + (ev.fallback ? ' (stepped in)' : ''), usageLine(ev),
     ev.searches ? `${ev.searches} search${ev.searches === 1 ? '' : 'es'}` : '', ev.quota && ev.usage?.pct == null ? leftToday(ev.quota) : ''].filter(Boolean).join(' · ');
   if (ev.stop === 'max_tokens') {
-    m.append(' · ran out of room · ');
-    const b = el('button', 'mini', 'allow longer answers'); b.type = 'button'; b.onclick = () => openSheet(true); m.appendChild(b);
+    m.append(' · The answer was cut short. ');
+    const b = el('button', 'mini', 'Allow longer answers'); b.type = 'button'; b.onclick = () => openSheet(true); m.appendChild(b);
   }
   if (text && !('refusal' in ev)) copyAct(m, text);
   bot.appendChild(m);
+  if (ev.quota && cfg) headsUp(bot, was, quotaPct(ev.quota));
 }
+
+// what a failed answer says: the server's own sentence, or plain words for the browser's and the proxy's
+const NET_ERR = 'Can’t reach pagebot right now. Check your connection, then send it again.';
+function httpErr(st) { return st >= 500 ? 'pagebot ran into a problem on its side. Try again in a moment.' : 'That didn’t work. Try again in a moment.'; }
+function errText(e) {
+  const m = String(e?.message || e || '');
+  if (/failed to fetch|networkerror|load failed|network error|network connection was lost/i.test(m)) return NET_ERR;
+  if (/the API is overloaded|rate limited by the API/i.test(m)) return 'pagebot is busy right now. Try again in a moment.';
+  if (!m || e instanceof SyntaxError || /^HTTP \d+$/.test(m)) return 'That one didn’t come through. Try it again in a moment.';
+  return m;
+}
+const ICON_RETRY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>';
+// the polite status line: "Thinking…", then "Answer ready" (never the streamed text)
+function say(text) { const l = $('#live'); if (l.textContent === text) l.textContent = ''; l.textContent = text; }
 
 async function send() {
   if (view !== 'chat') return;
@@ -5437,14 +5572,36 @@ async function send() {
   if (sentPdf) { setPdf(null); setChatPdf(true); }
   if (selection) selOff = true; // it's in the chat now; a new highlight brings the pill back
   renderSel();
-  const unsend = () => {
-    u.remove(); bot.remove(); if (!log.querySelector('.msg')) empty();
+  const putBack = () => { // what was typed and attached goes back in the message box
     q.value = sent.text; autosize(); if (sent.img) { setImg(sent.img, sent.imgKind); inkBack(sent.ink); } setPage(sent.pageOn);
     if (sent.sel) { selOff = false; renderSel(); }
     pdfBack();
   };
+  const unsend = () => { u.remove(); bot.remove(); if (!log.querySelector('.msg')) empty(); putBack(); };
+  // Try again: the same message and attachments once more (a draft typed meanwhile comes back after)
+  const retry = () => {
+    const row = el('div', 'retry'), b = el('button', '', ICON_RETRY + 'Try again'); b.type = 'button';
+    b.onclick = async () => {
+      if (busy || view !== 'chat' || gen !== chatGen || !bot.isConnected) return;
+      const draft = q.value.trim() && q.value !== sent.text ? q.value : '';
+      row.remove();
+      if (named) putBack(); else unsend(); // (the server has the question only once it named the chat)
+      await send();
+      if (draft && !q.value) { q.value = draft; autosize(); }
+    };
+    row.appendChild(b); bot.appendChild(row);
+  };
+  // the daily limit: said once, calmly, with the question back in the box (a second try just points at the card)
+  const limitHit = msg => {
+    if (u.previousElementSibling?.classList.contains('limit')) unsend();
+    else { bot.classList.add('err', 'limit'); out.replaceChildren(el('p')); out.firstChild.textContent = msg; putBack(); } // (err: it didn't answer; limit: said calmly)
+    const c = $('#limitCard'); c.classList.remove('nudge'); void c.offsetWidth; c.classList.add('nudge');
+    say('That’s today’s limit');
+  };
 
-  const bot = addMsg('bot', '<span class="typing"><i></i><i></i><i></i></span>');
+  const doing = page ? 'Reading the page…' : reqBody.image ? (sent.imgKind === 'paste' ? 'Looking at your image…' : 'Looking at your screenshot…') : sentPdf || pdfInChat() ? 'Reading your PDF…' : 'Thinking…';
+  const bot = addMsg('bot', `<span class="typing"><i></i><i></i><i></i></span><span class="think">${doing}</span>`);
+  say(doing);
   const out = bot.querySelector('.body');
   const mine = ctrl = new AbortController();
   const renderer = answerRenderer(out, () => !stale());
@@ -5462,7 +5619,8 @@ async function send() {
       const j = await r.json().catch(() => ({}));
       if (j.quota && cfg) { cfg.quota = j.quota; renderQuota(); }
       pdfBack();
-      throw new Error(j.error || 'HTTP ' + r.status);
+      if (r.status === 429 && j.quota && quotaOut(j.quota)) return void limitHit(j.error || 'You’ve used today’s limit. It resets at midnight.');
+      throw new Error(j.error || httpErr(r.status));
     }
     const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '';
     for (;;) {
@@ -5482,7 +5640,7 @@ async function send() {
         else if (ev.t === 's') searchStep(bot, ev.q);
         else if (ev.t === 'act' && run) pageAct(run, ev);
         else if (ev.t === 'note') actNote(bot, ev.v); // page actions on Sonnet: a progress note
-        else if (ev.t === 'done') { renderer.flush(); refused = 'refusal' in ev; if (ctrl === mine) { ctrl = null; stopMode(false); } finish(bot, out, ev, acc); }
+        else if (ev.t === 'done') { renderer.flush(); refused = 'refusal' in ev; if (ctrl === mine) { ctrl = null; stopMode(false); } finish(bot, out, ev, acc); say(refused ? 'No answer this time' : 'Answer ready'); }
         else if (ev.t === 'err') { if (ev.quota && cfg) { cfg.quota = ev.quota; renderQuota(); } if (!ev.conversationId) pdfBack(); throw new Error(ev.v); } // a broken-off answer stays in the chat
       }
     }
@@ -5496,9 +5654,13 @@ async function send() {
     if (mine.signal.aborted) { // you pressed stop
       out.innerHTML = acc ? md(acc) : '<span class="stp">Stopped</span>';
       if (acc) { const m = el('div', 'meta', 'Stopped'); copyAct(m, acc); bot.appendChild(m); }
-    } else {
+      say('Stopped');
+    } else { // what arrived stays as it was; only the last line says what went wrong
+      const why = errText(e);
       bot.classList.add('err');
-      out.innerHTML = (acc ? md(acc) : '') + '<p>⚠ ' + esc(e.message || String(e)) + '</p>';
+      out.innerHTML = acc ? md(acc) : '';
+      out.appendChild(el('p')).textContent = '⚠ ' + why;
+      retry(); say(why);
     }
   } finally {
     renderer.cancel();
@@ -5795,7 +5957,7 @@ async function writeCommand(remove) {
     const data = await r.json().catch(() => ({}));
     if (session !== token || epoch !== cmdEpoch) return;
     if (r.status === 403 && data.banned) onBanned();
-    if (!r.ok) throw Object.assign(new Error(data.error || 'HTTP ' + r.status), { status: r.status });
+    if (!r.ok) throw Object.assign(new Error(data.error || httpErr(r.status)), { status: r.status });
     const c = remove ? null : data.command;
     cmdWrites++; cmdDrafts.delete(slot); cmdSlot = c?.name || ''; cmdDrafts.delete(cmdSlot);
     setCommands(data.commands); // the server sends the whole list back
@@ -6273,6 +6435,14 @@ $('#workspaceNew').onclick = () => { closeSheet(); closeHistory(); closePdfs(); 
 $('#workspaceHistory').onclick = () => openHistory();
 $('#workspaceFiles').onclick = () => openPdfs();
 $('#workspaceSettings').onclick = () => openSheet();
+if (standalone) {
+  const railMark = () => {
+    const c = body.classList, at = c.contains('hist') ? 'workspaceHistory' : c.contains('pdfs') ? 'workspaceFiles' : c.contains('sheet') ? 'workspaceSettings' : log.querySelector('.empty') ? 'workspaceNew' : '';
+    for (const b of $('#workspaceNav').querySelectorAll('button')) if (b.id === at) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  };
+  new MutationObserver(railMark).observe(body, { attributes: true, attributeFilter: ['class'] });
+  new MutationObserver(railMark).observe(log, { childList: true });
+}
 setPage(true);
 renderPrefs();
 if (embedded && !hostV3) claim(); // older bookmarks don't say when they open the panel, but it only loads when you click one
