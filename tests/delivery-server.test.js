@@ -265,6 +265,48 @@ test('delivery integration', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL
     assert.deepEqual([out.authed, out.lockMinutes, out.user.passcode], [true, 0, false], 'no passcode: no lock');
   });
 
+  await t.test('an account deleted while its panel is signed in: the delete and the panel’s request both finish, in the worst order too', async () => {
+    // Deleting an account holds its row while the cascade removes its sessions. A session touch that held its session
+    // while it waited for that account row would close the circle: Postgres then ends one of the two after a second
+    // (deadlock_timeout), and either the panel gets a 500 or the owner does and the account stays. Here they meet in
+    // that order on purpose: a third connection holds the account's row, the delete queues for it first, and the
+    // panel's /api/boot queues behind the delete.
+    const blocked = async (pid, like) => (await db.query('SELECT pid FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid)) AND query LIKE $2', [pid, like])).rows[0]?.pid;
+    const waitFor = async (what, f) => { for (let i = 0; i < 300; i++) { const v = await f(); if (v) return v; await sleep(10); } assert.fail(`never: ${what}`); };
+    async function meet(name, prepare, remove) {
+      const id = Number((await db.query(`INSERT INTO users(username,password_hash,status) VALUES ($1,'x','trusted') RETURNING id`, [name])).rows[0].id), token = await session(id);
+      await db.query(`INSERT INTO site_memories(user_id, site, instructions) VALUES ($1, 'example.com', 'Be brief.')`, [id]);
+      await prepare?.(id);
+      const hold = await db.connect();
+      let gone, boot;
+      try {
+        await hold.query('BEGIN');
+        await hold.query('SELECT 1 FROM users WHERE id = $1 FOR UPDATE', [id]);
+        const holder = (await hold.query('SELECT pg_backend_pid() AS pid')).rows[0].pid;
+        gone = remove(id);
+        const deleting = await waitFor('the delete waits for the account row', () => blocked(holder, 'DELETE FROM users%'));
+        boot = api('/api/boot', { token });
+        await waitFor('the panel waits behind the delete', async () => await blocked(deleting, '%UPDATE users SET last_seen%') || blocked(holder, '%UPDATE users SET last_seen%'));
+      } finally { await hold.query('COMMIT'); hold.release(); }
+      const [d, b] = await Promise.all([gone, boot]);
+      const left = (await db.query('SELECT count(*)::int AS n FROM users WHERE id = $1', [id])).rows[0].n;
+      return { d, b, left };
+    }
+    // the owner deletes the account in /admin
+    let { d, b, left } = await meet('doomed', null, id => api(`/api/admin/users/${id}`, { admin: true, method: 'DELETE' }));
+    assert.deepEqual([d.status, d.data], [200, { ok: true }], 'the delete went through');
+    assert.deepEqual([b.status, b.data.authed], [200, false], 'and the panel is simply signed out');
+    assert.equal(left, 0);
+    // a termination whose two weeks are up, deleted by the sweep (which a sign-in by name runs first)
+    ({ d, b, left } = await meet('terminated', id => db.query(`WITH b AS (INSERT INTO bans(user_id, username, kind, reason, notice_key, ends_at, seen_at)
+        VALUES ($1, 'terminated', 'terminate', 'Test.', $2, now() - interval '1 minute', now()) RETURNING id) UPDATE users SET ban_id = (SELECT id FROM b) WHERE id = $1`, [id, randomBytes(12).toString('hex')]),
+      () => api('/api/login', { token: null, method: 'POST', body: { username: 'nobody-by-that-name', password: 'wrong' } })));
+    assert.equal(d.status, 401, 'the sign-in is answered as usual, after the sweep');
+    assert.deepEqual([b.status, b.data.authed], [200, false]);
+    assert.equal(left, 0, 'the sweep deleted the account');
+    assert.doesNotMatch(logs, /deadlock/i);
+  });
+
   await t.test('every page round-trips in each encoding, and its policy lists exactly the scripts that were sent', async () => {
     for (const route of ['/widget', '/chat', '/admin']) {
       const plain = await raw(route, { headers: { 'Accept-Encoding': 'identity' } });

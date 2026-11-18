@@ -674,19 +674,21 @@ const bearer = req => (req.get('authorization') || '').replace(/^Bearer\s+/i, ''
 async function touchSession(tok, lock, ip) {
   if (!tok) return null;
   const ownerMins = lock.on && lock.minutes ? lock.minutes : SESSION_DAYS * 1440;
-  // one statement, so one trip to the database: the session is touched if it's still good, and its account along with it
-  // (and neither waits for the disk: see NO_WAIT)
+  // The session, then its account: two statements, each done (and its locks let go) before the next, and neither waiting
+  // for the disk (see NO_WAIT). Never one statement for both: it would hold the session while it waits for the account,
+  // and deleting an account holds the account while its cascade waits for the sessions. The two would wait on each
+  // other until Postgres gave up on one, failing either the panel's request or the delete.
   const r = await pool.query(
-    `WITH s AS (UPDATE sessions s SET last_used=now(), ip=COALESCE($4, s.ip) WHERE s.token_hash=$1
+    `UPDATE sessions s SET last_used=now(), ip=COALESCE($4, s.ip) WHERE s.token_hash=$1
        AND s.last_used > now() - make_interval(mins => CASE WHEN s.user_id IS NULL THEN $2::int ELSE COALESCE(
          (SELECT u.lock_minutes FROM users u WHERE u.id = s.user_id AND u.passcode_hash IS NOT NULL AND u.lock_minutes > 0), $3::int) END)
-       RETURNING user_id),
-     u AS (UPDATE users SET last_seen=now() WHERE id = (SELECT user_id FROM s) RETURNING *)
-     SELECT ${NO_WAIT}, s.user_id AS session_uid, u.* FROM s LEFT JOIN u ON u.id = s.user_id`, [sha256(tok), ownerMins, SESSION_DAYS * 1440, ip || null]);
+     RETURNING user_id, ${NO_WAIT}`, [sha256(tok), ownerMins, SESSION_DAYS * 1440, ip || null]);
   if (!r.rowCount) return null;
-  if (r.rows[0].session_uid == null) return { user: null };
-  if (r.rows[0].id == null) return null;
-  const user = toUser(r.rows[0]);
+  const uid = r.rows[0].user_id;
+  if (uid == null) return { user: null };
+  const u = await pool.query(`UPDATE users SET last_seen=now() WHERE id=$1 RETURNING *, ${NO_WAIT}`, [uid]);
+  if (!u.rowCount) return null;
+  const user = toUser(u.rows[0]);
   user.ban = await liveBan(user.banId); // a banned account stays signed in, so it keeps seeing why
   if (!user.ban && (user.restriction = await liveRestriction(user.restrictId))) restrictUser(user, user.restriction);
   return { user };
