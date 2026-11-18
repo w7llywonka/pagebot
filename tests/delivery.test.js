@@ -141,6 +141,29 @@ test('a file replaced while its copies are being made does not get the old copie
   assert.equal(old.page.br, null, 'the replaced version was not compressed for nothing');
 });
 
+test('a copy whose compression failed is made on the next request for the page, not never', async () => {
+  // a fresh copy of the module, made while brotli is set to fail once (the module keeps the function it was given)
+  const real = zlib.brotliCompress;
+  let failures = 1;
+  zlib.brotliCompress = (buf, opts, cb) => failures-- > 0 ? process.nextTick(cb, new Error('simulated: out of memory')) : real(buf, opts, cb);
+  let fresh;
+  try { fresh = await import('../lib/delivery.js?brotli-fails-once'); } finally { zlib.brotliCompress = real; }
+  write('flaky.html', pageHtml('flaky'));
+  const pages = fresh.createPages(dir), c = pages.get('flaky.html');
+  await fresh.settled();
+  assert.equal(failures, 0, 'brotli was tried, and failed');
+  assert.equal(c.page.br, null, 'so there is no brotli copy (the page goes out as gzip meanwhile)');
+  assert.deepEqual(zlib.gunzipSync(c.page.gzip), c.page.buf);
+  assert.equal(pages.get('flaky.html'), c, 'the next request is for the same version...');
+  await fresh.settled();
+  assert.ok(c.page.br, '...and asks for its brotli copy again');
+  assert.deepEqual(zlib.brotliDecompressSync(c.page.br), c.page.buf);
+  assert.equal(failures, -1, 'once');
+  pages.get('flaky.html');
+  await fresh.settled();
+  assert.equal(failures, -1, 'with both copies made, nothing more is asked for');
+});
+
 test('a copy asked for on a version that was already replaced is skipped, and the copies after it are still made', async () => {
   write('stale.html', '<!doctype html><a href="{{HREF}}">old</a>' + '<p>Some text to compress. </p>'.repeat(200));
   const pages = createPages(dir), old = pages.get('stale.html');
