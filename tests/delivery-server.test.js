@@ -437,7 +437,7 @@ test('delivery integration', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL
     const missing = await raw('/api/chats/999999', { headers: { ...bearer(owner), 'Accept-Encoding': BROWSER } });
     assert.deepEqual([missing.status, missing.headers['content-encoding'], missing.body.toString()], [404, undefined, '{"error":"That chat isn’t in your history anymore."}']);
     assert.equal((await raw('/api/chats', { headers: { 'Accept-Encoding': BROWSER } })).status, 401);
-    // someone else's chat: no messages are read for it, and it looks like one that isn't there
+    // someone else's chat looks like one that isn't there (that none of its messages are even read is checked on the wire, in db-trips.test.js)
     const theirs = (await api('/api/chats')).data.chats[0].id;
     assert.equal((await api(`/api/chats/${theirs}`, { token: tokens.alice })).status, 404);
     assert.equal((await api(`/api/chats/${theirs}`)).data.messages.length, 2);
