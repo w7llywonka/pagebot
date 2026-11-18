@@ -2,7 +2,7 @@
 
 A bookmarklet that opens a compact chat panel on any page, plus a full-page workspace with quick access to conversations, documents and preferences. It can read the page text, your highlighted text, screenshots (the whole tab or just a region), and PDFs you upload, and it answers using Claude Haiku 5.5 or Claude Sonnet 5.5, optionally with web search. It runs on Railway with Postgres.
 
-You own it and log in with your password or passcode. Other people can create their own accounts (and give them their own passcode), but they can't ask anything until you accept them in `/admin`, and each of them gets a daily limit you set. They see how much of it they've used as a percentage; only you see the actual tokens and dollars.
+You own it and log in with your password or passcode. Other people can create their own accounts (and give them their own passcode), but they can't ask anything until you let them in from `/admin`, and each of them gets a daily limit you set. They see how much of it they've used as a percentage; only you see the actual tokens and dollars.
 
 Visual previews: [light workspace](docs/previews/workspace-light.png), [dark workspace](docs/previews/workspace-dark.png), [companions](docs/previews/companions.png).
 
@@ -19,7 +19,7 @@ Visual previews: [light workspace](docs/previews/workspace-light.png), [dark wor
    | `OPENROUTER_API_KEY` | Optional. Your key from openrouter.ai/keys. It adds ◆ Muse Spark 1.3 to the model menu, which runs on your OpenRouter credits. Leave it blank to skip it. |
    | `ADMIN_TOKEN` | Your personal admin token. Use a long random string (16+ chars). It unlocks `/admin`. |
    | `INITIAL_PASSWORD` | The first password for the bookmarklet. It's only used if no password is set yet. You can delete it after the first deploy. |
-   | `TOKEN_BUDGET` | Used for the "tokens left" bar in `/admin` |
+   | `TOKEN_BUDGET` | Used for **Your token budget** (the "tokens left" bar) on the `/admin` Overview |
    | `TIMEZONE` | Sets when "today" starts in the stats and the usage chart |
 
 4. **Settings → Networking → Generate Domain.**
@@ -29,7 +29,14 @@ To generate an admin token: `node -e "console.log(require('crypto').randomBytes(
 
 The bookmarklet points back at whatever address you opened the homepage from. If you move to a different domain, open the homepage there and drag the button again.
 
-The homepage is only that button, on purpose. It doesn't say what the bookmark does, it doesn't link anywhere, and it asks search engines to leave it out, so someone who lands on it by accident learns nothing. Tell the people you invite what it's for yourself. The quiet page is discretion, not protection: the bookmark's code is still on it for anyone who looks. What keeps people out is the sign-in, and for accounts, you accepting them in `/admin`.
+The homepage is only that button, a one-line hint under it and a **Can’t drag? Copy it instead** button, on purpose. It doesn't say what the bookmark does, it doesn't link anywhere, and it asks search engines to leave it out, so someone who lands on it by accident learns nothing. Tell the people you invite what it's for yourself (the first steps in `/admin` have an invitation you can copy). The quiet page is discretion, not protection: the bookmark's code is still on it for anyone who looks. What keeps people out is the sign-in, and for accounts, you letting them in from `/admin`.
+
+What the hint says:
+
+- On a computer: “Drag this up to your bookmarks bar.” Clicking the button instead of dragging it doesn't run it there; the hint says to drag it, and that Ctrl+Shift+B (⌘+Shift+B on a Mac) shows the bookmarks bar.
+- On a phone or tablet, which has no bookmarks bar to drag to, it leads with copying: “On a phone or tablet? Copy it, then save it as a bookmark’s address.” The copy button stands out more there.
+- After a copy, it says to bookmark any page, edit that bookmark, and paste the copied code in as its address. If the browser won't let the page copy, it says “Couldn’t copy it here.” and what to do instead: on a computer, drag the button up to your bookmarks bar; on a phone or tablet, try another browser, or drag the button on a computer.
+- Opened from an old bookmark's update strip (the homepage with `?update`), it says it's time for the new one, with its version number, and to delete the old bookmark after adding the new one.
 
 Optional variables:
 
@@ -40,68 +47,93 @@ Optional variables:
 | `EFFORT` | `low` | How hard the models think before answering (`low`, `medium`, `high`, `xhigh`, `max`). Thinking counts toward each answer's token limit. |
 | `OPENROUTER_MODEL` | `meta/muse-spark-1.3-contributor` | Model for the ◆ setting, as an OpenRouter model id. Only used when `OPENROUTER_API_KEY` is set. |
 | `SONNET_FALLBACK` | on | If Sonnet declines a request, the API retries it on the model Anthropic recommends. Set to `off` to turn that off. |
-| `MAX_TOKENS` | `100000` | Starting value for "max tokens per answer" (100,000 at most). After that, change it in `/admin` or the panel's settings. Installs that saved a lower limit before October 2026 were raised to 100,000 once on update; lower it again in `/admin` if you want. |
+| `MAX_TOKENS` | `100000` | Starting value for the longest answer, in tokens (100,000 at most). After that, change it under **Longest answer** in `/admin` Settings, or in the panel's settings. Installs that saved a lower limit before October 2026 were raised to 100,000 once on update; lower it again in `/admin` if you want. |
 | `PDF_STORAGE_MB` | `100` | How much uploaded-PDF storage each person (the owner counts as a person) can keep at once, in MB. Fractions work (`0.5`). Going over it turns the upload down with a note to delete a PDF. See **PDFs**. |
 | `SYSTEM_PROMPT` | built in | Replaces the default instructions. |
 | `SESSION_DAYS` | `30` | How long a login lasts without use. Applies to accounts, and to you when no passcode is set. |
 
 ## Admin (`/admin`)
 
-Enter your `ADMIN_TOKEN`. The admin page has five tabs:
+Paste your `ADMIN_TOKEN` and press **Open my dashboard**. The token is kept for that browser tab, so reloading the page opens straight to the dashboard; **Lock** in the top bar forgets it, and if the token stops working the dashboard asks for it again. The dashboard has five tabs: Overview, People, Activity, Devices and Settings. The badge on People counts the people waiting to be let in and the appeals waiting for your answer.
 
-- **Overview**: pick a range (today, 7, 30 or 90 days) and a person, or everyone. Everything on the tab follows that choice:
-  - Tiles for questions, tokens, estimated cost, people asking, web searches and average answer length. Each is compared with the period just before.
-  - A usage chart split by model, in tokens or dollars: per hour for today, per day otherwise. Hover for details, or open the table view.
-  - Your token budget, and how long it lasts at the current pace.
-  - Tables by model, by what came with the questions (page text, highlights, screenshots, PDFs, web search, declined, stopped, fallbacks), by top people, and by top sites.
-  - A heatmap of the busiest days and hours.
+On a brand-new server:
+
+- Until you set a password, every tab except Settings starts with a **No password yet** box. Set it there (8 characters or more). It's what you type when you open pagebot from your bookmark.
+- Until you've let anyone in, Overview shows three first steps: set your password, send people your address, and let them in. **Copy an invitation to send** copies a short message for a friend with your homepage address and how to sign up. With sign-ups closed, that step says to open them on People first.
+- Until the first question, Overview shows only **Needs you** and the first steps. The numbers and charts show up after the first question.
+
+The tabs:
+
+- **Overview**:
+  - **Needs you** comes first. It lists:
+    - people waiting to be let in, with the note each one left and **Let in** and **Turn down** right there (the first five, then a link like **See all 7 on People**)
+    - appeals waiting for your answer (**Answer** takes you to them on People)
+    - anyone who has used all of today's limit, with a link to their details
+  - When nothing is waiting it says "Nothing needs you right now." While there's no password yet, it says "Just one thing: set your password in the box above."
+  - Under it, pick a range (today, 7, 30 or 90 days) and a person, or everyone. Everything below, except the token budget, follows that choice:
+  - Tiles for estimated cost, questions, people asking (chats, when you pick one person), tokens, web searches and the typical answer length. Cost, questions, people and tokens are compared with the period just before.
+  - A usage chart split by model, in dollars (the default) or tokens: per hour for today, per day otherwise. One sentence under the choices says what each is: dollars are an estimate at list prices, and tokens are how the models count text, roughly ¾ of a word each. Hover or focus the chart for details (the arrow keys move along it), or open **Table view**.
+  - **Your token budget** (everyone's use, counted together), and how long it lasts at the current pace.
+  - Tables by model, by what came with the questions (page text, highlights, screenshots, web search, declined, stopped, another model stepped in), by top people, and by top sites.
+  - **When it’s used**: a heatmap of the busiest days and hours.
   - Click a row to jump to those questions in Activity, or to that person.
 - **People**:
-  - The waiting list, with the note each person left. Accept or deny people one at a time or all at once.
-  - A sortable, searchable table with these columns: status, daily limit, today's use against it, questions and cost this week, cost all time, Sonnet, web search, PDF and page actions access, devices, last active, and joined.
-  - Select several people to change them together: set a daily limit, turn Sonnet, web search, PDF upload or page actions on or off, sign them out, block or unblock them.
-  - Click someone to open their panel:
-    - usage today, this week and all time, plus a 30-day chart
-    - under their usage, a small line like **PDFs stored: 3 (12.4 MB of 100 MB cap)** (the file count and size they have stored now, against `PDF_STORAGE_MB`)
-    - their daily limit (tokens, dollars or none), Sonnet, web search, PDF upload and page actions access, and a private note
-    - their recent questions and the devices they're signed in on
-    - whether they have a passcode, and how soon their panel locks
-    - moderation: ban, restrict or terminate them, answer their appeal, and their past bans and restrictions
-    - reset password (it turns their passcode off too), sign out everywhere, block, and delete
-  - The sign-ups switch, what newly accepted people start with, and a CSV export.
-  - **Bans, restrictions and terminations** (under **Moderation** in each person’s panel):
-    - **Ban** someone for 1 hour, 1, 3, 7, 14 or 30 days, or permanently, with a reason (pick one or write your own) and an optional moderator note. They see both.
+  - Search names and notes, show **All**, **Active** or **Turned off** people, open or close sign-ups with the switch, or **Download as a spreadsheet** (a CSV file of everyone with their settings, use, bans and notes).
+  - **Waiting to be let in**, with the note each person left. **Let in** or **Turn down** people one at a time, or use **Let everyone in** or **Turn everyone down**. Turning someone down deletes their request (it asks first), and they can ask again. If one of them used the same browser as a terminated account, **Let everyone in** asks first too.
+  - A sortable, searchable table with these columns: status, daily limit, today's use against it, questions and cost over 7 days, cost all time, what they can use (Sonnet, web search, PDF and page actions), devices, last active, and joined. Click a column's name to sort by it, and again to reverse the order.
+  - Select several people to change them together: **Daily limit…**, **Can use…** (**Allow** or **Take away** Sonnet, web search, PDF uploads or page actions), **Sign out**, **Turn back on**, and **Turn off** (it asks first).
+  - Click someone to open their panel. From the top:
+    - usage today, in the last 7 days and all time, and, if they have a daily limit, how much of it they've used today
+    - under their usage, once they have a PDF stored, a small line like **3 PDFs saved, using 12.4 MB of their 100 MB** (the file count and size they have stored now, against `PDF_STORAGE_MB`)
+    - **Account**: the note they left, whether they have a passcode and how soon their panel locks, **Reset password** (it turns their passcode off too), **Sign out everywhere**, **Turn off account** (or **Turn back on**) and **Delete account…**, with one line each on what **Restrict**, **Turn off**, **Ban**, **Terminate** and **Delete** do
+    - **Daily limit and access**: their daily limit (tokens, dollars or none), Sonnet, web search, PDF upload and page actions access, and a private note
+    - a 30-day chart, their recent questions, and the devices they're signed in on
+    - **Bans and limits**: ban, restrict or terminate them, answer their appeal, and their past bans and restrictions. The form is folded away until you open it. While a ban or restriction is in force, this section moves up, right under their usage.
+  - **Bans, restrictions and terminations** (under **Bans and limits** in each person's panel):
+    - **Ban** someone for 1 hour, 1, 3, 7, 14 or 30 days, or permanently, with a reason (pick one or write your own) and an optional note. They see both.
     - Their pagebot panel switches to a ban notice right away (the next time it talks to the server), in place of the chat. It shows their account, the reason, the note, when it was reviewed, when it ends, and a countdown. Signing in again shows the same notice.
     - When a timed ban ends, they tick **I agree to follow pagebot’s rules** and press **Re-activate my account** in the panel. A permanent ban never ends on its own.
-    - **Terminate** shows a termination notice on every sign-in, and the account is deleted 14 days later (their usage stays in the totals). **Reverse termination** undoes it before then.
-    - **Unban** lifts a ban at any time; their panel goes back to the chat by itself within 30 seconds. Banning someone who's already banned replaces the old ban.
-    - **Appeals**: a banned or terminated person can send one appeal per ban from their panel. It shows up under **Appeals waiting** at the top of the **Moderation** card (with a count, which the People tab's badge includes) and in their panel. **Accept & unban** lifts the ban; **Deny** keeps it. Either way you can add a reply, and their panel shows your answer.
-    - **Restrict** is the lighter option: for 1 hour to 30 days, take away Sonnet, web search, PDF uploads, page actions, and/or set a different daily limit. They keep using pagebot, with a note above their chat saying what's restricted, why, and until when. It ends by itself, or press **Lift restriction**. Their own settings aren't changed: while it runs, the table's daily limit, today and "can use" columns show what they have now with a **restricted** tag (hover it for their own setting), and changing their settings, one at a time or in bulk, takes effect once it ends.
-    - **Terminated people can't sign straight back up**: a terminated account's username stays taken, even after the account is deleted, and a browser that was used by a terminated account can't create new accounts. Anyone else who has used the same browser gets a **⚠ shared browser** tag in the table and the waiting list, and a warning in their panel. This goes by a random id the panel keeps in the browser's storage, so clearing site data or switching browsers gets around it. Reversing the termination lifts both.
+    - **Terminate** asks first, then shows a termination notice on every sign-in, and the account is deleted 14 days later (their usage stays in the totals). **Reverse termination** undoes it before then.
+    - **Unban** lifts a ban at any time; their panel goes back to the chat by itself within 30 seconds. Banning someone who's already banned replaces the old ban. **Unban**, **Reverse termination** and **Lift restriction** each ask first.
+    - **Appeals**: a banned or terminated person can send one appeal per ban from their panel. It shows up in **Needs you** on Overview, under **Waiting for your answer** at the top of the **Bans and limits** card on People (with a count, which the People tab's badge includes), and in their panel. **Accept & unban** lifts the ban (or reverses the termination); **Deny** keeps it, and asks first, since they can't appeal it again. Either way you can add a reply, and their panel shows your answer.
+    - **Restrict** is the lighter option: for 1 hour to 30 days, take away Sonnet, web search, PDF uploads, page actions, and/or set a different daily limit. They keep using pagebot, with a note above their chat saying what's restricted, why, and until when. It ends by itself, or press **Lift restriction**. Restricting someone who's already restricted replaces it. Their own settings aren't changed: while it runs, the table's daily limit, today and "can use" columns show what they have now with a **restricted** tag (hover it for their own setting), and changing their settings, one at a time or in bulk, takes effect once it ends.
+    - **Terminated people can't sign straight back up**: a terminated account's username stays taken, even after the account is deleted, and a browser that was used by a terminated account can't create new accounts. Anyone else who has used the same browser gets a **⚠ shared browser** tag in the table, the waiting list and **Needs you**, and a warning in their panel. This goes by a random id the panel keeps in the browser's storage, so clearing site data or switching browsers gets around it. Reversing the termination lifts both.
     - The person's row shows a **Banned**, **Terminated** or **Restricted** chip with the time left, and their details show whether they've seen the notice yet and their past bans and restrictions.
-    - The **Moderation** card on the People tab lists every ban, termination and restriction, newest first, with what happened to each one (still in force, re-activated, lifted, ended, account deleted, and any appeal), and lets you unban, reverse or lift from there.
+    - The **Bans and limits** card on the People tab lists the latest 30 bans, terminations and restrictions under **History**, newest first, with what happened to each one (still in force, re-activated, lifted, ended, account deleted, and any appeal), and lets you unban, reverse or lift from there.
   - **Announcement** (on the People tab): post a message (up to 500 characters) and everyone with an account sees it at the top of their panel the next time they open it, until they close it. Posting a new one replaces it, **Take it down** hides it, and the card shows how many people have closed it.
+  - **New people start with**: the daily limit and what they can use (Sonnet, web search, PDF uploads, page actions), applied when you let someone in.
   - Daily limits reset at midnight in your `TIMEZONE`. Dollar amounts are estimates from Anthropic's list prices. Accounts see their use of the limit as a percentage only, and a restriction that sets a different daily limit just tells them it's lower; the numbers you set stay in `/admin`.
-- **Activity**: every question, newest first, with who asked, the model, the site, tokens and cost.
-  - Filter by range, person, model, or kind (page text, highlight, screenshot, web search, declined, stopped, fallback), and search the questions and page addresses.
-  - Click a question to see it in full: the highlighted text, the page it came from, the PDF that came with it (its name, pages and whether the file is still stored; never its contents), the steps it took on the page if it used page actions, and the answer.
-  - A question can carry several small tags at once: Page, Highlight, Screenshot, ✏ Annotated (marks drawn on the screenshot), a 📄 PDF name, Web, 🖱 Page actions, Fallback, Declined, Stopped, and **Removed from history**.
+- **Activity**: every question, newest first, with who asked, the model, the site, tokens and cost. **Load 50 more** shows older ones.
+  - Filter by range (today, 7, 30 or 90 days, or all), person, model, or kind (page text, highlighted text, a screenshot, web search, declined, stopped early, **Another model stepped in**), and search the questions and page addresses.
+  - Click a question to see it in full: the highlighted text, the page it came from, the PDF that came with it (its name, pages and whether the file is still stored; never its contents), the steps it took on the page if it used page actions, the answer, and a link to that person's panel.
+  - A question can carry several small tags at once: Page, Highlight, Screenshot, ✏ Annotated (marks drawn on the screenshot), a 📄 PDF name, Web (with the number of searches, like Web ×2), 🖱 Page actions, Stepped in (another model answered), Declined, Stopped, No answer, and **Removed from history**.
   - Chats someone removed from their history are marked **Removed from history**. Removing doesn't erase anything: you still see the question, the answer and the usage here.
-  - Export the matching questions as CSV, up to 5,000.
+  - **Download as a spreadsheet** saves the matching questions, up to 5,000, as a CSV file.
 - **Devices**:
-  - Every signed-in device: whose it is, the browser, the address it was last used from, when it signed in, and when it was last used. Sign out one device or everyone.
-  - **Login security** shows:
-    - wrong logins in the last hour, by address
-    - whether owner password logins are paused
+  - **Signed-in devices**: whose each one is, the browser, the address it was last used from, when it signed in, when it was last used, and whether it's active, expired or (for yours) locked. Show everyone's, yours or other people's. Sign out one device, or **Sign out everyone** (it asks first). Click a person's device to open their panel.
+  - **Wrong sign-in tries** shows:
+    - wrong tries in the last hour, by address
+    - whether your password sign-ins are paused
     - the passcode's wrong tries
     - wrong admin tokens
-  - **Clear lockouts** resets all of them.
+  - **Let everyone try again** resets all of them.
 - **Settings**:
-  - **Limits per question**: max tokens per answer (any number from 256 to 100,000), how much page text gets sent, and how many web searches one question can run. Accounts can pick a shorter answer length in their own settings, but never more than this.
+  - **Limits per question**: the **Longest answer** (any number from 256 to 100,000 tokens), how much of a page to read, and how many web searches one question can run. Accounts can pick a shorter answer length in their own settings, but never more than this.
   - **Passcode lock**: set a 5-digit passcode and choose how long the panel can sit idle before it locks (1 minute to 1 day, or never).
     - With a passcode set, the panel shows a number pad instead of the password box.
     - Wrong passcodes count for 24 hours, even if the right one is entered in between. After 10, only the password can unlock it.
-  - **Access password**: at least 8 characters. Changing it signs out every device you're logged in on. Accounts stay signed in.
+  - **Your password**: at least 8 characters. The button says **Set password** until there is one, then **Change password**. Changing it signs out every device you're logged in on. Accounts stay signed in.
+  - **This server**: the models, thinking effort, time zone, token budget, signed-in devices and how many people have accounts.
+
+Throughout the dashboard:
+
+- Most actions report back in one message at the bottom of the screen; forms you save say so under their button. The message stays while your pointer or the keyboard focus is on it, and Escape closes it.
+- **Turn off account** in someone's panel turns them off and signs them out at once, and its message has **Undo**. Undo takes the keyboard focus and puts back what they had: someone who was still waiting goes back on the waiting list.
+- What's hard to take back asks first, in the page instead of a browser pop-up: turning people down, turning several people off, unbanning, reversing a termination or lifting a restriction, denying an appeal, terminating (it says you can reverse it for 14 days), deleting (it says plainly it can't be undone), and signing out every device.
+- It refreshes itself every 30 seconds (↻ refreshes now), but not while you're typing, have someone's panel open or people selected, or have opened a question or loaded more in Activity. A form you've changed but not saved yet keeps your changes.
+- A tab that can't load says so, with **Try again**.
+- It follows your device's light or dark setting.
+- On a phone, or a window under 1000 pixels wide, the tabs get a row of their own. Under 700 pixels, each table row becomes a short two-line row (tap it for the rest). On touch screens and narrow windows, buttons and fields are at least 44 pixels tall. On narrower laptop screens (under 1360 pixels), some People and Activity columns move to the person's panel or the opened question, and a **Sort by** menu with a reverse button keeps every order.
 
 What people ask (and the answers) is stored and shows up under Activity, along with the browser and address each device signs in from. The sign-up screen tells people the owner can see their questions and usage.
 
@@ -133,7 +165,7 @@ What people ask (and the answers) is stored and shows up under Activity, along w
   - ◆ Muse Spark can't read PDFs. Picking a PDF with it selected switches to Haiku, and the ◆ choice shows as unavailable while a chat has a PDF.
   - Files are kept for 30 days after you upload them (or a day, if you never send them with a question). After that the chat remembers the name (“no longer available”), and follow-ups carry a note instead of the file. Removing a chat from your history doesn't delete its PDF; it goes with the 30 days like the rest. The owner can see in `/admin` which questions came with a PDF (a 📄 tag in Activity, with its name and page count), but doesn't see file contents there.
   - **Storage cap and deleting**: each person (the owner too) can keep up to `PDF_STORAGE_MB` of PDFs at once, 100 MB unless you change it. Files that are already deleted or past their 30 days don't count. An upload that would go over the cap is turned down with a note saying how much you've used and to delete a PDF, and a **Manage PDFs** button right in that note. You can also open **Your PDFs** any time from the **+** menu (a small **Manage PDFs** link at the bottom) or from the footer of the chat history sheet (**Manage your PDFs**). It's a sheet like history: each PDF with its name, pages, size, upload date and the chat it's in, a bar showing how much of the cap you're using, and a **Delete** button on every row (it asks first). Deleting removes the file for good. The chats it was in keep their messages and show it as “no longer available”, and follow-ups carry a note instead of the file, just as after 30 days. Deleting one that's waiting on your message just clears its pill, and deleting while an answer is coming in doesn't spoil that answer. Settings isn't involved. You can always see and delete your own PDFs, even if PDF uploads are turned off for your account.
-  - The owner can always upload PDFs. For accounts, turn **PDF uploads** on or off per person, in the defaults for new people, in bulk, or as part of a timed restriction (**Take away PDF uploads**). It's in the CSV export too. Turning it off also stops chats that already have a PDF in them: a follow-up there is turned down with a note to start a new chat (once a PDF's file is cleared after 30 days, the chat can carry on).
+  - The owner can always upload PDFs. For accounts, turn **PDF uploads** on or off per person, in the defaults for new people, in bulk, or as part of a timed restriction (**Take away PDF uploads**). It's in **Download as a spreadsheet** too. Turning it off also stops chats that already have a PDF in them: a follow-up there is turned down with a note to start a new chat (once a PDF's file is cleared after 30 days, the chat can carry on).
 - The model name next to the send button picks the model: ⚡ Haiku 5.5 is fast and cheap; ✦ Sonnet 5.5 is smarter. With `OPENROUTER_API_KEY` set there's also ◆ Muse Spark 1.3, Meta's model through OpenRouter (the cheapest of the three). Its answers don't point at passages on the page.
 - When a new version of pagebot is out, a panel opened from an older bookmark shows a small strip that links to the homepage, where dragging the button again updates it. The version is under ⚙ Settings → **About**.
 - While an answer is coming in, the send button turns into a **stop** button. What arrived so far stays in the chat, and follow-ups can build on it.
@@ -173,7 +205,7 @@ What people ask (and the answers) is stored and shows up under Activity, along w
 - **Glass** is see-through: the page shows through a soft blur, and the text switches between dark and light to match the page behind it.
 - **Clear** drops the panel entirely: no tint, no blur, no shadow, only the words, buttons and message box floating over the page. Text gets a thin halo so it stays readable, and switches between dark and light like Glass.
 - Answers show headings, lists, tables, quotes, bold and italics. Links show which site they go to, in grey after the link text.
-- With an account, Settings → **Usage** shows how much of today's limit is used, as a percentage with a bar (amber from 80%, red once it's used up; it resets at midnight), and **Account** lets you change your password and set a passcode. Accounts never see tokens or dollars: each answer's details line shows its model, any web searches and the share of today's limit that answer used (like "used 1.2% of today's limit"), and the messages and notices say "you've used today's limit" or "a lower daily limit" instead of a number. The numbers are not sent to accounts at all, so they can't be found in the network responses either. You, the owner, keep seeing tokens and cost everywhere, and `/admin` shows everything.
+- With an account, Settings → **Usage** shows how much of today's limit is used, as a percentage with a bar (amber from 80%, red once it's used up; it resets at midnight), and **Account** lets you change your password and set a passcode. Accounts never see tokens or dollars: each answer's details line shows its model, any web searches and the share of today's limit that answer used (like "used 1.2% of today's limit"), and the messages and notices say "today’s limit used up" or "a lower daily limit" instead of a number. The numbers are not sent to accounts at all, so they can't be found in the network responses either. You, the owner, keep seeing tokens and cost everywhere, and `/admin` shows everything.
 - **Announcements** from the owner show at the top of the panel until you press **Got it**.
 - **If your account is banned**, the panel shows the ban notice instead of the chat: the reason, the owner's note, and when it ends. **Think this is wrong? Appeal it** sends the owner one appeal per ban, and their answer shows up on the same screen. A restricted account sees a note above the chat instead. A timed ban counts down; once it's over, agree to the rules to re-activate the account. A terminated account shows its notice every time you sign in, until it's deleted.
 - **Highlighted text** goes with your next message. While something on the page is highlighted, a ✂️ pill shows the start of it; click its × to leave it out. Once it's been sent, it isn't sent again unless you highlight something new.
