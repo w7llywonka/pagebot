@@ -40,12 +40,13 @@ h2{font-size:15px;margin:0;color:var(--text);font-weight:650}
 .sub{font-size:12.5px}
 .wrap{max-width:1320px;margin:0 auto;padding:0 20px}
 input,select,textarea{background:var(--panel);color:var(--text);border:1px solid var(--line2);border-radius:12px;padding:7px 12px;font:inherit;font-size:14px;outline:none;min-height:38px}
+::placeholder{color:var(--muted);opacity:1}
 input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;min-height:0;margin:0;vertical-align:middle;cursor:pointer}
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 input:focus-visible,select:focus-visible,textarea:focus-visible{outline-offset:0}
 .btn{background:var(--accent);color:var(--on-accent);border:0;border-radius:999px;padding:8px 16px;min-height:38px;font-weight:600;font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;transition:transform .12s,background-color .12s}
 .btn:active:not(:disabled){transform:scale(.97)}
-.btn.ghost{background:var(--panel2);color:var(--text)}
+.btn.ghost{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
 .btn.ghost:hover{background:var(--hover)}
 .btn.sm{padding:5px 13px;min-height:32px;font-size:13px}
 .btn.danger{color:var(--err)}
@@ -97,7 +98,7 @@ main.wrap{padding-top:20px;padding-bottom:96px}
 .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .filters .grow{flex:1}
 .filters input[type=search]{min-width:220px}
-.seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:var(--panel2);box-shadow:inset 0 0 0 1px var(--line)}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:var(--panel2);box-shadow:inset 0 0 0 1px var(--line2)}
 .seg button{background:none;border:0;border-radius:999px;color:var(--muted);padding:5px 13px;min-height:30px;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap}
 .seg button:hover{color:var(--text)}
 .seg button.on{background:var(--panel);color:var(--text);box-shadow:0 0 0 1px var(--line2)}
@@ -109,6 +110,8 @@ main.wrap{padding-top:20px;padding-bottom:96px}
 .needs{display:flex;flex-direction:column;gap:14px}
 .needs .cardhead{margin:0}
 #needsBody{display:flex;flex-direction:column;gap:16px}
+#needsBody>p.sub{margin:0}
+#t-overview.fresh>:not(.needs):not(.loaderr){display:none}
 .nitem .btn.ghost{background:var(--panel)}
 .nitem .btn.ghost:hover{background:var(--hover)}
 .ngroup h3{margin:0 0 6px;font-size:14px;font-weight:650;color:var(--text2)}
@@ -156,6 +159,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:13.5px}
 .dt .selcol{width:34px;padding-right:0}
 .dt .wrapcell{white-space:normal;min-width:180px;max-width:360px}
 .dt .trunc{max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.dt .ph{display:none}
 .dt td.empty{text-align:center;color:var(--muted);padding:28px 10px;white-space:normal}
 .dt tr.owner>td{background:var(--panel2)}
 .pname b{font-weight:650;display:block;max-width:180px;overflow:hidden;text-overflow:ellipsis}
@@ -207,6 +211,7 @@ textarea{display:block;resize:vertical;min-height:64px;width:100%}
 .today{display:inline-flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
 .tag{display:inline-block;font-size:12px;line-height:18px;border-radius:99px;padding:0 8px;background:var(--panel2);color:var(--text2);margin:0 6px 0 0;white-space:nowrap}
 .tag.warn{color:var(--warn);background:var(--warn-tint)}
+.dt tr.open .tag:not(.warn){background:var(--panel)}
 td>.tag,.pname+.tag,b+.tag{margin-left:6px}
 .qcell{white-space:normal!important;min-width:220px}
 .qcell .qt{display:block;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -347,13 +352,52 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
 .ask .noundo{color:var(--err);font-weight:650}
 .ask .btns{justify-content:flex-end;margin-top:16px}
 
-@media (max-width:700px){
-  :root{--toph:113px}
-  .wrap{padding:0 16px}
+/* narrower than a laptop: the tabs get a row of their own, five equal ones, so every tab is always in view */
+@media (max-width:1000px){
+  :root{--toph:105px}
   .top .wrap{flex-wrap:wrap;height:auto;gap:4px 10px;padding-top:6px}
   .top .brand{flex:1}
-  .top .brand .ad,#updated{display:none}
   .tabs{order:3;flex:1 1 100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;padding-bottom:6px}
+  /* the bans history: each one a short card, everything still in it */
+  #modTbl,#modTbl tbody{display:block}
+  #modTbl thead{display:none}
+  #modTbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;padding:12px 20px;border-bottom:1px solid var(--line);align-items:center}
+  #modTbl tr:last-child{border-bottom:0}
+  #modTbl td{border:0;padding:0!important;white-space:normal;max-width:none;min-width:0;background:none!important;box-shadow:none!important}
+  #modTbl tr.click:hover,#modTbl tr.click:focus-visible{background:var(--hover)}
+  #modTbl tr.click:focus-visible{box-shadow:inset 3px 0 var(--focus)}
+  #modTbl td:nth-child(1){grid-column:1;grid-row:1}
+  #modTbl td:nth-child(4){grid-column:2;grid-row:1;color:var(--muted);font-size:12.5px}
+  #modTbl td:nth-child(2){grid-column:1/-1;grid-row:2}
+  #modTbl td:nth-child(3){grid-column:1/-1;grid-row:3;color:var(--text2)}
+  #modTbl td:nth-child(5){grid-column:1;grid-row:4;font-size:12.5px}
+  #modTbl td:nth-child(6){grid-column:2;grid-row:4}
+  #actTbl td:nth-child(2){white-space:normal;overflow-wrap:anywhere}
+}
+/* wide tables lose the columns whose numbers are also in the person's panel or the opened row; a sort menu keeps every order */
+.psort{display:none;gap:6px;align-items:center}
+@media (max-width:1360px){
+  .psort{display:inline-flex}
+  #peopleTbl th:nth-child(10),#peopleTbl td:nth-child(10),#peopleTbl th:nth-child(12),#peopleTbl td:nth-child(12){display:none}
+  .qcell .qt{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  #actTbl .trunc{max-width:160px}
+  .dvn{white-space:normal;overflow-wrap:anywhere;max-width:260px}
+  #modTbl td:nth-child(5){white-space:normal;min-width:150px}
+}
+@media (max-width:1250px){#t-overview .g2{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:1200px){
+  #peopleTbl th:nth-child(8),#peopleTbl td:nth-child(8),#peopleTbl th:nth-child(9),#peopleTbl td:nth-child(9){display:none}
+  #actTbl th:nth-child(6),#actTbl td:nth-child(6),#actTbl th:nth-child(7),#actTbl td:nth-child(7){display:none}
+}
+@media (max-width:1020px){
+  #peopleTbl th:nth-child(4),#peopleTbl td:nth-child(4),#peopleTbl th:nth-child(6),#peopleTbl td:nth-child(6),#peopleTbl th:nth-child(7),#peopleTbl td:nth-child(7){display:none}
+}
+@media (max-width:1000px){
+  #actTbl th:nth-child(3),#actTbl td:nth-child(3),#actTbl th:nth-child(4),#actTbl td:nth-child(4){display:none}
+}
+@media (max-width:700px){
+  .wrap{padding:0 16px}
+  .top .brand .ad,#updated{display:none}
   .tab{padding:6px 2px;font-size:13px;gap:4px}
   .tab .badge{min-width:18px;height:18px;padding:0 4px}
   main.wrap{padding-top:14px}
@@ -372,11 +416,15 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
   .dwhead{padding:14px 16px}.dwbody{padding:14px 16px 40px}
   .bulkuse{grid-template-columns:1fr}
   /* a table row becomes a short card: who and how they are on top, the number that matters under it, tap for the rest */
-  #pendTbl,#pendTbl tbody,#peopleTbl,#peopleTbl thead,#peopleTbl tbody,#actTbl,#actTbl tbody,#devTbl,#devTbl tbody,#modTbl,#modTbl tbody{display:block}
-  #pendTbl thead,#actTbl thead,#devTbl thead,#modTbl thead{display:none}
-  #pendTbl tr,#peopleTbl tbody tr,#actTbl tbody tr:not(.detail),#devTbl tr,#modTbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;padding:12px 16px;border-bottom:1px solid var(--line);align-items:center}
-  #pendTbl tr:last-child,#peopleTbl tbody tr:last-child,#devTbl tr:last-child,#modTbl tr:last-child{border-bottom:0}
-  #pendTbl td,#peopleTbl td,#actTbl td,#devTbl td,#modTbl td{border:0;padding:0!important;white-space:normal;max-width:none;min-width:0}
+  #pendTbl,#pendTbl tbody,#peopleTbl,#peopleTbl thead,#peopleTbl tbody,#actTbl,#actTbl tbody,#devTbl,#devTbl tbody{display:block}
+  #pendTbl thead,#actTbl thead,#devTbl thead{display:none}
+  #modTbl tr{padding:12px 16px}
+  #pendTbl tr,#peopleTbl tbody tr,#actTbl tbody tr:not(.detail),#devTbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;padding:12px 16px;border-bottom:1px solid var(--line);align-items:center}
+  #pendTbl tr:last-child,#peopleTbl tbody tr:last-child,#devTbl tr:last-child{border-bottom:0}
+  #pendTbl td,#peopleTbl td,#actTbl td,#devTbl td{border:0;padding:0!important;white-space:normal;max-width:none;min-width:0;background:none!important;box-shadow:none!important}
+  #peopleTbl tbody tr.click:hover,#peopleTbl tbody tr.click:focus-visible,#actTbl tbody tr.click:hover,#actTbl tbody tr.click:focus-visible,#devTbl tr.click:hover,#devTbl tr.click:focus-visible{background:var(--hover)}
+  #peopleTbl tbody tr.click:focus-visible,#actTbl tbody tr.click:focus-visible,#devTbl tr.click:focus-visible{box-shadow:inset 3px 0 var(--focus)}
+  #actTbl tbody tr.open,#actTbl tbody tr.open:hover,#actTbl tr.detail{background:var(--panel2)}
   #pendTbl td:nth-child(2){grid-column:1/-1;grid-row:2}
   #pendTbl td:nth-child(3){grid-column:1/-1;grid-row:3;font-size:12.5px;color:var(--muted)}
   #pendTbl td:nth-child(4){grid-column:2;grid-row:1}
@@ -413,16 +461,11 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
   #devTbl td:nth-child(4){grid-column:2;grid-row:1;justify-self:end}
   #devTbl td:nth-child(5){grid-column:2;grid-row:2/4;justify-self:end}
   .dvn{max-width:none}
-  #modTbl td:nth-child(1){grid-column:1;grid-row:1}
-  #modTbl td:nth-child(4){grid-column:2;grid-row:1;color:var(--muted);font-size:12.5px}
-  #modTbl td:nth-child(2){grid-column:1/-1;grid-row:2}
-  #modTbl td:nth-child(3){grid-column:1/-1;grid-row:3;color:var(--text2)}
-  #modTbl td:nth-child(5){grid-column:1;grid-row:4;font-size:12.5px}
-  #modTbl td:nth-child(6){grid-column:2;grid-row:4}
   #modelTbl th:nth-child(4),#modelTbl td:nth-child(4),#modelTbl th:nth-child(6),#modelTbl td:nth-child(6),
   #topTbl th:nth-child(3),#topTbl td:nth-child(3),#topTbl th:nth-child(5),#topTbl td:nth-child(5),
   #siteTbl th:nth-child(3),#siteTbl td:nth-child(3),#siteTbl th:nth-child(4),#siteTbl td:nth-child(4){display:none}
   #siteTbl .trunc{max-width:150px}
+  .dt .ph{display:block;font-size:12px;color:var(--muted);white-space:normal}
   .toast{bottom:12px;padding:0 12px}
 }
 /* comfortable targets on touch screens and phones */
@@ -467,6 +510,7 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
 </div></header>
 
 <main class="wrap">
+  <p class="sub" id="booting" role="status" hidden>Loading your dashboard…</p>
   <div class="pwnote" id="pwNote" hidden>
     <h2>No password yet</h2>
     <p class="sub" style="margin:0;color:var(--text2)">Set one here first: it’s what you’ll type when you open pagebot from your bookmark.</p>
@@ -516,6 +560,7 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
     <div class="filters">
       <input id="pSearch" type="search" placeholder="Search names and notes" aria-label="Search people">
       <div class="seg" id="pStatus" role="group" aria-label="Show"><button type="button" data-s="all" class="on">All</button><button type="button" data-s="trusted">Active</button><button type="button" data-s="blocked">Turned off</button></div>
+      <span class="psort"><select id="pSort" aria-label="Sort people by"></select><button class="btn ghost sm icon" id="pSortDir" type="button" aria-label="Reverse the order" title="Reverse the order">⇅</button></span>
       <span class="grow"></span>
       <label class="switch"><input type="checkbox" id="signup"><span id="signupState">Sign-ups open</span></label>
       <button class="btn ghost sm" id="pExport" type="button">Download as a spreadsheet</button>
@@ -540,7 +585,7 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
         <div><span class="bl">Page actions</span><button class="btn ghost sm" type="button" data-b="actions-on" data-l="Allow page actions">Allow</button><button class="btn ghost sm" type="button" data-b="actions-off" data-l="No page actions">Take away</button></div>
       </div>
       <div class="bulklimit" id="bulkLimit" hidden>
-        <div class="seg" id="bKind"><button type="button" data-k="tokens" class="on">Tokens</button><button type="button" data-k="usd">Dollars</button><button type="button" data-k="none">No limit</button></div>
+        <div class="seg" id="bKind" role="group" aria-label="Kind of daily limit"><button type="button" data-k="tokens" class="on">Tokens</button><button type="button" data-k="usd">Dollars</button><button type="button" data-k="none">No limit</button></div>
         <input id="bValue" type="number" min="0" step="any" value="100000" aria-label="Daily limit"><span class="sub" id="bUnit">tokens a day</span>
         <button class="btn sm" type="button" id="bApply">Apply</button>
       </div>
@@ -568,7 +613,7 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
     <div class="card" id="defaults">
       <div class="cardhead"><h2>New people start with</h2><span class="sub">Applied when you let someone in</span></div>
       <div class="field" style="margin-top:0"><span class="fl">Daily limit</span>
-        <div class="inl"><div class="seg" id="dKind"><button type="button" data-k="tokens">Tokens</button><button type="button" data-k="usd">Dollars</button><button type="button" data-k="none">No limit</button></div>
+        <div class="inl"><div class="seg" id="dKind" role="group" aria-label="Kind of daily limit for new people"><button type="button" data-k="tokens">Tokens</button><button type="button" data-k="usd">Dollars</button><button type="button" data-k="none">No limit</button></div>
         <input id="dValue" type="number" min="0" step="any" aria-label="Daily limit for new people"><span class="unit" id="dUnit"></span></div>
       </div>
       <div class="field"><span class="fl">Can use</span><label class="ck"><input type="checkbox" id="dSonnet"> Sonnet 5.5</label><label class="ck"><input type="checkbox" id="dWeb"> Web search</label><label class="ck"><input type="checkbox" id="dPdf"> PDF uploads</label><label class="ck"><input type="checkbox" id="dActions"> Page actions</label></div>
@@ -652,7 +697,7 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
         <input id="p2" type="password" placeholder="Confirm" autocomplete="new-password" aria-label="Confirm password">
         <div><button class="btn" type="submit" id="pwSave">Change password</button></div>
         <div class="msg" id="pwMsg"></div>
-        <p class="hint">Changing it signs you out on every device. Other people stay signed in.</p>
+        <p class="hint" id="pwHint">Changing it signs you out on every device. Other people stay signed in.</p>
       </form>
       <div class="card"><div class="cardhead"><h2>This server</h2></div><dl class="facts" id="about"></dl></div>
     </div>
@@ -662,7 +707,7 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
 
 <div class="scrim" id="scrim"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<dialog class="ask" id="ask" aria-labelledby="askTitle" aria-describedby="askBody">
+<dialog class="ask" id="ask" aria-labelledby="askTitle" aria-describedby="askBody askWarn">
   <form method="dialog"><h3 id="askTitle"></h3><p id="askBody"></p><p class="noundo" id="askWarn" hidden></p>
   <div class="btns"><button class="btn ghost" value="no" id="askNo">Cancel</button><button class="btn" value="yes" id="askYes"></button></div></form>
 </dialog>
@@ -770,16 +815,31 @@ function facts(rows) {
 }
 function say(el, ok, text) { el.classList.remove('ok', 'err'); el.classList.add(ok ? 'ok' : 'err'); el.textContent = text; }
 // what just happened, in one place at the bottom of the screen, with Undo where there is one
-let toastT = 0;
-function hideToast() { clearTimeout(toastT); $('#toast').replaceChildren(); }
-function toast(text, ok = true, undo) {
+// It stays while the pointer or the keyboard is on it; one with Undo takes the focus (opts.back says where it goes after).
+let toastT = 0, toastMs = 0, toastBack = null;
+function hideToast() {
   clearTimeout(toastT);
+  const box = $('#toast'), had = box.contains(document.activeElement), back = toastBack;
+  toastBack = null; box.replaceChildren();
+  if (had) (typeof back === 'function' ? back() : back)?.focus();
+}
+const toastTimer = () => { clearTimeout(toastT); toastT = setTimeout(hideToast, toastMs); };
+function toast(text, ok = true, undo, opts = {}) {
   const card = mk('div', 'tcard' + (ok ? '' : ' err'));
   card.appendChild(mk('span', 'tt', text));
-  if (undo) { const u = button('Undo', 'btn sm'); u.onclick = () => { hideToast(); undo(); }; card.appendChild(u); }
+  let u = null;
+  if (undo) { u = button('Undo', 'btn sm'); u.onclick = () => { toastBack = null; hideToast(); undo(); }; card.appendChild(u); }
   const x = button('✕', 'tx'); x.setAttribute('aria-label', 'Dismiss'); x.onclick = hideToast; card.appendChild(x);
+  const held = () => card.matches(':hover') || card.contains(document.activeElement);
+  card.addEventListener('pointerenter', () => clearTimeout(toastT));
+  card.addEventListener('focusin', () => clearTimeout(toastT));
+  card.addEventListener('pointerleave', () => { if (!held()) toastTimer(); });
+  card.addEventListener('focusout', e => { if (!card.contains(e.relatedTarget) && !card.matches(':hover')) toastTimer(); });
+  card.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); hideToast(); } });
+  toastBack = opts.back || (u ? document.activeElement : null);
   $('#toast').replaceChildren(card);
-  toastT = setTimeout(hideToast, undo || !ok ? 12000 : 7000);
+  toastMs = undo || !ok ? 12000 : 7000; toastTimer();
+  if (u) u.focus();
 }
 // asks in the page instead of the browser's confirm box: what will happen, and plainly when there's no undo
 function ask({ title, body = '', yes, danger = false, warn = '' }) {
@@ -804,7 +864,10 @@ function loadErr(t, err) {
 const tryLoad = (t, p) => p.then(() => loadErr(t), e => loadErr(t, e));
 // a form you've changed but not saved yet is left alone by the 30-second refresh
 const dirty = new Set();
-function setSeg(seg, attr, value) { $$('button', seg).forEach(b => b.classList.toggle('on', b.dataset[attr] === String(value))); }
+// the chosen one is marked for screen readers too (aria-pressed), not only by its look
+function setSeg(seg, attr, value) { $$('button', seg).forEach(b => { const on = b.dataset[attr] === String(value); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); }); }
+$$('.seg').forEach(seg => $$('button', seg).forEach(b => b.setAttribute('aria-pressed', String(b.classList.contains('on')))));
+const segBox = label => { const s = mk('div', 'seg'); s.setAttribute('role', 'group'); s.setAttribute('aria-label', label); return s; };
 function onSeg(seg, attr, fn) { seg.addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.dataset[attr] == null) return; setSeg(seg, attr, b.dataset[attr]); fn(b.dataset[attr]); }); }
 
 // ---- CSV ----
@@ -872,10 +935,10 @@ function showTab(t) {
   if (!TABS.includes(t)) t = 'overview';
   S.tab = t;
   $$('.tab').forEach(b => { const on = b.dataset.tab === t; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
-  $$('.tabpanel').forEach(p => { p.hidden = p.id !== 't-' + t; });
+  $$('.tabpanel').forEach(p => { p.hidden = p.id !== 't-' + t || !started; });
   syncPwNote();
   if (location.hash !== '#' + t) history.replaceState(null, '', '#' + t);
-  tryLoad(t, loadTab(t));
+  if (started) tryLoad(t, loadTab(t)); // before that, start() opens it once the first numbers are in
 }
 async function loadTab(t) {
   if (t === 'overview') await loadOverview();
@@ -992,10 +1055,13 @@ function drawBars(o) {
   const n = series.length, plotW = W - left - right, band = plotW / n, keys = shownSeries(series);
   const barW = Math.max(1, Math.min(24, band - 2)); // 2px surface gap between neighbours
   const peak = series.reduce((a, d) => val(d, 'total') > val(a, 'total') ? d : a, series[0]);
-  const max = niceMax(peak ? val(peak, 'total') : 0, unit), tickDp = max < 0.1 ? 3 : max < 10 ? 2 : 0;
+  const max = niceMax(peak ? val(peak, 'total') : 0, unit);
+  // a 1, 2.5, 5 or 10 top splits into 5 steps of 1 or 2 (×10ⁿ), a 2 into 4 steps of 5: every tick prints exactly
+  const steps = Math.abs(max / Math.pow(10, Math.floor(Math.log10(max) + 1e-9)) - 2) < 1e-9 ? 4 : 5, step = max / steps;
+  const tickDp = Math.max(max < 10 ? 2 : 0, -Math.floor(Math.log10(step) + 1e-9));
   const y = v => top + plotH - v / max * plotH;
-  for (let i = 0; i <= 4; i++) {
-    const v = max * i / 4, yy = Math.round(y(v)) + .5;
+  for (let i = 0; i <= steps; i++) {
+    const v = step * i, yy = Math.round(y(v)) + .5;
     el('line', { class: i ? 'grid' : 'base', x1: left, x2: W - right, y1: yy, y2: yy });
     el('text', { x: left - 6, y: yy + 4, 'text-anchor': 'end' }).textContent = unit === 'usd' ? money(v, tickDp) : short(v);
   }
@@ -1108,7 +1174,8 @@ function renderModels() {
   for (const r of rows) {
     const tr = tb.insertRow(), fallback = !!r.model && !ids.includes(r.model), name = mk('span');
     name.append(swatch(famColor(r.model)), r.label + (fallback ? ' (stepped in)' : ''));
-    td(tr, name); td(tr, nf.format(r.questions), 'num'); td(tr, shareBar(frac(r.questions, total)));
+    td(tr, name).appendChild(mk('span', 'ph', `${short(r.input + r.output)} tokens · ${cost(frac(r.usd, r.questions))} an answer`));
+    td(tr, nf.format(r.questions), 'num'); td(tr, shareBar(frac(r.questions, total)));
     td(tr, short(r.input + r.output), 'num'); td(tr, money(r.usd), 'num'); td(tr, cost(frac(r.usd, r.questions)), 'num');
     rowLink(tr, () => goActivity(fallback ? { flag: 'fallback' } : { model: ['haiku', 'sonnet', 'router'].includes(r.family) ? r.family : '' }));
   }
@@ -1119,7 +1186,7 @@ function renderTop() {
   if (!rows.length) return emptyRow(tb, 6, 'Nothing yet for these days.');
   for (const r of rows) {
     const tr = tb.insertRow();
-    td(tr, r.user ? r.user.name : 'You (owner)', r.user ? '' : 'muted');
+    td(tr, r.user ? r.user.name : 'You (owner)', r.user ? '' : 'muted').appendChild(mk('span', 'ph', `${short(r.tokens)} tokens · ${pctText(frac(r.usd, total))} of the cost`));
     td(tr, nf.format(r.questions), 'num'); td(tr, short(r.tokens), 'num'); td(tr, money(r.usd), 'num'); td(tr, shareBar(frac(r.usd, total))); td(tr, ago(r.last));
     rowLink(tr, () => openPerson(r.user ? r.user.id : 'owner'));
   }
@@ -1130,7 +1197,7 @@ function renderSites() {
   if (!rows.length) return emptyRow(tb, 5, 'Nothing yet for these days.');
   for (const r of rows) {
     const tr = tb.insertRow();
-    td(tr, r.host || 'No page (web chat or pop-up)', 'trunc' + (r.host ? '' : ' muted'));
+    td(tr, r.host || 'No page (web chat or pop-up)', 'trunc' + (r.host ? '' : ' muted')).appendChild(mk('span', 'ph', `${plural(r.people, 'person', 'people')} · ${short(r.tokens)} tokens`));
     td(tr, nf.format(r.questions), 'num'); td(tr, nf.format(r.people), 'num'); td(tr, short(r.tokens), 'num'); td(tr, money(r.usd), 'num');
     if (r.host) rowLink(tr, () => goActivity({ q: r.host }));
   }
@@ -1332,7 +1399,7 @@ function moderationBox(u) {
   else if (u.restriction) box.appendChild(liveBox(u, u.restriction));
   if (!u.ban) {
     // closed until you open it: the everyday things come first
-    const fold = mk('details', 'banfold'), form = mk('div', 'banform'), inl = mk('div', 'inl'), seg = mk('div', 'seg'), len = mk('select');
+    const fold = mk('details', 'banfold'), form = mk('div', 'banform'), inl = mk('div', 'inl'), seg = segBox('What to do'), len = mk('select');
     fold.appendChild(mk('summary', '', `${u.restriction ? 'Change the restriction, ban' : 'Restrict, ban'} or terminate ${u.name}…`));
     let kind = 'ban';
     // only a ban can be permanent; a restriction always ends
@@ -1346,7 +1413,7 @@ function moderationBox(u) {
     const rbox = mk('div', 'rform'), cks = mk('div'), cb = label => { const l = mk('label', 'ck'), c = mk('input'); c.type = 'checkbox'; l.append(c, label); return [l, c]; };
     const [ls, cs] = cb('Take away Sonnet'), [lw, cw] = cb('Take away web search'), [lpd, cpd] = cb('Take away PDF uploads'), [la, ca] = cb('Take away page actions');
     cks.append(ls, lw, lpd, la);
-    const lim = mk('div', 'inl'), lseg = mk('div', 'seg'), lval = mk('input'), lunit = mk('span', 'unit');
+    const lim = mk('div', 'inl'), lseg = segBox('Daily limit while restricted'), lval = mk('input'), lunit = mk('span', 'unit');
     let lkind = 'none';
     lval.type = 'number'; lval.min = '0'; lval.step = 'any'; lval.setAttribute('aria-label', 'Daily limit while restricted');
     const setL = k => {
@@ -1470,8 +1537,9 @@ function renderPeople() {
   all.onchange = () => { list.forEach(u => all.checked ? ppl.sel.add(u.id) : ppl.sel.delete(u.id)); renderPeople(); };
   const tb = table($('#peopleTbl'), [{ node: all, cls: 'selcol' }, ...PCOLS.map(c => ({ label: c.label, num: c.num, sortKey: c.key }))], {
     sort: ppl.sort,
-    onSort: k => { const c = PCOLS.find(x => x.key === k); ppl.sort = { key: k, dir: ppl.sort.key === k ? -ppl.sort.dir : c.num || ['last', 'today', 'joined'].includes(k) ? -1 : 1 }; renderPeople(); },
+    onSort: sortBy,
   });
+  $('#pSort').value = col.key;
   if (!q && ppl.status !== 'blocked') ownerRow(tb, d.owner);
   for (const u of list) personRow(tb, u);
   if (!list.length) emptyRow(tb, PCOLS.length + 1, d.users.some(u => u.status !== 'pending')
@@ -1504,6 +1572,11 @@ function personRow(tb, u) {
   const jd = new Date(u.createdAt), jc = td(tr, jd.getFullYear() === new Date().getFullYear() ? dayFmt.format(jd) : dayYFmt.format(jd)); jc.title = dayYFmt.format(jd);
   rowLink(tr, () => openPerson(u.id));
 }
+// a column you click again turns around; a new one starts with the biggest, newest or A first
+function sortBy(k) { const c = PCOLS.find(x => x.key === k); ppl.sort = { key: k, dir: ppl.sort.key === k ? -ppl.sort.dir : c.num || ['last', 'today', 'joined'].includes(k) ? -1 : 1 }; renderPeople(); }
+$('#pSort').append(...PCOLS.map(c => new Option('Sort by ' + c.label.toLowerCase(), c.key)));
+$('#pSort').addEventListener('change', e => sortBy(e.target.value));
+$('#pSortDir').onclick = () => sortBy(ppl.sort.key);
 $('#pSearch').addEventListener('input', e => { ppl.q = e.target.value; renderPeople(); });
 onSeg($('#pStatus'), 's', v => { ppl.status = v; renderPeople(); });
 $('#signup').addEventListener('change', async () => {
@@ -1740,7 +1813,7 @@ function renderDrawer() {
 function editor(u) {
   const ed = mk('div');
   let kind = u.limitKind || 'none';
-  const inl = mk('div', 'inl'), seg = mk('div', 'seg'), input = mk('input'), unitL = mk('span', 'unit');
+  const inl = mk('div', 'inl'), seg = segBox('Kind of daily limit'), input = mk('input'), unitL = mk('span', 'unit');
   input.type = 'number'; input.min = '0'; input.step = 'any'; input.setAttribute('aria-label', 'Daily limit'); input.value = u.limitValue ?? '';
   const setKind = k => {
     kind = k; setSeg(seg, 'k', k); input.hidden = k === 'none';
@@ -1779,6 +1852,7 @@ function accountBox(u) {
   const off = u.status === 'blocked';
   const reset = button('Reset password', 'btn ghost sm'), out = button('Sign out everywhere', 'btn ghost sm'),
     blk = button(off ? 'Turn back on' : 'Turn off account', 'btn ghost sm' + (off ? '' : ' danger')), rm = button('Delete account…', 'btn ghost sm danger');
+  blk.dataset.acct = 'toggle';
   row.append(reset, out, blk, rm);
   const np = mk('div', 'np'); np.hidden = true;
   const npIn = mk('input'), npGo = button('Set', 'btn sm'); npIn.type = 'text'; npIn.placeholder = 'New password (6+ characters)'; npIn.setAttribute('aria-label', 'New password');
@@ -1791,13 +1865,18 @@ function accountBox(u) {
   npGo.onclick = () => act1({ password: npIn.value }, `Password changed and ${u.name} was signed out.` + (u.passcode ? ' Their passcode was turned off too.' : '') + ' Tell them the new password.');
   npIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); npGo.click(); } });
   out.onclick = () => act1({ signout: true }, `${u.name} was signed out everywhere.`);
+  const was = u.status, toggle = () => $('#dwBody [data-acct="toggle"]') || $('#dwClose');
   const setOn = async (on, undo) => {
+    const status = on ? (undo ? was : 'trusted') : 'blocked';
+    let undoIt = null;
     try {
-      await send('/api/admin/users/' + u.id, { status: on ? 'trusted' : 'blocked' });
-      if (on) toast(undo ? `${u.name} is back on. They’ll need to sign in again.` : `${u.name} can use pagebot again.`);
-      else toast(`${u.name} is turned off and signed out.`, true, () => setOn(true, true));
+      await send('/api/admin/users/' + u.id, { status });
+      if (!on) undoIt = () => setOn(true, true);
+      else toast(!undo ? `${u.name} can use pagebot again.` : was === 'pending' ? `${u.name} is waiting to be let in again.` : `${u.name} is back on. They’ll need to sign in again.`);
     } catch (err) { toast(err.message, false); }
     await loadUsers(); S.sessions = await api('/api/admin/sessions'); renderPeople(); if (dw.id != null) renderDrawer();
+    if (undoIt) toast(`${u.name} is turned off and signed out.`, true, undoIt, { back: toggle });
+    else if (dw.id != null && !$('#toast').contains(document.activeElement)) toggle()?.focus();
   };
   blk.onclick = () => setOn(off);
   rm.onclick = async () => {
@@ -2032,6 +2111,7 @@ function renderSettings() {
   $('#pc1').required = $('#pc2').required = !L.on;
   $('#pwState').textContent = s.passwordSet ? 'A password is set.' : 'No password yet. Set one here first: it’s what you’ll type when you open pagebot from your bookmark.';
   $('#pwSave').textContent = s.passwordSet ? 'Change password' : 'Set password';
+  $('#pwHint').hidden = !s.passwordSet;
   $('#about').replaceChildren(...facts([
     ['Models', s.models.map(m => `${m.label} (${m.id})`).join(' · ')],
     ['Thinking effort', s.effort],
@@ -2129,8 +2209,11 @@ function renderNeeds() {
       it.append(mk('div', 'nwho', `${u.name} · ${limitText(e.limitKind, e.limitValue)} a day`), o); g.appendChild(it);
     }
   }
-  if (!groups.length) groups.push(mk('p', 'calm', 'Nothing needs you right now.'));
+  const nopw = S.stats && !S.stats.passwordSet, fresh = !!S.stats && !+S.stats.questions;
+  if (!groups.length) groups.push(mk('p', 'calm', nopw ? 'Just one thing: set your password in the box above.' : 'Nothing needs you right now.'));
   if (!everyone.length) groups.push(firstSteps());
+  if (fresh) groups.push(mk('p', 'sub', 'Your numbers and charts show up here after the first question.'));
+  $('#t-overview').classList.toggle('fresh', fresh);
   $('#needsBody').replaceChildren(...groups);
 }
 // a brand-new server: three plain steps, and words to send a friend (the homepage itself explains nothing)
@@ -2152,9 +2235,11 @@ function firstSteps() {
 
 // ================= sign in / out =================
 async function start() {
+  const t0 = tok;
   await Promise.all([loadStats(), loadUsers()]);
+  if (tok !== t0) return; // locked while it was loading
   started = true;
-  $('#unlock').hidden = true; $('#app').hidden = false;
+  $('#unlock').hidden = true; $('#app').hidden = false; $('#booting').hidden = true;
   showTab((location.hash || '#overview').slice(1));
   startTimers();
 }
@@ -2168,7 +2253,10 @@ $('#unlock').addEventListener('submit', async e => {
   catch (err) { tok = null; $('#unlockMsg').textContent = err.message; }
 });
 $('#lock').onclick = () => lockOut();
-if (tok) { $('#unlock').hidden = true; start().catch(() => { lockOut(); $('#tok').focus(); }); } // a saved token goes straight in, without flashing the sign-in box
+if (tok) { // a saved token goes straight in: the header and tabs show at once, without flashing the sign-in box
+  $('#unlock').hidden = true; $('#app').hidden = false; $('#booting').hidden = false; showTab((location.hash || '#overview').slice(1));
+  start().catch(() => { if (!started) { lockOut(); $('#tok').focus(); } });
+}
 else $('#tok').focus();
 })();
 </script>
