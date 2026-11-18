@@ -320,7 +320,7 @@ test('pdf uploads', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL to run P
     const n = calls.length;
     const r = await api('/api/chat', { method: 'POST', body: { message: 'Summarize it.', pdf: p.id }, token: bob });
     assert.equal(r.status, 429);
-    assert.match(r.data.error, /more than what’s left of today\./);
+    assert.match(r.data.error, /There isn’t enough of today’s limit left for that one\./);
     assert.match(r.data.error, /The PDF in this chat is a big part of that on its own\. Try a smaller PDF/);
     assert.doesNotMatch(r.data.error, /\d/);
     assert.equal(calls.length, n);

@@ -143,10 +143,10 @@ browserTest('an answer’s details line shows its share of the limit for an acco
 
 browserTest('a refused question because the limit is used up moves the bar to used up, with friendly words', async t => {
   const f = await fixture(t, { boot: { ...account, quota: { pct: 97 } }, chatStatus: 429,
-    chatBody: { error: 'You’ve used today’s limit. It resets at midnight.', quota: { pct: 100 } } });
+    chatBody: { error: 'That’s today’s limit used up. It starts fresh at midnight, so pick this up tomorrow.', quota: { pct: 100 } } });
   await f.ask();
   await f.page.locator('.msg.bot.err, .msg.err').first().waitFor();
-  assert.match(await f.page.locator('#log').innerText(), /You’ve used today’s limit\. It resets at midnight\./);
+  assert.match(await f.page.locator('#log').innerText(), /That’s today’s limit used up\. It starts fresh at midnight, so pick this up tomorrow\./);
   await f.openSettings();
   assert.equal((await f.usage()).text, 'Today’s limit used up');
 });

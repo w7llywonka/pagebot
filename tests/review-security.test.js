@@ -180,7 +180,7 @@ test('security review', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL to r
     await api(`/api/admin/users/${ids.carol}`, { admin: true, method: 'POST', body: { allowPdf: false } });
     const off = await chat({ conversationId: conv, message: 'Still there?' }, { token: carol });
     assert.equal(off.status, 400);
-    assert.match(off.error, /PDF uploads aren’t turned on.*Start a new chat/);
+    assert.match(off.error, /PDFs aren’t turned on.*Start a new chat/);
     assert.equal(calls.length, before, 'nothing reached the model, so the PDF was not sent');
     // a new chat without a PDF is fine
     assert.ok((await chat({ message: 'Hello' }, { token: carol })).done);

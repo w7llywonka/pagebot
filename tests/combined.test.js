@@ -221,7 +221,7 @@ test('features together', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL to
     assert.equal((await upload(pdfFile(), { token: alice })).status, 403);
     const withPdf = await chat({ pdf: mine }, { token: alice });
     assert.equal(withPdf.status, 400);
-    assert.match(withPdf.error, /PDF uploads aren’t turned on/);
+    assert.match(withPdf.error, /PDFs aren’t turned on/);
     const base = calls.length;
     script = () => ({ text: 'No tools needed.' });
     const r = await chat({ actions: true, page: { url: 'https://x.example/', title: 'X', text: 'A page.' } }, { token: alice });
