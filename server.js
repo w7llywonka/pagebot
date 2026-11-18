@@ -8,6 +8,7 @@ import zlib from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readRouterStream } from './lib/router-stream.js';
+import { createPages, sendEncoded, sendJson, shortHash } from './lib/delivery.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUB = path.join(__dirname, 'public');
@@ -94,11 +95,37 @@ if (!process.env.ANTHROPIC_API_KEY) console.warn('ANTHROPIC_API_KEY is not set â
 if (ADMIN_TOKEN.length < 16) console.warn('ADMIN_TOKEN is missing or under 16 chars â€” /admin stays locked until you set it.');
 if (process.env.PUBLIC_URL) console.warn('PUBLIC_URL is no longer used (the bookmarklet uses the address you open the homepage from). You can delete it.');
 
+const POOL_MAX = 5;
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : undefined,
-  max: 5,
+  max: POOL_MAX,
+  // Opening a connection costs more than the queries of a whole request (a handshake of several round trips), and the
+  // default drops idle ones after 10 seconds: about every question paid for a new one. Two minutes covers reading an
+  // answer and asking the next thing, and still lets a quiet server go fully quiet.
+  idleTimeoutMillis: 120_000,
 });
+// a connection lost while idle (the database restarted) is replaced on the next query; unhandled, this event stops the server
+pool.on('error', e => console.error('database connection lost:', e.message));
+// Queries that don't depend on each other go out side by side when the pool has connections open for them. When it
+// doesn't, they take turns on the ones there are (opening one would take longer than the wait it saves) and the missing
+// connections are opened for the next request. One connection is always left for everyone else. Results come back in
+// order; an entry that isn't a function isn't run and comes back as it is.
+async function together(...jobs) {
+  const todo = jobs.map((job, i) => typeof job === 'function' ? i : -1).filter(i => i >= 0), out = [...jobs];
+  const lanes = Math.max(1, Math.min(todo.length, pool.idleCount, POOL_MAX - 1));
+  let next = 0, failed = false;
+  const lane = async () => {
+    while (next < todo.length && !failed) {
+      const i = todo[next++];
+      try { out[i] = await jobs[i](); } catch (e) { failed = true; throw e; }
+    }
+  };
+  const running = Array.from({ length: lanes }, lane);
+  for (let n = pool.totalCount; n < Math.min(todo.length, POOL_MAX - 1); n++) pool.connect().then(c => c.release(), () => {});
+  await Promise.all(running);
+  return out;
+}
 const anthropic = new Anthropic(); // ANTHROPIC_API_KEY from env
 
 // ---------- db ----------
@@ -307,6 +334,18 @@ async function initDb() {
     await setSetting('password_hash', await hashPw(process.env.INITIAL_PASSWORD));
     console.log('Access password seeded from INITIAL_PASSWORD.');
   }
+}
+
+// History lists a person's newest chats through conversations_history_idx. Postgres keeps no statistics for the
+// expression of a partial index, so it guessed that everyone has a handful of chats, and read all of a person's (and the
+// first question of each) to sort them and keep 30: more work with every chat they ever had. With statistics on the
+// expression it walks the index and stops after the page asked for. This runs after the server is up, not before: it is
+// not needed to answer, an older Postgres (before 14) may refuse it, and the first ANALYZE reads a sample of the table.
+// After that, autovacuum keeps the statistics current like any others.
+async function historyStats() {
+  await pool.query('CREATE STATISTICS IF NOT EXISTS conversations_person_stat ON (COALESCE(user_id, 0)) FROM conversations');
+  const have = await pool.query(`SELECT 1 FROM pg_stats_ext_exprs WHERE schemaname = current_schema() AND statistics_name = 'conversations_person_stat'`);
+  if (!have.rowCount) await pool.query('ANALYZE conversations');
 }
 
 // ---------- settings ----------
@@ -539,12 +578,17 @@ function cleanRestriction(b) {
   return l;
 }
 
+// "Seen just now" marks (a session's last use, an account's, a browser's) are written on nearly every request. Postgres
+// normally answers a write only once it is flushed to disk; for these it doesn't have to wait (for the one statement
+// that says so, nothing else). A database crash in the next fraction of a second could lose such a mark, never more:
+// the session then counts as idle since its use before, and a browser is noted again the next time it opens the panel.
+const NO_WAIT = `set_config('synchronous_commit', 'off', true)`;
 // Browsers: the panel keeps a random id in this browser's storage and sends it along. Only its hash is stored.
 const deviceOf = req => { const d = req.get('x-pagebot-device') || ''; return /^[A-Za-z0-9_-]{16,64}$/.test(d) ? sha256('device:' + d) : null; };
 async function noteDevice(req, name) {
   const d = deviceOf(req);
   if (d && name) await pool.query(`INSERT INTO user_devices(device, username) VALUES ($1, lower($2))
-    ON CONFLICT (device, username) DO UPDATE SET seen_at = now()`, [d, name]);
+    ON CONFLICT (device, username) DO UPDATE SET seen_at = now() RETURNING ${NO_WAIT}`, [d, name]);
 }
 // a termination in force (or one that ran its course) keeps its username, and the browsers it used, from signing up again
 const TERMINATED = `SELECT 1 FROM bans t WHERE t.kind = 'terminate' AND t.lifted_at IS NULL`;
@@ -630,17 +674,19 @@ const bearer = req => (req.get('authorization') || '').replace(/^Bearer\s+/i, ''
 async function touchSession(tok, lock, ip) {
   if (!tok) return null;
   const ownerMins = lock.on && lock.minutes ? lock.minutes : SESSION_DAYS * 1440;
+  // one statement, so one trip to the database: the session is touched if it's still good, and its account along with it
+  // (and neither waits for the disk: see NO_WAIT)
   const r = await pool.query(
-    `UPDATE sessions s SET last_used=now(), ip=COALESCE($4, s.ip) WHERE s.token_hash=$1
+    `WITH s AS (UPDATE sessions s SET last_used=now(), ip=COALESCE($4, s.ip) WHERE s.token_hash=$1
        AND s.last_used > now() - make_interval(mins => CASE WHEN s.user_id IS NULL THEN $2::int ELSE COALESCE(
          (SELECT u.lock_minutes FROM users u WHERE u.id = s.user_id AND u.passcode_hash IS NOT NULL AND u.lock_minutes > 0), $3::int) END)
-     RETURNING user_id`, [sha256(tok), ownerMins, SESSION_DAYS * 1440, ip || null]);
+       RETURNING user_id),
+     u AS (UPDATE users SET last_seen=now() WHERE id = (SELECT user_id FROM s) RETURNING *)
+     SELECT ${NO_WAIT}, s.user_id AS session_uid, u.* FROM s LEFT JOIN u ON u.id = s.user_id`, [sha256(tok), ownerMins, SESSION_DAYS * 1440, ip || null]);
   if (!r.rowCount) return null;
-  const uid = r.rows[0].user_id;
-  if (uid == null) return { user: null };
-  const u = await pool.query('UPDATE users SET last_seen=now() WHERE id=$1 RETURNING *', [uid]);
-  if (!u.rowCount) return null;
-  const user = toUser(u.rows[0]);
+  if (r.rows[0].session_uid == null) return { user: null };
+  if (r.rows[0].id == null) return null;
+  const user = toUser(r.rows[0]);
   user.ban = await liveBan(user.banId); // a banned account stays signed in, so it keeps seeing why
   if (!user.ban && (user.restriction = await liveRestriction(user.restrictId))) restrictUser(user, user.restriction);
   return { user };
@@ -689,6 +735,9 @@ setInterval(() => purgeTerminated().catch(e => console.error('purge error:', e.m
 const app = express();
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
+// Pages carry their own validators (below). Everything else is never stored by a browser, so Express hashing each
+// answer to make an ETag for it was work nobody used.
+app.disable('etag');
 app.use((req, res, next) => {
   res.set({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' });
   if (req.secure) res.set('Strict-Transport-Security', 'max-age=15552000');
@@ -711,45 +760,53 @@ const bookmarkletSrc = fs.readFileSync(path.join(__dirname, 'bookmarklet.js'), '
 
 // Pages run only their own inline scripts (allowed by hash), talk only to this server, and load images only from here,
 // so even if a page or a model's answer slipped markup into the panel it couldn't run code or send anything out.
-const pageCache = new Map();
-function page(file) {
-  const p = path.join(PUB, file), mtime = fs.statSync(p).mtimeMs;
-  let c = pageCache.get(file);
-  if (!c || c.mtime !== mtime) {
-    const html = fs.readFileSync(p, 'utf8');
-    const hashes = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => `'sha256-${crypto.createHash('sha256').update(m[1]).digest('base64')}'`);
-    c = { mtime, html, scripts: hashes.join(' ') || "'none'" };
-    pageCache.set(file, c);
+// Each page is read once per version of its file and kept with its brotli and gzip copies (lib/delivery.js), so sending
+// one is a lookup: nothing is hashed, copied or compressed while a browser waits.
+const pages = createPages(PUB);
+// What travels with a page: its policy, and the validator browsers check their copy by, both worked out once per version.
+// The validator covers the page and these headers, so a changed policy reaches a browser as surely as a changed page.
+function pageHeaders(c, frames) {
+  let h = c.memo.get(frames);
+  if (!h) {
+    const headers = {
+      'Content-Security-Policy': `default-src 'self'; script-src ${c.scripts}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; ` +
+        `media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors ${frames}`,
+      // Browsers keep the page but ask before each use (a 304 when it hasn't changed). Nothing looser is safe here: the
+      // page's address never changes, so a copy used without asking would be an old panel talking to a new server.
+      'Cache-Control': 'no-cache',
+      ...(frames === "'none'" && { 'Cross-Origin-Opener-Policy': 'same-origin' }),
+    };
+    c.memo.set(frames, h = { headers, tag: shortHash(c.tag, JSON.stringify(headers)) });
   }
-  return c;
+  return h;
 }
-function sendPage(res, file, { frames = "'none'", html = s => s, headers = {} } = {}) {
-  const c = page(file);
-  res.set({
-    'Content-Security-Policy': `default-src 'self'; script-src ${c.scripts}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; ` +
-      `media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors ${frames}`,
-    'Cache-Control': 'no-cache',
-    ...(frames === "'none'" && { 'Cross-Origin-Opener-Policy': 'same-origin' }),
-    ...headers,
-  }).type('html').send(html(c.html));
+function sendPage(req, res, file, frames = "'none'") {
+  const c = pages.get(file), h = pageHeaders(c, frames);
+  sendEncoded(req, res, c.page, h.headers, h.tag);
 }
 
 // The homepage is only the button to drag to the bookmarks bar, on purpose. It doesn't say what the bookmark does and it doesn't
 // link to /chat or /admin: people who were invited already know, and whoever else lands here learns nothing from it. What keeps
 // them out is the panel's sign-in (and, for accounts, the owner accepting them in /admin), not this page being quiet.
+const HOME_HEADERS = { 'Cache-Control': 'no-store', Vary: 'Host, X-Forwarded-Host, X-Forwarded-Proto', 'X-Robots-Tag': 'noindex, nofollow, noarchive' };
+// The page with the bookmark for one address filled in. The last few addresses' pages are kept, compressed, so the
+// bookmark (55 KB once encoded) isn't built again for every visit; the Host header picks the address, so the list is short.
+function homepage(origin) {
+  const c = pages.get('install.html');
+  return [c, pages.filled(c, origin, html => {
+    const code = bookmarkletSrc.replaceAll('__ORIGIN__', origin).replaceAll('__VERSION__', VERSION).replace(/\n\s*/g, '');
+    const href = 'javascript:' + encodeURIComponent(code);
+    return html.replaceAll('{{HREF}}', () => escHtml(href)).replaceAll('{{VERSION}}', VERSION);
+  })];
+}
 app.get(['/', '/install'], (req, res) => {
-  const origin = publicOrigin(req);
-  const code = bookmarkletSrc.replaceAll('__ORIGIN__', origin).replaceAll('__VERSION__', VERSION).replace(/\n\s*/g, '');
-  const href = 'javascript:' + encodeURIComponent(code);
-  sendPage(res, 'install.html', {
-    headers: { 'Cache-Control': 'no-store', Vary: 'Host, X-Forwarded-Host, X-Forwarded-Proto', 'X-Robots-Tag': 'noindex, nofollow, noarchive' },
-    html: s => s.replaceAll('{{HREF}}', () => escHtml(href)).replaceAll('{{VERSION}}', VERSION),
-  });
+  const [c, v] = homepage(publicOrigin(req));
+  sendEncoded(req, res, v, { ...pageHeaders(c, "'none'").headers, ...HOME_HEADERS }); // never stored, so no validator
 });
 // the panel loads inside any site's page (that's what the bookmarklet does); everything else refuses to be framed
-app.get('/widget', (req, res) => sendPage(res, 'widget.html', { frames: '*' }));
-app.get('/chat', (req, res) => sendPage(res, 'widget.html'));
-app.get('/admin', (req, res) => sendPage(res, 'admin.html'));
+app.get('/widget', (req, res) => sendPage(req, res, 'widget.html', '*'));
+app.get('/chat', (req, res) => sendPage(req, res, 'widget.html'));
+app.get('/admin', (req, res) => sendPage(req, res, 'admin.html'));
 
 app.get('/health', async (req, res) => {
   await pool.query('SELECT 1');
@@ -760,15 +817,16 @@ app.get('/health', async (req, res) => {
 app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
   const cfg = await loadConfig();
   const tok = bearer(req);
-  const s = tok ? await touchSession(tok, cfg.lock, req.ip) : null;
+  // the session, and whether anyone has an account yet (only asked while sign-ups are closed)
+  const [s, accounts] = await together(tok && (() => touchSession(tok, cfg.lock, req.ip)),
+    !cfg.signup && (() => pool.query(`SELECT 1 FROM users WHERE status <> 'pending' LIMIT 1`).then(r => r.rowCount > 0)));
   const u = s?.user || null;
-  const accountsExist = cfg.signup || (await pool.query(`SELECT 1 FROM users WHERE status <> 'pending' LIMIT 1`)).rowCount > 0;
   const out = {
     version: VERSION, // panels opened from an older bookmark point to the homepage for the new one
     theme: prefsFor(cfg, u).theme,
     lock: cfg.lock.on ? 'passcode' : cfg.passwordSet ? 'password' : 'none',
     passwordSet: cfg.passwordSet,
-    accounts: { on: accountsExist, signup: cfg.signup },
+    accounts: { on: cfg.signup || accounts, signup: cfg.signup },
     authed: !!s,
   };
   res.set('Cache-Control', 'no-store');
@@ -776,19 +834,20 @@ app.get('/api/boot', limit(60, 'boot'), async (req, res) => {
   if (!u) return res.json({ ...out, who: 'owner', lockMinutes: cfg.lock.on ? cfg.lock.minutes : 0, prefs: cfg.prefs, limits: limitsFor(cfg, null), models: modelList(),
     commands: await listCommands(null), commandLimits: COMMAND_LIMITS }); // slash commands
   out.who = 'user'; out.lockMinutes = userLockMinutes(u); out.lockChoices = LOCK_CHOICES; out.user = publicUser(u);
-  await noteDevice(req, u.name);
+  const device = !!deviceOf(req) && (() => noteDevice(req, u.name));
   if (u.ban) {
-    await markBanSeen(u.ban.id);
+    await together(device, () => markBanSeen(u.ban.id));
     return res.json({ ...out, ban: publicBan(u.ban) });
   }
   if (u.status === 'trusted') {
-    const a = await currentAnnouncement();
+    // nothing here waits on anything else here (today's usage is only read for accounts that have a limit to show it against)
+    const [, a, used, commands] = await together(device, currentAnnouncement, !!u.limitKind && (() => usageToday(u.id)), () => listCommands(u.id));
     Object.assign(out, {
-      prefs: prefsFor(cfg, u), limits: limitsFor(cfg, u), models: modelsFor(u), quota: quotaOut(u, quota(u, await usageToday(u.id))),
+      prefs: prefsFor(cfg, u), limits: limitsFor(cfg, u), models: modelsFor(u), quota: quotaOut(u, quota(u, used)),
       announcement: a && a.id > u.annSeen ? a : null, restriction: u.restriction ? publicBan(u.restriction) : null,
-      commands: await listCommands(u.id), commandLimits: COMMAND_LIMITS, // slash commands
+      commands, commandLimits: COMMAND_LIMITS, // slash commands
     });
-  }
+  } else if (device) await device();
   res.json(out);
 });
 
@@ -1535,12 +1594,16 @@ async function chat(req, res) {
   let convId = Number.isSafeInteger(b.conversationId) ? b.conversationId : null;
   let history = [];
   if (convId) {
-    // a chat removed from history can't be continued (chat history): the question starts a new chat instead
-    const c = await pool.query('SELECT memory_site, page_url FROM conversations WHERE id=$1 AND user_id IS NOT DISTINCT FROM $2 AND hidden_at IS NULL', [convId, uid]);
+    // a chat removed from history can't be continued (chat history): the question starts a new chat instead.
+    // Its messages are read alongside it, under the same condition, so they only come back for a chat that is yours.
+    const mine = 'id=$1 AND user_id IS NOT DISTINCT FROM $2 AND hidden_at IS NULL';
+    const [c, past] = await together(
+      () => pool.query(`SELECT memory_site, page_url FROM conversations WHERE ${mine}`, [convId, uid]),
+      () => pool.query(`SELECT role, content, had_image, page_doc, steps, attachment_id FROM messages WHERE conversation_id=$1 AND NOT refused
+        AND EXISTS (SELECT 1 FROM conversations WHERE ${mine}) ORDER BY id`, [convId, uid]));
     if (c.rowCount) {
       if (!hasSite && !page) site = c.rows[0].memory_site ?? memorySite(c.rows[0].page_url);
-      history = (await pool.query(
-        'SELECT role, content, had_image, page_doc, steps, attachment_id FROM messages WHERE conversation_id=$1 AND NOT refused ORDER BY id', [convId])).rows;
+      history = past.rows;
     } else convId = null;
   }
   const pdf = await pdfTurn(pdfId, uid, u, convId, history, m); // pdf uploads: this question's PDF and the chat's earlier ones
@@ -1899,8 +1962,7 @@ app.get('/api/chats', limit(120, 'chats-read'), auth, trusted, async (req, res) 
   const db = await pool.connect();
   let r;
   try {
-    await db.query('BEGIN');
-    await db.query(`SET LOCAL statement_timeout = '3s'`);
+    await db.query(`BEGIN; SET LOCAL statement_timeout = '3s'`); // (one trip to the database, not two)
     r = await db.query(`${chatSql(', h.hit')}
       LEFT JOIN LATERAL (SELECT left(${SEARCHABLE}, 4000) AS hit FROM messages m
         WHERE $2::text IS NOT NULL AND m.conversation_id = c.id AND ${SEARCHABLE} ILIKE $2 ORDER BY m.id LIMIT 1) h ON true
@@ -1915,7 +1977,7 @@ app.get('/api/chats', limit(120, 'chats-read'), auth, trusted, async (req, res) 
     throw e;
   } finally { db.release(); if (q) searching.delete(who); }
   const rows = r.rows.slice(0, CHATS_PAGE);
-  res.json({
+  await sendJson(req, res, {
     chats: rows.map(c => {
       const x = publicChat(c), s = q && c.hit && !x.title.toLowerCase().includes(q.toLowerCase()) ? chatSnippet(c.hit, q) : null;
       return { ...x, ...(s && { snippet: s }) };
@@ -1927,18 +1989,22 @@ app.get('/api/chats', limit(120, 'chats-read'), auth, trusted, async (req, res) 
 // one chat to read again and keep going: its last MAX_PAST messages as they looked, and the page it was last about
 const MAX_PAST = 200;
 app.get('/api/chats/:id', limit(120, 'chats-read'), auth, trusted, async (req, res) => {
-  const id = chatId(req.params.id);
-  const c = id && (await pool.query(`${chatSql()} WHERE c.id = $1 AND COALESCE(c.user_id, 0) = $2 AND c.hidden_at IS NULL`, [id, req.user?.id ?? 0])).rows[0];
-  if (!c) return res.status(404).json(GONE); // someone else's chat looks the same as one that isn't there
-  const r = await pool.query(`SELECT * FROM (SELECT id, role, content, had_image, input_tokens, output_tokens, cost_usd, model, web_searches, refused, incomplete, meta, steps,
+  const id = chatId(req.params.id), who = req.user?.id ?? 0, mine = 'c.id = $1 AND COALESCE(c.user_id, 0) = $2 AND c.hidden_at IS NULL';
+  if (!id) return res.status(404).json(GONE);
+  // the chat and its messages are read side by side; the messages only come back for a chat that is yours
+  const [found, r] = await together(() => pool.query(`${chatSql()} WHERE ${mine}`, [id, who]),
+    () => pool.query(`SELECT * FROM (SELECT id, role, content, had_image, input_tokens, output_tokens, cost_usd, model, web_searches, refused, incomplete, meta, steps,
       created_at, page_doc IS NOT NULL AS has_doc, attachment_id,
       (SELECT f.name FROM attachments f WHERE f.id = messages.attachment_id) AS pdf_name, (SELECT f.pages FROM attachments f WHERE f.id = messages.attachment_id) AS pdf_pages,
-      (SELECT f.bytes IS NOT NULL FROM attachments f WHERE f.id = messages.attachment_id) AS pdf_stored FROM messages WHERE conversation_id = $1 ORDER BY id DESC LIMIT ${MAX_PAST + 1}) x ORDER BY id`, [id]);
+      (SELECT f.bytes IS NOT NULL FROM attachments f WHERE f.id = messages.attachment_id) AS pdf_stored FROM messages
+      WHERE conversation_id = $1 AND EXISTS (SELECT 1 FROM conversations c WHERE ${mine}) ORDER BY id DESC LIMIT ${MAX_PAST + 1}) x ORDER BY id`, [id, who]));
+  const c = found.rows[0];
+  if (!c) return res.status(404).json(GONE); // someone else's chat looks the same as one that isn't there
   const rows = r.rows.slice(-MAX_PAST);
   while (rows[0]?.role === 'assistant') rows.shift(); // start on a question
   const chat = publicChat(c), messages = rows.map(m => pastMessage(m, req.user));
   chat.url = messages.findLast(m => m.url)?.url || chat.url;
-  res.json({ chat, messages, earlier: r.rows.length > rows.length });
+  await sendJson(req, res, { chat, messages, earlier: r.rows.length > rows.length });
 });
 
 // "Remove from history": hides the chat from you. It can't be reopened or continued, but nothing is deleted.
@@ -2085,7 +2151,7 @@ app.get('/api/pdf', limit(120, 'pdf-list'), auth, trusted, async (req, res) => {
       FROM attachments a LEFT JOIN conversations c ON c.id = a.conversation_id
       LEFT JOIN LATERAL (SELECT left(m.content, 4000) AS content FROM messages m WHERE m.conversation_id = c.id AND m.role = 'user' ORDER BY m.id LIMIT 1) f ON true
       WHERE a.user_id IS NOT DISTINCT FROM $1 AND a.bytes IS NOT NULL ORDER BY a.id DESC LIMIT 500`, [uid])]);
-  res.json({ used, cap: PDF_CAP, pdfs: r.rows.map(x => ({ id: Number(x.id), name: x.name, size: x.size, pages: x.pages, createdAt: x.created_at,
+  await sendJson(req, res, { used, cap: PDF_CAP, pdfs: r.rows.map(x => ({ id: Number(x.id), name: x.name, size: x.size, pages: x.pages, createdAt: x.created_at,
     inChat: x.conversation_id != null, chatId: x.conversation_id != null ? Number(x.conversation_id) : null, chatTitle: x.conversation_id != null ? chatTitle(x) : null })) });
 });
 app.delete('/api/pdf/:id', limit(60, 'pdf-delete'), auth, trusted, async (req, res) => {
@@ -2241,7 +2307,7 @@ app.get('/api/admin/usage', limit(300, 'admin'), admin, async (req, res) => {
     LEFT JOIN m ON m.k = ${hourly ? 'g.k' : 'g.k::date'}
     GROUP BY g.k ORDER BY g.k`, [TIMEZONE, days, who]);
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(new Date());
-  res.json({
+  await sendJson(req, res, {
     timezone: TIMEZONE, by: hourly ? 'hour' : 'day',
     days: r.rows.map(x => ({
       ...(hourly ? { day: today, hour: Number(x.k) } : { day: x.k }),
@@ -2304,7 +2370,7 @@ app.get('/api/admin/overview', limit(300, 'admin'), admin, async (req, res) => {
       GROUP BY 1, 2`, P),
   ]);
   const x = k.rows[0];
-  res.json({
+  await sendJson(req, res, {
     days, timezone: TIMEZONE,
     totals: {
       questions: x.questions, input: +x.input, output: +x.output, tokens: +x.input + +x.output, usd: x.usd, searches: x.searches,
@@ -2352,7 +2418,7 @@ app.get('/api/admin/activity', limit(300, 'admin'), admin, async (req, res) => {
         OR ($7 = 'highlight' AND strpos(m.content, '<highlighted_text>') > 0))
       AND ($8 = '' OR m.content ILIKE $8)
     ORDER BY m.id DESC LIMIT $10`, [TIMEZONE, days, who, QUESTION_RE, before, model, flag, like, ids, n + 1]);
-  res.json({
+  await sendJson(req, res, {
     more: r.rows.length > n,
     rows: r.rows.slice(0, n).map(x => ({
       id: Number(x.id), at: x.created_at, user: userRef(x.user_id, x.username), question: x.question,
@@ -2382,7 +2448,7 @@ app.get('/api/admin/activity/:id', limit(300, 'admin'), admin, async (req, res) 
   const pm = /^<page url="([^"]*)" title="([^"]*)">/.exec(c);
   const pageEnd = pm ? c.indexOf('</page>') : -1;
   const hm = /<highlighted_text>\n([\s\S]*?)\n<\/highlighted_text>/.exec(c);
-  res.json({
+  await sendJson(req, res, {
     id: Number(m.id), at: m.created_at, user: userRef(m.user_id, m.username), conversationId: Number(m.conversation_id), turn: t.rows[0],
     question: c.replace(/^(<page [\s\S]*<\/page>\n\n)?(<highlighted_text>\n[\s\S]*<\/highlighted_text>\n\n)?(<annotated_screenshot>[^<]*<\/annotated_screenshot>\n\n)?/, '').slice(0, 8000),
     page: doc?.url != null || doc?.text ? { url: doc.url || '', title: doc.title || '', chars: (doc.text || '').length }
@@ -2725,7 +2791,28 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.expose ? err.message : 'Server error' });
 });
 
+// The pages are read and their compressed copies started while the database is being set up below (which is mostly
+// waiting on Postgres), so listen() and /health wait for none of it, and the first visitor after a deploy already gets
+// the small copies: gzip a few milliseconds later, brotli (about a second of work for the panel, on zlib's own thread)
+// usually before anyone asks.
+setImmediate(() => {
+  try {
+    for (const file of ['widget.html', 'admin.html']) pages.get(file);
+    if (process.env.RAILWAY_PUBLIC_DOMAIN) homepage(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+  } catch (e) { console.error('Could not read a page ahead of time:', e.message); } // (asking for it will say the same)
+});
 await initDb();
 await purgeTerminated();
 await sweepPdfs(); // pdf uploads
-app.listen(PORT, () => console.log(`pagebot listening on :${PORT} (${Object.values(MODELS).map(m => m.id).join(', ')}, effort ${EFFORT})`));
+const server = app.listen(PORT, () => {
+  console.log(`pagebot listening on :${PORT} (${Object.values(MODELS).map(m => m.id).join(', ')}, effort ${EFFORT})`);
+  historyStats().catch(e => console.warn('History statistics were not set up (history still works, just slower for long histories):', e.message));
+});
+// Railway's edge reuses its connections to the app. Node closes an idle one after 5 seconds by default, and a request
+// the edge sends just as Node closes it fails with a 502 ("connection closed unexpectedly"). Railway closes idle
+// connections after 60 seconds (its docs say so for browsers' connections to it; for its own to the app they don't say,
+// and Railway's answer to those 502s is a keep-alive above 60 seconds), so the app keeps them a little longer than that.
+// The limit on receiving a request's headers is kept above it, the usual pairing (Node doesn't count a connection's idle
+// time against that limit, so all this changes is 66 seconds instead of 60 for headers that arrive slowly).
+server.keepAliveTimeout = 65_000;
+server.headersTimeout = 66_000;
