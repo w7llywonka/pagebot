@@ -1959,13 +1959,25 @@ function md(src) {
 }
 // Network chunks often contain many tiny deltas. Coalesce them and limit expensive markdown/DOM work
 // to 20 updates per second, while flushing the exact final text before citations or errors are rendered.
+// An update redoes only the end of the answer. Text up to a blank line that isn't inside a code block renders the same
+// whatever follows it (there, md(a + b) is md(a) + md(b)), so its elements are made once and left alone, and only what
+// comes after the last such line is rendered again: a long answer costs no more per update than a short one, and a
+// selection or a "Copied" in the settled part survives. The text only ever grows.
 function answerRenderer(out, current) {
   let latest = '', painted = '', timer = 0, frame = 0;
+  let done = 0, kept = 0; // how much of the text is settled, and how many of out's elements it made
   function cancel() { clearTimeout(timer); cancelAnimationFrame(frame); timer = frame = 0; }
   function flush() {
     cancel();
     if (!current() || latest === painted) return;
-    out.innerHTML = md(latest); painted = latest; scroll();
+    if (out.childNodes.length < kept || latest.length < done) done = kept = 0; // (never expected: start over)
+    // the last blank line with an even number of ``` before it
+    const parts = latest.slice(done).split('```'); let cut = 0, at = 0;
+    for (let i = 0; i < parts.length; at += parts[i++].length + 3) { const n = i % 2 ? -1 : parts[i].lastIndexOf('\n\n'); if (n >= 0) cut = at + n + 2; }
+    while (out.childNodes.length > kept) out.lastChild.remove(); // last time's unsettled end (or the typing dots)
+    if (cut) { out.insertAdjacentHTML('beforeend', md(latest.slice(done, done + cut))); done += cut; kept = out.childNodes.length; }
+    out.insertAdjacentHTML('beforeend', md(latest.slice(done)));
+    painted = latest; scroll();
   }
   return {
     queue(text) { latest = text; if (!timer && !frame) timer = setTimeout(() => { timer = 0; frame = requestAnimationFrame(flush); }, 50); },
