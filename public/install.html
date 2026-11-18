@@ -10,7 +10,8 @@
   font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color-scheme:light dark}
 @media (prefers-color-scheme:dark){:root{--bg:#1f1915;--ink:#f6ece2;--muted:#c8b4a4;--tint:#2e251f;--btn:#f4a882;--btn-h:#f8bb9c;--on-btn:#2c160b;--glow:rgba(0,0,0,.45)}}
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;min-height:100svh;display:grid;place-items:center;padding:24px 16px;background:var(--bg);color:var(--ink)}
+/* the column hangs from a fixed point a little above the middle, so a longer hint grows downward and the button never moves under the pointer */
+body{margin:0;min-height:100vh;min-height:100svh;display:grid;place-items:start center;padding:24px 16px;padding-top:max(24px,calc(50vh - 100px));padding-top:max(24px,calc(50svh - 100px));background:var(--bg);color:var(--ink)}
 main{display:flex;flex-direction:column;align-items:center;text-align:center}
 .btn{display:inline-flex;align-items:center;gap:10px;padding:16px 34px 16px 26px;border-radius:999px;background:var(--btn);color:var(--on-btn);
   font:700 20px/1.2 ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-decoration:none;cursor:grab;
@@ -24,7 +25,7 @@ main{display:flex;flex-direction:column;align-items:center;text-align:center}
 .copy{min-height:44px;margin-top:6px;padding:8px 16px;border:0;border-radius:999px;background:none;font:inherit;font-size:14px;color:var(--muted);
   text-decoration:underline;text-underline-offset:3px;cursor:pointer;transition:background-color .15s}
 .copy:hover{color:var(--ink);background:var(--tint)}
-.touch .copy{margin-top:12px;padding:10px 22px;background:var(--tint);color:var(--ink);font-weight:600;text-decoration:none}
+.touch .copy{margin-top:12px;padding:8px 20px;border:2px solid var(--btn);background:var(--tint);color:var(--ink);font-weight:600;text-decoration:none}
 .btn:focus-visible,.copy:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
 @media (prefers-reduced-motion:reduce){.btn,.copy{transition:none}.btn:hover,.btn:active{transform:none}}
 </style>
@@ -43,10 +44,10 @@ const touch = matchMedia('(hover:none) and (pointer:coarse)').matches;
 const onTouch = 'On a phone or tablet? Copy it, then save it as a bookmark’s address.';
 if (touch) { document.documentElement.classList.add('touch'); hint.textContent = onTouch; }
 // clicking the button here would just run it on this page; it's meant to be dragged to the bookmarks bar
+// (on a phone or tablet the hint already says what to do, ?update's steps included, so a tap only points at it)
 bm.addEventListener('click', e => {
   e.preventDefault();
-  hint.textContent = touch ? onTouch
-    : 'Don’t click it, drag it: pull the button up to your bookmarks bar. Can’t see the bar? Press Ctrl+Shift+B (⌘+Shift+B on a Mac).';
+  if (!touch) hint.textContent = 'Don’t click it, drag it: pull the button up to your bookmarks bar. Can’t see the bar? Press Ctrl+Shift+B (⌘+Shift+B on a Mac).';
   hint.classList.add('up');
 });
 // ?update: the bookmark in use is from an older version
@@ -65,9 +66,9 @@ $('#copy').addEventListener('click', async e => {
     try { ok = document.execCommand('copy'); } catch { /* nothing else to try */ }
     t.remove();
   }
-  e.target.textContent = ok ? 'Copied' : 'Couldn’t copy it here';
+  e.target.textContent = ok ? 'Copied' : 'Try copying again';
   hint.textContent = ok ? 'Copied! Now bookmark any page, edit that bookmark, and paste this in as its address.'
-    : 'Try another browser, or drag the button on a computer.';
+    : 'Couldn’t copy it here. ' + (touch ? 'Try another browser, or drag the button on a computer.' : 'Drag the button up to your bookmarks bar instead.');
   hint.classList.add('up');
 });
 })();

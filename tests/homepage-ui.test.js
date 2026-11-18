@@ -19,15 +19,16 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function open(t, { query = '', scheme = 'light', touch = false } = {}) {
+async function open(t, { query = '', scheme = 'light', touch = false, viewport, init } = {}) {
   const context = await browser.newContext({
-    colorScheme: scheme, ...(touch ? { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true } : { viewport: { width: 1280, height: 800 } }),
+    colorScheme: scheme, ...(touch ? { viewport: viewport || { width: 390, height: 844 }, hasTouch: true, isMobile: true } : { viewport: viewport || { width: 1280, height: 800 } }),
   });
   t.after(() => context.close());
   await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: ORIGIN });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
+  if (init) await page.addInitScript(init);
   await page.route('**/*', route => route.request().url().startsWith(ORIGIN + '/')
     ? route.fulfill({ contentType: 'text/html; charset=utf-8', body: html }) : route.abort());
   await page.goto(ORIGIN + '/' + query);
@@ -61,7 +62,25 @@ browserTest('on a phone or tablet, where nothing can be dragged, it leads with c
   await page.locator('#bm').tap();
   assert.doesNotMatch(await hint(page), /drag|Ctrl/i, 'a tap does not send a phone back to dragging');
   const upd = await open(t, { touch: true, query: '?update' });
-  assert.equal(await hint(upd), 'Time for the new one (v14). Copy it, save it as a bookmark’s address, then delete the old one.');
+  const steps = 'Time for the new one (v14). Copy it, save it as a bookmark’s address, then delete the old one.';
+  assert.equal(await hint(upd), steps);
+  await upd.locator('#bm').tap();
+  assert.equal(await hint(upd), steps, 'a tap points at the update steps instead of replacing them');
+  assert.equal(await upd.locator('#hint.up').count(), 1);
+});
+
+browserTest('the button stays put under the pointer when a click makes the hint longer', async t => {
+  for (const viewport of [{ width: 1280, height: 800 }, { width: 640, height: 400 }]) {
+    const page = await open(t, { viewport });
+    const top = () => page.locator('#bm').evaluate(el => el.offsetTop); // its place in the layout, without the hover lift
+    const before = await top();
+    await page.locator('#bm').click();
+    await page.waitForSelector('#hint.up');
+    const after = await top();
+    assert.equal(after, before, `at ${viewport.width}x${viewport.height} the button moved from ${before} to ${after}`);
+    const copy = await page.locator('#copy').boundingBox();
+    assert.ok(copy.y + copy.height <= viewport.height, 'the copy button is still on screen');
+  }
 });
 
 browserTest('copying puts the bookmark on the clipboard and the next steps in the hint line', async t => {
@@ -73,29 +92,77 @@ browserTest('copying puts the bookmark on the clipboard and the next steps in th
   assert.equal(await page.locator('#bm').innerText(), 'pagebot', 'the bookmark is still named just pagebot');
 });
 
+// no clipboard at all: the API refuses and the old copy command does nothing
+const noClipboard = () => {
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.reject(new Error('denied')) } });
+  document.execCommand = () => false;
+};
+
+browserTest('when copying fails, the hint line says so and what to do instead, and the button still names its action', async t => {
+  for (const touch of [false, true]) {
+    const page = await open(t, { touch, init: noClipboard });
+    await page.locator('#copy').click();
+    await page.waitForSelector('#hint.up');
+    assert.equal(await hint(page), touch ? 'Couldn’t copy it here. Try another browser, or drag the button on a computer.'
+      : 'Couldn’t copy it here. Drag the button up to your bookmarks bar instead.');
+    assert.equal(await page.locator('#hint').getAttribute('role'), 'status', 'the failure is announced');
+    assert.equal(await page.locator('#copy').innerText(), 'Try copying again');
+  }
+});
+
 browserTest('every colour pair passes contrast, light and dark, from the page’s own tokens', async t => {
   for (const scheme of ['light', 'dark']) for (const touch of [false, true]) {
     const page = await open(t, { scheme, touch });
-    const failures = await page.evaluate(({ scheme, touch }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' }); // no transitions: read each state's final colours
+    const css = (sel, prop) => page.evaluate(([sel, prop]) => getComputedStyle(document.querySelector(sel))[prop], [sel, prop]);
+    // the states as drawn: keyboard focus, hover, and the emphasised hint after a click or tap
+    await page.keyboard.press('Tab');
+    const ring = await page.evaluate(() => document.activeElement.id === 'bm' && getComputedStyle(document.activeElement).outlineColor);
+    assert.ok(ring, 'Tab reaches the button first');
+    await page.keyboard.press('Tab');
+    const copyRing = await page.evaluate(() => document.activeElement.id === 'copy' && getComputedStyle(document.activeElement).outlineColor);
+    assert.ok(copyRing, 'then the copy button');
+    await page.evaluate(() => document.activeElement.blur());
+    const drawn = { ring, copyRing };
+    if (!touch) {
+      await page.hover('#bm');
+      drawn.hoverLabel = await css('#bm', 'color'); drawn.hoverFill = await css('#bm', 'backgroundColor');
+      await page.hover('#copy');
+      drawn.copyHoverLabel = await css('#copy', 'color'); drawn.copyHoverFill = await css('#copy', 'backgroundColor');
+      await page.mouse.move(0, 0);
+    }
+    await page.locator('#bm').click();
+    await page.waitForSelector('#hint.up');
+    drawn.upHint = await css('#hint', 'color');
+    await page.mouse.move(0, 0); // and the rest at rest, not hovered
+    await page.evaluate(() => document.querySelector('#hint').classList.remove('up'));
+    const failures = await page.evaluate(({ scheme, touch, drawn }) => {
       const rgb = c => { const m = /rgba?\(([^)]+)\)/.exec(c); return m[1].split(',').map(Number); };
       const lum = c => { const [r, g, b] = rgb(c).map(v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
       const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
       const css = (sel, prop) => getComputedStyle(document.querySelector(sel))[prop];
-      const tok = name => { const s = document.createElement('i'); s.style.color = `var(${name})`; document.body.append(s); const c = getComputedStyle(s).color; s.remove(); return c; };
       const bg = css('body', 'backgroundColor');
       const pairs = [
         ['hint text on the page', css('#hint', 'color'), bg, 4.5],
-        ['emphasised hint on the page', tok('--ink'), bg, 4.5],
+        ['emphasised hint on the page', drawn.upHint, bg, 4.5],
         ['button label on the button', css('#bm', 'color'), css('#bm', 'backgroundColor'), 4.5],
-        ['button label on the hovered button', tok('--on-btn'), tok('--btn-h'), 4.5],
         ['the button against the page', css('#bm', 'backgroundColor'), bg, 3],
-        ['the focus ring against the page', tok('--ink'), bg, 3],
-        ['copy link on the page', touch ? css('#copy', 'color') : tok('--muted'), bg, 4.5],
-        ['copy link on its tinted fill', tok('--ink'), tok('--tint'), 4.5],
+        ['the focus ring on the button against the page', drawn.ring, bg, 3],
+        ['the focus ring on the copy button against the page', drawn.copyRing, bg, 3],
+        ...(touch ? [
+          ['copy label on its fill', css('#copy', 'color'), css('#copy', 'backgroundColor'), 4.5],
+          ['copy label on the page', css('#copy', 'color'), bg, 4.5],
+          // with no border, its edge is wherever its fill meets the page
+          ['the copy button’s edge against the page', parseFloat(css('#copy', 'borderTopWidth')) ? css('#copy', 'borderTopColor') : css('#copy', 'backgroundColor'), bg, 3],
+        ] : [
+          ['button label on the hovered button', drawn.hoverLabel, drawn.hoverFill, 4.5],
+          ['copy link on the page', css('#copy', 'color'), bg, 4.5],
+          ['hovered copy link on its tinted fill', drawn.copyHoverLabel, drawn.copyHoverFill, 4.5],
+        ]),
       ];
       return pairs.filter(([, a, b, need]) => !(ratio(a, b) >= need))
         .map(([what, a, b, need]) => `${scheme}${touch ? ' touch' : ''}: ${what} is ${ratio(a, b).toFixed(2)}:1, needs ${need}:1`);
-    }, { scheme, touch });
+    }, { scheme, touch, drawn });
     assert.deepEqual(failures, []);
   }
 });

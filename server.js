@@ -1778,12 +1778,12 @@ async function chat(req, res) {
 function friendly(e, model, u) { // u: the account asking (null = the owner, who sees the API's own wording)
   const s = e?.status;
   if (e?.router && s === 401) return 'OpenRouter API key is invalid (check OPENROUTER_API_KEY).';
-  if (e?.router && s === 402) return 'The OpenRouter account pagebot uses is out of credits. Pick another model for now.';
+  if (e?.router && s === 402) return 'The OpenRouter account pagebot uses is out of credits and needs topping up. Pick another model for now.';
   if (e?.router && s === 404) return `Model "${model}" not found on OpenRouter (check OPENROUTER_MODEL).`;
   if (s === 401) return 'Anthropic API key is invalid (check ANTHROPIC_API_KEY).';
   if (s === 404) return `Model "${model}" not found (check HAIKU_MODEL / SONNET_MODEL).`;
-  if (s === 429) return 'The model is getting a lot of questions right now. Try again in a moment.';
-  if (s === 529 || s === 503) return 'The model is very busy right now. Try again in a moment.';
+  if (s === 429) return 'pagebot has hit its rate limit with the model for now. Try again in a moment.';
+  if (s === 529 || s === 503) return 'The model’s provider is overloaded right now. Try again in a moment.';
   const msg = (e?.error?.error?.message || e?.message || 'Something went wrong').slice(0, 300);
   // accounts never see amounts, and the API's own errors carry token counts ("prompt is too long: 250000 tokens > 200000 maximum")
   if (u && /\d[\d,.]*\s*[kKmM]?\s*tokens?\b|\$\s*\d/.test(msg)) return /too long|too large|exceed/i.test(msg) ? 'That’s too long for the model. Try a shorter question, or start a new chat.' : 'Something went wrong. Try again in a moment.';
