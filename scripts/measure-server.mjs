@@ -13,13 +13,17 @@
 //   --rounds <n>       batches per timing (default 20, of 12 requests each)
 //   --starts <n>       how many times each server is stopped and started again to time its start (default 9)
 //   --idle <seconds>   also time the first /api/boot after the server sat idle that long, three times: the usual case
-//                      for a panel opened now and then (connections that were closed meanwhile have to be opened again)
+//                      for a panel opened now and then (connections that were closed meanwhile have to be opened again).
+//                      Several, comma-separated, time each: the app keeps idle connections 120 s and node-postgres' own
+//                      default is 10 s, so `--idle 12,125` shows a gap between the two and one longer than both
 //   --json <file>      also write the numbers as JSON
+//
+// Response times come with the server's CPU per request: all of its threads (zlib's included), read from /proc on Linux.
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { randomBytes, createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import net from 'node:net';
 import path from 'node:path';
@@ -30,7 +34,7 @@ const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf('--' + name); return i < 0 ? fallback : args[i + 1]; };
 const here = fileURLToPath(new URL('../', import.meta.url));
 const roots = [...(opt('compare') ? [path.resolve(opt('compare'))] : []), here]; // the other checkout first: it is "before"
-const dbDelay = Number(opt('db-delay', 0)), rounds = Number(opt('rounds', 20)), idleSeconds = Number(opt('idle', 0)), restarts = Number(opt('starts', 9)), BATCH = 12;
+const dbDelay = Number(opt('db-delay', 0)), rounds = Number(opt('rounds', 20)), idles = String(opt('idle', '')).split(',').map(Number).filter(n => n > 0), restarts = Number(opt('starts', 9)), BATCH = 12;
 const database = process.env.PAGEBOT_TEST_DATABASE_URL;
 if (!database) { console.error('Set PAGEBOT_TEST_DATABASE_URL (a Postgres database this may create a schema in).'); process.exit(1); }
 
@@ -101,6 +105,10 @@ function ask(s, route, headers = {}, { method = 'GET', body, firstByte = false }
 }
 const decode = r => r.headers['content-encoding'] === 'br' ? zlib.brotliDecompressSync(r.body) : r.headers['content-encoding'] === 'gzip' ? zlib.gunzipSync(r.body) : r.body;
 const median = a => [...a].sort((x, y) => x - y)[a.length >> 1];
+// CPU time a process has used so far, in µs, over all its threads (null where /proc can't say)
+function cpuOf(pid) {
+  try { return readdirSync(`/proc/${pid}/task`).reduce((sum, t) => { try { return sum + Number(readFileSync(`/proc/${pid}/task/${t}/schedstat`, 'utf8').split(' ')[0]) / 1e3; } catch { return sum; } }, 0); } catch { return null; }
+}
 
 // ---- a server: its own schema, started the way the tests start it
 async function start(root) {
@@ -208,17 +216,21 @@ try {
   };
   const stat = a => { const s = [...a].sort((x, y) => x - y), r = v => Math.round(v * 100) / 100; return { n: s.length, p50: r(s[Math.floor(s.length * 0.5)]), p95: r(s[Math.floor(s.length * 0.95)]), mean: r(s.reduce((x, y) => x + y, 0) / s.length) }; };
   for (const [name, run] of Object.entries(timings)) {
-    const ms = servers.map(() => []);
-    for (let round = 0; round <= rounds; round++) for (const k of round % 2 ? [...servers.keys()].reverse() : servers.keys()) for (let i = 0; i < BATCH; i++) {
-      const r = await run(servers[k]);
-      if (r.status !== 200 && r.status !== 304) throw new Error(`${name}: ${r.status} ${r.body.toString().slice(0, 200)}`);
-      if (round > 0) ms[k].push(r.ms); // the first round warms the connection, the JIT and the pool
+    const ms = servers.map(() => []), cpu = servers.map(() => 0);
+    for (let round = 0; round <= rounds; round++) for (const k of round % 2 ? [...servers.keys()].reverse() : servers.keys()) {
+      const before = cpuOf(servers[k].app.pid);
+      for (let i = 0; i < BATCH; i++) {
+        const r = await run(servers[k]);
+        if (r.status !== 200 && r.status !== 304) throw new Error(`${name}: ${r.status} ${r.body.toString().slice(0, 200)}`);
+        if (round > 0) ms[k].push(r.ms); // the first round warms the connection, the JIT and the pool
+      }
+      if (round > 0) cpu[k] = before == null ? NaN : cpu[k] + cpuOf(servers[k].app.pid) - before;
     }
-    for (const k of servers.keys()) out.servers[k].ms[name] = stat(ms[k]);
+    for (const k of servers.keys()) out.servers[k].ms[name] = { ...stat(ms[k]), cpuUs: Number.isFinite(cpu[k]) ? Math.round(cpu[k] / ms[k].length) : null };
   }
 
   // ---- the first boot after the server sat idle
-  if (idleSeconds > 0) {
+  for (const idleSeconds of idles) {
     const idle = servers.map(() => ({ owner: [], account: [] }));
     for (let i = 0; i < 3; i++) for (const who of ['account', 'owner']) {
       await sleep(idleSeconds * 1000);
@@ -227,7 +239,7 @@ try {
         await sleep(300);
       }
     }
-    for (const k of servers.keys()) out.servers[k].idleBootMs = { seconds: idleSeconds, ...Object.fromEntries(Object.entries(idle[k]).map(([who, v]) => [who, { samples: v, median: median(v) }])) };
+    for (const k of servers.keys()) (out.servers[k].idleBootMs ||= []).push({ seconds: idleSeconds, ...Object.fromEntries(Object.entries(idle[k]).map(([who, v]) => [who, { samples: v, median: median(v) }])) });
   }
 } finally {
   for (const s of servers) {
@@ -252,14 +264,15 @@ for (const [i, s] of out.servers.entries()) {
     console.log(`  ${route.padEnd(24)} identity ${kb(e.identity.wire)}   gzip ${kb(e.gzip.wire)}${e.gzip.encoding === 'gzip' ? '' : ' (sent plain)'}   br ${kb(e.br.wire)}${e.br.encoding === 'br' ? '' : ' (sent plain)'}` +
       (e.revalidated ? `   unchanged: ${e.revalidated.status}, ${e.revalidated.wire} bytes` : '') + `   [${e.cache}]`);
 }
-console.log(`\nResponse time, ms (${rounds} batches of ${BATCH}, one request at a time${two ? ', the two servers taking turns' : ''}):`);
-const f = v => String(v.toFixed(2)).padStart(7);
+console.log(`\nResponse time, ms, and the server's CPU per request, µs (${rounds} batches of ${BATCH}, one request at a time${two ? ', the two servers taking turns' : ''}):`);
+const f = v => String(v.toFixed(2)).padStart(7), us = v => String(v ?? '?').padStart(5);
 for (const name of Object.keys((b || a).ms)) {
   const x = a.ms[name], y = b?.ms[name];
-  console.log(`  ${name.padEnd(42)} ` + (two ? `before p50 ${f(x.p50)} p95 ${f(x.p95)}   after p50 ${f(y.p50)} p95 ${f(y.p95)}   ${(100 * (y.p50 / x.p50 - 1)).toFixed(0).padStart(4)}%` : `p50 ${f(x.p50)}   p95 ${f(x.p95)}   mean ${f(x.mean)}`));
+  console.log(`  ${name.padEnd(42)} ` + (two ? `before p50 ${f(x.p50)} p95 ${f(x.p95)} cpu ${us(x.cpuUs)}   after p50 ${f(y.p50)} p95 ${f(y.p95)} cpu ${us(y.cpuUs)}   ${(100 * (y.p50 / x.p50 - 1)).toFixed(0).padStart(4)}%`
+    : `p50 ${f(x.p50)}   p95 ${f(x.p95)}   mean ${f(x.mean)}   cpu ${us(x.cpuUs)}`));
 }
-if (idleSeconds > 0) {
+for (const [w, idleSeconds] of idles.entries()) {
   console.log(`\nFirst /api/boot after ${idleSeconds} s idle, ms (median of 3):`);
-  for (const [i, s] of out.servers.entries()) console.log(`  ${two ? (i ? 'after   ' : 'before  ') : ''}owner ${s.idleBootMs.owner.median} (${s.idleBootMs.owner.samples.join(', ')})   account ${s.idleBootMs.account.median} (${s.idleBootMs.account.samples.join(', ')})`);
+  for (const [i, s] of out.servers.entries()) { const t = s.idleBootMs[w]; console.log(`  ${two ? (i ? 'after   ' : 'before  ') : ''}owner ${t.owner.median} (${t.owner.samples.join(', ')})   account ${t.account.median} (${t.account.samples.join(', ')})`); }
 }
 if (opt('json')) { writeFileSync(opt('json'), JSON.stringify(out, null, 2)); console.log(`\nWrote ${opt('json')}`); }
