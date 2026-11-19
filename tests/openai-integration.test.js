@@ -233,10 +233,10 @@ test('OpenAI end-to-end integration', { skip: !database && 'Set PAGEBOT_TEST_DAT
       assert.equal(i.at(-2).type, 'function_call', 'the call goes back exactly as Luna returned it');
       assert.equal(o.call_id, i.at(-2).call_id);
       return o.output; };
-    assert.deepEqual(output(1), [{ type: 'input_text', text: 'Open tabs:\ntab-1 (current): News <https://news.example.test/a>\ntab-2: Shop <https://shop.example.test/>' }]);
+    assert.deepEqual(output(1), [{ type: 'input_text', text: 'Open tabs:\ntab-1 (current): title "News", address "https://news.example.test/a"\ntab-2: title "Shop", address "https://shop.example.test/"' }]);
     assert.deepEqual(output(2), [{ type: 'input_text', text: 'Went to https://shop.example.test/.' },
-      { type: 'input_text', text: 'Open tabs:\ntab-1: News <https://news.example.test/a>\ntab-2 (current): Shop <https://shop.example.test/>' }]);
-    assert.deepEqual(output(3), [{ type: 'input_text', text: 'Open tabs:\ntab-1: News <https://news.example.test/a>\ntab-2: Shop <https://shop.example.test/>\ntab-3 (current):  <about:blank>\nJust opened: tab-3' }]);
+      { type: 'input_text', text: 'Open tabs:\ntab-1: title "News", address "https://news.example.test/a"\ntab-2 (current): title "Shop", address "https://shop.example.test/"' }]);
+    assert.deepEqual(output(3), [{ type: 'input_text', text: 'Open tabs:\ntab-1: title "News", address "https://news.example.test/a"\ntab-2: title "Shop", address "https://shop.example.test/"\ntab-3 (current): title "", address "about:blank"\nJust opened: tab-3' }]);
     assert.deepEqual(output(4), [{ type: 'input_text', text: "There's no tool called javascript_exec here." }], 'a member the panel didn’t list is refused, not run');
     assert.equal(calls.length, start + 5);
     const saved = JSON.parse((await db.query("SELECT steps FROM messages WHERE conversation_id=$1 AND role='assistant'", [result.done.conversationId])).rows[0].steps);
