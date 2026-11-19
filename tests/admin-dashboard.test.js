@@ -21,7 +21,7 @@ after(async () => { await browser?.close(); });
 // phone: 390x844 with touch; waiting: how many people are left waiting to be let in (the fixture has 5)
 // size: another viewport ({ width, height, touch }); dark: the dark colour scheme; clock: a clock the test can run forward;
 // hold: a path whose answer waits until the test calls state.release()
-async function dashboard(t, { hash = '#overview', phone = false, empty = false, waiting, failOnce, size, dark = false, clock = false, hold } = {}) {
+async function dashboard(t, { hash = '#overview', phone = false, empty = false, waiting, failOnce, size, dark = false, clock = false, hold, openai = false } = {}) {
   const touch = phone || !!size?.touch;
   const context = await browser.newContext({
     viewport: size ? { width: size.width, height: size.height } : phone ? { width: 390, height: 844 } : { width: 1440, height: 900 }, isMobile: touch, hasTouch: touch,
@@ -50,6 +50,11 @@ async function dashboard(t, { hash = '#overview', phone = false, empty = false, 
       else if (u && body?.status) u.status = body.status;
     }
     const r = api.handle(method, url.pathname, url.searchParams, body, req.headers());
+    if (r && openai) {
+      if (url.pathname === '/api/admin/stats') r.body.models = [...r.body.models, { id: 'gpt-6-luna', label: 'GPT-6 Luna', openai: true }];
+      if (url.pathname === '/api/admin/usage') r.body.days = r.body.days.map(d => ({ ...d, openai: 320, openaiUsd: 0.0032 }));
+      if (url.pathname === '/api/admin/overview') r.body.models.push({ model: 'gpt-6-luna', label: 'GPT-6 Luna', family: 'openai', questions: 1, input: 300, output: 20, usd: 0.0032, searches: 0 });
+    }
     if (r) return route.fulfill({ status: r.status, contentType: 'application/json', body: JSON.stringify(r.body) });
     state.errors.push(`unexpected request: ${method} ${url.pathname}`);
     return route.fulfill({ status: 404, body: '{}' });
@@ -65,6 +70,18 @@ async function dashboard(t, { hash = '#overview', phone = false, empty = false, 
   return { page, api, state };
 }
 const toast = page => page.locator('#toast .tcard');
+
+browserTest('Luna has its own usage series and model filter in the admin dashboard', async t => {
+  const { page } = await dashboard(t, { openai: true });
+  assert.match(await page.locator('#legend').innerText(), /GPT-6 Luna/);
+  const model = page.locator('#modelTbl tr', { hasText: 'GPT-6 Luna' });
+  assert.equal(await model.count(), 1);
+  await model.click();
+  await page.locator('#t-activity').waitFor();
+  assert.equal(await page.locator('#aModel').inputValue(), 'openai');
+  assert.equal(await page.locator('#aModel option[value=openai]').textContent(), 'GPT-6 Luna');
+  assert.equal(await page.locator('#aModel option[value=openai]').getAttribute('hidden'), null);
+});
 
 browserTest('Overview opens on what needs doing: the people waiting, appeals and anyone at their limit, before the numbers', async t => {
   const { page } = await dashboard(t);

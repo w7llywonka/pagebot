@@ -94,7 +94,7 @@ before(async () => {
   for (const f of ['server.js', 'bookmarklet.js', 'package.json', 'lib', 'public']) cpSync(path.join(root, f), path.join(copy, f), { recursive: true });
   mkdirSync(path.join(copy, 'tests/helpers'), { recursive: true });
   cpSync(path.join(root, 'tests/helpers/local-model.mjs'), path.join(copy, 'tests/helpers/local-model.mjs'));
-  symlinkSync(path.join(root, 'node_modules'), path.join(copy, 'node_modules'), 'dir');
+  symlinkSync(path.join(root, 'node_modules'), path.join(copy, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
   const portServer = createServer().listen(0, '127.0.0.1');
   await once(portServer, 'listening');
   const port = portServer.address().port;
