@@ -105,7 +105,9 @@ test('no code from anywhere else: no other address, no eval or imports, no inlin
   for (const name of ['sidepanel.js', 'worker.js', 'content.js', 'sidepanel.html']) {
     const s = f[name].data.toString();
     const urls = s.match(/https?:\/\/[^\s"'`)<>]+/g) || [];
-    assert.deepEqual(urls.filter(u => !u.startsWith(ORIGIN)), [], `${name} names no other address`);
+    // (worker.js's "Ask pagebot" item shows on every web page: its match patterns name no address)
+    const shown = name === 'worker.js' ? ['http://*/*', 'https://*/*'] : [];
+    assert.deepEqual(urls.filter(u => !u.startsWith(ORIGIN) && !shown.includes(u)), [], `${name} names no other address`);
     for (const bad of [/\beval\s*\(/, /new Function\b/, /\bimport\s*\(/, /importScripts/, /onMessageExternal/, /onConnectExternal/, /externally_connectable/]) assert.doesNotMatch(s, bad, `${name}: ${bad}`);
   }
   const html = f['sidepanel.html'].data.toString();

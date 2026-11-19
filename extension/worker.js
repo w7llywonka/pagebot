@@ -9,9 +9,10 @@ const openFor = tab => {
   else chrome.windows.create({ url: 'sidepanel.html?win=' + tab.windowId, type: 'popup', width: 440, height: 760 });
 };
 if (!chrome.sidePanel) chrome.action.onClicked.addListener(openFor);
-// "Ask pagebot" on selected text opens the panel; the page keeps the selection, and the panel reads it with the page as usual
+// "Ask pagebot" on selected text opens the panel; the page keeps the selection, and the panel shows it and sends it with the
+// next message. It's offered only on web pages (pagebot never reads file:// and the browser's own pages).
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.removeAll(() => chrome.contextMenus.create({ id: 'ask', title: 'Ask pagebot', contexts: ['selection'] }, () => void chrome.runtime.lastError));
+  chrome.contextMenus.removeAll(() => chrome.contextMenus.create({ id: 'ask', title: 'Ask pagebot', contexts: ['selection'], documentUrlPatterns: ['http://*/*', 'https://*/*'] }, () => void chrome.runtime.lastError));
 });
 chrome.contextMenus.onClicked.addListener((info, tab) => { if (info.menuItemId === 'ask' && tab) openFor(tab); });
 

@@ -10,7 +10,6 @@ import { chromium, sleep, startExtension, until, why } from './helpers/ext-harne
 // Instead: the item the install registered is read back from the browser (the API, and the browser's own record of it), and
 // the worker's click handler (worker.js as the zip ships it) is run inside a real user gesture, the toolbar button's, since
 // the browser opens a side panel only in response to one; then the side panel that opens is used the way a person would.
-// One test is marked todo: the panel hides the highlight it is about to send (the note above that test says why).
 // The last test, opt-in, does click the real menu: a headed browser on a virtual display (xvfb-run), with the key press that
 // chooses the item sent by the X server (python3's ctypes and libXtst, nothing from npm). Run it with
 //   PAGEBOT_TEST_NATIVE_MENU=1 xvfb-run -a -s "-screen 0 1400x1000x24" node --test tests/extension-menu.test.js
@@ -31,6 +30,7 @@ const QUOTE = 'The quick brown fox jumps over the lazy dog.';
 const pages = {
   '/article': () => `<!doctype html><html><head><title>Article</title></head><body style="margin:0;font:16px sans-serif">
 <h1>An article</h1><p id="quote">${QUOTE}</p><p id="more">Some more words after it.</p></body></html>`,
+  '/second': () => '<!doctype html><html><head><title>Second</title></head><body><p id="other">Words on another tab.</p></body></html>',
 };
 // Chromium keeps a service worker extension's menu items in the profile's "Extension State" store (LevelDB), as JSON under
 // "<extension id>.context_menus", so they come back when the worker restarts. Its log file holds the latest write as text.
@@ -121,8 +121,8 @@ test('Ask pagebot on selected text, in the real extension', { skip: why || false
     assert.deepEqual(api, { listening: true, again: 'Cannot create item with duplicate id ask' }, 'the item is there, by the id the click handler looks for');
     // the browser's record: contexts is a bit set, and 4 is Chromium's bit for "selection" (page is 2, link 8, all 1)
     const items = await until('the browser to record the menu', () => storedMenus(H.dir, EXT_ID), 15000);
-    assert.deepEqual(items.map(i => ({ id: i.string_uid, title: i.title, contexts: i.contexts, enabled: i.enabled, visible: i.visible, type: i.type })),
-      [{ id: 'ask', title: 'Ask pagebot', contexts: 4, enabled: true, visible: true, type: 0 }]);
+    assert.deepEqual(items.map(i => ({ id: i.string_uid, title: i.title, contexts: i.contexts, enabled: i.enabled, visible: i.visible, type: i.type, pages: i.document_url_patterns })),
+      [{ id: 'ask', title: 'Ask pagebot', contexts: 4, enabled: true, visible: true, type: 0, pages: ['http://*/*', 'https://*/*'] }], 'only on web pages, the ones pagebot reads');
   });
 
   await t.test('choosing it opens the side panel beside the page (with a gesture, never without), and the question carries the selection', async () => {
@@ -160,6 +160,8 @@ test('Ask pagebot on selected text, in the real extension', { skip: why || false
       if (!wf) { await sp.reload(); wf = await until('the panel in it, after a reload', panelFrame, 20000); }
       assert.equal(new URL(wf.url()).search, '?host=ext&ext=1');
       await H.signIn(wf);
+      // the highlight was there before the panel opened (and before its helper was in the page): the panel shows it
+      await until('the ✂️ pill to show the highlight', async () => await wf.locator('#selPill').isVisible() && (await wf.locator('#selPill').getAttribute('title')).includes(QUOTE), 4000);
       const body = await H.question(wf, 'What does this mean?');
       assert.equal(body.selection, QUOTE, 'the highlighted passage goes with the question');
       assert.equal(body.page.url, page.url(), 'with the page it was chosen on');
@@ -171,17 +173,16 @@ test('Ask pagebot on selected text, in the real extension', { skip: why || false
     } finally { await b2?.close().catch(() => {}); cdp.close(); }
   });
 
-  // Found while writing these tests: the panel reads the highlight as it starts (ask('page') in public/widget.html), and the
-  // side panel's first {type:'tab'} message, sent once the panel's frame has loaded (extension/sidepanel.js), makes it clear
-  // the highlight (setSel('')). On a tab where pagebot's helper is already loaded (any tab the panel was open on before) the
-  // read comes back first, so the ✂️ pill ("Your highlight goes with your next message") is cleared as the panel starts and
-  // stays hidden, yet the question reads the highlight again and sends it: the person can't see it or leave it out first.
-  // (Selecting text only a moment before the panel opens hides this: the helper's own report of the new highlight, 160 ms
-  // later, puts the pill back. A person right-clicking and choosing takes longer than that.) The frame is read over CDP:
-  // Playwright would need to reload the side panel to see the frame, and a reload is a second start.
-  await t.test('choosing it again on the same tab: the panel shows the highlight it will send', {
-    todo: 'the side panel’s first "tab" message clears the highlight the panel just read, so the ✂️ pill stays hidden while the passage is still sent',
-  }, async () => {
+  // The panel reads the highlight as it starts (ask('page') in public/widget.html), and the side panel's first {type:'tab'}
+  // message, sent once the panel's frame has loaded (extension/sidepanel.js), clears it (setSel('')). On a tab where pagebot's
+  // helper is already loaded (any tab the panel was open on before) that read used to come back first, so the ✂️ pill ("Your
+  // highlight goes with your next message") was cleared as the panel started and stayed hidden, yet the question read the
+  // highlight again and sent it: the person couldn't see it or leave it out first. The side panel now sends what's
+  // highlighted straight after each 'tab'. (Selecting text only a moment before the panel opens hid this: the helper's own
+  // report of the new highlight, 160 ms later, put the pill back. A person right-clicking and choosing takes longer than
+  // that.) The frame is read over CDP: Playwright would need to reload the side panel to see the frame, and a reload is a
+  // second start.
+  await t.test('choosing it again on the same tab: the panel shows the highlight it will send', async () => {
     const { page } = t;
     const cdp = await H.browserCdp();
     const targets = async () => (await cdp.send('Target.getTargets')).result.targetInfos;
@@ -205,6 +206,32 @@ test('Ask pagebot on selected text, in the real extension', { skip: why || false
       }
       assert.deepEqual(seen, ['shown', 'shown', 'shown']);
     } finally { cdp.close(); }
+  });
+
+  await t.test('the highlight follows the tab that’s showing, and leaving it out lasts while the page retitles itself', async () => {
+    const { ctx, NEWS } = H;
+    const a = await ctx.newPage(), b = await ctx.newPage();
+    await a.goto(`${NEWS}/article`);
+    await b.goto(`${NEWS}/second`);
+    await b.locator('#other').selectText(); // highlighted before pagebot is open, on a tab that isn't showing then
+    await a.bringToFront();
+    await a.locator('#quote').selectText();
+    const { panel, frame } = await H.openPanel(a);
+    try {
+      if (await frame.locator('#pw').isVisible()) await H.signIn(frame);
+      const pill = () => frame.locator('#selPill');
+      const shows = text => until(`the ✂️ pill to show “${text}”`, async () => await pill().isVisible() && (await pill().getAttribute('title')).includes(text), 5000);
+      await shows(QUOTE);
+      await b.bringToFront();
+      await shows('Words on another tab.');
+      await pill().click(); // leave it out
+      assert.equal(await pill().isVisible(), false);
+      await b.evaluate(() => { document.title = 'Second (1 new)'; }); // a page that changes its own title, as inboxes do
+      await sleep(1200);
+      assert.equal(await pill().isVisible(), false, 'what the person left out stays out');
+      await a.bringToFront();
+      await shows(QUOTE);
+    } finally { await panel.close().catch(() => {}); await a.close(); await b.close(); }
   });
 
   await t.test('the real right-click menu on selected text: Escape leaves it, choosing Ask pagebot opens the side panel', { skip: native || false }, async () => {

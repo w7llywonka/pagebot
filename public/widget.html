@@ -2167,6 +2167,7 @@ function tell(type, extra = {}) { if (target) try { target.postMessage({ ...extr
 // The bookmark answers 'ready' with 'open'. That first one is this load's own opening, whose boot is already here or on
 // its way, so it doesn't ask for another (boots are limited to 60 a minute). Any later 'open' is a reopen.
 let opening = hostV3;
+let tabAt = null; // the address the side panel last said its window shows: its highlight is cleared only for another one
 const fromHost = e => {
   if (!target || e.source !== target || ext && e.origin !== extParent) return;
   const d = e.data || {};
@@ -2175,7 +2176,7 @@ const fromHost = e => {
   else if (d.type === 'open') { petHostVisible(true); claim(); if (opening) opening = false; else refreshOnOpen(); if (histOpen) loadHist(); } // history left open while the panel was hidden gets fresh
   else if (d.type === 'hidden') { opening = false; petHostVisible(false); release(); }
   else if (d.type === 'sel') setSel(String(d.text || ''));
-  else if (d.type === 'tab' && ext) { setSel(''); if (d.url) updateSiteContext({ page: { url: String(d.url), title: String(d.title || '') } }); else { currentSite = ''; renderMemoryControls(); } } // the side panel's window showed another tab
+  else if (d.type === 'tab' && ext) { if (String(d.url || '') !== tabAt) { tabAt = String(d.url || ''); setSel(''); } if (d.url) updateSiteContext({ page: { url: String(d.url), title: String(d.title || '') } }); else { currentSite = ''; renderMemoryControls(); } } // the side panel's window showed another tab
 };
 addEventListener('message', fromHost);
 // the extension says which of the browser toolset's members it can run (the server offers only those)

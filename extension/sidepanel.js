@@ -938,13 +938,18 @@ const HANDLERS = {
 };
 
 // ---- the tab that's showing: the panel hears about it, and the helper goes in so highlights reach the panel ----
-let lastTell = '';
+// Hearing of a tab clears the panel's highlight, and the helper reports only highlights made after that, so what's
+// highlighted there already is sent straight after (as the bookmark sends it when its panel opens): the panel shows it
+// before it goes with a question. A read that comes back after the panel heard of another tab is dropped.
+let lastTell = '', tells = 0;
 async function tabChanged(t) {
   if (!t || t.windowId !== winId || !t.active) return;
   const url = tabUrl(t), k = kindOf(url), msg = { type: 'tab', url: k ? '' : url, title: k ? '' : clip(t.title, 300), restricted: k };
   const s = JSON.stringify(msg);
-  if (s !== lastTell) { lastTell = s; toWidget(msg); }
-  if (!k && t.status === 'complete') ensure(t.id).catch(() => {});
+  if (s !== lastTell) { lastTell = s; tells++; toWidget(msg); }
+  if (k || t.status !== 'complete') return;
+  const n = tells;
+  try { const r = await cs(t.id, { t: 'page', max: 1 }); if (n === tells) toWidget({ type: 'sel', text: clip(r?.selection, 8000) }); } catch {}
 }
 bound.then(async () => {
   frame.src = ORIGIN + '/widget?host=ext&ext=' + EXT_V;
