@@ -1,38 +1,11 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import http from 'node:http';
-import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
 import { after, before, test } from 'node:test';
-import { EXT_ID, extensionZip } from '../lib/extension.js';
-import { readZip } from './helpers/unzip.mjs';
+import { chromium, pt, sleep, startExtension, until, why } from './helpers/ext-harness.mjs';
 
 // The real browser extension (README "Browser extension"), unzipped from the zip the server hands out and loaded into
-// Chromium with Load unpacked's command-line twin, then driven through the real panel the way the model drives it: the test
-// plays the server's {t:'act'} events into /api/chat and reads what the panel posts to /api/chat/act. Everything else is a
-// small local server: pagebot on 127.0.0.1 (its /widget with the policy server.js gives it), and two sites, news.test and
-// other.test, mapped to the same address. Only the full Chromium runs extensions (not the headless shell).
-const require = createRequire(import.meta.url);
-let chromium;
-try { ({ chromium } = require('playwright')); } catch {}
-const CHROME = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
-const why = !chromium ? 'Playwright isn’t installed' : !existsSync(CHROME) ? `no Chromium at ${CHROME}` : /headless_shell/.test(CHROME) ? 'the headless shell can’t run extensions' : '';
-const widget = readFileSync(new URL('../public/widget.html', import.meta.url), 'utf8');
-const hashes = [...widget.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => `'sha256-${createHash('sha256').update(m[1]).digest('base64')}'`).join(' ');
-const CSP = frames => `default-src 'self'; script-src ${hashes}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors ${frames}`;
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-const until = async (what, check, ms = 8000) => {
-  for (const end = Date.now() + ms; Date.now() < end; await sleep(40)) { const v = await check(); if (v) return v; }
-  assert.fail(`timed out waiting for ${what}`);
-};
-
-let server, port, ORIGIN, NEWS, OTHER, ctx, sw, dir, extDir;
-const state = { signedIn: false, chats: [], acts: [], chat: null, logins: 0, boot: {} };
-const owner = () => ({ version: 14, extVersion: 1, theme: 'ember', lock: 'password', passwordSet: true, accounts: { on: false, signup: false }, authed: true, who: 'owner', lockMinutes: 0,
-  prefs: { theme: 'ember', model: 'haiku', web: false, actions: true, actionsAuto: true, ...state.boot.prefs }, limits: { maxTokens: 2048, pageTokens: 5000, maxSearches: 3, maxTokensCap: 100000 },
-  models: [{ key: 'haiku', label: 'Haiku 5.5' }], commands: [], commandLimits: { maxCommands: 50, maxPrompt: 2000, maxStarters: 3, reserved: [] } });
+// Chromium, then driven through the real panel the way the model drives it (tests/helpers/ext-harness.mjs has the set-up).
+// The step-by-step safety checks found in review are in extension-safety.test.js.
+let H, ORIGIN, NEWS, OTHER, EXT_ID, ctx, sw, state, question, step, run, finish, attachedTo, centre, browserCdp, openPanel;
 
 const pages = {
   '/form': () => `<!doctype html><html><head><title>Form</title><style>body{margin:0;font:16px sans-serif}input,button{display:block;margin:8px;width:300px;height:30px}canvas{display:block;margin:8px;border:1px solid #000}iframe{display:block;margin:8px;border:1px solid #000}</style></head><body>
@@ -70,108 +43,10 @@ fetch('/data?token=secret123').then(r => r.text()); // (a response nobody reads 
 
 before(async () => {
   if (why) return;
-  server = http.createServer((req, res) => {
-    const url = new URL(req.url, 'http://x'), host = String(req.headers.host || '').split(':')[0];
-    const send = (status, type, body, more = {}) => { res.writeHead(status, { 'Content-Type': type, 'Cache-Control': 'no-store', ...more }); res.end(body); };
-    const json = v => send(200, 'application/json', JSON.stringify(v));
-    if (host === 'news.test' || host === 'other.test') {
-      if (url.pathname === '/redirect') return send(302, 'text/plain', '', { Location: `${OTHER}/page` });
-      const p = pages[url.pathname];
-      return p ? send(200, url.pathname === '/data' ? 'application/json' : 'text/html', p()) : send(404, 'text/plain', 'nope');
-    }
-    if (url.pathname === '/widget') return send(200, 'text/html', widget, { 'Content-Security-Policy': CSP(`* chrome-extension://${EXT_ID}`) });
-    if (url.pathname === '/chat') return send(200, 'text/html', widget, { 'Content-Security-Policy': CSP("'none'") });
-    if (url.pathname === '/pagebot-extension.zip') return send(200, 'application/zip', extensionZip(ORIGIN));
-    const body = [];
-    req.on('data', c => body.push(c));
-    req.on('end', () => {
-      const data = body.length ? JSON.parse(Buffer.concat(body)) : null;
-      const authed = state.signedIn && req.headers.authorization === 'Bearer ext-test-token';
-      if (url.pathname === '/api/boot') return json(authed ? owner() : { version: 14, extVersion: 1, theme: 'ember', lock: 'password', passwordSet: true, accounts: { on: false, signup: false }, authed: false });
-      if (url.pathname === '/api/login') { state.logins++; if (data?.password !== 'open sesame') return send(401, 'application/json', '{"error":"That password didn’t match."}'); state.signedIn = true; return json({ token: 'ext-test-token' }); }
-      if (!authed) return send(401, 'application/json', '{"error":"Sign in first."}');
-      if (url.pathname === '/api/chat') {
-        state.chats.push(data);
-        res.writeHead(200, { 'Content-Type': 'application/x-ndjson' });
-        res.write(JSON.stringify({ t: 'id', conversationId: state.chats.length }) + '\n');
-        state.chat = res;
-        return;
-      }
-      if (url.pathname === '/api/chat/act') { state.acts.push(data); return json({ ok: true }); }
-      if (url.pathname === '/api/prefs') return json({ prefs: { ...owner().prefs, ...data }, limits: owner().limits });
-      if (url.pathname === '/api/site-memory') return json({ memories: [], maxSites: 100, maxInstructions: 4000 });
-      if (url.pathname === '/api/ping') return json({ ok: true });
-      return send(404, 'application/json', '{"error":"not in this fixture"}');
-    });
-  });
-  await new Promise(r => server.listen(0, '127.0.0.1', r));
-  port = server.address().port;
-  ORIGIN = `http://127.0.0.1:${port}`; NEWS = `http://news.test:${port}`; OTHER = `http://other.test:${port}`;
-  // the extension, the way a person gets it: the zip from pagebot, unzipped into a folder
-  dir = mkdtempSync(path.join(tmpdir(), 'pbext-'));
-  extDir = path.join(dir, 'pagebot-extension');
-  const zip = Buffer.from(await (await fetch(`${ORIGIN}/pagebot-extension.zip`)).arrayBuffer());
-  for (const f of readZip(zip)) {
-    const to = path.join(extDir, f.name);
-    if (f.name.endsWith('/')) mkdirSync(to, { recursive: true }); else { mkdirSync(path.dirname(to), { recursive: true }); writeFileSync(to, f.data); }
-  }
-  ctx = await chromium.launchPersistentContext(path.join(dir, 'profile'), {
-    executablePath: CHROME, headless: true, viewport: null, // the page's real size, so the side panel's room shows
-    args: [`--disable-extensions-except=${extDir}`, `--load-extension=${extDir}`, '--no-sandbox', '--host-resolver-rules=MAP *.test 127.0.0.1', '--remote-debugging-port=0', '--window-size=1200,800'],
-  });
-  ctx.setDefaultTimeout(8000);
-  sw = ctx.serviceWorkers()[0] || await ctx.waitForEvent('serviceworker', { timeout: 10000 });
+  H = await startExtension({ pages });
+  ({ ORIGIN, NEWS, OTHER, EXT_ID, ctx, sw, state, question, step, run, finish, attachedTo, centre, browserCdp, openPanel } = H);
 });
-after(async () => {
-  await ctx?.close().catch(() => {});
-  if (server) { server.closeAllConnections(); server.close(); }
-  if (dir) rmSync(dir, { recursive: true, force: true });
-});
-
-// the side panel page as a small window acting on the page's window (so the page stays that window's showing tab)
-async function openPanel(page) {
-  const win = await sw.evaluate(async u => { const [t] = await chrome.tabs.query({ url: u }); return { tabId: t.id, windowId: t.windowId }; }, page.url());
-  const opened = ctx.waitForEvent('page');
-  await sw.evaluate(({ id, w }) => chrome.windows.create({ type: 'popup', url: `chrome-extension://${id}/sidepanel.html?win=${w}`, width: 440, height: 860 }), { id: EXT_ID, w: win.windowId });
-  const panel = await opened;
-  panel.errors = []; panel.on('pageerror', e => panel.errors.push(e.message));
-  const frame = await until('the panel inside the side panel page', () => panel.frames().find(f => f.url().startsWith(ORIGIN + '/widget')));
-  await frame.locator('#boot').waitFor({ state: 'detached' });
-  return { panel, frame, win };
-}
-// one question with page actions on; the stream stays open while the test plays the model's steps
-async function question(frame, text = 'Help me with this page') {
-  const n = state.chats.length;
-  await frame.locator('#q').fill(text);
-  await frame.locator('#q').press('Enter');
-  await until('the question to reach the server', () => state.chats.length > n && state.chat);
-  return state.chats.at(-1);
-}
-let seq = 0;
-async function step(name, input = {}, { ask = true, wait = 300000, card } = {}) {
-  const id = `s${++seq}`;
-  state.chat.write(JSON.stringify({ t: 'act', id, name, input, wait, ask }) + '\n');
-  return { id, result: () => until(`the result of ${name}`, () => state.acts.find(a => a.id === id), 20000) };
-}
-async function run(name, input, opts) { const s = await step(name, input, opts); return s.result(); }
-function finish() { state.chat?.write(JSON.stringify({ t: 'd', v: 'Done.' }) + '\n'); state.chat?.write(JSON.stringify({ t: 'done', conversationId: state.chats.length, model: 'haiku', usage: { in: 1, out: 1 }, stop: 'end_turn' }) + '\n'); state.chat?.end(); state.chat = null; }
-// whether the extension has the debugger on a tab (getTargets can't say: Playwright is attached to every page too). The extension
-// can't attach twice, so the worker tries.
-const attachedTo = tabId => sw.evaluate(async t => { try { await chrome.debugger.attach({ tabId: t }, '1.3'); } catch (e) { return /already attached/i.test(e.message); } await chrome.debugger.detach({ tabId: t }); return false; }, tabId);
-const centre = (page, sel) => page.evaluate(s => { const r = document.querySelector(s).getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; }, sel);
-const pt = p => ({ type: 'coordinate', x: p.x, y: p.y });
-// the browser's own DevTools connection (the port is in DevToolsActivePort): it can press the toolbar button for a tab
-async function browserCdp() {
-  const f = path.join(dir, 'profile', 'DevToolsActivePort');
-  await until('the DevTools port', () => existsSync(f));
-  const [p, wsPath] = readFileSync(f, 'utf8').trim().split('\n');
-  const ws = new WebSocket(`ws://127.0.0.1:${p}${wsPath}`);
-  await new Promise((ok, no) => { ws.onopen = ok; ws.onerror = no; });
-  let n = 0; const waits = new Map();
-  ws.onmessage = m => { const d = JSON.parse(m.data); if (d.id && waits.has(d.id)) { waits.get(d.id)(d); waits.delete(d.id); } };
-  const send = (method, params = {}) => new Promise(ok => { const id = ++n; waits.set(id, ok); ws.send(JSON.stringify({ id, method, params })); });
-  return { send, port: p, close: () => ws.close() };
-}
+after(async () => { await H?.close(); });
 
 test('the real extension, from the served zip', { skip: why || false }, async t => {
   await t.test('it loads with the fixed id, and its side panel page frames the pagebot panel, which asks to sign in', async () => {
@@ -389,7 +264,11 @@ test('the real extension, from the served zip', { skip: why || false }, async t 
       assert.equal(pressed.error, undefined, JSON.stringify(pressed.error));
       b2 = await chromium.connectOverCDP(`http://127.0.0.1:${cdp.port}`);
       const sp = await until('the side panel', () => b2.contexts().flatMap(c => c.pages()).find(p => p.url() === `chrome-extension://${EXT_ID}/sidepanel.html`));
-      const wf = await until('the panel in it', () => sp.frames().find(f => f.url().startsWith(ORIGIN + '/widget')), 15000);
+      // Playwright, joining over CDP after the side panel loaded, doesn't always see its /widget frame (a frame in another
+      // process: it can show with no address). Reloading the side panel page lets it watch the frame load from the start.
+      const panelFrame = () => sp.frames().find(f => f.url().startsWith(ORIGIN + '/widget'));
+      let wf = await until('the panel in it', panelFrame, 4000).catch(() => null);
+      if (!wf) { await sp.reload(); wf = await until('the panel in it, after a reload', panelFrame, 20000); }
       await wf.locator('#q').waitFor({ state: 'visible' }); // signed in already: the side panel shares pagebot's own storage
       const after = await until('the side panel to take room beside the page', async () => { const w = await page.evaluate(() => innerWidth); return w < before && w; });
       await question(wf, 'From the real side panel');
