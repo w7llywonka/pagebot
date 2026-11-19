@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pagebot</title>
+<link rel="stylesheet" href="panel.css">
+<script src="config.js" defer></script>
+<script src="panel.js" defer></script>
+</head>
+<body>
+<header><span class="mark" aria-hidden="true"></span><div><b>Pagebot</b><span id="context">Connecting to this page…</span></div><a id="fullChat" target="_blank" rel="noopener noreferrer" title="Open full-page chat" aria-label="Open full-page chat">↗</a></header>
+<p id="notice" role="status" hidden></p>
+<div id="fallback" hidden><h1>Pagebot is closed</h1><p>Your conversation stays here.</p><button id="resume" type="button">Open Pagebot</button></div>
+<iframe id="chat" title="Pagebot chat" allow="clipboard-write"></iframe>
+</body>
+</html>

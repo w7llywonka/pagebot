@@ -26,7 +26,9 @@ main{display:flex;flex-direction:column;align-items:center;text-align:center}
   text-decoration:underline;text-underline-offset:3px;cursor:pointer;transition:background-color .15s}
 .copy:hover{color:var(--ink);background:var(--tint)}
 .touch .copy{margin-top:12px;padding:8px 20px;border:2px solid var(--btn);background:var(--tint);color:var(--ink);font-weight:600;text-decoration:none}
-.btn:focus-visible,.copy:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.extension-link{margin-top:24px;padding:8px 12px;color:var(--muted);font-size:13px;text-underline-offset:4px}
+.extension-link:hover{color:var(--ink)}
+.btn:focus-visible,.copy:focus-visible,.extension-link:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
 @media (prefers-reduced-motion:reduce){.btn,.copy{transition:none}.btn:hover,.btn:active{transform:none}}
 </style>
 </head>
@@ -35,6 +37,7 @@ main{display:flex;flex-direction:column;align-items:center;text-align:center}
   <a class="btn" id="bm" href="{{HREF}}" title="Drag me up to your bookmarks bar" data-v="{{VERSION}}">pagebot</a>
   <p class="hint" id="hint" role="status">Drag this up to your bookmarks bar.</p>
   <button class="copy" id="copy" type="button">Can’t drag? Copy it instead</button>
+  <a class="extension-link" href="/extension">Get the extension</a>
 </main>
 <script>
 (() => {

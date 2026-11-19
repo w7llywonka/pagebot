@@ -338,7 +338,7 @@ test('delivery integration', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL
     }
     // the panel may be framed anywhere; the workspace and the dashboard nowhere
     const [widget, chat] = [await raw('/widget'), await raw('/chat')];
-    assert.match(widget.headers['content-security-policy'], /frame-ancestors \*$/);
+    assert.match(widget.headers['content-security-policy'], /frame-ancestors \* chrome-extension:$/);
     assert.equal(widget.headers['cross-origin-opener-policy'], undefined);
     assert.match(chat.headers['content-security-policy'], /frame-ancestors 'none'$/);
     assert.equal(chat.headers['cross-origin-opener-policy'], 'same-origin');
