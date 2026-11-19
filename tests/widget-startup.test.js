@@ -165,8 +165,8 @@ browserTest('the chat is there the moment the main script has run when the boot 
     assert.equal(await frame.locator('#q').inputValue(), 'straight away');
     assert.equal(f.state.boots.length, 1);
   }
-  // signed out: the sign-in form, just as directly
-  const out = await fixture(t, { token: null, boot: signedOut, hold: true, init: () => addEventListener('DOMContentLoaded', () => { const l = document.querySelector('#login'); if (l) window.__atParsed = { splash: !!document.querySelector('#boot'), login: l.style.display }; }) });
+  // signed out: the sign-in form, just as directly (a browser that has signed in here before, so it skips the first-visit hello)
+  const out = await fixture(t, { token: null, boot: signedOut, store: { pb_who: 'user', pb_user: 'reader' }, hold: true, init: () => addEventListener('DOMContentLoaded', () => { const l = document.querySelector('#login'); if (l) window.__atParsed = { splash: !!document.querySelector('#boot'), login: l.style.display }; }) });
   const frame = await out.open();
   await until('the boot request', () => out.state.boots.length);
   assert.equal(out.state.boots[0].authorization, undefined, 'no session, no Authorization header');
