@@ -194,7 +194,7 @@ browserTest('the early boot is only used for the session it was sent with, and a
   // the server is down: the lock screen says so, as before, after one try
   const down = await fixture(t, { standalone: true, token: null, bootStatus: 503, quiet: [/503/] });
   const lock = await down.open(); await down.ready('#pw');
-  assert.equal(await lock.locator('#loginErr').innerText(), 'Can’t reach the pagebot server.');
+  assert.equal(await lock.locator('#loginErr').innerText(), 'Can’t reach pagebot right now. Check your connection, then open it again.');
   await sleep(300);
   assert.equal(down.state.boots.length, 1);
   // and a slow boot still can't keep the loading mark up

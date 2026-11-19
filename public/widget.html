@@ -1491,7 +1491,7 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
 #login>*,#wait>*{flex-shrink:0} /* a form taller than the panel overflows downwards, where it can be scrolled to */
 #login .lk{width:56px;height:56px;border-radius:50%;background:var(--chip-on);margin-bottom:4px}
 #login h2,#wait h2,#ban h2{font:700 22px/1.25 var(--display);letter-spacing:-.3px}
-#login p,#wait p{font-size:14px;line-height:1.5;max-width:330px}
+#login p,#wait p{font-size:14px;line-height:1.5;max-width:330px;text-wrap:pretty}
 .fields,.pwrow{max-width:320px;gap:10px}
 .fields label{align-self:flex-start;margin:4px 0 -6px 4px;font-size:13px;font-weight:600;color:var(--text)}
 .fields input,.fields textarea,.pwrow input,#banAppealText{background:var(--panel);border:1.5px solid var(--edge);border-radius:var(--r-md);padding:11px 14px;font-size:14.5px}
@@ -6594,7 +6594,7 @@ renderPrefs();
 if (embedded && !hostV3) claim(); // older bookmarks don't say when they open the panel, but it only loads when you click one
 (async () => {
   const ready = loadBoot().catch(() => {});
-  await endSplash(ready, () => { if (token) route(); else showLogin(cfg ? '' : 'Can’t reach the pagebot server.'); });
+  await endSplash(ready, () => { if (token) route(); else showLogin(cfg ? '' : 'Can’t reach pagebot right now. Check your connection, then open it again.'); });
   warmUp([
     () => { nf().format(1); (1).toLocaleString(); }, // the browser's locale data (most of the cost), for Settings' counts
     () => banWhen().format(Date.now()), // and its dates, for history
