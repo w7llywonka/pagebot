@@ -33,7 +33,7 @@ async function open(t, { query = '', scheme = 'light', touch = false, viewport, 
   await page.route('**/*', route => {
     const url = new URL(route.request().url());
     if (url.origin !== ORIGIN) return route.abort();
-    if (url.pathname === '/extension.zip') return route.fulfill({ contentType: 'application/zip', headers: { 'Content-Disposition': 'attachment; filename=pagebot-extension.zip' }, body: Buffer.from('PK fixture archive') });
+    if (url.pathname === '/pagebot-extension.zip') return route.fulfill({ contentType: 'application/zip', headers: { 'Content-Disposition': 'attachment; filename=pagebot-extension.zip' }, body: Buffer.from('PK fixture archive') });
     return route.fulfill({ contentType: 'text/html; charset=utf-8', body: url.pathname === '/extension' ? extensionHtml : html });
   });
   await page.goto(ORIGIN + '/' + query);
@@ -191,6 +191,8 @@ browserTest('the site extension option opens setup, switches browser instruction
   ]);
   assert.equal(download.suggestedFilename(), 'pagebot-extension.zip');
   assert.equal(new URL(download.url()).pathname, '/pagebot-extension.zip');
+  // (Chromium cancels a download that the fixture fulfils, so the address is fetched to see what it serves)
+  assert.equal(await page.evaluate(async u => (await (await fetch(u)).text()).slice(0, 2), download.url()), 'PK', 'the link’s address serves the zip');
   assert.equal(await page.locator('.steps li').count(), 4);
   assert.match(await page.locator('.steps').innerText(), /Load unpacked/);
   assert.match(await page.locator('.steps').innerText(), /manifest.json/);
