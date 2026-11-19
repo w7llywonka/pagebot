@@ -108,7 +108,7 @@ async function fixture(t, { standalone = false, token = 'test-session', store = 
   await context.addInitScript(([session, items]) => {
     try { if (location.hostname !== 'localhost') return; if (session) localStorage.setItem('pb_token', session); for (const [k, v] of Object.entries(items)) localStorage.setItem(k, v); } catch {}
   }, [token, store]);
-  if (init) await context.addInitScript(init);
+  for (const script of [init].flat()) if (script) await context.addInitScript(script); // (one, or a list)
   const page = await context.newPage();
   page.on('pageerror', error => state.errors.push(error.message));
   page.on('console', m => { if (m.type() === 'error' && !/favicon/.test(m.location().url || '')) state.errors.push('console: ' + m.text()); });
@@ -305,27 +305,48 @@ browserTest('a Glass or Clear panel shown while the page is still arriving alrea
   assert.deepEqual(await root(late), [null, null], 'no glass marks on a Carbon panel');
 });
 
-browserTest('nothing on the way to the first screen loads the locale data or draws the companions, and both are there on first use', async t => {
-  // every way the page could format a number or a date for the locale
+browserTest('nothing on the way to the first screen loads the locale data, draws the companions or sets up the panda, and all are there on first use', async t => {
+  // every way the page could format a number or a date for the locale, the panda's tables being set up (its list of
+  // animations is read once, then), and how much of that had happened when the loading mark went
   const init = () => {
-    window.__locale = 0;
+    window.__locale = 0; window.__panda = 0;
     for (const name of ['DateTimeFormat', 'NumberFormat']) { const Real = Intl[name]; Intl[name] = function (...a) { window.__locale++; return new Real(...a); }; Intl[name].prototype = Real.prototype; Intl[name].supportedLocalesOf = Real.supportedLocalesOf; }
     for (const [proto, names] of [[Number.prototype, ['toLocaleString']], [Date.prototype, ['toLocaleString', 'toLocaleDateString', 'toLocaleTimeString']]])
       for (const n of names) { const real = proto[n]; proto[n] = function (...a) { window.__locale++; return real.apply(this, a); }; }
+    const keys = Object.keys; Object.keys = function (o) { if (o && o.dangle && o.hop && o.blink) window.__panda++; return keys.apply(this, arguments); };
+    new MutationObserver((list, seen) => {
+      if (!list.some(m => [...m.removedNodes].some(n => n.id === 'boot'))) return;
+      seen.disconnect(); window.__atFirstScreen = { locale: window.__locale, panda: window.__panda, pictures: document.querySelectorAll('#companionSeg canvas').length };
+    }).observe(document, { childList: true, subtree: true });
   };
   const command = { name: 'tldr', prompt: 'Summarize {input}', starter: false, updatedAt: new Date().toISOString() };
-  const f = await fixture(t, { init, boot: { ...account, quota: { pct: 12 }, commands: [command], commandLimits: { ...account.commandLimits, maxPrompt: 3000 } } });
+  const boot = { ...account, quota: { pct: 12 }, commands: [command], commandLimits: { ...account.commandLimits, maxPrompt: 3000 } };
+  const drawn = frame => frame.evaluate(() => [...document.querySelectorAll('#companionSeg canvas')].map(c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; }));
+  // Settings opened before the page had an idle moment (here it never gets one): what it needs is made then
+  const soon = await fixture(t, { init: [init, () => { window.requestIdleCallback = () => 0; }], boot });
+  const first = await soon.open(); await soon.ready();
+  assert.deepEqual(await first.evaluate(() => window.__atFirstScreen), { locale: 0, panda: 0, pictures: 0 }, 'none of it before the first screen');
+  await first.locator('#q').fill('/'); await first.locator('#slashMenu button').first().waitFor(); // the slash list works at once, your own command included
+  assert.ok((await first.locator('#slashMenu').innerText()).includes('/tldr'));
+  await first.locator('#q').fill('');
+  assert.deepEqual(await first.evaluate(() => [window.__locale, window.__panda]), [0, 0]);
+  await first.locator('#setBtn').click(); await first.locator('#tab-appearance').click();
+  assert.deepEqual(await first.locator('#companionSeg button').allInnerTexts(), ['Red panda', 'Cat', 'Fox', 'Frog']);
+  const inked = await drawn(first);
+  assert.ok(inked.length === 4 && inked.every(n => n > 40), `each one is drawn: ${inked}`);
+  assert.equal(await first.evaluate(() => window.__panda), 1, 'the panda is set up once, for its picture');
+  await first.locator('#tab-memory').click();
+  assert.equal(await first.locator('#memoryCount').innerText(), '0 / 4,000 characters');
+  // normally the first screen is followed by idle moments, and those make it all before Settings is opened, which then only shows it
+  const f = await fixture(t, { init, boot });
   const frame = await f.open(); await f.ready();
-  await frame.locator('#q').fill('/'); await frame.locator('#slashMenu button').first().waitFor(); // the slash list works at once, your own command included
-  assert.ok((await frame.locator('#slashMenu').innerText()).includes('/tldr'));
-  await frame.locator('#q').fill('');
-  assert.equal(await frame.evaluate(() => window.__locale), 0, 'no locale formatting before the first screen');
-  assert.equal(await frame.locator('#companionSeg canvas').count(), 0, 'no companion pictures drawn yet');
+  assert.deepEqual(await frame.evaluate(() => window.__atFirstScreen), { locale: 0, panda: 0, pictures: 0 }, 'none of it before the first screen');
+  await until('the rest to be made in idle moments', async () => (await frame.evaluate(() => window.__locale > 0 && window.__panda === 1)) && (await drawn(frame)).every(n => n > 40));
+  assert.equal((await drawn(frame)).length, 4);
   await frame.locator('#setBtn').click();
   await frame.locator('#tab-appearance').click();
   assert.deepEqual(await frame.locator('#companionSeg button').allInnerTexts(), ['Red panda', 'Cat', 'Fox', 'Frog']);
-  const inked = await frame.evaluate(() => [...document.querySelectorAll('#companionSeg canvas')].map(c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; }));
-  assert.ok(inked.length === 4 && inked.every(n => n > 40), `each one is drawn: ${inked}`);
+  assert.equal(await frame.evaluate(() => window.__panda), 1);
   await frame.locator('#tab-memory').click();
   assert.equal(await frame.locator('#cmdCount').innerText(), '0 / 3,000 characters', 'counted with this account’s limit, in the locale’s numbers');
   assert.equal(await frame.locator('#memoryCount').innerText(), '0 / 4,000 characters');

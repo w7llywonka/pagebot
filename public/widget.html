@@ -1738,6 +1738,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 // For what the start-up doesn't need: made the first time it's asked for, then kept. Date and number formatters go through
 // it, and nothing on the way to the first screen formats for the locale, because the first use of Intl in a page loads the
 // browser's locale data, which takes as long as the rest of this script. Settings' two character counts wait for it to open.
+// Once the first screen is up, warmUp() makes what Settings and history need in idle moments.
 const lazy = make => { let made = false, v; return () => { if (!made) { v = make(); made = true; } return v; }; };
 const early = window.__pbEarly; // what the head script started while the page was still arriving: the first boot and 'ready'
 
@@ -3557,7 +3558,8 @@ $('#modelBtn').onclick = () => toggleMenu('#modelMenu', '#modelBtn');
 document.addEventListener('pointerdown', e => { if (openMenu && !e.target.closest('.menu,#addBtn,#modelBtn')) closeMenus(); });
 // ---- settings sheet (redesign): categories, two panes on a wide panel and a list that drills in on a narrow one ----
 // Everything is built once at load, so opening Settings is just un-hiding it; what you last looked at is remembered until the panel reloads.
-// (The companion pictures and the counts that need the locale wait for the first opening: they cost real time at start-up.)
+// (The companion pictures and the locale data wait until the first screen is up (warmUp), and the counts written with it
+// until Settings opens: they cost real time at start-up.)
 let sheetOpen = false;
 const SVG = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
 const CATS = [ // key, title, icon
@@ -4060,7 +4062,7 @@ function renderMini() {
   for (const b of $('#miniSeg').children) { const on = b.dataset.m === cur; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); b.disabled = b.dataset.m === 'panda' && !hostV13; }
   $('#miniNote').textContent = hostV13 ? 'Your companion walks around the page. Hover to pause, drag to move, or click to open.' : 'Pets need the newest bookmark. Drag the button from the homepage to your bookmarks bar again.';
   $('#companionRow').hidden = !petOn();
-  if (sheetOpen) renderCompanions(); // the four little pictures are drawn the first time Settings opens, not at start-up
+  if (sheetOpen) renderCompanions(); // the four little pictures are drawn once the first screen is up (warmUp) or Settings opens, not at start-up
   $('#roamRow').hidden = !petOn();
   $('#roamTog').setAttribute('aria-checked', String(store.get('pb_roam') !== 'off'));
 }
@@ -6069,6 +6071,14 @@ async function endSplash(ready, setView) {
   splashing = false;
   setTimeout(() => { if (!splashing) body.classList.remove('reveal'); }, 900);
 }
+// What the start-up leaves for first use (see lazy) is made ready once the first screen is up, one piece per idle moment,
+// so neither the start-up nor the first opening of Settings or history pays for it, and Settings goes back to just being
+// un-hidden. Safari has no idle callbacks; there a piece waits for the next paint. Opened sooner, they are made then, as before.
+function warmUp(steps) {
+  const idle = window.requestIdleCallback ? f => requestIdleCallback(f) : f => requestAnimationFrame(() => setTimeout(f));
+  const next = () => { const step = steps.shift(); if (step) idle(() => { step(); next(); }); };
+  next();
+}
 let refreshingOpen = false;
 async function refreshOnOpen() {
   if (splashing || refreshingOpen) return;
@@ -6092,6 +6102,11 @@ if (embedded && !hostV3) claim(); // older bookmarks don't say when they open th
 (async () => {
   const ready = loadBoot().catch(() => {});
   await endSplash(ready, () => { if (token) route(); else showLogin(cfg ? '' : 'Can’t reach the pagebot server.'); });
+  warmUp([
+    () => { nf().format(1); (1).toLocaleString(); }, // the browser's locale data (most of the cost), for Settings' counts
+    () => banWhen().format(Date.now()), // and its dates, for history
+    renderCompanions, // Settings' four companion pictures, and with them the panda's tables
+  ]);
   ready.then(() => { if (!token && view !== 'lock') showLogin(lockedMsg()); else if (token) route(); });
 })();
 for (const e of early.heard.splice(0)) fromHost(e); // what the bookmark said while this script was still on its way: 'open', and the highlight
