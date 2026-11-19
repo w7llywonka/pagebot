@@ -31,7 +31,8 @@ export const pt = p => ({ type: 'coordinate', x: p.x, y: p.y });
 
 // pages: { '/path': H => html } served on news.test and other.test (H has NEWS, OTHER, ORIGIN). own: the same on pagebot's
 // own address (127.0.0.1), for pages of pagebot's site that aren't the panel.
-export async function startExtension({ pages = {}, own = {} } = {}) {
+// headless: false only for a test that brings its own display (extension-menu.test.js clicks the real right-click menu under Xvfb)
+export async function startExtension({ pages = {}, own = {}, headless = true } = {}) {
   const H = { state: { signedIn: false, chats: [], acts: [], chat: null, logins: 0, boot: {}, hits: [] }, EXT_ID };
   const { state } = H;
   const owner = () => ({ version: 14, extVersion: 1, theme: 'ember', lock: 'password', passwordSet: true, accounts: { on: false, signup: false }, authed: true, who: 'owner', lockMinutes: 0,
@@ -85,7 +86,7 @@ export async function startExtension({ pages = {}, own = {} } = {}) {
     if (f.name.endsWith('/')) mkdirSync(to, { recursive: true }); else { mkdirSync(path.dirname(to), { recursive: true }); writeFileSync(to, f.data); }
   }
   H.ctx = await chromium.launchPersistentContext(path.join(H.dir, 'profile'), {
-    executablePath: CHROME, headless: true, viewport: null, // the page's real size, so the side panel's room shows
+    executablePath: CHROME, headless, viewport: null, // the page's real size, so the side panel's room shows
     args: [`--disable-extensions-except=${extDir}`, `--load-extension=${extDir}`, '--no-sandbox', '--host-resolver-rules=MAP *.test 127.0.0.1', '--remote-debugging-port=0', '--window-size=1200,800'],
   });
   H.ctx.setDefaultTimeout(8000);
@@ -151,7 +152,8 @@ export async function startExtension({ pages = {}, own = {} } = {}) {
     await new Promise((ok, no) => { ws.onopen = ok; ws.onerror = no; });
     let n = 0; const waits = new Map();
     ws.onmessage = m => { const d = JSON.parse(m.data); if (d.id && waits.has(d.id)) { waits.get(d.id)(d); waits.delete(d.id); } };
-    const send = (method, params = {}) => new Promise(ok => { const id = ++n; waits.set(id, ok); ws.send(JSON.stringify({ id, method, params })); });
+    // sessionId: a target attached with Target.attachToTarget (flatten), like the side panel's /widget frame
+    const send = (method, params = {}, sessionId) => new Promise(ok => { const id = ++n; waits.set(id, ok); ws.send(JSON.stringify({ id, method, params, ...(sessionId && { sessionId }) })); });
     return { send, port: p, close: () => ws.close() };
   };
   return H;
