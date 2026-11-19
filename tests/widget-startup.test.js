@@ -235,6 +235,20 @@ browserTest('the bookmark shows the panel while the page is still arriving, and 
   assert.equal((await old.host('ready')).length, 1);
 });
 
+browserTest('a busy page that only hears "ready" after the loading mark has gone still opens the panel with one boot', async t => {
+  const f = await fixture(t, { init: busyHost });
+  const frame = await f.open(); await f.ready(); // the panel has loaded and booted, behind a page too busy to show it
+  assert.equal(await f.shown(), false, 'the bookmark has not heard "ready" yet');
+  await f.page.evaluate(() => window.__letGo());
+  await until('the panel to be shown', f.shown);
+  await frame.waitForFunction(() => document.activeElement?.id === 'q'); // the bookmark's 'open' arrived, after the splash, and gave the panel the keyboard
+  await sleep(400);
+  assert.equal(f.state.boots.length, 1, 'that "open" is this load’s own, not a reopen');
+  // a real reopen still refreshes
+  await f.click(); await until('the panel to be put away', () => f.page.evaluate(() => document.getElementById('__pagebot').style.display === 'none'));
+  await f.click(); await until('the refresh', () => f.state.boots.length === 2);
+});
+
 browserTest('a panel shown while the page is still arriving can be closed, even once the loading mark has given up', async t => {
   const f = await fixture(t, { hold: true });
   const frame = await f.open();
