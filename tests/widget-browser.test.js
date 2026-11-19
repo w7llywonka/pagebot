@@ -343,7 +343,7 @@ browserTest('Not now gives the model an error and no second card in that answer;
   await p.push({ t: 'act', id: 's1', name: 'screenshot', input: {}, wait: 300000, ask: false });
   const card = p.frame.locator('.acard.share');
   await card.waitFor();
-  assert.match(await card.innerText(), /Skip all permissions is on, but your browser needs this one click from you before a tab can be shared/);
+  assert.match(await card.innerText(), /“Don’t ask before clicking” is on, but your browser needs this one click from you before a tab can be shared/);
   await card.getByRole('button', { name: 'Not now' }).click();
   await f.waitActs(1);
   assert.match(f.acts()[0].result.error, /^Screenshots aren’t available: the user didn’t share the tab this time\. Use read_page/);

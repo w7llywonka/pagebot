@@ -125,7 +125,7 @@ browserTest('dragging a file that isn’t a PDF onto the panel is turned away; a
   assert.equal(await f.frame.locator('#drop').isVisible(), false);
   // a file named .pdf that isn't one is caught before it uploads
   await f.drag(await f.file('fake.pdf', 'application/pdf', 'PK\u0003\u0004 not a pdf'));
-  await f.frame.locator('.note', { hasText: '“fake.pdf” isn’t really a PDF' }).waitFor();
+  await f.frame.locator('.note', { hasText: '“fake.pdf” won’t open as a PDF' }).waitFor();
   assert.equal(f.state.uploads.length, 0);
 
   await f.drag(await f.file('slides.pdf', 'application/pdf', PDF.toString('latin1')));
@@ -164,7 +164,7 @@ browserTest('a pasted PDF uploads; with ◆ picked it switches to Haiku; upload 
     document.querySelector('#q').dispatchEvent(new ClipboardEvent('paste', { clipboardData: d, bubbles: true, cancelable: true }));
   }, PDF.toString('latin1'));
   await f.frame.locator('#pdfPill .pl:text("pasted.pdf · 12 p.")').waitFor();
-  assert.equal(await f.frame.locator('#modelName').innerText(), 'Haiku 5.5');
+  assert.equal(await f.frame.locator('#modelName').innerText(), 'Quick'); // (what Haiku does; its name is in the menu)
   await f.frame.locator('.note', { hasText: 'Muse Spark 1.3 can’t read PDFs, so this chat uses Haiku 5.5.' }).waitFor();
   assert.deepEqual(f.state.requests.find(r => r.path === '/api/prefs').body, { model: 'haiku' });
   assert.equal(await f.frame.locator('#att').isVisible(), false, 'a PDF isn’t taken as an image');
@@ -179,9 +179,9 @@ browserTest('without PDF uploads on the account, the menu says so and drops are 
   const f = await fixture(t, { user: { allowPdf: false } });
   await f.frame.locator('#addBtn').click();
   assert.equal(await f.frame.locator('#pdfBtn').isDisabled(), true);
-  assert.match(await f.frame.locator('#pdfBtn').innerText(), /Not turned on for your account/);
+  assert.match(await f.frame.locator('#pdfBtn').innerText(), /Not on for you\. Ask the owner\./);
   await f.frame.locator('#addBtn').click();
   await f.drag(await f.file('slides.pdf', 'application/pdf', PDF.toString('latin1')));
-  await f.frame.locator('.note', { hasText: 'PDF uploads aren’t turned on for your account.' }).waitFor();
+  await f.frame.locator('.note', { hasText: 'PDFs aren’t turned on for your account. The owner can switch them on.' }).waitFor();
   assert.equal(f.state.uploads.length, 0);
 });

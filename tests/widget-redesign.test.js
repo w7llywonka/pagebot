@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { after, before, test } from 'node:test';
+import './widget-palette.test.js'; // the token contrast check for every theme (no browser)
+import './widget-friendly.test.js'; // the friendlier flows: hello, Try again, the daily limit, folding banners and more
 
 // Workspace navigation, finishes, responsive panel sizing, and fast static loading.
 // Like widget.test.js: Playwright and a local Chromium, every HTTP response a fixture, no server or database.
@@ -168,15 +170,15 @@ browserTest('Settings keeps its sections and exposes curated finishes with accur
   await f.frame.locator('#setBtn').click();
   // the sections moved into categories (see tests/widget-settings.test.js); every one of the old ones is still there
   const headings = await f.frame.locator('#sheet h3').evaluateAll(els => els.map(e => e.textContent.toLowerCase()));
-  for (const old of ['usage today', 'website memory', 'slash commands', 'answer length', 'quick unlock']) assert.ok(headings.includes(old), old);
-  assert.deepEqual(await f.frame.locator('#stabs [role=tab] b').allInnerTexts(), ['General', 'Appearance', 'Memory & commands', 'Page actions', 'Files & chats', 'Privacy', 'Account', 'Usage', 'About']);
+  for (const old of ['today’s limit', 'notes for websites', 'your / commands', 'answer length', 'passcode']) assert.ok(headings.includes(old), old);
+  assert.deepEqual(await f.frame.locator('#stabs [role=tab] b').allInnerTexts(), ['Answers', 'Look & feel', 'Site notes & shortcuts', 'Clicking for you', 'Your chats & files', 'Privacy', 'Account', 'Your usage', 'Help & shortcuts']);
   await f.frame.locator('#tab-appearance').click();
   await f.frame.locator('.more-themes summary').click();
   const names = await f.frame.locator('.themes .sw .nm').allInnerTexts();
-  assert.deepEqual(names, ['Auto', 'Carbon', 'Porcelain', 'Tide', 'Fern', 'Mulberry', 'Terracotta', 'Field notes', 'Grove', 'Blueprint', 'Olive', 'Iris', 'Glass', 'Clear']);
+  assert.deepEqual(names, ['Auto', 'Cocoa', 'Cream', 'Tide', 'Forest', 'Plum', 'Blossom', 'Terminal', 'Pond', 'Blueprint', 'Olive', 'Arcade', 'Glass', 'Clear']);
   // a swatch carries its theme's colours, like the older ones
-  assert.equal(await f.frame.locator('.sw[data-t=pond]').evaluate(e => e.style.getPropertyValue('--sw-acc')), '#b7d0ac');
-  assert.equal(await f.frame.locator('.sw[data-t=void]').evaluate(e => e.style.getPropertyValue('--sw-acc')), '#d0d4a4');
+  assert.equal(await f.frame.locator('.sw[data-t=pond]').evaluate(e => e.style.getPropertyValue('--sw-acc')), '#8ddcc2');
+  assert.equal(await f.frame.locator('.sw[data-t=void]').evaluate(e => e.style.getPropertyValue('--sw-acc')), '#d8dc96');
 });
 
 browserTest('every solid finish has readable text: the palette pairs and the real components, all at WCAG 4.5 or better', async t => {
@@ -483,7 +485,7 @@ browserTest('the workspace navigation opens existing features and task starters 
   assert.equal(await f.frame.locator('#pdfs').isVisible(), true);
   await f.frame.locator('#workspaceNew').click();
   assert.equal(await f.frame.locator('#pdfs').isVisible(), false);
-  for (const [label, part] of [['Understand', 'how familiar'], ['Compare', 'constraints'], ['Draft', 'who it is for']]) {
+  for (const [label, part] of [['Explain something', 'how much I already know'], ['Help me choose', 'what matters most'], ['Help me write', 'who it’s for']]) {
     await f.frame.locator('.starters button').filter({ has: f.frame.locator('.starter-name', { hasText: label }) }).click();
     await f.frame.locator('.msg.bot .meta').waitFor();
     const req = f.state.requests.filter(r => r.path === '/api/chat').at(-1);

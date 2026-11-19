@@ -237,11 +237,11 @@ browserTest('the Actions toggle is unavailable, with a reason, on /chat, on book
   const denied = await fixture(t, { user: { allowActions: false } });
   assert.equal(await denied.frame.locator('#actPill').isVisible(), false);
   await denied.frame.locator('#addBtn').click();
-  assert.match(await denied.frame.locator('#actNote').innerText(), /Not turned on for your account/);
+  assert.match(await denied.frame.locator('#actNote').innerText(), /Not on for you\. Ask the owner/);
   await denied.frame.locator('#setBtn').click();
   await denied.frame.locator('#tab-actions').click();
   assert.equal(await denied.frame.locator('#actSec').isVisible(), false);
-  assert.match(await denied.frame.locator('#actAvail').innerText(), /Not turned on for your account/, 'and Settings says why');
+  assert.match(await denied.frame.locator('#actAvail').innerText(), /Not on for you\. Ask the owner/, 'and Settings says why');
 
   const on = await fixture(t);
   await on.frame.locator('#addBtn').click();
