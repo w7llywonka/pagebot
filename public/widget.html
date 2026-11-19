@@ -1989,8 +1989,10 @@ function md(src) {
 // to 20 updates per second, while flushing the exact final text before citations or errors are rendered.
 // An update redoes only the end of the answer. Text up to a blank line that isn't inside a code block renders the same
 // whatever follows it (there, md(a + b) is md(a) + md(b)), so its elements are made once and left alone, and only what
-// comes after the last such line is rendered again: a long answer costs no more per update than a short one, and a
-// selection or a "Copied" in the settled part survives. The text only ever grows.
+// comes after the last such line is rendered again. An answer whose blocks are separated by blank lines then costs about
+// the same per update however long it grows, and a selection or a "Copied" in the settled part survives. One long code
+// block, list or table with no blank line outside a code block is still rendered whole on every update, as before.
+// The text only ever grows.
 function answerRenderer(out, current) {
   let latest = '', painted = '', timer = 0, frame = 0;
   let done = 0, kept = 0; // how much of the text is settled, and how many of out's elements it made
