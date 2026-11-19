@@ -301,6 +301,8 @@ browserTest('Undo on someone still waiting puts them back on the waiting list in
   await page.waitForFunction(() => /nora\.k is waiting to be let in again\./.test(document.querySelector('#toast').textContent));
   assert.deepEqual(state.writes.map(w => w.body), [{ status: 'blocked' }, { status: 'pending' }], 'not "trusted", which would let them in without your defaults');
   assert.equal(api.users.find(u => u.name === 'nora.k').status, 'pending');
+  // the badge comes from the refresh that follows Undo, a moment after the toast: wait for it rather than read it once
+  await page.waitForFunction(() => document.querySelector('#pendBadge')?.textContent === '7', null, { timeout: 5000 }).catch(() => {});
   assert.equal(await page.locator('#pendBadge').textContent(), '7', '5 waiting and 2 appeals, as before');
 });
 
