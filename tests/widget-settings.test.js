@@ -134,7 +134,7 @@ for (const [width, name] of [[300, 'a 300px panel'], [420, 'a 420px docked panel
   assert.equal(await f.vis('#snav'), true);
   assert.equal(await f.vis('#spane'), false, 'the list is the whole screen');
   assert.equal(await f.vis('#shBack'), false);
-  assert.match(await f.frame.locator('#tab-general small').innerText(), /Haiku · web search off/, 'each row has a summary');
+  assert.match(await f.frame.locator('#tab-general small').innerText(), /Quick · web search off/, 'each row has a summary');
   await f.frame.locator('#tab-memory').click();
   assert.equal(await f.vis('#cat-memory'), true);
   assert.equal(await f.vis('#snav'), false);

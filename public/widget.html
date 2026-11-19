@@ -1163,6 +1163,7 @@ body.standalone #wrap{max-width:780px;margin-inline:auto;border-inline:1px solid
 :root[data-theme=clear] :is(.msg,.empty,.box,#ann,#rst,#upd) svg,:root[data-theme=clear] header svg{filter:none}
 :root[data-theme=clear] header{background:var(--pop);text-shadow:none}
 :root[data-theme=glass] :is(.starters button,#histList>.hrow,#pdfList>.hrow){background:var(--tint)}
+:root[data-theme=glass] #att #rmAtt{background:var(--accent);color:var(--on-accent);border-color:transparent;text-shadow:none} /* as in Clear: its glyph was the see-through --bg */
 
 /* ---- shared type and focus. Only what declares a transition gets one: with reduced motion every element would otherwise
    run a one-frame transition of every property it changes (density, theme), which keeps a frame of stale layout */
@@ -1409,7 +1410,8 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
 .hask .ghost.bad{background:var(--err-tint);color:var(--err)}
 
 /* ---- the screens before the chat: sign in, ask to join, waiting, the passcode, a paused account */
-#login{gap:10px}
+#login{gap:10px;justify-content:safe center}
+#login>*,#wait>*{flex-shrink:0} /* a form taller than the panel overflows downwards, where it can be scrolled to */
 #login .lk{width:56px;height:56px;border-radius:50%;background:var(--chip-on);margin-bottom:4px}
 #login h2,#wait h2,#ban h2{font:700 22px/1.25 var(--display);letter-spacing:-.3px}
 #login p,#wait p{font-size:14px;line-height:1.5;max-width:330px}
@@ -1423,7 +1425,7 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
 #loginErr{font-size:13.5px}
 .pad button{border:0;background:var(--tint)}
 .pad button:hover{background:var(--chip-on)}
-#wait{gap:12px}
+#wait{gap:12px;justify-content:safe center;overflow-y:auto}
 #wait p b{color:var(--text)}
 .hg{border-radius:50%}
 .hg::after{border-radius:50%}
@@ -1440,6 +1442,9 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
 #boot .orb::before{content:'';position:absolute;inset:6px;border-radius:50%;background:var(--accent)}
 #boot .word{font:700 26px var(--display);letter-spacing:-.5px}#boot .word span{animation:none;opacity:1;transform:none}
 #boot .tag{font:13px var(--font);color:var(--muted)}#boot .meter{height:2px;border-radius:0}
+/* the first screen's type sizes, set while the boot request is out (see drawBuddies), so the first layout after it is lighter */
+#boot .fw{display:none;position:absolute;width:1px;height:1px;overflow:hidden;visibility:hidden;contain:strict}#boot.warm .fw{display:block}#boot .fw .w{display:none}
+@media (min-width:1100px){:root.nohost #boot .fw .w{display:inline}} /* the /chat rail's sizes */
 
 /* ---- Compact: the same shapes in smaller steps (buttons keep their heights) */
 :root.dense .msg{padding-block:6px;line-height:1.5}
@@ -1486,20 +1491,20 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
 .send.alt:hover{background:var(--chip-on)}
 .msg.bot .think{margin-left:8px;color:var(--muted);font-size:13.5px}
 .retry{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.retry button,#limitCard .ghost,.heads button{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;border:0;border-radius:var(--r-pill);background:var(--tint);color:var(--text);font-size:13px;font-weight:600;cursor:pointer}
+.retry button,#limitCard .ghost,.heads button{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border:0;border-radius:var(--r-pill);background:var(--tint);color:var(--text);font-size:13px;font-weight:600;cursor:pointer}
 .retry button:hover,#limitCard .ghost:hover,.heads button:hover{background:var(--chip-on)}
 .retry svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .msg.bot.limit .body{background:var(--warn-tint);border-radius:var(--r-lg);padding:10px 14px}
 .msg.bot.limit .body>p:last-child{color:var(--text)}
 .heads{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:10px;padding:6px 6px 6px 14px;border-radius:var(--r-lg);background:var(--warn-tint);font-size:13.5px;color:var(--text)}
-.heads button{height:28px;background:var(--panel)}
+.heads button{height:30px;background:var(--panel)}
 #limitCard{display:flex;align-items:center;gap:10px;margin:0 0 8px;padding:8px 8px 8px 10px;border-radius:var(--r-lg);background:var(--warn-tint);font-size:13.5px;line-height:1.4;color:var(--text)}
 #limitCard p{flex:1;min-width:0;margin:0}
 #limitCard .ai{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--panel);font-size:14px}
 #limitCard .ghost{flex:none;background:var(--panel)}
-#limitCard.nudge{animation:limitNudge .3s ease}
+#limitCard.nudge{animation:limitNudge .18s ease}
 @keyframes limitNudge{40%{transform:translateY(-3px)}}
-#composer.limited .go{opacity:.5}
+#composer.limited .go{background:var(--tint);color:var(--text);box-shadow:inset 0 0 0 1.5px var(--edge)} /* quieter, but it still sends, so it keeps 3:1 edges and a 4.5:1 arrow */
 #attOnce{flex:1;min-width:0;margin:0;font-size:12.5px;line-height:1.4;color:var(--muted)}
 #attOnce .link{font-size:12.5px}
 .chev{flex:none;display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;border-radius:50%;background:none;color:var(--muted);cursor:pointer}
@@ -1510,13 +1515,22 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
 :is(#ann,#rst).fold :is(#annText,#rstText){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 :is(#ann,#rst).fold .ab{cursor:pointer}
 .mchips{display:flex;flex-wrap:wrap;gap:6px;margin:-2px 0 8px}
-#sheet .mchips .chip{height:30px;padding:0 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+#sheet .mchips .chip{height:32px;padding:0 12px;font-size:12.5px;font-weight:600;cursor:pointer}
 #sheet .mchips .chip:hover:not(:disabled){background:var(--chip-on)}
 #memoryInstructions:disabled~.mchips .chip{opacity:.5;cursor:default}
 #modelSeg .ms{font-size:12px;font-weight:400;color:var(--muted)}
+#modelRow .rt{flex:1 1 220px} /* with the model names the control is wide: it goes under the words rather than squeezing them */
 #att{flex-wrap:wrap}
-@media (pointer:coarse){.retry button,#limitCard .ghost,.chev{height:40px;min-width:40px}.heads button{height:36px}}
+/* targets: 36px in the panel (the small round ones and the quiet in-line buttons keep their look and get a 36px hit area), 40px on touch */
+:is(.chev,#rstX,#updX,#annX,.heads button,#sheet .mchips .chip){position:relative}
+:is(.chev,#rstX,#updX,#annX,.heads button,#sheet .mchips .chip)::after{content:'';position:absolute;inset:-3px}
+@media (pointer:coarse){.retry button,#limitCard .ghost,.chev,#rstX,#updX{height:40px;min-width:40px}.chev,#rstX,#updX{width:40px}:is(#annX,.heads button,#sheet .mchips .chip){min-height:40px}}
 :root.calm .chev svg,:root.calm #limitCard.nudge{transition:none;animation:none}
+/* a short panel: the limit card keeps to one line (the chat says when it resets). And when banners or the card leave the
+   first screen too little room, its help line makes way and the card keeps to one line there too (.snug, see fitEmpty),
+   so the message box never cuts a starter in half (the Page pill still says the page goes along) */
+@media (max-height:640px){#limitCard :is(.more,.ai){display:none}}
+.empty.snug{padding-block:4px}.empty.snug p,.empty.spent .starters,#log:has(>.empty.snug)~#composer #limitCard :is(.more,.ai){display:none}
 </style>
 </head>
 <body class="booting" tabindex="-1">
@@ -1535,6 +1549,7 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
       <div class="tag" id="bootTag">Getting ready…</div>
       <div class="meter"><i></i></div>
     </div>
+    <div class="fw"><i style="font:600 14px var(--display)">a</i><i style="font:700 21px var(--display)">a</i><i style="font:700 22px var(--display)">a</i><i style="font:400 13.5px var(--font)">a</i><i style="font:400 14px var(--font)">a</i><i style="font:650 13.5px var(--font)">a</i><i style="font:650 15px var(--font)">a</i><i style="font:550 12.5px var(--font)">a</i><i class="w" style="font:700 18px var(--display)">a</i><i class="w" style="font:700 14px var(--display)">a</i><i class="w" style="font:600 16.5px var(--display)">a</i><i class="w" style="font:700 30px var(--display)">a</i><i class="w" style="font:400 14.5px var(--font)">a</i><i class="w" style="font:650 14.5px var(--font)">a</i><i class="w" style="font:400 15.5px var(--font)">a</i><i class="w" style="font:400 17px var(--font)">a</i><i class="w" style="font:550 13px var(--font)">a</i></div><!-- each type size the first screen uses, set once while the boot is on its way (not before: that would hold up the page's own script), so the chat's first layout doesn't pay for it -->
   </div>
 </div>
 
@@ -1567,7 +1582,7 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
   <div id="welcome" hidden><!-- a browser that has never signed in here: say hello first -->
     <span class="buddy" aria-hidden="true"></span>
     <h2 id="welcomeTitle">Hi, I’m pagebot.</h2>
-    <p>I read the page you’re on and answer questions about it.</p>
+    <p id="welcomeSub">I read the page you’re on and answer questions about it.</p>
     <div class="wbtns"><button class="send" id="wNew" type="button">I’m new here</button><button class="send alt" id="wHave" type="button">I already have an account</button></div>
   </div>
   <div class="lk"><svg id="lockIcon" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
@@ -1650,7 +1665,7 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
           <section class="sec">
             <h3>How it answers</h3>
             <div class="card">
-              <div class="row s"><div class="rt"><b class="rl" id="modelLbl">Model</b><span class="rh">Haiku is quick and good for most questions. Sonnet takes a little longer and thinks harder.</span></div><div class="rc"><div class="seg" id="modelSeg" role="radiogroup" aria-labelledby="modelLbl"></div></div></div>
+              <div class="row s" id="modelRow"><div class="rt"><b class="rl" id="modelLbl">Model</b><span class="rh">Haiku is quick and good for most questions. Sonnet takes a little longer and thinks harder.</span></div><div class="rc"><div class="seg" id="modelSeg" role="radiogroup" aria-labelledby="modelLbl"></div></div></div>
               <div class="row"><div class="rt"><b class="rl" id="webLbl">Web search</b><span class="rh" id="webTogNote">Let pagebot look things up online while it answers.</span></div><div class="rc"><button class="tg" id="webTog" type="button" role="switch" aria-checked="false" aria-labelledby="webLbl"></button></div></div>
             </div>
           </section>
@@ -1894,7 +1909,7 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
 
 <div id="composer" hidden>
   <button id="jump" type="button" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>Jump to latest</button>
-  <div id="limitCard" role="status" hidden><span class="ai" aria-hidden="true">🌙</span><p><b>That’s today’s limit.</b> It starts again at midnight. Your chats stay here.</p><button class="ghost" id="limitUsage" type="button">See today’s usage</button></div>
+  <div id="limitCard" role="status" hidden><span class="ai" aria-hidden="true">🌙</span><p><b>That’s today’s limit.</b> <span class="more">It resets at midnight. Your chats stay here.</span></p><button class="ghost" id="limitUsage" type="button">See today’s usage</button></div>
   <div class="box">
     <div id="att" hidden><span class="atp"><img alt="" title="Click to draw on it"><button id="rmAtt" type="button" title="Remove image" aria-label="Remove image">×</button></span><button id="inkBtn" type="button" title="Draw on this screenshot before you send it">✏ Annotate</button><p id="attOnce" hidden>A fresh screenshot goes with each message. <button class="link" id="onceBtn" type="button">Just this once</button></p></div>
     <textarea id="q" rows="1" placeholder="Ask about this page…" aria-label="Message"></textarea>
@@ -2259,6 +2274,7 @@ function copyAct(meta, text) {
 function clearEmpty() { const e = log.querySelector('.empty'); if (e) e.remove(); }
 // (for screen readers: who is speaking; the words themselves stay as they are)
 const speaker = (m, role) => { m.setAttribute('role', 'article'); m.setAttribute('aria-label', role === 'user' ? 'You asked' : 'pagebot answered'); };
+const unanswered = (m, part) => m.setAttribute('aria-label', part ? 'pagebot couldn’t finish' : 'pagebot couldn’t answer'); // a failed answer isn't named as one
 function addMsg(role, html, tags) {
   clearEmpty();
   const m = el('div', 'msg ' + role); speaker(m, role);
@@ -2380,20 +2396,22 @@ function empty() {
   }
   e.appendChild(box);
   slashStarters(box); // slash commands: yours that you chose to show on new chats
-  drawBuddies();
+  drawBuddies(); fitEmpty();
 }
 // The chosen companion, drawn once and still, into every empty .buddy (the hello and the /chat rail). Never at start-up: it waits
 // until the browser is idle after boot, and the drawing is kept and moved, not redrawn, until you pick another companion.
 let buddy = null, buddyWait = 0;
+requestAnimationFrame(() => $('#boot')?.classList.add('warm')); // (the frame after this script, so after the boot request has gone: see #boot .fw)
 function drawBuddies() {
   if (buddyWait) return;
   const go = () => {
     buddyWait = 0;
+    renderCompanions(); // Settings' four pictures, made once in this idle moment; the first screen's companion is a copy of one
     const kind = companionKind();
     if (buddy?.dataset.kind !== kind) {
-      buddy = document.createElement('canvas');
-      if (kind === 'panda') pandaSprite(buddy, { w: 26, h: 26, scale: 2, ox: 0, oy: 0, natural: true, still: true, shadow: false });
-      else companionSprite(buddy, kind, { size: 52, still: true });
+      const pic = $(`#companionSeg [data-kind="${kind}"] canvas`);
+      buddy = document.createElement('canvas'); buddy.width = pic.width; buddy.height = pic.height;
+      buddy.getContext('2d').drawImage(pic, 0, 0);
       buddy.dataset.kind = kind;
     }
     const spots = document.querySelectorAll('.buddy');
@@ -2482,12 +2500,13 @@ function renderLock(msg) {
   const hello = lockMode === 'welcome';
   $('#login').classList.toggle('welcome', hello); $('#welcome').hidden = !hello;
   if (hello) drawBuddies(); // the companion, drawn still once the browser is idle
+  if (hello && standalone) $('#welcomeSub').textContent = 'I answer your questions, and with the bookmark I can read the page you’re on.'; // /chat has no page of its own
   const who = lockMode === 'pin' ? pinWho() : null, usePin = !!who, owner = lockMode === 'owner', signup = lockMode === 'signup';
   $('#lockIcon').innerHTML = usePin || owner ? ICONS.lock : signup ? ICONS.add : ICONS.user;
   $('#lockTitle').textContent = usePin && who.name ? `Welcome back, ${who.name}` : usePin || owner ? 'Unlock pagebot' : signup ? 'Ask to join' : 'Sign in';
   $('#lockSub').textContent = usePin ? (who.name ? 'Enter your passcode to carry on.' : 'Enter your 5-digit passcode.')
     : owner ? (lock === 'none' ? 'pagebot isn’t set up yet. If it’s yours, set a password in /admin first.' : 'Enter your pagebot password.')
-    : signup ? 'Pick a username and a password. You can start as soon as the owner lets you in. The owner can see your questions and usage.' : 'Sign in to ask pagebot about the page you’re on.';
+    : signup ? 'Pick a username and a password. You can start as soon as the owner lets you in. The owner can see your questions and usage.' : standalone ? 'Sign in to chat with pagebot.' : 'Sign in to ask pagebot about the page you’re on.';
   $('#pin').hidden = $('#pad').hidden = !usePin;
   $('#pwRow').hidden = !owner || lock === 'none';
   $('#acct').hidden = usePin || owner;
@@ -2976,7 +2995,7 @@ function renderRst() {
   $('#rstMeta').textContent = `Reason: ${r.reason}` + (r.note ? `\n${r.note}` : '');
   foldBanners();
 }
-$('#rstX').onclick = () => { rstGone = cfg?.restriction?.id || 0; renderRst(); $('#q').focus(); };
+$('#rstX').onclick = () => { rstGone = cfg?.restriction?.id || 0; renderRst(); fitEmpty(); $('#q').focus(); };
 
 function renderAnn() {
   const a = view === 'chat' && cfg?.announcement?.id > annGone ? cfg.announcement : null;
@@ -3001,7 +3020,30 @@ function foldBanners() {
     setFold(rst, bannerOpen.rst ?? (!ann.hidden || rstWas === id));
   }
   if (!ann.hidden) setFold(ann, bannerOpen.ann ?? (!rst.hidden && innerHeight < 640)); // a short panel keeps both to a line, so the chat has room
+  fitEmpty();
 }
+// The first screen has to fit above the message box. When banners or the limit card take its room, its help line makes way
+// and the card keeps to one line (.snug); if that isn't enough with two banners, the announcement folds as well (unless
+// you opened it), and at the limit the starters go last (.spent: they could only be told it's the limit). Only measured
+// when there is something besides the first screen, so a usual start-up measures nothing.
+let fitEmptyFrame = 0;
+function fitEmpty() {
+  if (fitEmptyFrame) return;
+  fitEmptyFrame = requestAnimationFrame(() => {
+    fitEmptyFrame = 0;
+    const e = log.querySelector('.empty'), ann = $('#ann'), rst = $('#rst'), limited = !$('#limitCard').hidden;
+    if (!e) return;
+    if ($('#upd').hidden && rst.hidden && ann.hidden && !limited) return e.classList.remove('snug', 'spent'); // it fits on its own
+    if (!log.clientHeight) return; // (it isn't showing: Settings, the sign-in)
+    e.classList.remove('snug', 'spent');
+    const over = () => log.scrollHeight > log.clientHeight + 1;
+    if (!over()) return;
+    e.classList.add('snug');
+    if (over() && !rst.hidden && !ann.hidden && bannerOpen.ann === undefined) setFold(ann, true);
+    if (limited && over()) e.classList.add('spent');
+  });
+}
+addEventListener('resize', fitEmpty);
 for (const [k, box] of [['ann', $('#ann')], ['rst', $('#rst')]]) {
   const flip = () => { bannerOpen[k] = !box.classList.contains('fold'); setFold(box, bannerOpen[k]); };
   box.querySelector('.chev').onclick = flip;
@@ -3012,7 +3054,7 @@ $('#annX').onclick = () => {
   annGone = Math.max(annGone, a.id);
   api('/api/announcements/seen', { id: a.id }).catch(() => {});
   const box = $('#ann'); box.classList.add('out');
-  setTimeout(() => { box.classList.remove('out'); renderAnn(); }, calm ? 0 : 200);
+  setTimeout(() => { box.classList.remove('out'); renderAnn(); fitEmpty(); }, calm ? 0 : 200);
   $('#q').focus();
 };
 
@@ -3047,11 +3089,12 @@ function renderAccount() {
 function pctText(p) { return p > 0 && p < 1 ? '<1%' : Math.round(p) + '%'; }
 const quotaPct = q => !q ? 0 : q.limit != null ? (q.limit ? Math.min(100, q.used / q.limit * 100) : 0) : Math.max(0, Math.min(100, +q.pct || 0));
 const quotaOut = q => !!q && (q.limit != null ? q.left <= 0 : quotaPct(q) >= 100);
-// at the limit: a quiet card above the message box instead of an error per try, and Send dimmed (the server still decides,
+// at the limit: a quiet card above the message box instead of an error per try, and a quieter Send (the server still decides,
 // so the first question after midnight goes through and the card goes away with the new numbers)
 function renderLimit() {
   const out = quotaOut(cfg?.quota);
   $('#limitCard').hidden = !out; $('#composer').classList.toggle('limited', out);
+  fitEmpty();
 }
 function openUsage() { openSheet(); selectCat('usage', true, true); }
 $('#limitUsage').onclick = openUsage;
@@ -3060,7 +3103,7 @@ function headsUp(bot, was, now) {
   const level = now >= 95 ? 95 : now >= 80 ? 80 : 0, day = new Date().toDateString(), [seenDay, seen] = String(store.get('pb_heads') || '').split('|');
   if (!level || now >= 100 || was >= level || (seenDay === day && +seen >= level)) return;
   store.set('pb_heads', day + '|' + level);
-  const h = el('div', 'heads'), b = el('button', '', 'See usage'); b.type = 'button'; b.onclick = openUsage;
+  const h = el('div', 'heads'), b = el('button', '', 'See today’s usage'); b.type = 'button'; b.onclick = openUsage;
   h.append(level === 95 ? 'Nearly at today’s limit.' : `Heads up: about ${100 - now > 14 ? 'a fifth' : 'a tenth'} of today’s limit is left.`, b);
   bot.appendChild(h);
 }
@@ -3889,7 +3932,7 @@ const catTitle = key => CATS.find(c => c[0] === key)?.[1] || 'Settings';
 function catSummary(key) { // the grey line under a category's name in the narrow list
   const m = models.find(x => x.key === prefs.model) || models[0];
   switch (key) {
-    case 'general': return `${m.label} · web search ${prefs.web ? 'on' : 'off'}`;
+    case 'general': return `${modelWord(m)} · web search ${prefs.web ? 'on' : 'off'}`; // the composer's word for it
     case 'appearance': return THEMES.find(t => t[0] === prefs.theme)?.[1] || 'Cocoa';
     case 'memory': return memoryLoaded ? `${plural(memoryRecords.length, 'website')} · ${plural(commands.length, 'command')}` : 'Notes for websites and / commands';
     case 'actions': return actWhy() ? 'Not available here' : prefs.actionsAuto ? 'Doesn’t ask first' : 'Asks before each click';
@@ -4305,7 +4348,7 @@ function petAnswered(bot) {
   if (!petMode) return;
   petState();
   const text = (bot.querySelector('.body')?.textContent || '').replace(/\s+/g, ' ').trim();
-  if (bot.classList.contains('limit')) { pet.play('shrug'); petSayShow('That’s today’s limit. It starts again at midnight.'); }
+  if (bot.classList.contains('limit')) { pet.play('shrug'); petSayShow('That’s today’s limit. It resets at midnight.'); }
   else if (bot.classList.contains('err')) { pet.play('shrug'); petSayShow('Hmm, that didn’t work. Open me to see why.'); }
   else { pet.play('hop'); if (text && !bot.querySelector('.stp')) petSayShow('Done — ' + text.slice(0, 60) + (text.length > 60 ? '…' : '')); }
 }
@@ -4594,8 +4637,8 @@ function setArea(a) {
 }
 // screenshots stay on after the first one, until you click the pill or stop sharing
 function keepShooting(a) {
-  if (!area) note(a.whole ? 'Screenshots stay on: each message sends a fresh shot of this tab. To stop, click 📷 Every message under the box.'
-    : 'Screenshots of this area stay on: each message sends a fresh shot of it. To stop, click ⛶ Every message under the box.');
+  if (!area) note(a.whole ? 'Screenshots stay on: each message sends a fresh shot of this tab. To stop, click 📷 Every message in the message box.'
+    : 'Screenshots of this area stay on: each message sends a fresh shot of it. To stop, click ⛶ Every message in the message box.');
   setArea(a);
 }
 $('#areaPill').onclick = () => { setArea(null); $('#q').focus(); };
@@ -5472,7 +5515,7 @@ function searchStep(bot, query) {
 function finish(bot, out, ev, text) {
   bot.querySelectorAll('.step.live').forEach(s => s.remove());
   if ('refusal' in ev) {
-    bot.classList.add('err');
+    bot.classList.add('err'); unanswered(bot);
     out.innerHTML = '<p>⚠ The model wouldn’t answer that one' + (ev.refusal ? ` (${esc(String(ev.refusal))})` : '') + '. Asking it another way might help.</p>';
   } else if ((pageV7 || ev.pdfPages) && ev.cites?.length && ev.quotes?.length) markQuotes(out, text, ev); // PDF quotes work everywhere
   const srcs = (ev.sources || []).filter(s => /^https?:\/\//.test(s.url));
@@ -5594,7 +5637,7 @@ async function send() {
   // the daily limit: said once, calmly, with the question back in the box (a second try just points at the card)
   const limitHit = msg => {
     if (u.previousElementSibling?.classList.contains('limit')) unsend();
-    else { bot.classList.add('err', 'limit'); out.replaceChildren(el('p')); out.firstChild.textContent = msg; putBack(); } // (err: it didn't answer; limit: said calmly)
+    else { bot.classList.add('err', 'limit'); unanswered(bot); out.replaceChildren(el('p')); out.firstChild.textContent = msg; putBack(); } // (err: it didn't answer; limit: said calmly)
     const c = $('#limitCard'); c.classList.remove('nudge'); void c.offsetWidth; c.classList.add('nudge');
     say('That’s today’s limit');
   };
@@ -5657,7 +5700,7 @@ async function send() {
       say('Stopped');
     } else { // what arrived stays as it was; only the last line says what went wrong
       const why = errText(e);
-      bot.classList.add('err');
+      bot.classList.add('err'); unanswered(bot, !!acc);
       out.innerHTML = acc ? md(acc) : '';
       out.appendChild(el('p')).textContent = '⚠ ' + why;
       retry(); say(why);
@@ -6448,7 +6491,7 @@ renderPrefs();
 if (embedded && !hostV3) claim(); // older bookmarks don't say when they open the panel, but it only loads when you click one
 (async () => {
   const ready = loadBoot().catch(() => {});
-  await endSplash(ready, () => { if (token) route(); else showLogin(cfg ? '' : 'Can’t reach pagebot right now. Check your connection, then open it again.'); });
+  await endSplash(ready, () => { if (token) route(); else showLogin(cfg ? '' : 'Can’t reach the pagebot server.'); });
   ready.then(() => { if (!token && view !== 'lock') showLogin(lockedMsg()); else if (token) route(); });
 })();
 })();
