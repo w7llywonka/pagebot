@@ -42,6 +42,7 @@ const sidePanel = `<!doctype html><html><body style="margin:0"><script>
     if (d.type === 'hello') return { v: 1, tools: ${JSON.stringify(ALL)} };
     if (d.type === 'page') return { page: { url: 'https://news.example.test/a', title: 'Article', text: 'From the page' }, selection: '' };
     if ((d.type === 'tool' || d.type === 'shot' || d.type === 'act') && window.siteOnce && !d.site) { window.siteOnce = false; return { no: 'site', site: 'other.example.test', sure: 'https://other.example.test' }; }
+    if (d.type === 'tool' && window.switchedOnce) { window.switchedOnce = false; return { error: 'The user switched to another tab, so pagebot didn’t touch it. Finish in words, or ask the user; switch_tab asks them first.', away: true }; }
     if (d.type === 'tool') return d.name === 'view' ? { w: 800, h: 550, dpr: 2 } : d.name === 'read_page' ? { text: 'button "Save" [ref_100001]' } : { error: 'not in this fake' };
     if (d.type === 'shot') return { image: window.shot };
     if (d.type === 'act') return d.dry ? { role: 'button', label: 'Save', nav: '' } : { role: 'button', label: 'Save', nav: '', tabs: TABS };
@@ -53,6 +54,7 @@ const sidePanel = `<!doctype html><html><body style="margin:0"><script>
       if (d.name === 'switch_tab') return { ask: x.tab_id === 'tab-2' ? 'always' : 'no', title: 'Mail', url: 'https://mail.example.test/', mine: x.tab_id !== 'tab-2', sure: 'tok-sw' };
       if (d.name === 'type') return { ask: 'setting', role: 'textbox', label: 'Search', sure: 'tok-type' };
       if (d.name === 'left_click') return { ask: 'setting', role: 'button', label: 'Buy', at: [x.target.x, x.target.y], go: '', sure: 'tok-click' };
+      if (d.name === 'new_tab' && window.awayOnce) { window.awayOnce = false; return { ask: 'always', away: true, sure: 'tok-nt' }; }
       return { ask: 'no', sure: 'tok-' + d.name };
     }
     if (d.name === 'navigate') return { url: x.url, title: 'B', tabs: TABS };
@@ -69,12 +71,13 @@ const sidePanel = `<!doctype html><html><body style="margin:0"><script>
   });
 </script><iframe title="pagebot" src="https://pagebot.example.test/widget?host=ext&ext=1" style="width:400px;height:860px;border:0"></iframe></body></html>`;
 
-async function fixture(t, { prefs = {}, user = {}, bootMore = {}, where = 'ext', grant = false } = {}) {
+async function fixture(t, { prefs = {}, user = {}, bootMore = {}, where = 'ext', grant = false, init = null } = {}) {
   const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1000, height: 900 } });
   context.setDefaultTimeout(5000);
   if (grant) await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'https://pagebot.example.test' });
   const state = { requests: [], errors: [], prefs: { ...boot.prefs, ...prefs } };
   t.after(async () => { await context.close(); assert.deepEqual(state.errors, [], 'no browser errors or unexpected requests'); });
+  if (init) await context.addInitScript(init);
   await context.addInitScript(() => {
     localStorage.setItem('pb_token', 'test-session');
     window.__shares = 0;
@@ -303,7 +306,7 @@ browserTest('Settings: the install area, with the Download link and the steps; i
   await old.frame.locator('#updGo').click();
   assert.equal(await old.frame.locator('#extLead').innerText(), 'Version 2 of the extension is out.');
   assert.deepEqual(await old.frame.locator('#extSteps li').allInnerTexts(), ['Download the new zip and unzip it.', 'Put its files in your pagebot-extension folder, in place of the old ones.',
-    'In chrome://extensions, click ↻ on pagebot, then reopen the side panel.']);
+    'In chrome://extensions, click ↻ on pagebot (in Edge, Reload), then reopen the side panel.']);
 });
 
 browserTest('Settings in the bookmark panel and in /chat: Download and seven steps; Copy copies the address; hidden without page actions', async t => {
@@ -318,6 +321,7 @@ browserTest('Settings in the bookmark panel and in /chat: Download and seven ste
     const steps = await f.frame.locator('#extSteps li').allInnerTexts();
     assert.equal(steps.length, 7);
     assert.match(steps[3], /Load unpacked/);
+    assert.match(steps[4], /the pin next to pagebot \(in Edge, the eye\)/, 'Edge shows an eye, not a pin');
     assert.match(await f.frame.locator('#extHint').innerText(), /Works in Chrome, Edge and Brave/);
     if (where === 'chat') {
       assert.match(await f.frame.locator('#actAvail').innerText(), /need a web page\. Open pagebot from your bookmark or the extension/);
@@ -332,4 +336,44 @@ browserTest('Settings in the bookmark panel and in /chat: Download and seven ste
   await off.frame.locator('#tab-actions').click();
   assert.equal(await off.frame.locator('#extSec').isVisible(), false);
   assert.equal(await off.frame.locator('#aboutExt').isHidden(), true);
+});
+
+// navigator.userAgentData only exists in secure contexts: a bookmark panel on a plain http page (or pagebot served over
+// http) has none, and reads the browser from the user agent string instead
+const noUad = () => { Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => undefined, configurable: true }); };
+const firefox = () => {
+  Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => undefined, configurable: true });
+  Object.defineProperty(Navigator.prototype, 'userAgent', { get: () => 'Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0', configurable: true });
+};
+browserTest('Settings without navigator.userAgentData: Chrome still gets the Download and the steps; Firefox gets neither, nor the note', async t => {
+  const f = await fixture(t, { where: 'bookmark', init: noUad });
+  assert.equal(await f.frame.evaluate(() => navigator.userAgentData), undefined);
+  await f.frame.locator('#setBtn').click();
+  await f.frame.locator('#tab-actions').click();
+  assert.match(await f.frame.locator('#extHint').innerText(), /Works in Chrome, Edge and Brave/);
+  assert.equal(await f.frame.locator('#extGet').isVisible(), true);
+  assert.equal((await f.frame.locator('#extSteps li').allInnerTexts()).length, 7);
+  assert.equal(await f.frame.locator('#extNote').isVisible(), true);
+  const ff = await fixture(t, { where: 'bookmark', init: firefox });
+  await ff.frame.locator('#setBtn').click();
+  await ff.frame.locator('#tab-actions').click();
+  assert.match(await ff.frame.locator('#extHint').innerText(), /Open pagebot there to get it/);
+  for (const id of ['#extGet', '#extSteps', '#extNote']) assert.equal(await ff.frame.locator(id).isVisible(), false, id);
+});
+
+browserTest('a new tab while you’re on another tab asks first; your own step line says you switched tabs in your words', async t => {
+  const f = await fixture(t, { prefs: { actionsAuto: true } });
+  await f.ask();
+  await f.page.evaluate(() => { window.awayOnce = true; window.switchedOnce = true; });
+  await f.push(ev('n1', 'new_tab', {}, false));
+  await f.frame.locator('.acard').waitFor();
+  assert.match(await f.frame.locator('.acard').innerText(), /Open a new tab[\s\S]*You’re on another tab now\. This opens a new tab and takes you to it\./);
+  assert.deepEqual(await f.frame.locator('.acard button').allInnerTexts(), ['Allow', 'Skip']);
+  await f.frame.getByRole('button', { name: 'Skip', exact: true }).click();
+  await f.waitActs(1);
+  assert.equal(f.acts()[0].denied, true);
+  await f.push(ev('r1', 'read_page', {}, false));
+  await f.waitActs(2);
+  assert.match(f.acts()[1].result.error, /^The user switched to another tab/, 'the model reads its own words');
+  assert.equal(await f.frame.locator('.astep.fail .at').last().innerText(), 'Reading the page — You switched tabs, so pagebot stopped working on the page');
 });

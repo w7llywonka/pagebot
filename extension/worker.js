@@ -1,6 +1,6 @@
 // pagebot extension's service worker. It does two small things: the toolbar button (and Alt+Shift+P) opens pagebot in the
-// side panel, and when a side panel closes in the middle of a step, it lets go of any key or mouse button that step held
-// and detaches the debugger, so nothing is left attached to a tab. It never listens to web pages or other extensions.
+// side panel, and when a side panel closes in the middle of a step, it lets go of any key that step held and detaches the
+// debugger, so nothing is left attached to a tab. It never listens to web pages or other extensions.
 'use strict';
 chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 // a browser without the side panel: the same page in a small window that works on the window it was opened from
@@ -16,10 +16,12 @@ async function save() {
 }
 const KEY = { Shift: ['ShiftLeft', 16], Control: ['ControlLeft', 17], Alt: ['AltLeft', 18], Meta: ['MetaLeft', 91] };
 async function cleanUp(tabId, s) {
+  if (!s.dbg && !(s.keys || []).length) return; // (only a pressed mouse button: nothing to do, see below)
   const target = { tabId };
   try { await chrome.debugger.attach(target, '1.3'); } catch (e) { if (!/already attached/i.test(e?.message || '')) return; } // gone, or still ours from the step
   const send = (m, p) => chrome.debugger.sendCommand(target, m, p).catch(() => {});
-  if (s.mouse) await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: s.x || 0, y: s.y || 0, button: 'left', clickCount: 1 });
+  // A mouse button a step pressed is never let go of over the page: that would finish a click (or follow a link) after
+  // pagebot has stopped. It's left as it is; the page's next real click starts afresh. Held keys are let go.
   for (const k of s.keys || []) for (const part of String(k).split('+').reverse()) {
     const name = { ctrl: 'Control', control: 'Control', shift: 'Shift', alt: 'Alt', option: 'Alt', meta: 'Meta', cmd: 'Meta', command: 'Meta', super: 'Meta', win: 'Meta' }[part.toLowerCase()];
     if (name) await send('Input.dispatchKeyEvent', { type: 'keyUp', key: name, code: KEY[name][0], windowsVirtualKeyCode: KEY[name][1] });

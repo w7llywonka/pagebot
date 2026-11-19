@@ -329,6 +329,17 @@ test('browser extension: the server side', { skip: !database && 'Set PAGEBOT_TES
     assert.ok(steps2.some(s => s.tool === 'javascript_exec' && s.text === 'Ran a script on the page'));
   });
 
+  await t.test('a click that opens the same site in a new tab says so; only another site is called another site', async () => {
+    const click = (tab, sameSite) => ({ role: 'link', label: 'Page B', tab, ...(sameSite && { sameSite }) });
+    script = rounds([{ tools: [{ name: 'screenshot', input: {} }] }, { tools: [{ name: 'left_click', input: { target: coord(5, 5), modifiers: 'ctrl' } }] }, { tools: [{ name: 'left_click', input: { target: coord(5, 5) } }] }]);
+    const base = calls.length;
+    const results = [click('https://news.example.test/b', true), click('https://other.example.test/', 'yes')];
+    const r = await chat(EXT, { onAct: ev => act(ev.id, { result: ev.name === 'screenshot' ? { image: PNG, w: 800, h: 600, scale: 1 } : results.shift() }) });
+    assert.ok(r.done, JSON.stringify(r.events.slice(-3)));
+    assert.equal(said(toolResults(calls[base + 2].body)[0]), 'Clicked (5, 5) (link "Page B"). It opened in a new tab.');
+    assert.equal(said(toolResults(calls[base + 3].body)[0]), 'Clicked (5, 5) (link "Page B"). Another site opened in a new tab.', 'only a real true counts');
+  });
+
   await t.test('waits: tab listing is quick, anything a person may decide waits minutes, and holding a key adds its time', async () => {
     script = rounds([{ tools: [{ name: 'list_tabs', input: {} }, { name: 'navigate', input: { url: 'reload' } }, { name: 'hold_key', input: { text: 'shift', duration: 3 } }, { name: 'read_page', input: {} }] }]);
     const r = await chat(EXT, { onAct: ev => act(ev.id, { result: ev.name === 'list_tabs' ? { tabs: TABS } : { url: 'https://news.example.test/a', tabs: TABS, text: 'x' } }) });

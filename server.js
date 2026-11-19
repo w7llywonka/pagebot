@@ -1494,7 +1494,8 @@ function actResultText(name, input, r, limits) {
     const role = typeof r.role === 'string' && /^[a-z]{1,20}$/.test(r.role) ? r.role : '';
     return at + (role || r.label ? ` (${[role, r.label ? q(r.label) : ''].filter(Boolean).join(' ')})` : '');
   };
-  const after = r.nav ? (r.url ? ` The tab is now at ${stateUrl(r.url)}.` : ' The page is going to another address.') : r.tab ? ' Another site opened in a new tab.' : '';
+  // (r.tab: a new tab opened. The bookmark only reports one on another site; the extension says when it's the same site.)
+  const after = r.nav ? (r.url ? ` The tab is now at ${stateUrl(r.url)}.` : ' The page is going to another address.') : r.tab ? (r.sameSite === true ? ' It opened in a new tab.' : ' Another site opened in a new tab.') : '';
   switch (name) {
     case 'screenshot': return `Screenshot of the page as the user sees it, ${r.w}×${r.h} pixels. Coordinates for clicks are in these pixels.`;
     case 'zoom': return `Zoomed in on [${input.region.join(', ')}] of the latest screenshot. Coordinates for clicks are still in the full screenshot's pixels.`;

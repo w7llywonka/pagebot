@@ -128,30 +128,38 @@ async function allFrames(tabId, msg) {
 }
 
 // ---- one answer ("run"): the panel says when it starts and ends ----
-// R: { id, tabId: the tab pagebot works on, start, own: tabs it opened, sites: origins it may work on, held, ctl, sures }
+// R: { id, tabId: the tab pagebot works on, start, own: tabs it opened, sites: origins it may work on, held, ctl, sures,
+// sessions: debugger sessions open for its steps, shots: each tab's visible size at its latest screenshot }
 let R = null;
 function runOn(id) {
   runOff();
   const r = R = { id, tabId: null, start: null, own: new Set(), sites: new Set(), created: new Set(), held: { mouse: false, keys: [], tab: null, x: 0, y: 0 },
-    ctl: new AbortController(), noDebug: false, sures: new Map() };
+    ctl: new AbortController(), noDebug: false, sures: new Map(), sessions: new Set(), shots: new Map() };
   r.ready = activeTab().then(t => {
     if (!t) return;
     r.tabId = r.start = t.id;
     if (!kindOf(tabUrl(t))) r.sites.add(originOf(tabUrl(t)));
   }).catch(() => {});
 }
+// Stop, the panel closing and the end of the answer all come here. The step in flight ends at once: every debugger command
+// races the abort, and its session detaches (letting go of any key it holds) without waiting for the page. A mouse button
+// a step left pressed is never let go of over the page, since that would finish a click nobody approved; it's forgotten
+// instead, and the page's next real click starts afresh. Nothing touches the page after this.
 function runOff() {
   const r = R;
   if (!r) return;
   R = null;
-  r.ctl.abort(); // the step in flight stops at its next debugger command; its own clean-up releases what it holds
-  releaseHeld(r);
+  r.ctl.abort();
+  for (const s of r.sessions) s.kill();
+  if (r.held.mouse) { r.held.mouse = false; toWorker({ t: 'held', tabId: r.held.tab, keys: [], mouse: false }); }
 }
 const stopped = () => new Error('Stopped.');
 const nap = (r, ms) => new Promise((ok, no) => {
-  if (r.ctl.signal.aborted) return no(stopped());
-  const t = setTimeout(ok, ms);
-  r.ctl.signal.addEventListener('abort', () => { clearTimeout(t); no(stopped()); }, { once: true });
+  const sig = r.ctl.signal;
+  if (sig.aborted) return no(stopped());
+  const stop = () => { clearTimeout(t); no(stopped()); };
+  const t = setTimeout(() => { sig.removeEventListener('abort', stop); ok(); }, ms);
+  sig.addEventListener('abort', stop, { once: true });
 });
 
 // ---- the gate, before every step ----
@@ -211,41 +219,65 @@ async function settle(r, { ms = 300, closeFar = null } = {}) {
   return { tabs, ...(kept.length && { opened: kept }), ...(cur && { url: cur.url, title: cur.title }), ...(blocked && { blocked }) };
 }
 const NOT_APPROVED = u => `That went to ${hostOf(u) || 'another site'}, which the user hasn’t approved, so pagebot stopped it. Use navigate if they should go there (it asks them).`;
+const KEYS_AWAY = u => `The keys moved to something that goes to ${hostOf(u) || 'another site'}, which the user hasn’t approved, so pagebot stopped before pressing it. Use navigate if they should go there (it asks them).`;
 
 // ---- chrome.debugger, attached only for the step that needs it ----
 const attached = new Set();
+let lastDetach = 0; // when this panel last let go of a tab (Chrome's bar stays up a few seconds after)
 const NO_DEBUG = 'The user stopped pagebot from Chrome’s bar, so it can’t type or click at a point in this answer. Use refs with left_click and form_input instead.';
+const SLOW = 'The page didn’t answer in time, so pagebot let go of it.';
+// (it can't take hold of the tab: another debugger, such as DevTools, may be on it. A step that needs it doesn't run unheld.)
+const TAKEN = 'Another tool is attached to this tab (DevTools, perhaps), so pagebot can’t do this step here right now. Ask the user to close it, or to do the step themselves.';
 chrome.debugger?.onDetach.addListener((src, reason) => {
   if (src.tabId == null) return;
   attached.delete(src.tabId);
   if (reason === 'canceled_by_user' && R) R.noDebug = true;
 });
-async function dbg(r, tabId, fn) {
+const canDebug = r => !!chrome.debugger && !r.noDebug;
+// One debugger session for one step. It ends, and detaches, when the step is done, when it runs past ms, or the moment the
+// answer stops: every command races that end, so a command the page never answers (a script waiting forever) can't keep
+// the debugger on the tab. What the step asked to undo on the way out (send.later: letting go of keys, listeners) runs
+// before the detach. The panel's step gives up after msFor() in widget.html, so ms stays below that.
+async function dbg(r, tabId, fn, ms = 15000) {
   if (!chrome.debugger) fail('Typing and clicking at a point aren’t available in this browser.');
   if (r.noDebug) fail(NO_DEBUG);
   if (r !== R || r.ctl.signal.aborted) throw stopped();
   const target = { tabId };
   try { await chrome.debugger.attach(target, '1.3'); }
   catch (e) {
-    if (!(/already attached/i.test(e?.message || '') && attached.has(tabId))) fail('Typing and clicking at a point aren’t available on this page right now.');
+    if (!(/already attached/i.test(e?.message || '') && attached.has(tabId))) fail(TAKEN);
     await chrome.debugger.detach(target).catch(() => {}); // our own leftover
-    await chrome.debugger.attach(target, '1.3').catch(() => fail('Typing and clicking at a point aren’t available on this page right now.'));
+    await chrome.debugger.attach(target, '1.3').catch(() => fail(TAKEN));
   }
   attached.add(tabId); toWorker({ t: 'dbg', tabId, on: true });
+  let quit;
+  const end = new Promise((_, no) => { quit = no; });
+  end.catch(() => {});
+  const timer = setTimeout(() => quit(new Error(SLOW)), ms);
+  const onAbort = () => quit(stopped());
+  r.ctl.signal.addEventListener('abort', onAbort, { once: true });
+  const later = [];
+  let over = false, closed;
+  const s = { kill: () => quit(stopped()), done: new Promise(ok => { closed = ok; }) };
+  r.sessions.add(s);
   const raw = (method, params) => chrome.debugger.sendCommand(target, method, params);
-  const send = async (method, params) => {
-    if (r !== R || r.ctl.signal.aborted) throw stopped();
-    if (r.noDebug) fail(NO_DEBUG);
-    return raw(method, params);
+  const send = (method, params) => {
+    if (over || r !== R || r.ctl.signal.aborted) return Promise.reject(stopped());
+    if (r.noDebug) return Promise.reject(new Error(NO_DEBUG));
+    return Promise.race([raw(method, params), end]);
   };
-  send.raw = raw;
-  try { return await fn(send); }
+  send.later = f => later.push(f);
+  try { return await Promise.race([fn(send), end]); }
   finally {
+    over = true; clearTimeout(timer); r.ctl.signal.removeEventListener('abort', onAbort);
+    for (const f of later.reverse()) { try { await Promise.race([f(raw), sleep(1000)]); } catch {} }
     await chrome.debugger.detach(target).catch(() => {});
-    attached.delete(tabId); toWorker({ t: 'dbg', tabId, on: false });
+    attached.delete(tabId); lastDetach = Date.now(); toWorker({ t: 'dbg', tabId, on: false });
+    r.sessions.delete(s); closed();
   }
 }
-// While a pointer or key step runs, a page load the step starts toward a site nobody approved is held and refused.
+// While a step that may change the page runs, a page load toward a site nobody approved is held and refused: the tab's own
+// navigations and every redirect hop of them (so a same-site address that bounces elsewhere stops at the bounce).
 async function holdNav(r, tabId, send, approved) {
   let main = null; try { main = (await send('Page.getFrameTree')).frameTree.frame.id; } catch {}
   const st = { blocked: '' };
@@ -256,21 +288,43 @@ async function holdNav(r, tabId, send, approved) {
     else { st.blocked = p.request.url; chrome.debugger.sendCommand({ tabId }, 'Fetch.failRequest', { requestId: p.requestId, errorReason: 'Aborted' }).catch(() => {}); }
   };
   chrome.debugger.onEvent.addListener(on);
-  try { await send('Fetch.enable', { patterns: [{ urlPattern: '*', resourceType: 'Document', requestStage: 'Request' }] }); }
-  catch (e) { chrome.debugger.onEvent.removeListener(on); throw e; }
-  return { st, off: () => chrome.debugger.onEvent.removeListener(on) };
+  send.later(() => chrome.debugger.onEvent.removeListener(on));
+  await send('Fetch.enable', { patterns: [{ urlPattern: '*', resourceType: 'Document', requestStage: 'Request' }] });
+  return st;
 }
 // a step with input: attached, holding page loads, and staying attached half a second after the last input so a load
 // the input starts is still held
-async function inputStep(r, t, approved, fn) {
-  let blocked = '';
+async function inputStep(r, t, approved, fn, ms) {
+  let st = null;
   await dbg(r, t.id, async send => {
-    const h = await holdNav(r, t.id, send, approved);
-    try { await fn(send); await nap(r, 500); } finally { h.off(); blocked = h.st.blocked; }
-  });
-  return blocked;
+    st = await holdNav(r, t.id, send, approved);
+    await fn(send);
+    await nap(r, 500);
+  }, ms);
+  return st?.blocked || '';
 }
 const mouse = (send, type, x, y, extra = {}) => send('Input.dispatchMouseEvent', { type, x, y, ...extra });
+
+// ---- Chrome's "started debugging this browser" bar ----
+// While pagebot has the debugger on a tab (and for about five seconds after), Chrome shows a bar that takes some of the
+// page's height, and anything placed against the bottom of the window (a cookie bar, a chat button) moves up with it. So
+// screenshots in an answer are taken with the bar up, and a step at a point waits until the page is the size it was in
+// the latest screenshot: a point then means the same place in both. A point outside what's showing asks for a new one.
+const view = async send => { const m = (await send('Page.getLayoutMetrics')).cssLayoutViewport; return { w: m.clientWidth, h: m.clientHeight }; };
+async function barUp(r, send) {
+  if (attached.size > 1 || Date.now() - lastDetach < 3500) return; // still up from a moment ago
+  const a = await view(send);
+  for (const end = Date.now() + 700; Date.now() < end;) { await nap(r, 40); if ((await view(send)).h !== a.h) { await nap(r, 80); return; } }
+}
+const RESIZED = 'The page’s visible area changed size since the latest screenshot, so that point may not be where it was. Take a new screenshot and use a point from it.';
+const OUTSIDE = 'That point isn’t on the part of the page that’s showing now. Take a new screenshot and use a point from it.';
+async function fits(r, t, send, pts) {
+  const shot = r.shots.get(t.id), same = v => !shot || Math.abs(v.w - shot.w) <= 1 && Math.abs(v.h - shot.h) <= 1;
+  let v = await view(send);
+  for (const end = Date.now() + 900; !same(v) && Date.now() < end;) { await nap(r, 40); v = await view(send); }
+  if (!same(v)) fail(RESIZED);
+  for (const p of pts) if (!(p.x >= 0 && p.y >= 0 && p.x < v.w && p.y < v.h)) fail(OUTSIDE);
+}
 
 // ---- keys ----
 const MOD = { alt: 1, option: 1, ctrl: 2, control: 2, meta: 4, cmd: 4, command: 4, super: 4, win: 4, shift: 8 };
@@ -323,20 +377,6 @@ async function keyUp(send, c) {
   for (const k of [...c.modKeys].reverse()) { m &= ~BIT[k.key]; await send('Input.dispatchKeyEvent', { type: 'keyUp', modifiers: m, key: k.key, code: k.code, windowsVirtualKeyCode: k.keyCode }); }
 }
 const printable = c => !!c.main && !(c.mods & 7) && !!c.main.text && c.main.text !== '\r';
-// let go of a button or keys a step left held (Stop, or the end of the answer)
-async function releaseHeld(r) {
-  const h = r.held;
-  if (!h.mouse && !h.keys.length || h.tab == null || !chrome.debugger) return;
-  const target = { tabId: h.tab }, mine = !attached.has(h.tab);
-  if (mine) { try { await chrome.debugger.attach(target, '1.3'); } catch { return; } }
-  try {
-    if (h.mouse) await chrome.debugger.sendCommand(target, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: h.x, y: h.y, button: 'left', clickCount: 1 });
-    for (const c of h.keys) await keyUp(chrome.debugger.sendCommand.bind(null, target), c);
-  } catch {}
-  h.mouse = false; h.keys = [];
-  toWorker({ t: 'held', tabId: h.tab, keys: [], mouse: false });
-  if (mine) await chrome.debugger.detach(target).catch(() => {});
-}
 
 // ---- words for refusals (the model reads these) ----
 const NO = {
@@ -344,34 +384,47 @@ const NO = {
   file: 'pagebot never opens file pickers. Ask the user to choose the file themselves.',
   password: 'pagebot never reads or types into password fields. Ask the user to fill it in themselves.',
   payment: 'pagebot never reads or types into payment card fields. Ask the user to fill it in themselves.',
-  frame: 'The keyboard is in a part of the page from another site that pagebot can’t check, so it didn’t type there. Click the field first, or ask the user.',
+  frame: 'The keyboard is in a part of the page that pagebot can’t check (a frame from another site, or a part the page keeps closed), so it didn’t type there. Click the field first, or ask the user.',
   nofocus: 'Nothing on the page is ready for typing. Click the field first (left_click), then type.',
   paste: 'pagebot never pastes from the clipboard: that would hand the user’s clipboard to the page. Type the text instead.',
   filled: 'Something is typed into a password or card field on this page, so pagebot won’t run a script here. Ask the user, or do it another way.',
+  pagebot: 'That’s pagebot’s own panel inside this page. pagebot doesn’t click or type in its own pages.',
+  ownframes: 'pagebot’s own panel is open inside this page (the bookmark’s), so pagebot doesn’t click at a point inside frames here. Use refs, or ask the user to close that panel.',
 };
 const refuse = f => fail(f.no === 'covered' ? `Something else is on top of that element${f.by ? ` (“${clip(f.by, 60)}”)` : ''}, so a click there wouldn’t reach it. Close it or scroll first.`
   : NO[f.no] || NO.gone);
-// where a target is: a ref's centre (if a click there would land on it) or a point, with what's there
+// pagebot's own pages framed inside this one (the bookmark's panel): never clicked at a point or typed into
+const ownUrl = u => typeof u === 'string' && (u === ORIGIN || u.startsWith(ORIGIN + '/'));
+async function ownFrames(t) {
+  const res = await chrome.scripting.executeScript({ target: { tabId: t.id, allFrames: true }, func: () => [location.origin, location.href] }).catch(() => []);
+  return res.some(x => x.frameId !== 0 && Array.isArray(x.result) && (x.result[0] === ORIGIN || ownUrl(x.result[1])));
+}
+// where a target is: a ref's centre (if a click there would land on it) or a point, with what's there. A point on a frame
+// pagebot can't look into is refused while one of pagebot's own pages is framed anywhere in the tab, since it may be that.
 async function where(t, target) {
   if (target?.type === 'ref') { const c = await cs(t.id, { t: 'center', ref: target.ref }); if (c?.no) refuse(c); return c; }
   if (target?.type === 'coordinate' && Number.isFinite(target.x) && Number.isFinite(target.y)) {
     let p = { role: 'generic', label: '', nav: '' };
     try { p = await cs(t.id, { t: 'point', x: target.x, y: target.y }); } catch {}
+    if (p.frame && await ownFrames(t)) refuse({ no: 'ownframes' });
     return { ...p, x: target.x, y: target.y };
   }
   fail('target must be a ref or a point.');
 }
-// what has the keyboard; in a frame from another site, that frame is asked itself (a protected field in any frame refuses)
+// What has the keyboard. In a frame from another site, the frames are asked themselves: a protected field in any of them
+// refuses, pagebot's own panel refuses, and no frame able to say (one pagebot can't reach) refuses too. `id` names the
+// element (its frame and the helper's own number for it), so a step can check it's still the one the person approved.
 async function focusOf(t) {
-  const f = await cs(t.id, { t: 'focus' });
-  if (f?.frame !== 'cross') return f;
-  let best = null;
-  for (const { frameId, r } of await allFrames(t.id, { t: 'focus' })) {
-    if (frameId === 0 || !r) continue;
-    if (r.no) return r;
-    if (!r.none && r.frame !== 'cross' && (!best || r.hasFocus && !best.hasFocus)) best = { ...r, frameId };
-  }
-  return best || { no: 'frame' };
+  let f = await cs(t.id, { t: 'focus' });
+  if (f?.frame === 'cross') {
+    const seen = (await allFrames(t.id, { t: 'focus' })).filter(x => x.frameId !== 0 && x.r && !x.r.frame && !x.r.error).map(x => ({ ...x.r, frameId: x.frameId }));
+    const bad = seen.find(x => x.no);
+    if (bad) return bad;
+    const busy = seen.filter(x => !x.none), lit = busy.filter(x => x.hasFocus), pick = lit.length ? lit : busy;
+    if (pick.some(x => ownUrl(x.url))) return { no: 'pagebot' };
+    f = pick[0] || { no: 'frame' };
+  } else f = { ...f, frameId: 0 };
+  return { ...f, id: `${f.frameId || 0}/${f.fid || ''}` };
 }
 async function valueNow(t, f) {
   try { const x = f.frameId ? await chrome.tabs.sendMessage(t.id, { t: 'focus' }, { frameId: f.frameId }) : await cs(t.id, { t: 'focus' }); return x?.value; } catch { return undefined; }
@@ -384,11 +437,20 @@ async function loaded(r, tabId, ms) {
   }
   return null;
 }
-// console and network lines: no tokens, keys or query strings
+// Console and network lines lose what often carries a secret before the model sees them: query strings and #hashes, JWTs,
+// anything after a credential-sounding name (sid=, session_id:, x-api-key=, Authorization: Bearer …), bearer and basic
+// tokens, well-known key shapes (AWS, Stripe, GitHub, Slack), long mixed values after "=", and any long run of key-like
+// characters.
+const SECRET_NAME = String.raw`[\w.-]*(?:auth|bearer|token|api[_-]?key|apikey|secret|passw(?:or)?d|pwd|session|sess|sid|cookie|csrf|xsrf|jwt|signature|credential|private[_-]?key|access[_-]?key)[\w.-]*`;
 function redact(s) {
   return String(s).replace(/\bhttps?:\/\/[^\s"'<>)]+/g, u => { try { const x = new URL(u); return x.origin + x.pathname; } catch { return u.split(/[?#]/)[0]; } })
     .replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, '[hidden]')
-    .replace(/\b(authorization|bearer|token|api[_-]?key|secret|password|session|cookie)(\s*[:=]\s*)\S+/gi, '$1: [hidden]')
+    .replace(new RegExp(String.raw`\b(${SECRET_NAME})(["']?\s*[:=]\s*["']?)(?:(?:bearer|basic|token|digest)\s+)?[^\s"',;&]+`, 'gi'), '$1$2[hidden]')
+    .replace(/\b(bearer|basic|token)\s+(?!\[hidden\])[\w.~+/=-]{4,}/gi, '$1 [hidden]')
+    .replace(/\b(?:AKIA|ASIA|AGPA|AIDA|AROA)[0-9A-Z]{16}\b/g, '[hidden]')
+    .replace(/\b(?:sk|pk|rk)_(?:live|test)_[0-9A-Za-z]{6,}/g, '[hidden]')
+    .replace(/\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[abprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{20,})/g, '[hidden]')
+    .replace(/(=\s*)(?=[^\s&;,"']*\d)(?=[^\s&;,"']*[A-Za-z])[^\s&;,"']{16,}/g, '$1[hidden]')
     .replace(/[A-Za-z0-9+/_-]{32,}={0,2}/g, '[hidden]');
 }
 const lines = (list, max) => { let n = 0; const out = []; for (const l of list.slice(0, max)) { const x = clip(redact(l), 300); if (n + x.length > 20000) break; out.push(x); n += x.length + 1; } return out; };
@@ -396,32 +458,40 @@ const consoleMark = new Map(); // tab → the newest console entry read so far
 
 // ---- the toolset members only the extension runs (and the pointer and scroll members it runs for real) ----
 // dry(r, t, input) returns what the panel shows and how it asks: ask 'no', 'setting' (asks unless the person said not to)
-// or 'always'. run(r, t, input, approved) does it. A run must carry the token its dry run handed out, for the same input.
+// or 'always'. run(r, t, input, ok) does it, with ok the dry run's facts: a run must carry the token its dry run handed
+// out, for the same input, and if what it would touch changed since (where a click goes, which field has the keyboard) it
+// answers { no: 'changed' } instead. Facts whose names start with "_" stay here and never reach the panel.
 const CLICK = { left_click: ['left', 1], right_click: ['right', 1], middle_click: ['middle', 1], double_click: ['left', 2], triple_click: ['left', 3] };
 const modsOf = s => s ? chord(String(s).replace(/\+?$/, '+a')).mods : 0;
-function clickFacts(r, name, f, modifiers) {
+const sameSite = (t, go) => !!originOf(go) && originOf(go) === originOf(tabUrl(t));
+function clickFacts(r, t, name, f, modifiers) {
   // a middle click, or a click with ctrl, cmd or shift, opens a link in a new tab instead
   const newTab = name === 'middle_click' || name === 'left_click' && modsOf(modifiers) & (2 | 4 | 8);
   const go = name === 'right_click' ? '' : f.nav || f.tab || '';
   const away = !!go && far(r, go);
-  return { role: f.role, label: f.label, at: [f.x, f.y], go, tab: !!f.tab || newTab && !!go, far: away, ask: away ? 'always' : 'setting' };
+  return { role: f.role, label: f.label, at: [f.x, f.y], go, tab: !!f.tab || newTab && !!go, far: away, ask: away ? 'always' : 'setting', ...(go && sameSite(t, go) && { sameSite: true }) };
 }
+// what a step that may change the page reports: where it went (or what it opened), and the tabs after it settled
+const went = (ok, s) => ({ ...(ok.go && (ok.tab ? { tab: ok.go, ...(ok.sameSite && { sameSite: true }) } : { nav: ok.go })), ...s });
+// the approved place a step may go (its own destination, which the person saw on the card or which is on the same site)
+function approve(r, go) { const o = originOf(go); if (o) r.sites.add(o); return new Set(o ? [o] : []); }
+async function settled(r, approved) { const s = await settle(r, { closeFar: approved }); if (s.blocked) fail(NOT_APPROVED(s.blocked)); return s; }
 const pointMember = {
   gate: {},
   async dry(r, t, x, name) {
     const f = await where(t, x.target);
     if (f.no) refuse(f);
-    return clickFacts(r, name, f, x.modifiers);
+    return clickFacts(r, t, name, f, x.modifiers);
   },
   async run(r, t, x, ok, name) {
     const f = await where(t, x.target);
     if (f.no) refuse(f);
-    const now = clickFacts(r, name, f, x.modifiers);
-    if (now.go !== ok.go) return { no: 'changed' };
-    const approved = new Set(ok.go && originOf(ok.go) ? [originOf(ok.go)] : []);
-    for (const o of approved) r.sites.add(o);
+    const now = clickFacts(r, t, name, f, x.modifiers);
+    if (now.go !== ok.go || now.tab !== ok.tab) return { no: 'changed' };
+    const approved = approve(r, ok.go);
     const [button, count] = CLICK[name], modifiers = modsOf(x.modifiers);
     const blocked = await inputStep(r, t, approved, async send => {
+      await fits(r, t, send, [f]);
       await mouse(send, 'mouseMoved', f.x, f.y, { modifiers });
       for (let i = 1; i <= count; i++) {
         await mouse(send, 'mousePressed', f.x, f.y, { button, clickCount: i, modifiers });
@@ -429,18 +499,25 @@ const pointMember = {
       }
     });
     if (blocked) fail(NOT_APPROVED(blocked));
-    const s = await settle(r, { closeFar: approved });
-    if (s.blocked) fail(NOT_APPROVED(s.blocked));
-    return { role: f.role, label: f.label, ...(now.go && (now.tab ? { tab: now.go } : { nav: now.go })), ...s };
+    return { role: f.role, label: f.label, ...went(ok, await settled(r, approved)) };
   },
 };
+// A drag ends with the button let go: when it starts and ends on the same link, that's a click on it, so it asks the way
+// a click there would. Anywhere else, a page load it sets off toward a site nobody approved is held, and a tab is closed.
+function dragFacts(r, t, a, b) {
+  const ga = a.nav || a.tab || '', gb = b.nav || b.tab || '', go = ga && ga === gb ? ga : '', away = !!go && far(r, go);
+  return { ask: away ? 'always' : 'setting', from: { role: a.role, label: a.label }, to: { role: b.role, label: b.label }, go, tab: !!go && !!b.tab, far: away };
+}
 const MEMBERS = {
   left_click: pointMember, right_click: pointMember, middle_click: pointMember, double_click: pointMember, triple_click: pointMember,
   hover: {
     async dry() { return { ask: 'no' }; },
     async run(r, t, x) {
       const f = await where(t, x.target);
-      await dbg(r, t.id, send => mouse(send, 'mouseMoved', f.x, f.y, r.held.mouse ? { button: 'left', buttons: 1 } : {}));
+      await dbg(r, t.id, async send => {
+        if (x.target?.type === 'coordinate') await fits(r, t, send, [f]);
+        await mouse(send, 'mouseMoved', f.x, f.y, r.held.mouse ? { button: 'left', buttons: 1 } : {});
+      });
       return { role: f.role, label: f.label };
     },
   },
@@ -448,38 +525,59 @@ const MEMBERS = {
     async dry(r, t, x) {
       const a = await where(t, x.from), b = await where(t, x.target);
       if (a.no) refuse(a);
-      return { ask: 'setting', from: { role: a.role, label: a.label }, to: { role: b.role, label: b.label } };
+      return dragFacts(r, t, a, b);
     },
-    async run(r, t, x) {
+    async run(r, t, x, ok) {
       const a = await where(t, x.from), b = await where(t, x.target);
-      const blocked = await inputStep(r, t, new Set(), async send => {
+      if (a.no) refuse(a);
+      if (dragFacts(r, t, a, b).go !== ok.go) return { no: 'changed' };
+      const approved = approve(r, ok.go);
+      const blocked = await inputStep(r, t, approved, async send => {
+        await fits(r, t, send, [a, b]);
         await mouse(send, 'mouseMoved', a.x, a.y);
         await mouse(send, 'mousePressed', a.x, a.y, { button: 'left', clickCount: 1 });
-        for (let i = 1; i <= 10; i++) { await mouse(send, 'mouseMoved', a.x + (b.x - a.x) * i / 10, a.y + (b.y - a.y) * i / 10, { button: 'left', buttons: 1 }); await sleep(16); }
+        for (let i = 1; i <= 10; i++) { await mouse(send, 'mouseMoved', a.x + (b.x - a.x) * i / 10, a.y + (b.y - a.y) * i / 10, { button: 'left', buttons: 1 }); await nap(r, 16); }
         await mouse(send, 'mouseReleased', b.x, b.y, { button: 'left', clickCount: 1 });
       });
       if (blocked) fail(NOT_APPROVED(blocked));
-      return { ...(await settle(r)) };
+      return went(ok, await settled(r, approved));
     },
   },
+  // Pressing alone goes nowhere. The button stays down for left_mouse_up (or a drag by hover) in this answer; if the answer
+  // ends first, it's forgotten rather than let go over the page (runOff).
   left_mouse_down: {
     async dry(r, t, x) { const f = await where(t, x.target); if (f.no) refuse(f); return { ask: 'setting', role: f.role, label: f.label }; },
     async run(r, t, x) {
       const f = await where(t, x.target);
-      await dbg(r, t.id, async send => { await mouse(send, 'mouseMoved', f.x, f.y); await mouse(send, 'mousePressed', f.x, f.y, { button: 'left', clickCount: 1 }); });
-      Object.assign(r.held, { mouse: true, tab: t.id, x: f.x, y: f.y });
-      toWorker({ t: 'held', tabId: t.id, keys: [], mouse: true, x: f.x, y: f.y });
+      if (f.no) refuse(f);
+      await dbg(r, t.id, async send => {
+        await fits(r, t, send, [f]);
+        await mouse(send, 'mouseMoved', f.x, f.y);
+        await mouse(send, 'mousePressed', f.x, f.y, { button: 'left', clickCount: 1 });
+        Object.assign(r.held, { mouse: true, tab: t.id, x: f.x, y: f.y });
+        toWorker({ t: 'held', tabId: t.id, keys: [], mouse: true, x: f.x, y: f.y });
+      });
       return { role: f.role, label: f.label };
     },
   },
+  // Letting go where the button went down is a click there, so it asks the way a click at that point would: another site,
+  // or another site in a new tab, always asks, and the run is held to what the person approved.
   left_mouse_up: {
-    async dry(r, t, x) { const f = await where(t, x.target); return { ask: 'setting', role: f.role, label: f.label, go: f.nav || f.tab || '', far: !!(f.nav || f.tab) && far(r, f.nav || f.tab) }; },
-    async run(r, t, x) {
+    async dry(r, t, x) { const f = await where(t, x.target); if (f.no) refuse(f); return clickFacts(r, t, 'left_click', f); },
+    async run(r, t, x, ok) {
       const f = await where(t, x.target);
-      const blocked = await inputStep(r, t, new Set(), async send => { await mouse(send, 'mouseMoved', f.x, f.y, { button: 'left', buttons: 1 }); await mouse(send, 'mouseReleased', f.x, f.y, { button: 'left', clickCount: 1 }); });
-      r.held.mouse = false; toWorker({ t: 'held', tabId: t.id, keys: [], mouse: false });
+      if (f.no) refuse(f);
+      const now = clickFacts(r, t, 'left_click', f);
+      if (now.go !== ok.go || now.tab !== ok.tab) return { no: 'changed' };
+      const approved = approve(r, ok.go);
+      const blocked = await inputStep(r, t, approved, async send => {
+        await fits(r, t, send, [f]);
+        await mouse(send, 'mouseMoved', f.x, f.y, { button: 'left', buttons: 1 });
+        await mouse(send, 'mouseReleased', f.x, f.y, { button: 'left', clickCount: 1 });
+        r.held.mouse = false; toWorker({ t: 'held', tabId: t.id, keys: [], mouse: false });
+      });
       if (blocked) fail(NOT_APPROVED(blocked));
-      return { role: f.role, label: f.label, ...(await settle(r)) };
+      return { role: f.role, label: f.label, ...went(ok, await settled(r, approved)) };
     },
   },
   scroll: {
@@ -500,12 +598,14 @@ const MEMBERS = {
       return before != null && before === await sig() ? { moved: false } : {};
     },
   },
+  // Typing goes into the field that had the keyboard when the person approved it, or nowhere.
   type: {
-    async dry(r, t, x) { const f = await focusOf(t); if (f.no) refuse(f); if (f.none || !f.edit) fail(NO.nofocus); return { ask: 'setting', role: f.role, label: f.label }; },
-    async run(r, t, x) {
+    async dry(r, t) { const f = await focusOf(t); if (f.no) refuse(f); if (f.none || !f.edit) fail(NO.nofocus); return { ask: 'setting', role: f.role, label: f.label, _id: f.id }; },
+    async run(r, t, x, ok) {
       const f = await focusOf(t);
       if (f.no) refuse(f);
       if (f.none || !f.edit) fail(NO.nofocus);
+      if (f.id !== ok._id) return { no: 'changed' };
       const blocked = await inputStep(r, t, new Set(), send => send('Input.insertText', { text: String(x.text) }));
       if (blocked) fail(NOT_APPROVED(blocked));
       const value = await valueNow(t, f);
@@ -516,56 +616,60 @@ const MEMBERS = {
     async dry(r, t, x) {
       const list = keysOf(x.text), f = await focusOf(t);
       if (f.no) refuse(f);
-      const go = list.some(c => c.main && (c.main.key === 'Enter' || c.main.key === ' ') && !(c.mods & 7)) ? f.nav || f.tab || '' : '';
-      const away = !!go && far(r, go);
-      return { ask: away ? 'always' : 'setting', role: f.role, label: f.label, go, tab: !!f.tab, far: away };
+      const g = keyGo(r, t, list, f);
+      return { ask: g.far ? 'always' : 'setting', role: f.role, label: f.label, ...g, _id: f.id };
     },
     async run(r, t, x, ok) {
-      const list = keysOf(x.text), f = await focusOf(t);
+      const list = keysOf(x.text);
+      let f = await focusOf(t);
       if (f.no) refuse(f);
-      const approved = new Set(ok.go && originOf(ok.go) ? [originOf(ok.go)] : []);
-      for (const o of approved) r.sites.add(o);
+      const g = keyGo(r, t, list, f);
+      if (f.id !== ok._id || g.go !== ok.go || g.tab !== ok.tab) return { no: 'changed' };
+      const approved = approve(r, ok.go);
       const times = Math.min(Math.max(x.repeat | 0 || 1, 1), 100);
       let moved = false;
       const blocked = await inputStep(r, t, approved, async send => {
         for (let n = 0; n < times; n++) for (const c of list) {
-          if (printable(c) && moved) { // focus may have moved (Tab, a click): check again before typing a character
-            const g = await focusOf(t); if (g.no) refuse(g); moved = false;
+          // a key before this one may have moved the keyboard (Tab, Escape): look again before typing a character, or
+          // before Enter or Space, which may now follow a link to a site nobody approved
+          if (moved && (printable(c) || goes(c))) {
+            f = await focusOf(t); if (f.no) refuse(f); moved = false;
+            const h = keyGo(r, t, [c], f);
+            if (h.go && h.far && !approved.has(originOf(h.go))) fail(KEYS_AWAY(h.go));
           }
           await keyDown(send, c); await keyUp(send, c);
           if (!printable(c)) moved = true;
         }
       });
       if (blocked) fail(NOT_APPROVED(blocked));
-      const s = await settle(r, { closeFar: approved });
-      if (s.blocked) fail(NOT_APPROVED(s.blocked));
-      return { role: f.role, label: f.label, ...(ok.go && (ok.tab ? { tab: ok.go } : { nav: ok.go })), ...s };
+      return { role: f.role, label: f.label, ...went(ok, await settled(r, approved)) };
     },
   },
   hold_key: {
-    async dry(r, t, x) { if (PASTE(chord(String(x.text)))) fail(NO.paste); const f = await focusOf(t); if (f.no) refuse(f); return { ask: 'setting', role: f.role, label: f.label }; },
-    async run(r, t, x) {
+    async dry(r, t, x) { if (PASTE(chord(String(x.text)))) fail(NO.paste); const f = await focusOf(t); if (f.no) refuse(f); return { ask: 'setting', role: f.role, label: f.label, _id: f.id }; },
+    async run(r, t, x, ok) {
       const c = chord(String(x.text));
       if (PASTE(c)) fail(NO.paste);
       const f = await focusOf(t);
       if (f.no) refuse(f);
+      if (f.id !== ok._id) return { no: 'changed' };
       const ms = Math.min(Math.max(Number(x.duration) || 0, 0), 30) * 1000;
       await dbg(r, t.id, async send => {
         r.held.keys = [c]; r.held.tab = t.id; toWorker({ t: 'held', tabId: t.id, keys: [x.text], mouse: r.held.mouse });
-        try {
-          await keyDown(send, c);
-          const end = Date.now() + ms;
-          while (Date.now() < end) { await nap(r, Math.min(100, end - Date.now())); if (c.main && Date.now() < end) await keyDown(send, c, true); }
-        } finally {
-          await keyUp(send.raw, c).catch(() => {}); // always let go, Stop included
-          r.held.keys = []; toWorker({ t: 'held', tabId: t.id, keys: [], mouse: r.held.mouse });
-        }
-      });
+        // always let go, Stop included: the session does this on its way out, before it detaches
+        send.later(async raw => { r.held.keys = []; toWorker({ t: 'held', tabId: t.id, keys: [], mouse: r.held.mouse }); await keyUp(raw, c); });
+        await keyDown(send, c);
+        const end = Date.now() + ms;
+        while (Date.now() < end) { await nap(r, Math.min(100, end - Date.now())); if (c.main && Date.now() < end) await keyDown(send, c, true); }
+      }, ms + 8000);
       return {};
     },
   },
+  // Going somewhere: an address, back, forward or reload. It runs with page loads held (when the debugger is there), so a
+  // same-site address that redirects to a site nobody approved stops at that hop. Reloading doesn't approve anything: the
+  // gate asks first when the tab is on a site this answer hasn't been approved for.
   navigate: {
-    gate: { page: false, site: false },
+    gate: x => x.url === 'reload' ? { pdf: true } : { page: false, site: false },
     async dry(r, t, x) {
       const u = String(x.url || '');
       if (u === 'reload') return { ask: 'setting', how: 'reload', dest: tabUrl(t) };
@@ -578,32 +682,35 @@ const MEMBERS = {
       const k = destKind(u);
       if (k) fail(k);
       const away = far(r, u);
-      return { ask: away ? 'always' : 'setting', how: 'url', dest: u, far: away };
+      // without the debugger a redirect can't be held, so every address asks
+      return { ask: away || !canDebug(r) ? 'always' : 'setting', how: 'url', dest: u, far: away };
     },
     async run(r, t, x, ok) {
-      const u = String(x.url || '');
-      if (ok.dest && originOf(ok.dest)) r.sites.add(originOf(ok.dest));
-      if (u === 'reload') await chrome.tabs.reload(t.id);
-      else if (u === 'back' || u === 'forward') {
-        await dbg(r, t.id, async send => {
+      const u = String(x.url || ''), history = u === 'back' || u === 'forward';
+      if (!history && u !== 'reload' && destKind(u)) fail(destKind(u));
+      const approved = u === 'reload' ? new Set() : approve(r, ok.dest);
+      let done = null;
+      const go = async send => {
+        if (u === 'reload') await chrome.tabs.reload(t.id);
+        else if (history) {
           const h = await send('Page.getNavigationHistory'), e = h.entries[h.currentIndex + (u === 'back' ? -1 : 1)];
           if (!e || clip(e.url, 2000) !== ok.dest) fail('The tab’s history changed after the user approved it.');
           await send('Page.navigateToHistoryEntry', { entryId: e.id });
-          await nap(r, 300);
-        });
-      } else {
-        if (destKind(u)) fail(destKind(u));
-        await chrome.tabs.update(t.id, { url: u });
-      }
-      await sleep(200);
-      const done = await loaded(r, t.id, MS_LOAD);
+        } else await chrome.tabs.update(t.id, { url: u });
+        await nap(r, 200);
+        done = await loaded(r, t.id, MS_LOAD);
+      };
+      if (canDebug(r)) { const blocked = await inputStep(r, t, approved, go, MS_LOAD + 5000); if (blocked) fail(NOT_APPROVED(blocked)); }
+      else if (history) fail(NO_DEBUG);
+      else await go(null);
       const now = done || await chrome.tabs.get(t.id).catch(() => null);
       return { url: now ? tabUrl(now) : '', title: now?.title || '', ...(!done && { loading: true }), tabs: await tabsList() };
     },
   },
+  // A new tab becomes the one showing. While the person is on another tab, that would pull them away, so it asks first.
   new_tab: {
     gate: { showing: false },
-    async dry() { return { ask: 'no' }; },
+    async dry(r) { const a = await activeTab(); return !a || a.id !== r.tabId ? { ask: 'always', away: true } : { ask: 'no' }; },
     async run(r) {
       const t = await chrome.tabs.create({ windowId: winId, url: 'about:blank', active: true });
       r.own.add(t.id); r.tabId = t.id;
@@ -668,26 +775,55 @@ const MEMBERS = {
     async dry() { return { ask: 'no' }; },
     async run(r, t) { const n = await cs(t.id, { t: 'net' }); const out = lines(String(n?.text || '').split('\n').filter(Boolean), 200); return { text: out.join('\n'), n: out.length, more: n?.more || 0 }; },
   },
+  // The approved code, run in the page's own world as the console would run it (top-level await works). A value that's a
+  // promise is waited for, and one that fails comes back as the error. A script gets 10 seconds: one still busy then is
+  // stopped by Chrome itself (the evaluate's own timeout, which holds even after the debugger is let go, so Stop needs
+  // nothing more), and one still waiting for something isn't waited for any longer: the debugger is let go.
   javascript_exec: {
     async dry(r, t) { if (await filled(t)) fail(NO.filled); return { ask: 'always' }; },
     async run(r, t, x) {
       if (await filled(t)) fail(NO.filled);
-      let res;
+      let out = null;
+      const LATE = `The script didn’t finish within ${SCRIPT_MS / 1000} seconds, so pagebot stopped it.`;
       const blocked = await inputStep(r, t, new Set(), async send => {
-        res = await send('Runtime.evaluate', { expression: String(x.text), returnByValue: true, awaitPromise: true, timeout: 10000, userGesture: false, replMode: true });
-      });
+        const left = Date.now() + SCRIPT_MS + 500;
+        const due = p => Promise.race([p, nap(r, Math.max(0, left - Date.now())).then(() => fail(LATE))]);
+        // (a script Chrome cut off at its timeout comes back as an internal error, not as the script's own)
+        const cut = err => { if (/Internal error|-32603/.test(err?.message || '')) fail(LATE); throw err; };
+        let res = await due(send('Runtime.evaluate', { expression: String(x.text), objectGroup: 'pagebot', returnByValue: false, awaitPromise: true, replMode: true, timeout: SCRIPT_MS, userGesture: false }).catch(cut));
+        if (!res.exceptionDetails && res.result?.subtype === 'promise') res = await due(send('Runtime.awaitPromise', { promiseObjectId: res.result.objectId, returnByValue: false }));
+        const e = res.exceptionDetails;
+        if (e) { out = { threw: clip(e.exception?.description || e.text || 'An error', 5000) }; return; }
+        out = { value: clip(await shown(send, res.result), 5000) };
+      }, SCRIPT_MS + 5000);
       if (blocked) fail(NOT_APPROVED(blocked));
-      if (res?.exceptionDetails) return { threw: clip(res.exceptionDetails.exception?.description || res.exceptionDetails.text || 'An error', 5000) };
-      const v = res?.result;
-      let value;
-      if (!v || v.type === 'undefined') value = 'undefined';
-      else if ('value' in v) value = typeof v.value === 'string' ? v.value : JSON.stringify(v.value);
-      else value = v.description || v.type;
-      return { value: clip(value, 5000) };
+      return out;
     },
   },
 };
 MEMBERS.mouse_move = MEMBERS.hover;
+const SCRIPT_MS = 10000;
+// a script's value in words: text as it is, numbers and plain objects as JSON, anything else (an element, a function) as
+// the console describes it
+async function shown(send, v) {
+  if (!v || v.type === 'undefined') return 'undefined';
+  if ('value' in v) return typeof v.value === 'string' ? v.value : JSON.stringify(v.value);
+  if (v.unserializableValue) return v.unserializableValue;
+  if (v.objectId && v.type === 'object' && !['node', 'regexp', 'date', 'error', 'proxy', 'promise'].includes(v.subtype)) {
+    try { const j = await send('Runtime.callFunctionOn', { objectId: v.objectId, functionDeclaration: 'function () { return this; }', returnByValue: true }); if (!j.exceptionDetails && 'value' in j.result) return JSON.stringify(j.result.value); } catch {}
+  }
+  return v.description || v.type;
+}
+const goes = c => !!c.main && (c.main.key === 'Enter' || c.main.key === ' ');
+// Where Enter or Space sends the page from the focused element: a link's address, a button's or a field's form. With ctrl,
+// cmd or shift held, a link opens in a new tab or window instead, which pagebot can't hold, so another site always asks.
+function keyGo(r, t, list, f) {
+  const hits = list.filter(goes);
+  const go = hits.length ? f.nav || f.tab || '' : '';
+  if (!go) return { go: '', tab: false, far: false };
+  const tab = !!f.tab || f.role === 'link' && hits.some(c => c.mods & (2 | 4 | 8));
+  return { go, tab, far: far(r, go), ...(sameSite(t, go) && { sameSite: true }) };
+}
 function keysOf(text) {
   const list = String(text || '').trim().split(/\s+/).filter(Boolean).slice(0, 50).map(chord);
   if (!list.length) fail('key needs a key name like "Enter".');
@@ -737,12 +873,19 @@ const HANDLERS = {
     const g = await gate(d); if (g.stop) return g.stop;
     const { r, t } = g, name = String(d.name || '');
     const m = { name, input: d.input && typeof d.input === 'object' ? d.input : {}, ...(d.dry && { dry: 1 }), ...(d.sure != null && { sure: d.sure }) };
-    const res = await cs(t.id, { t: 'act', d: m });
+    const leaves = !d.dry && d.sure != null && name === 'click'; // the dry run said it leaves the page or opens a tab, and where to
+    const approved = !d.dry && typeof d.sure === 'string' ? approve(r, d.sure) : new Set();
+    let res = null, blocked = '';
+    // a click that goes somewhere runs with page loads held (when the debugger is there), so a same-site link that
+    // redirects to a site nobody approved stops at the bounce
+    if (leaves && canDebug(r)) blocked = await inputStep(r, t, approved, async () => { res = await cs(t.id, { t: 'act', d: m }); });
+    else res = await cs(t.id, { t: 'act', d: m });
     if (name === 'hl' || name === 'els' || !res || res.no) return res;
     const go = res.nav || res.tab;
-    if (d.dry) return go && far(r, go) ? { ...res, far: true } : res;
-    if (typeof d.sure === 'string' && originOf(d.sure)) r.sites.add(originOf(d.sure)); // the person approved going there
-    return { ...res, ...(await settle(r)) };
+    // (without the debugger, a click that leaves the page can't be held to the approved sites, so the panel asks first)
+    if (d.dry) return go ? { ...res, ...(far(r, go) && { far: true }), ...(!canDebug(r) && { unheld: true }) } : res;
+    if (blocked) fail(NOT_APPROVED(blocked));
+    return { ...res, ...(await settled(r, approved)) };
   },
   // the bookmark's reading tools: read_page, find, get_page_text, scroll_to, and view (the viewport's size)
   async tool(d) {
@@ -752,24 +895,40 @@ const HANDLERS = {
     catch (e) { if (name === 'view') return { w: g.t.width, h: g.t.height, dpr: 1 }; throw e; }
   },
   // a screenshot: for a step (with run) behind the gate; from the + menu, of any page pagebot may look at
+  // (a step's screenshot is taken with Chrome's debugging bar up, and the page's size then kept for points; see barUp)
   async shot(d) {
-    if (d.run != null) { const g = await gate(d, { pdf: true }); if (g.stop) return g.stop; }
-    else { const t = await activeTab(), k = t ? kindOf(tabUrl(t)) : 'browser'; if (k && k !== 'pdf' && k !== 'empty') return { error: 'pagebot can’t take screenshots of the browser’s own pages.' }; }
-    return { image: await capture() };
+    if (d.run == null) {
+      const t = await activeTab(), k = t ? kindOf(tabUrl(t)) : 'browser';
+      if (k && k !== 'pdf' && k !== 'empty') return { error: 'pagebot can’t take screenshots of the browser’s own pages.' };
+      return { image: await capture() };
+    }
+    const g = await gate(d, { pdf: true }); if (g.stop) return g.stop;
+    const { r, t } = g;
+    let image = null;
+    if (canDebug(r) && !kindOf(tabUrl(t))) {
+      try {
+        await dbg(r, t.id, async send => {
+          await barUp(r, send);
+          image = await capture();
+          r.shots.set(t.id, await view(send));
+        });
+      } catch (e) { if (r !== R || r.ctl.signal.aborted) throw e; r.shots.delete(t.id); }
+    }
+    return { image: image || await capture() };
   },
   // a member only the extension runs: dry tells the panel what it is and how to ask; the run needs the dry run's token
   async ext(d) {
     const name = String(d.name || ''), m = Object.hasOwn(MEMBERS, name) && MEMBERS[name];
     if (!m) return { error: `pagebot doesn’t know ${clip(name, 40)}.` };
     const x = d.input && typeof d.input === 'object' && !Array.isArray(d.input) ? d.input : {};
-    const g = await gate({ ...d, tab: ['switch_tab', 'close_tab'].includes(name) ? null : x.tab_id ?? null }, m.gate || {});
+    const g = await gate({ ...d, tab: ['switch_tab', 'close_tab'].includes(name) ? null : x.tab_id ?? null }, (typeof m.gate === 'function' ? m.gate(x) : m.gate) || {});
     if (g.stop) return g.stop;
     const { r, t } = g, key = JSON.stringify([name, x]);
     if (d.dry) {
       const info = await m.dry(r, t, x, name);
       const sure = crypto.randomUUID();
       r.sures.set(sure, { key, info });
-      return { ...info, sure };
+      return { ...Object.fromEntries(Object.entries(info).filter(([k]) => !k.startsWith('_'))), sure };
     }
     const ok = r.sures.get(d.sure);
     r.sures.delete(d.sure);

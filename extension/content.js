@@ -45,8 +45,9 @@ P.point = function (x, y) {
   var a = P.at(+x, +y), e = a && a.e, r;
   if (!e) return { role: 'generic', label: '', nav: '' };
   r = P.facts(e);
-  if (/^I?FRAME$/.test(e.tagName)) r.frame = 'cross'; // P.at goes into frames it can read, so a frame left here is another site's
-  else if (/^(CANVAS|VIDEO|EMBED|OBJECT)$/.test(e.tagName)) r.media = true;
+  // P.at goes into frames it can read, so a frame left here is another site's (an <object> or <embed> can hold a page too)
+  if (/^(I?FRAME|OBJECT|EMBED)$/.test(e.tagName)) r.frame = 'cross';
+  else if (/^(CANVAS|VIDEO)$/.test(e.tagName)) r.media = true;
   if (r.prot === 'file') r.no = 'file';
   return r;
 };
@@ -79,18 +80,31 @@ P.fgo = function (f) {
   if (g && !/^_(self|top|parent)$/i.test(g)) { try { if (new URL(u).origin !== location.origin) r.tab = u; } catch (z) { r.tab = u; } } else r.nav = u;
   return r;
 };
-// what has the keyboard: the deep active element (through open shadow roots and frames this page can read). A protected
-// field is refused, with its value never read; a frame from another site is checked inside that frame instead.
+// An element's shadow root, closed ones too: an extension may look inside them (chrome.dom), so a password field a page
+// keeps in a closed shadow root is still seen, and still refused.
+P.sroot = function (e) {
+  var s = e && e.shadowRoot;
+  if (!s && e && e.nodeType === 1) { try { s = chrome.dom.openOrClosedShadowRoot(e); } catch (x) { s = null; } }
+  return s || null;
+};
+// a name for an element that lasts while this page does, so the side panel can tell whether the keyboard is still where
+// the person approved typing (a random part per page, so one page's numbers never match another's)
+P.fids = new WeakMap(); P.fidN = 0; P.fidDoc = Math.random().toString(36).slice(2, 10);
+P.fid = function (e) { var v = P.fids.get(e); if (!v) { v = P.fidDoc + '.' + (++P.fidN); P.fids.set(e, v); } return v; };
+// what has the keyboard: the deep active element (through shadow roots, open or closed, and frames this page can read). A
+// protected field is refused, with its value never read; a frame from another site (or an <object> or <embed>, which can
+// hold one) is checked inside that frame instead. The answer says which page it came from, and whether that page has focus.
 P.focus = function () {
-  var e = D.activeElement, d, ro, b, r, g, s;
+  var e = D.activeElement, d, s, ro, b, r, g, at = { hasFocus: D.hasFocus(), url: String(location.href).slice(0, 300) };
   for (;;) {
     if (!e) break;
-    if (e.shadowRoot && e.shadowRoot.activeElement) { e = e.shadowRoot.activeElement; continue; }
-    if (/^I?FRAME$/.test(e.tagName)) { try { d = e.contentDocument; } catch (x) { d = null; } if (d) { e = d.activeElement; continue; } return { frame: 'cross' }; }
+    s = P.sroot(e);
+    if (s && s.activeElement) { e = s.activeElement; continue; }
+    if (/^(I?FRAME|OBJECT|EMBED)$/.test(e.tagName)) { try { d = e.contentDocument; } catch (x) { d = null; } if (d) { e = d.activeElement; continue; } at.frame = 'cross'; return at; }
     break;
   }
-  if (!e || /^(BODY|HTML)$/.test(e.tagName)) return { role: 'document', label: '', nav: '', none: 1, hasFocus: D.hasFocus() };
-  ro = P.rl(e) || 'generic'; b = P.bad(e); r = { role: ro, label: P.nm(e, ro) || '', nav: '' };
+  if (!e || /^(BODY|HTML)$/.test(e.tagName)) { at.role = 'document'; at.label = ''; at.nav = ''; at.none = 1; at.fid = P.fidDoc + '.0'; return at; }
+  ro = P.rl(e) || 'generic'; b = P.bad(e); r = { role: ro, label: P.nm(e, ro) || '', nav: '', fid: P.fid(e), hasFocus: at.hasFocus, url: at.url };
   if (b) { r.no = b; return r; }
   r.edit = P.editable(e);
   if (r.edit) r.value = P.tx(e.isContentEditable ? e.innerText : e.value, 100);
@@ -127,8 +141,9 @@ P.guard = function () {
     for (i = 0; i < s.length && !filled; i++) {
       e = s[i];
       if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.tagName) || e.isContentEditable) { b = P.bad(e); if (b && b !== 'file' && (e.value || e.isContentEditable && P.tx(e.innerText))) filled = true; }
-      if (e.shadowRoot) scan(e.shadowRoot);
-      if (/^I?FRAME$/.test(e.tagName)) { try { d = e.contentDocument; } catch (x) { d = null; } if (d && d.documentElement) scan(d); }
+      d = P.sroot(e);
+      if (d) scan(d);
+      if (/^(I?FRAME|OBJECT)$/.test(e.tagName)) { try { d = e.contentDocument; } catch (x) { d = null; } if (d && d.documentElement) scan(d); }
     }
   }
   scan(D);

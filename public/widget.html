@@ -1856,7 +1856,7 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
               <li>In a new tab, go to <code>chrome://extensions</code> <button class="ghost" type="button" id="extCopy">Copy</button> (in Edge it’s <code>edge://extensions</code>).</li>
               <li>Turn on <b>Developer mode</b>. It’s a switch at the top right (in Edge, in the left column).</li>
               <li>Click <b>Load unpacked</b> and choose the <b>pagebot-extension</b> folder.</li>
-              <li>Pin pagebot: click the puzzle piece next to the address bar, then the pin next to pagebot.</li>
+              <li>Pin pagebot: click the puzzle piece next to the address bar, then the pin next to pagebot (in Edge, the eye).</li>
               <li>Click the pagebot button, or press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>, to open it in the side panel.</li>
               <li>Sign in there if it asks. If you use pagebot’s chat page in this browser, you’re already signed in.</li>
             </ol>
@@ -3959,7 +3959,7 @@ async function pageAct(run, ev) {
   const name = String(ev.name || ''), input = ev.input && typeof ev.input === 'object' ? ev.input : {};
   const line = actLine(run.bot, name);
   const post = body => api('/api/chat/act', { id: ev.id, ...body }).catch(() => {});
-  const fail = (text, why) => { actSet(line, `${text} — ${why.replace(/\. .*$/s, '').replace(/\.$/, '')}`, 'fail'); return post({ result: { error: why }, note: text }); };
+  const fail = (text, why) => { actSet(line, `${text} — ${toPerson(why).replace(/\. .*$/s, '').replace(/\.$/, '')}`, 'fail'); return post({ result: { error: why }, note: text }); };
   if (ext && (EXT_ROUTE.has(name) || name === 'left_click' && input.target?.type === 'coordinate')) return extAct(run, ev, name, input, line, post, fail);
   if (ev.ask) return actHand(run, ev, name, input, line, post, fail);
   const words = actRead(name, input);
@@ -4018,8 +4018,9 @@ async function actHand(run, ev, name, input, line, post, fail) {
   if (info.error) return fail(now, String(info.error));
   if (info.no) return fail(['password', 'payment', 'file'].includes(info.no) ? 'Tried a protected field' : now, actNo(info)); // (what it tried to type isn't kept)
   const go = info.nav || info.tab; // leaving the page, or another site in a new tab: asks even with permissions skipped
-  // In the extension the panel stays open when the page changes, so only another site (or a link that runs a script) always asks
-  const always = ext ? !!info.far || /^\s*javascript:/i.test(go || '') : !!go;
+  // In the extension the panel stays open when the page changes, so only another site (or a link that runs a script, or a page
+  // change the side panel can't hold to the approved sites because Chrome's debugger was stopped) always asks
+  const always = ext ? !!info.far || !!info.unheld || /^\s*javascript:/i.test(go || '') : !!go;
   if (always || !(prefs.actionsAuto || run.all)) {
     const v = await actAsk(run, line, now, ext ? { ...info, always } : info, ev.wait);
     if (v === 'stop' || run.stale()) return actSet(line, `${now} — stopped`, 'skip');
@@ -4041,6 +4042,13 @@ async function actHand(run, ev, name, input, line, post, fail) {
   actSet(line, done, 'done');
   const { id, ...result } = r;
   return post({ result, note: done });
+}
+// A refusal's first sentence also shows on the person's own step line. Some were written to the model about "the user";
+// on the line they speak to the person instead.
+function toPerson(why) {
+  if (/^The user switched to another tab/.test(why)) return 'You switched tabs, so pagebot stopped working on the page.';
+  return String(why).replace(/^The user /, 'You ').replace(/\bthe user hasn’t\b/g, 'you haven’t').replace(/\bafter the user approved\b/g, 'after you approved')
+    .replace(/\bthe user’s\b/g, 'your');
 }
 // the answer ended (or you stopped it): cards still waiting give up, and steps still running say they stopped
 function actEnd(run) {
@@ -4104,7 +4112,7 @@ function extWords(name, input, f) {
       if (input.url === 'forward') return [`Go forward a page${to ? ` (to ${to})` : ''}`, 'Went forward a page'];
       return [`Go to ${to || 'another page'}`, `Went to ${to || 'another page'}`];
     }
-    case 'new_tab': return ['Opening a new tab', 'Opened a new tab'];
+    case 'new_tab': return [f?.away ? 'Open a new tab' : 'Opening a new tab', 'Opened a new tab'];
     case 'list_tabs': return ['Looking at your tabs', 'Looked at the tabs in this window'];
     case 'switch_tab': return [`Switch to ${tabName}${host ? ` (${host})` : ''}`, `Switched to ${tabName}`];
     case 'close_tab': return [`Close ${tabName}${host ? ` (${host})` : ''}`, `Closed ${tabName}`];
@@ -4120,6 +4128,7 @@ function extWarn(name, input, f) {
   if (name === 'javascript_exec') return '⚠ A script can do anything the page can, including reading what you’ve typed and sending it elsewhere. Allow it only if you know what it does.';
   if (name === 'close_tab') return f.mine ? '' : '⚠ Anything not saved in that tab is lost.';
   if (name === 'switch_tab') return f.mine ? '' : 'pagebot can then read and use that tab.';
+  if (name === 'new_tab') return f.away ? '⚠ You’re on another tab now. This opens a new tab and takes you to it.' : '';
   if (f.far) return f.tab ? `⚠ This opens ${to} in a new tab.` : `⚠ This takes the tab to another site (${to}). pagebot stays open.`;
   return '';
 }
@@ -4158,7 +4167,7 @@ async function extAct(run, ev, name, input, line, post, fail) {
 // ---- Settings → Clicking for you → Get the browser extension ----
 // The Download link is this server's zip (made for the address this panel was opened from); the steps are the same ones
 // README.txt in the zip has. Inside the extension it says which version runs, and how to update when there's a newer one.
-const EXT_STEPS_UPDATE = ['Download the new zip and unzip it.', 'Put its files in your pagebot-extension folder, in place of the old ones.', 'In chrome://extensions, click ↻ on pagebot, then reopen the side panel.'];
+const EXT_STEPS_UPDATE = ['Download the new zip and unzip it.', 'Put its files in your pagebot-extension folder, in place of the old ones.', 'In chrome://extensions, click ↻ on pagebot (in Edge, Reload), then reopen the side panel.'];
 let extStepsHtml = null;
 function renderExt() {
   const off = isUser() && cfg.user?.allowActions === false;
@@ -4166,7 +4175,10 @@ function renderExt() {
   if (off) return;
   if (ext) $('#actLeave').textContent = 'It always asks before it goes to another site, switches to a tab it didn’t open, or runs a script.'; // (the side panel stays open on the same site)
   const steps = $('#extSteps'); extStepsHtml ??= steps.innerHTML;
-  const chromium = !!navigator.userAgentData?.brands?.some(b => /Chromium/.test(b.brand)) && !navigator.userAgentData?.mobile;
+  // Chromium on a computer. The browser says so in navigator.userAgentData, which only exists on https (and localhost):
+  // a bookmark panel on a plain http page, or pagebot itself served over http, reads the user agent string instead.
+  const uad = navigator.userAgentData, ua = navigator.userAgent || '';
+  const chromium = uad ? !!uad.brands?.some(b => /Chromium/.test(b.brand)) && !uad.mobile : /(Chrome|Chromium|Edg)\/\d/.test(ua) && !/Mobile|Android|CriOS|EdgiOS/.test(ua);
   let lead = 'pagebot in your browser’s side panel', hint = null, list = null;
   if (ext && extOld()) { lead = `Version ${cfg.extVersion} of the extension is out.`; hint = `You have version ${extV}. Updating takes a minute:`; list = EXT_STEPS_UPDATE; }
   else if (ext) { lead = `You’re using the extension, version ${extV}.`; hint = 'It’s up to date.'; list = []; }
@@ -4177,7 +4189,7 @@ function renderExt() {
   if (list) steps.replaceChildren(...list.map(t => { const li = el('li'); li.textContent = t; return li; }));
   else if (steps.innerHTML !== extStepsHtml) { steps.innerHTML = extStepsHtml; wireExtCopy(); }
   steps.hidden = !ext && !chromium || !!list && !list.length;
-  $('#extNote').hidden = ext && !extOld();
+  $('#extNote').hidden = ext && !extOld() || !ext && !chromium; // (it's about the folder the steps make)
 }
 function wireExtCopy() {
   const b = $('#extCopy');

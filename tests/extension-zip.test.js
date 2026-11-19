@@ -94,6 +94,8 @@ test('the address is baked in, and no placeholder is left anywhere', () => {
   assert.match(f['sidepanel.js'].data.toString(), /const ORIGIN = "https:\/\/pagebot\.example\.test", EXT_V = 1;/);
   for (const [name, x] of Object.entries(f)) assert.doesNotMatch(x.data.toString('latin1'), /__ORIGIN__|__EXT_VERSION__/, name);
   assert.match(f['README.txt'].data.toString(), /Made for https:\/\/pagebot\.example\.test\. Version 1\./);
+  assert.match(f['README.txt'].data.toString(), /the pin next to pagebot\n   \(in Edge, the eye\)\./, 'Edge’s extensions menu has an eye, not a pin');
+  assert.match(f['README.txt'].data.toString(), /chrome:\/\/extensions \(in Edge, Reload\)\./);
   assert.throws(() => extensionFiles('javascript:alert(1)'), /plain http\(s\) origin/);
   assert.throws(() => extensionFiles('https://a.test/"x'), /plain http\(s\) origin/);
 });
