@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { readRouterStream } from './lib/router-stream.js';
 import { createOpenAI } from './lib/openai.js';
 import { createPages, sendEncoded, sendJson, shortHash } from './lib/delivery.js';
+import { sendExtensionZip } from './lib/extension-package.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUB = path.join(__dirname, 'public');
@@ -799,9 +800,8 @@ function sendPage(req, res, file, frames = "'none'") {
   sendEncoded(req, res, c.page, h.headers, h.tag);
 }
 
-// The homepage is only the button to drag to the bookmarks bar, on purpose. It doesn't say what the bookmark does and it doesn't
-// link to /chat or /admin: people who were invited already know, and whoever else lands here learns nothing from it. What keeps
-// them out is the panel's sign-in (and, for accounts, the owner accepting them in /admin), not this page being quiet.
+// The homepage offers the bookmark and the local extension installer. It keeps /chat and /admin unlinked;
+// sign-in and account approval protect the app, independently of how people install it.
 const HOME_HEADERS = { 'Cache-Control': 'no-store', Vary: 'Host, X-Forwarded-Host, X-Forwarded-Proto', 'X-Robots-Tag': 'noindex, nofollow, noarchive' };
 // The page with the bookmark for one address filled in. The last few addresses' pages are kept, compressed, so the
 // bookmark (55 KB once encoded) isn't built again for every visit; the Host header picks the address, so the list is short.
@@ -818,7 +818,9 @@ app.get(['/', '/install'], (req, res) => {
   sendEncoded(req, res, v, { ...pageHeaders(c, "'none'").headers, ...HOME_HEADERS }); // never stored, so no validator
 });
 // the panel loads inside any site's page (that's what the bookmarklet does); everything else refuses to be framed
-app.get('/widget', (req, res) => sendPage(req, res, 'widget.html', '*'));
+app.get('/widget', (req, res) => sendPage(req, res, 'widget.html', '* chrome-extension:'));
+app.get('/extension', (req, res) => sendPage(req, res, 'extension.html'));
+app.get('/extension.zip', limit(20, 'extension-download'), (req, res) => sendExtensionZip(res, publicOrigin(req), VERSION));
 app.get('/chat', (req, res) => sendPage(req, res, 'widget.html'));
 app.get('/admin', (req, res) => sendPage(req, res, 'admin.html'));
 

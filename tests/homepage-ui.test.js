@@ -13,6 +13,7 @@ const ORIGIN = 'https://pagebot.example.test';
 const HREF = "javascript:void('pagebot')";
 const html = (await readFile(new URL('../public/install.html', import.meta.url), 'utf8'))
   .replace('{{HREF}}', HREF.replaceAll("'", '&#39;')).replace('{{VERSION}}', '14');
+const extensionHtml = await readFile(new URL('../public/extension.html', import.meta.url), 'utf8');
 let browser;
 before(async () => {
   if (chromium) browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });
@@ -29,8 +30,12 @@ async function open(t, { query = '', scheme = 'light', touch = false, viewport, 
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   if (init) await page.addInitScript(init);
-  await page.route('**/*', route => route.request().url().startsWith(ORIGIN + '/')
-    ? route.fulfill({ contentType: 'text/html; charset=utf-8', body: html }) : route.abort());
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    if (url.origin !== ORIGIN) return route.abort();
+    if (url.pathname === '/extension.zip') return route.fulfill({ contentType: 'application/zip', headers: { 'Content-Disposition': 'attachment; filename=pagebot-extension.zip' }, body: Buffer.from('PK fixture archive') });
+    return route.fulfill({ contentType: 'text/html; charset=utf-8', body: url.pathname === '/extension' ? extensionHtml : html });
+  });
   await page.goto(ORIGIN + '/' + query);
   t.after(() => assert.deepEqual(errors, []));
   return page;
@@ -165,4 +170,39 @@ browserTest('every colour pair passes contrast, light and dark, from the page’
     }, { scheme, touch, drawn });
     assert.deepEqual(failures, []);
   }
+});
+
+
+browserTest('the site extension option opens setup, switches browser instructions and downloads the ZIP', async t => {
+  const page = await open(t);
+  await page.getByRole('link', { name: 'Get the extension' }).click();
+  assert.equal(new URL(page.url()).pathname, '/extension');
+  assert.equal(await page.locator('h1').innerText(), 'Keep pagebot beside your page.');
+  assert.equal(await page.locator('#extensionsAddress').innerText(), 'chrome://extensions');
+  await page.getByRole('button', { name: 'Edge', exact: true }).click();
+  assert.equal(await page.locator('#extensionsAddress').innerText(), 'edge://extensions');
+  assert.equal(await page.locator('#edgeChoice').getAttribute('aria-pressed'), 'true');
+  await page.getByRole('button', { name: 'Copy address', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('#copyAddress').textContent === 'Copied');
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), 'edge://extensions');
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('link', { name: 'Download extension ZIP' }).click(),
+  ]);
+  assert.equal(download.suggestedFilename(), 'pagebot-extension.zip');
+  assert.equal(new URL(download.url()).pathname, '/extension.zip');
+  assert.equal(await page.locator('.steps li').count(), 4);
+  assert.match(await page.locator('.steps').innerText(), /Load unpacked/);
+  assert.match(await page.locator('.steps').innerText(), /manifest.json/);
+});
+
+browserTest('the extension guide fits a narrow screen and leaves browser addresses copyable if clipboard access fails', async t => {
+  const page = await open(t, { viewport: { width: 390, height: 844 }, init: noClipboard });
+  await page.getByRole('link', { name: 'Get the extension' }).click();
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no sideways scrolling');
+  await page.getByRole('button', { name: 'Copy address', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('#copyStatus').textContent.includes('Select the address'));
+  assert.equal(await page.locator('#extensionsAddress').innerText(), 'chrome://extensions');
+  assert.equal(await page.locator('#copyStatus').getAttribute('role'), 'status');
+  assert.equal(await page.locator('#downloadExtension').isVisible(), true);
 });

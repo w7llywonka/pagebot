@@ -32,7 +32,7 @@ The bookmarklet points back at whatever address you opened the homepage from. If
 
 To enable GPT-6 Luna, add `OPENAI_API_KEY` to the Railway service's Variables (or your local `.env`) and restart/redeploy. Pick **GPT-6 Luna** beside Send or in Settings. With no Anthropic key, Luna is selected by default, including for existing chats and saved Claude preferences. The key stays on the server. Your existing bookmark loads the updated panel automatically; you don't need to replace it for this change.
 
-The homepage is only that button, a one-line hint under it and a **Can’t drag? Copy it instead** button, on purpose. It doesn't say what the bookmark does, it doesn't link anywhere, and it asks search engines to leave it out, so someone who lands on it by accident learns nothing. Tell the people you invite what it's for yourself (the first steps in `/admin` have an invitation you can copy). The quiet page is discretion, not protection: the bookmark's code is still on it for anyone who looks. What keeps people out is the sign-in, and for accounts, you letting them in from `/admin`.
+The homepage keeps the bookmark button, its hint and copy fallback, plus **Get the extension**, which opens the download guide at `/extension`. It does not link to `/chat` or `/admin`, and it asks search engines to leave it out. The entry page is not access control: what keeps people out is the sign-in, and for accounts, you letting them in from `/admin`.
 
 What the hint says:
 
@@ -55,6 +55,21 @@ Optional variables:
 | `PDF_STORAGE_MB` | `100` | How much uploaded-PDF storage each person (the owner counts as a person) can keep at once, in MB. Fractions work (`0.5`). Going over it turns the upload down with a note to delete a PDF. See **PDFs**. |
 | `SYSTEM_PROMPT` | built in | Replaces the default instructions. |
 | `SESSION_DAYS` | `30` | How long a login lasts without use. Applies to accounts, and to you when no passcode is set. |
+
+## Browser extension
+
+The site’s **Get the extension** option opens `/extension`, with a **Download extension ZIP** button pointing to `/extension.zip`. Each ZIP is configured for the same pagebot site that served it; users do not edit a server address or put API keys into the extension.
+
+For desktop Chrome or Edge:
+
+1. Download the ZIP and extract it into a permanent folder.
+2. Open `chrome://extensions` or `edge://extensions` in the browser’s address bar and enable **Developer mode**.
+3. Choose **Load unpacked** and select the extracted `pagebot-extension` folder containing `manifest.json`.
+4. Pin pagebot, click its toolbar button on the page you want to use, and sign in with your usual account.
+
+The extension adds a browser-native side panel, active-tab screenshots without a screen-sharing picker, a selection context-menu item, and the `Alt+Shift+P` shortcut. It can open on sites whose page policy blocks the bookmarklet panel. It uses `activeTab` and scripting for the page the user chooses, plus access to this pagebot site for sign-in, side-panel, context-menu and local-storage permissions; it does not request access to every website, cookies or browsing history. Browser-protected pages cannot be read or controlled. Click the toolbar button again after moving to a different site to grant access to that page. Existing account approval, daily limits and page-action confirmations still apply.
+
+Keep the extracted folder. To update the installed extension, replace its files with a fresh download and press **Reload** on its entry in the extensions page.
 
 ## Admin (`/admin`)
 
@@ -355,3 +370,5 @@ npm run dev
 Node 20 or newer and PostgreSQL are required. The server creates its tables and applies additive schema updates at startup, including website memory, slash commands, chat history, PDF uploads and page actions. Set `INITIAL_PASSWORD` and a 16-character-or-longer `ADMIN_TOKEN` for local sign-in and administration. Use `OPENAI_API_KEY` for GPT-6 Luna, `ANTHROPIC_API_KEY` for Claude, or both; `OPENROUTER_API_KEY` adds the optional OpenRouter model. Keep credentials in environment variables or the ignored `.env` file.
 
 Run `npm test` for bookmarklet and model-stream regression tests. To also run the OpenAI, website-memory, slash-command, chat-history, PDF upload, page action, ban and combined integration tests, point `PAGEBOT_TEST_DATABASE_URL` at a disposable PostgreSQL database before running `npm test`; without it, those integration tests are explicitly skipped. They create and clean up a separate schema and use local mock model servers, so they need no AI keys or credits. Browser regression tests run with `npm run test:browser` and require Playwright and Chromium.
+
+Extension checks: `npm run test:extension` verifies ZIP contents, origin and tab boundaries, page-tool protections, and the widget bridge in Chromium. Also verify native toolbar/side-panel launch and tab access in desktop Chrome/Edge; the bridge tests use a broker fixture and do not exercise a native install.

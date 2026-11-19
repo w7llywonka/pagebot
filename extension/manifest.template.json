@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Pagebot",
+  "version": "1.0.0",
+  "description": "Read, ask, and work with the current page in a browser side panel.",
+  "minimum_chrome_version": "116",
+  "permissions": ["activeTab", "scripting", "sidePanel", "contextMenus", "storage"],
+  "action": {
+    "default_title": "Open Pagebot for this page",
+    "default_icon": {"16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png"}
+  },
+  "icons": {"16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png"},
+  "background": {"service_worker": "background.js"},
+  "side_panel": {"default_path": "panel.html"},
+  "commands": {
+    "open-pagebot": {"suggested_key": {"default": "Alt+Shift+P"}, "description": "Open Pagebot for the current page"}
+  }
+}
