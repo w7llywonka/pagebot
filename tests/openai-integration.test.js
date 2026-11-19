@@ -176,6 +176,88 @@ test('OpenAI end-to-end integration', { skip: !database && 'Set PAGEBOT_TEST_DAT
     assert.ok(calls[start + 1].body.tools.every(t => t.type !== 'web_search'));
     assert.ok(!('max_tool_calls' in calls[start + 1].body));
   });
+  // The browser extension (README "Browser extension") with Luna: the panel says it runs in the extension and lists what it
+  // runs, the way public/widget.html does; it answers tab steps with the window's tabs, the way extension/sidepanel.js does.
+  await t.test('in the extension, Luna is offered the members the panel lists and reads the tabs it sends back; a bookmark panel keeps the 12', async () => {
+    const BOOKMARK = ['screenshot', 'zoom', 'read_page', 'find', 'get_page_text', 'scroll', 'scroll_to', 'hover', 'mouse_move', 'wait', 'left_click', 'form_input'];
+    const LISTED = ['navigate', 'list_tabs', 'new_tab', 'type', 'key'];
+    const ALL = ['navigate', 'new_tab', 'list_tabs', 'switch_tab', 'close_tab', 'read_console', 'read_network', 'javascript_exec',
+      'right_click', 'middle_click', 'double_click', 'triple_click', 'left_click_drag', 'left_mouse_down', 'left_mouse_up', 'type', 'key', 'hold_key'];
+    const TABS = [{ tab_id: 'tab-1', title: 'News', url: 'https://news.example.test/a?session=secret', active: true }, { tab_id: 'tab-2', title: 'Shop', url: 'https://shop.example.test/' }];
+    const NEW_TABS = [{ ...TABS[0], active: undefined }, TABS[1], { tab_id: 'tab-3', title: '', url: 'about:blank', active: true }].map(x => JSON.parse(JSON.stringify(x)));
+    const fns = body => (body.tools || []).filter(x => x.type === 'function' && x.name !== 'highlight');
+    const names = body => fns(body).map(x => x.name).sort();
+    const listed = { host: 'ext', ext: 1, tools: [...LISTED, 'file_upload', 'bogus'] };
+
+    const start = calls.length;
+    script = () => ({ output: calls.length === start + 1 ? [tool('list_tabs', {})]
+      : calls.length === start + 2 ? [tool('navigate', { url: 'https://shop.example.test/', tab_id: 'tab-2' })]
+      : calls.length === start + 3 ? [tool('new_tab', {})]
+      : calls.length === start + 4 ? [tool('javascript_exec', { text: 'document.cookie' })] : [text('Done.')] });
+    const results = {
+      list_tabs: { tabs: TABS },
+      navigate: { url: 'https://shop.example.test/', title: 'Shop', tabs: [{ ...TABS[0], active: undefined }, { ...TABS[1], active: true }] },
+      new_tab: { tabs: NEW_TABS, opened: ['tab-3'] },
+    };
+    const result = await chat({ model: 'openai', actions: true, web: true, ...listed }, { onAct: async e => {
+      assert.ok(results[e.name], `no step called ${e.name} should reach the panel`);
+      const r = await api('/api/chat/act', { method: 'POST', body: { id: e.id, result: results[e.name] } });
+      assert.equal(r.status, 200);
+    } });
+    assert.ok(result.done, JSON.stringify(result.events.slice(-3)));
+    assert.equal(result.error, undefined);
+    assert.equal(result.done.model, 'GPT-6 Luna');
+    assert.doesNotMatch(logs, /Unsupported OpenAI input/);
+    // what Luna was offered: the bookmark's members and the ones the panel listed, each able to name a tab; never file_upload
+    const first = calls[start].body;
+    assert.equal(calls[start].url, '/openai');
+    assert.deepEqual(names(first), [...BOOKMARK, ...LISTED].sort());
+    assert.ok(!first.tools.some(x => x.name === 'file_upload' || x.name === 'read_console' || x.name === 'javascript_exec'));
+    assert.ok(first.tools.some(x => x.name === 'highlight'));
+    assert.equal(first.tools[0].type, 'web_search');
+    for (const f of fns(first)) {
+      assert.deepEqual(f.parameters.properties.tab_id, { type: 'string', description: 'A tab from list_tabs, like "tab-12". Leave it out for the current tab.' }, f.name);
+      assert.ok(!f.parameters.required.includes('tab_id'), f.name);
+    }
+    assert.deepEqual(fns(first).find(f => f.name === 'navigate').parameters.required, ['url']);
+    assert.ok(fns(first).find(f => f.name === 'left_click').parameters.properties.target.anyOf, 'in the extension left_click takes a point too');
+    // the system prompt: the extension's page-action note and Luna's citation line, together
+    assert.match(first.instructions, /through the pagebot extension/);
+    assert.match(first.instructions, /Cite web sources with Markdown links in your answer/);
+    assert.doesNotMatch(first.instructions, /there are no other tabs/);
+    // each step reached the panel tagged as the browser toolset's (no "no tool called" refusal), and its result came back as text
+    assert.deepEqual(result.events.filter(e => e.t === 'act').map(e => [e.name, e.input, e.ask]),
+      [['list_tabs', {}, false], ['navigate', { url: 'https://shop.example.test/', tab_id: 'tab-2' }, true], ['new_tab', {}, false]]);
+    const output = n => { const i = calls[start + n].body.input, o = i.at(-1);
+      assert.equal(o.type, 'function_call_output');
+      assert.equal(i.at(-2).type, 'function_call', 'the call goes back exactly as Luna returned it');
+      assert.equal(o.call_id, i.at(-2).call_id);
+      return o.output; };
+    assert.deepEqual(output(1), [{ type: 'input_text', text: 'Open tabs:\ntab-1 (current): News <https://news.example.test/a>\ntab-2: Shop <https://shop.example.test/>' }]);
+    assert.deepEqual(output(2), [{ type: 'input_text', text: 'Went to https://shop.example.test/.' },
+      { type: 'input_text', text: 'Open tabs:\ntab-1: News <https://news.example.test/a>\ntab-2 (current): Shop <https://shop.example.test/>' }]);
+    assert.deepEqual(output(3), [{ type: 'input_text', text: 'Open tabs:\ntab-1: News <https://news.example.test/a>\ntab-2: Shop <https://shop.example.test/>\ntab-3 (current):  <about:blank>\nJust opened: tab-3' }]);
+    assert.deepEqual(output(4), [{ type: 'input_text', text: "There's no tool called javascript_exec here." }], 'a member the panel didn’t list is refused, not run');
+    assert.equal(calls.length, start + 5);
+    const saved = JSON.parse((await db.query("SELECT steps FROM messages WHERE conversation_id=$1 AND role='assistant'", [result.done.conversationId])).rows[0].steps);
+    assert.deepEqual(saved.map(s => [s.tool, s.outcome]), [['list_tabs', 'done'], ['navigate', 'done'], ['new_tab', 'done']], 'a refused unknown member isn’t a step');
+
+    // the whole extension: all of its members (the optional ones switched on), still no file_upload
+    script = () => ({ output: [text('Nothing to do.')] });
+    assert.ok((await chat({ model: 'openai', actions: true, host: 'ext', ext: 1, tools: [...ALL, 'file_upload'] })).done);
+    assert.deepEqual(names(calls.at(-1).body), [...new Set([...BOOKMARK, ...ALL])].sort());
+    assert.ok(!calls.at(-1).body.tools.some(x => x.name === 'file_upload'));
+    // a bookmark panel (no host, or a host that isn't the extension) gets exactly the bookmark's 12, with no tab_id
+    for (const body of [{}, { host: 'ext', ext: 0, tools: ALL }, { host: 'bookmark', ext: 1, tools: ALL }]) {
+      assert.ok((await chat({ model: 'openai', actions: true, ...body })).done, JSON.stringify(body));
+      const sent = calls.at(-1).body;
+      assert.deepEqual(names(sent), [...BOOKMARK].sort(), JSON.stringify(body));
+      assert.ok(fns(sent).every(f => !('tab_id' in f.parameters.properties)), JSON.stringify(body));
+      assert.deepEqual(fns(sent).find(f => f.name === 'left_click').parameters.properties.target.required, ['type', 'ref'], 'a bookmark clicks refs only');
+      assert.match(sent.instructions, /there are no other tabs, and you can't navigate/);
+      assert.doesNotMatch(sent.instructions, /pagebot extension/);
+    }
+  });
   await t.test('account permissions, percentages, cached-token pricing and admin model breakdowns stay correct', async () => {
     await db.query('UPDATE users SET allow_actions=false, limit_kind=$1, limit_value=100000 WHERE id=$2', ['tokens', userId]);
     const result = await chat({ model: 'openai', actions: true }, { token: user });

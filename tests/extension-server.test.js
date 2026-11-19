@@ -179,6 +179,34 @@ test('browser extension: the server side', { skip: !database && 'Set PAGEBOT_TES
     assert.equal((await raw('/pagebot-extension.zip', { Host: `127.0.0.1:${port}` })).status, 200);
   });
 
+  await t.test('the homepage links the /extension guide, and its download link and /extension.zip both serve the real zip', async () => {
+    const H = { Host: 'pagebot.example.test' };
+    assert.match((await raw('/', H)).body.toString(), /<a class="extension-link" href="\/extension">Get the extension<\/a>/);
+    const guide = await raw('/extension', H);
+    assert.equal(guide.status, 200);
+    assert.match(guide.headers['content-type'], /^text\/html/);
+    assert.match(guide.headers['content-security-policy'], /frame-ancestors 'none'$/);
+    const href = guide.body.toString().match(/<a class="download" id="downloadExtension" href="([^"]+)" download="pagebot-extension\.zip">/)?.[1];
+    assert.equal(href, '/pagebot-extension.zip');
+    const zips = [];
+    for (const path of [href, '/extension.zip']) {
+      const r = await raw(path, H);
+      assert.equal(r.status, 200, path);
+      assert.equal(r.headers['content-type'], 'application/zip', path);
+      assert.equal(r.headers['content-disposition'], 'attachment; filename="pagebot-extension.zip"', path);
+      assert.equal(r.headers['cache-control'], 'no-store', path);
+      assert.equal(Number(r.headers['content-length']), r.body.length, path);
+      const files = Object.fromEntries(readZip(r.body).map(f => [f.name, f.data.toString()]));
+      assert.deepEqual(Object.keys(files).filter(n => !n.endsWith('/') && !n.startsWith('icons/')).sort(),
+        ['README.txt', 'content.js', 'manifest.json', 'sidepanel.html', 'sidepanel.js', 'worker.js'], path);
+      assert.match(files['sidepanel.js'], /const ORIGIN = "http:\/\/pagebot\.example\.test"/, path);
+      assert.ok(JSON.parse(files['manifest.json']).permissions.includes('contextMenus'), path);
+      assert.match(files['worker.js'], /title: 'Ask pagebot', contexts: \['selection'\]/, path);
+      zips.push(r.body);
+    }
+    assert.ok(zips[0].equals(zips[1]), 'the same zip at both addresses');
+  });
+
   await t.test('/widget may be framed by any site and by pagebot’s own extension (by its id); /chat, /admin and the homepage by nobody', async () => {
     const w = await raw('/widget');
     assert.match(w.headers['content-security-policy'], new RegExp(`frame-ancestors \\* chrome-extension://${EXT_ID}$`));
