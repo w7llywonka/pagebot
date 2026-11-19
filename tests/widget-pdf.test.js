@@ -25,7 +25,7 @@ const boot = (user = {}) => ({
 });
 const done = { t: 'done', conversationId: 42, model: 'Haiku 5.5', usage: { in: 50, out: 20 }, stop: 'end_turn' };
 
-async function fixture(t, { standalone = false, user, prefs, events, upload } = {}) {
+async function fixture(t, { standalone = false, user, prefs, events, upload, models = boot().models } = {}) {
   const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1000, height: 900 } });
   context.setDefaultTimeout(5000);
   const state = { requests: [], uploads: [], errors: [] };
@@ -54,8 +54,8 @@ async function fixture(t, { standalone = false, user, prefs, events, upload } = 
       return json(value, status);
     }
     state.requests.push({ path: url.pathname, method: request.method(), body: request.postDataJSON() });
-    if (url.pathname === '/api/boot') return json({ ...boot(user), ...(prefs && { prefs: { ...boot().prefs, ...prefs } }) });
-    if (url.pathname === '/api/prefs') return json({ prefs: { ...boot().prefs, ...request.postDataJSON() }, limits: boot().limits });
+    if (url.pathname === '/api/boot') return json({ ...boot(user), models, ...(prefs && { prefs: { ...boot().prefs, ...prefs } }) });
+    if (url.pathname === '/api/prefs') return json({ prefs: { ...boot().prefs, ...prefs, ...request.postDataJSON() }, limits: boot().limits });
     if (url.pathname === '/api/chat') return route.fulfill({
       contentType: 'application/x-ndjson',
       body: (events || [{ t: 'id', conversationId: 42 }, { t: 'd', v: 'Revenue grew.' }, done]).map(e => JSON.stringify(e)).join('\n') + '\n',
@@ -79,6 +79,23 @@ async function fixture(t, { standalone = false, user, prefs, events, upload } = 
   };
   return { page, frame, state, file, drag };
 }
+
+browserTest('Luna stays selected for PDFs in the bookmark and the full-page chat', async t => {
+  for (const standalone of [false, true]) {
+    const f = await fixture(t, { standalone, prefs: { model: 'openai' }, models: [{ key: 'openai', label: 'GPT-6 Luna' }] });
+    await f.frame.locator('#pdfFile').setInputFiles({ name: 'Luna notes.pdf', mimeType: 'application/pdf', buffer: PDF });
+    await f.frame.locator('#pdfPill:not([hidden])').waitFor();
+    assert.equal(await f.frame.locator('#modelName').innerText(), 'GPT-6 Luna');
+    await f.frame.locator('#modelBtn').click();
+    assert.equal(await f.frame.locator('#modelMenu button', { hasText: 'GPT-6 Luna' }).isDisabled(), false);
+    await f.frame.locator('#modelBtn').click();
+    await f.frame.locator('#q').fill('Summarize the PDF.'); await f.frame.locator('#sendBtn').click();
+    await f.frame.locator('.msg.bot .meta').waitFor();
+    const request = f.state.requests.find(r => r.path === '/api/chat');
+    assert.equal(request.body.model, 'openai'); assert.equal(request.body.pdf, 7);
+    assert.ok(!f.state.requests.some(r => r.path === '/api/prefs'));
+  }
+});
 
 browserTest('pick a PDF from the + menu: it uploads, shows a pill, and its id goes with the message', async t => {
   const f = await fixture(t);

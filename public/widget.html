@@ -3278,7 +3278,7 @@ const nf = lazy(() => new Intl.NumberFormat());
 const hourName = h => `${h % 12 || 12} ${h < 12 ? 'am' : 'pm'}`;
 const dayName = s => new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(s + 'T00:00:00Z'));
 const vibe = h => h < 5 || h >= 22 ? '🦉 Night owl' : h < 9 ? '🌅 Early bird' : h < 12 ? '☕ Morning person' : h < 17 ? '🌤 Afternoon asker' : '🌆 Evening explorer';
-const modelIcon = l => /haiku/i.test(l) ? '⚡' : /sonnet/i.test(l) ? '✦' : '◆';
+const modelIcon = l => /haiku/i.test(l) ? '⚡' : /sonnet/i.test(l) ? '✦' : /GPT/i.test(l) ? '☾' : '◆';
 const plural = (n, w) => `${nf().format(n)} ${w}${n === 1 ? '' : 's'}`;
 function swatch(t) {
   const [key, , bg, acc, user, text] = t;
@@ -3638,8 +3638,9 @@ for (const [n, label] of TOK) {
   b.onclick = () => savePrefs({ maxTokens: n });
   $('#tokSeg').appendChild(b);
 }
-const MODEL_INFO = { haiku: ['⚡', 'Good for most questions', 'Quick'], sonnet: ['✦', 'Thinks harder, a little slower', 'Thorough'], openrouter: ['◆', 'An extra model, through OpenRouter'] };
+const MODEL_INFO = { haiku: ['⚡', 'Good for most questions', 'Quick'], sonnet: ['✦', 'Thinks harder, a little slower', 'Thorough'], openai: ['☾', 'Fast, low-cost answers from OpenAI'], openrouter: ['◆', 'An extra model, through OpenRouter'] };
 const modelWord = x => (MODEL_INFO[x.key] || [])[2] || x.label; // what it does; a model without one goes by its name
+const pdfModelHint = () => models.some(x => x.key === 'openai') ? 'Can’t read PDFs. Use Claude or an OpenAI model in this chat' : 'Can’t read PDFs. Use Haiku or Sonnet in this chat';
 function renderPrefs() {
   const webOk = !isUser() || !!cfg.user?.allowWeb;
   if (!webOk) prefs.web = false;
@@ -3657,7 +3658,7 @@ function renderPrefs() {
     b.querySelector('.mt').textContent = modelWord(x);
     const noPdf = x.key === 'openrouter' && pdfInChat(); // pdf uploads: it can't read PDFs
     const named = modelWord(x) !== x.label ? x.label + ' · ' : '';
-    b.querySelector('.mt').appendChild(el('span', 'md')).textContent = x.locked ? named + 'Not on for you. Ask the owner.' : noPdf ? 'Can’t read PDFs. Use Haiku or Sonnet in this chat' : named + desc;
+    b.querySelector('.mt').appendChild(el('span', 'md')).textContent = x.locked ? named + 'Not on for you. Ask the owner.' : noPdf ? pdfModelHint() : named + desc;
     b.disabled = !!x.locked || noPdf;
     b.onclick = () => { closeMenus(); if (x.key !== prefs.model) savePrefs({ model: x.key }); q.focus(); };
     menu.appendChild(b);
@@ -3701,7 +3702,7 @@ function actWhy() { // why page actions can't be used here ('' when they can)
   if (standalone) return 'They need a web page. Open pagebot from your bookmark while you’re on one';
   if (isUser() && cfg.user?.allowActions === false) return 'Not on for you. Ask the owner';
   if (!pageV12) return 'Drag the new bookmark from the homepage to use them';
-  if (prefs.model === 'openrouter') return 'They only work with Haiku and Sonnet';
+  if (prefs.model === 'openrouter') return 'Choose Claude or an OpenAI model for page actions';
   return '';
 }
 const actsOn = () => !!prefs.actions && !actWhy();
@@ -4145,7 +4146,7 @@ function renderModelSeg() {
     b.textContent = modelWord(x); if (modelWord(x) !== x.label) b.append(' ', el('span', 'ms', esc(x.label)));
     b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on));
     b.disabled = !!x.locked || noPdf;
-    b.title = x.locked ? 'Not on for you. Ask the owner.' : noPdf ? 'Can’t read PDFs. Use Haiku or Sonnet in this chat' : (MODEL_INFO[x.key] || [])[1] || '';
+    b.title = x.locked ? 'Not on for you. Ask the owner.' : noPdf ? pdfModelHint() : (MODEL_INFO[x.key] || [])[1] || '';
   }
 }
 const MOTIONS = [['system', 'Match my device'], ['less', 'Less'], ['full', 'Full']];
@@ -5344,9 +5345,10 @@ async function addPdf(file) {
   if (head !== '%PDF-') return void note(`“${name}” won’t open as a PDF. It may be damaged, or another kind of file with a .pdf name.`);
   if (view !== 'chat') return;
   if (prefs.model === 'openrouter') { // ◆ can't read PDFs
-    const h = models.find(x => x.key === 'haiku');
-    savePrefs({ model: 'haiku' });
-    note(`${models.find(x => x.key === 'openrouter')?.label || 'That model'} can’t read PDFs, so this chat uses ${h?.label || 'Haiku'}.`);
+    const h = models.find(x => x.key !== 'openrouter' && !x.locked);
+    if (!h) return void note('Choose a model that can read PDFs first.');
+    savePrefs({ model: h.key });
+    note(`${models.find(x => x.key === 'openrouter')?.label || 'That model'} can’t read PDFs, so this chat uses ${h.label}.`);
   }
   clearPdf(); // one PDF per message: a new one replaces the last
   const session = token, x = new XMLHttpRequest(), up = pdfUp = { name, pct: 0, xhr: x };

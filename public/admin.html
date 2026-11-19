@@ -630,7 +630,7 @@ details.tv summary{cursor:pointer;color:var(--muted);font-size:13px}
         <button type="button" data-d="1">Today</button><button type="button" data-d="7">7 days</button><button type="button" data-d="30" class="on">30 days</button><button type="button" data-d="90">90 days</button><button type="button" data-d="3650">All</button>
       </div>
       <select id="actWho" aria-label="Person"></select>
-      <select id="aModel" aria-label="Model"><option value="">All models</option><option value="haiku">Haiku</option><option value="sonnet">Sonnet</option><option value="router" hidden>OpenRouter</option></select>
+      <select id="aModel" aria-label="Model"><option value="">All models</option><option value="haiku">Haiku</option><option value="sonnet">Sonnet</option><option value="router" hidden>OpenRouter</option><option value="openai" hidden>OpenAI</option></select>
       <select id="aFlag" aria-label="Show">
         <option value="">Everything</option><option value="page">With page text</option><option value="highlight">With highlighted text</option><option value="image">With a screenshot</option>
         <option value="web">Used web search</option><option value="refused">Declined</option><option value="stopped">Stopped early</option><option value="fallback">Another model stepped in</option>
@@ -903,13 +903,16 @@ async function loadStats() {
   if (m[0]) N.haiku = m[0].label;
   if (m[1]) N.sonnet = m[1].label;
   N.router = m.find(x => x.openrouter)?.label || 'OpenRouter';
+  N.openai = m.find(x => x.openai)?.label || 'OpenAI';
   const o = $('#aModel option[value="router"]'); o.textContent = N.router; o.hidden = !routerOn() && !S.routerUsed;
+  const a = $('#aModel option[value="openai"]'); a.textContent = N.openai; a.hidden = !openaiOn() && !S.openaiUsed;
   syncPwNote();
 }
 // until a password exists, every tab but Settings (which has its own box) opens with one
 const syncPwNote = () => { $('#pwNote').hidden = !S.stats || S.stats.passwordSet || S.tab === 'settings'; };
 // past use keeps the OpenRouter filter in Activity, even after its key is removed
 function routerSeen() { S.routerUsed = true; $('#aModel option[value="router"]').hidden = false; }
+function openaiSeen() { S.openaiUsed = true; $('#aModel option[value="openai"]').hidden = false; }
 async function loadUsers() {
   S.users = await api('/api/admin/users');
   const n = S.users.users.filter(u => u.status === 'pending').length;
@@ -978,17 +981,19 @@ function stopTimers() { timers.forEach(clearInterval); timers = []; }
 
 // ================= overview =================
 const ov = { days: 30, who: 'all', unit: 'usd', data: null, series: [], by: 'day' };
-const N = { haiku: 'Haiku 5.5', sonnet: 'Sonnet 5.5', router: 'OpenRouter' };
-const SERIES = [['haiku', 'var(--s-haiku)'], ['sonnet', 'var(--s-sonnet)'], ['router', 'var(--s-router)']];
+const N = { haiku: 'Haiku 5.5', sonnet: 'Sonnet 5.5', router: 'OpenRouter', openai: 'OpenAI' };
+const SERIES = [['haiku', 'var(--s-haiku)'], ['sonnet', 'var(--s-sonnet)'], ['router', 'var(--s-router)'], ['openai', 'var(--s-other)']];
 // the OpenRouter model only gets a color once it's set up or has been used
 const routerOn = () => (S.stats?.models || []).some(m => m.openrouter);
-const shownSeries = series => SERIES.filter(([k]) => k !== 'router' || routerOn() || series.some(d => d.tokens.router || d.usd.router));
+const openaiOn = () => (S.stats?.models || []).some(m => m.openai);
+const shownSeries = series => SERIES.filter(([k]) => k === 'router' ? routerOn() || series.some(d => d.tokens.router || d.usd.router)
+  : k === 'openai' ? openaiOn() || series.some(d => d.tokens.openai || d.usd.openai) : true);
 const toSeries = days => days.map(d => {
-  const router = d.router || 0, routerUsd = d.routerUsd || 0;
+  const router = d.router || 0, routerUsd = d.routerUsd || 0, openai = d.openai || 0, openaiUsd = d.openaiUsd || 0;
   return {
     ...d,
-    tokens: { total: d.input + d.output, haiku: Math.max(0, d.input + d.output - d.sonnet - router), sonnet: d.sonnet, router },
-    usd: { total: d.usd, haiku: Math.max(0, d.usd - d.sonnetUsd - routerUsd), sonnet: d.sonnetUsd, router: routerUsd },
+    tokens: { total: d.input + d.output, haiku: Math.max(0, d.input + d.output - d.sonnet - router - openai), sonnet: d.sonnet, router, openai },
+    usd: { total: d.usd, haiku: Math.max(0, d.usd - d.sonnetUsd - routerUsd - openaiUsd), sonnet: d.sonnetUsd, router: routerUsd, openai: openaiUsd },
   };
 });
 const legendOf = series => shownSeries(series).map(([k, c]) => { const s = mk('span'), i = mk('i'); i.style.background = c; s.append(i, N[k]); return s; });
@@ -1001,6 +1006,7 @@ async function loadOverview() {
     ov.data = o; ov.by = u.by;
     ov.series = toSeries(u.days);
     if (o.models?.some(m => m.family === 'router')) routerSeen();
+    if (o.models?.some(m => m.family === 'openai')) openaiSeen();
     renderNeeds(); renderKpis(); drawUsage(); renderBudget(); renderModels(); renderTop(); renderSites(); renderFeatures(); drawHeat();
   } finally { box.classList.remove('loading'); }
 }
@@ -1177,7 +1183,7 @@ function renderModels() {
     td(tr, name).appendChild(mk('span', 'ph', `${short(r.input + r.output)} tokens · ${cost(frac(r.usd, r.questions))} an answer`));
     td(tr, nf.format(r.questions), 'num'); td(tr, shareBar(frac(r.questions, total)));
     td(tr, short(r.input + r.output), 'num'); td(tr, money(r.usd), 'num'); td(tr, cost(frac(r.usd, r.questions)), 'num');
-    rowLink(tr, () => goActivity(fallback ? { flag: 'fallback' } : { model: ['haiku', 'sonnet', 'router'].includes(r.family) ? r.family : '' }));
+    rowLink(tr, () => goActivity(fallback ? { flag: 'fallback' } : { model: ['haiku', 'sonnet', 'router', 'openai'].includes(r.family) ? r.family : '' }));
   }
 }
 function renderTop() {
@@ -1917,6 +1923,7 @@ async function loadActivity(reset) {
     if (reset) { act.rows = []; act.open.clear(); }
     act.rows.push(...r.rows); act.more = r.more;
     if (r.rows.some(x => x.family === 'router')) routerSeen();
+    if (r.rows.some(x => x.family === 'openai')) openaiSeen();
     renderActivity();
   } finally { act.loading = false; $('#t-activity').classList.remove('loading'); }
 }

@@ -63,7 +63,7 @@ const hostPage = `<!doctype html><html><head><title>Shop</title><style>
 </script>
 <script>${bookmarklet}</script></body></html>`;
 
-async function fixture(t, { prefs = {} } = {}) {
+async function fixture(t, { prefs = {}, models = boot.models } = {}) {
   const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1600, height: 1000 } });
   context.setDefaultTimeout(6000);
   const state = { requests: [], errors: [], prefs: { ...boot.prefs, ...prefs } };
@@ -77,6 +77,7 @@ async function fixture(t, { prefs = {} } = {}) {
     const real = window.fetch;
     window.fetch = (url, opts) => {
       if (String(url) !== '/api/chat') return real(url, opts);
+      window.__chatBody = JSON.parse(opts.body);
       const enc = new TextEncoder();
       return Promise.resolve(new Response(new ReadableStream({ start(c) {
         window.__push = ev => c.enqueue(enc.encode(JSON.stringify(ev) + '\n'));
@@ -102,7 +103,7 @@ async function fixture(t, { prefs = {} } = {}) {
     if (url.hostname === 'shop.example.test') return url.pathname === '/' ? route.fulfill({ contentType: 'text/html', body: hostPage }) : route.fulfill({ status: 404, body: '' });
     if (url.pathname === '/widget') return route.fulfill({ contentType: 'text/html', body: widget });
     state.requests.push({ path: url.pathname, body: request.postDataJSON() });
-    if (url.pathname === '/api/boot') return json({ ...boot, prefs: state.prefs, version: 13 });
+    if (url.pathname === '/api/boot') return json({ ...boot, models, prefs: state.prefs, version: 13 });
     if (url.pathname === '/api/ping' || url.pathname === '/api/logout' || url.pathname === '/api/chat/act') return json({ ok: true });
     if (url.pathname === '/api/prefs') { Object.assign(state.prefs, request.postDataJSON()); return json({ prefs: state.prefs, limits: boot.limits }); }
     if (url.pathname === '/api/site-memory') return json({ memories: [], maxSites: 100, maxInstructions: 4000 });
@@ -139,6 +140,29 @@ const look = (frame, src) => frame.evaluate(async src => {
   const [r, , b] = g.getImageData(c.width >> 1, c.height >> 1, 1, 1).data;
   return { w: im.naturalWidth, h: im.naturalHeight, colour: r > 200 && b < 60 ? 'red' : b > 200 && r < 60 ? 'blue' : `rgb ${r} ${b}` };
 }, src);
+
+browserTest('GPT-6 Luna is selectable in the bookmark and sends page text and browser tools without a new bookmark', async t => {
+  const f = await fixture(t, { prefs: { model: 'openai' }, models: [{ key: 'openai', label: 'GPT-6 Luna' }] });
+  const p = await f.panel();
+  assert.equal(await p.frame.locator('#modelName').innerText(), 'GPT-6 Luna');
+  assert.equal(await p.frame.locator('#actPill').isVisible(), true);
+  await p.frame.locator('#modelBtn').click();
+  const model = p.frame.locator('#modelMenu [role=menuitemradio]', { hasText: 'GPT-6 Luna' });
+  assert.equal(await model.getAttribute('aria-checked'), 'true');
+  assert.equal(await model.isDisabled(), false);
+  await model.click();
+  await p.ask();
+  const request = await p.frame.evaluate(() => window.__chatBody);
+  assert.equal(request.model, 'openai'); assert.equal(request.actions, true);
+  assert.match(request.page.text, /slotted light/);
+  await p.push({ t: 'act', id: 'luna-read', name: 'get_page_text', input: {}, wait: 20000, ask: false });
+  await f.waitActs(1);
+  assert.match(f.acts()[0].result.text, /Shadow para/);
+  await p.push({ t: 'd', v: 'Read the page with Luna.' });
+  await p.push({ ...done, model: 'GPT-6 Luna' });
+  await p.frame.locator('.msg.bot .meta').waitFor();
+  assert.match(await p.frame.locator('.msg.bot .meta').innerText(), /GPT-6 Luna/);
+});
 
 browserTest('read_page sees open shadow DOM, same-origin frames and ::before text, masks protected values, and marks what only a screenshot shows', async t => {
   const f = await fixture(t);
