@@ -1,0 +1,70 @@
+// pagebot extension's service worker. It does two small things: the toolbar button (and Alt+Shift+P, and "Ask pagebot" on
+// selected text) opens pagebot in the side panel, and when a side panel closes in the middle of a step, it lets go of any key that step held and detaches the
+// debugger, so nothing is left attached to a tab. It never listens to web pages or other extensions.
+'use strict';
+chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+// a browser without the side panel: the same page in a small window that works on the window it was opened from
+const openFor = tab => {
+  if (chrome.sidePanel) chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
+  else chrome.windows.create({ url: 'sidepanel.html?win=' + tab.windowId, type: 'popup', width: 440, height: 760 });
+};
+if (!chrome.sidePanel) chrome.action.onClicked.addListener(openFor);
+// "Ask pagebot" on selected text opens the panel; the page keeps the selection, and the panel shows it and sends it with the
+// next message. It's offered only on web pages (pagebot never reads file:// and the browser's own pages).
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.removeAll(() => chrome.contextMenus.create({ id: 'ask', title: 'Ask pagebot', contexts: ['selection'], documentUrlPatterns: ['http://*/*', 'https://*/*'] }, () => void chrome.runtime.lastError));
+});
+chrome.contextMenus.onClicked.addListener((info, tab) => { if (info.menuItemId === 'ask' && tab) openFor(tab); });
+
+const PANEL = chrome.runtime.getURL('sidepanel.html');
+// what each open panel has attached or held: tab → { keys, mouse, x, y }, also kept in session storage for a worker that restarts
+const panels = new Map(); // port → Map(tabId → state)
+async function save() {
+  const all = {};
+  for (const tabs of panels.values()) for (const [id, s] of tabs) all[id] = s;
+  await chrome.storage.session.set({ dbg: all }).catch(() => {});
+}
+const KEY = { Shift: ['ShiftLeft', 16], Control: ['ControlLeft', 17], Alt: ['AltLeft', 18], Meta: ['MetaLeft', 91] };
+async function cleanUp(tabId, s) {
+  if (!s.dbg && !(s.keys || []).length) return; // (only a pressed mouse button: nothing to do, see below)
+  const target = { tabId };
+  try { await chrome.debugger.attach(target, '1.3'); } catch (e) { if (!/already attached/i.test(e?.message || '')) return; } // gone, or still ours from the step
+  const send = (m, p) => chrome.debugger.sendCommand(target, m, p).catch(() => {});
+  // A mouse button a step pressed is never let go of over the page: that would finish a click (or follow a link) after
+  // pagebot has stopped. It's left as it is; the page's next real click starts afresh. Held keys are let go.
+  for (const k of s.keys || []) for (const part of String(k).split('+').reverse()) {
+    const name = { ctrl: 'Control', control: 'Control', shift: 'Shift', alt: 'Alt', option: 'Alt', meta: 'Meta', cmd: 'Meta', command: 'Meta', super: 'Meta', win: 'Meta' }[part.toLowerCase()];
+    if (name) await send('Input.dispatchKeyEvent', { type: 'keyUp', key: name, code: KEY[name][0], windowsVirtualKeyCode: KEY[name][1] });
+    else await send('Input.dispatchKeyEvent', { type: 'keyUp', key: part.length === 1 ? part : part[0].toUpperCase() + part.slice(1) });
+  }
+  await chrome.debugger.detach(target).catch(() => {});
+}
+chrome.runtime.onConnect.addListener(port => {
+  if (port.name !== 'panel' || port.sender?.id !== chrome.runtime.id || !String(port.sender?.url || '').startsWith(PANEL)) return port.disconnect();
+  const tabs = new Map();
+  panels.set(port, tabs);
+  port.onMessage.addListener(m => {
+    if (!m || typeof m !== 'object' || !Number.isInteger(m.tabId)) return;
+    const s = tabs.get(m.tabId) || { dbg: false, keys: [], mouse: false };
+    if (m.t === 'dbg') s.dbg = !!m.on;
+    else if (m.t === 'held') Object.assign(s, { keys: Array.isArray(m.keys) ? m.keys.slice(0, 4).map(String) : [], mouse: !!m.mouse, x: Number(m.x) || s.x || 0, y: Number(m.y) || s.y || 0 });
+    else return;
+    if (s.dbg || s.mouse || s.keys.length) tabs.set(m.tabId, s); else tabs.delete(m.tabId);
+    save();
+  });
+  port.onDisconnect.addListener(async () => {
+    panels.delete(port);
+    await save();
+    for (const [tabId, s] of tabs) await cleanUp(tabId, s);
+  });
+});
+// A worker that starts with a record but no open panel: that panel went away while this worker was asleep. Only tabs it
+// recorded are touched, so a debugger someone else attached (DevTools) is left alone.
+chrome.storage.session.get('dbg').then(async ({ dbg = {} }) => {
+  const ids = Object.keys(dbg);
+  if (!ids.length) return;
+  const open = chrome.runtime.getContexts ? (await chrome.runtime.getContexts({})).some(c => String(c.documentUrl || '').startsWith(PANEL)) : true;
+  if (open) return;
+  for (const id of ids) await cleanUp(Number(id), dbg[id]);
+  await chrome.storage.session.set({ dbg: {} });
+}).catch(() => {});

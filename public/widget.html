@@ -10,7 +10,6 @@
   var t = 'ember';
   try { t = localStorage.getItem('pb_theme') || t; } catch (e) {}
   if (t === 'auto') t = matchMedia('(prefers-color-scheme: light)').matches ? 'paper' : 'ember';
-  if (new URLSearchParams(location.search).get('host') === 'extension' && (t === 'glass' || t === 'clear')) t = 'ember';
   document.documentElement.setAttribute('data-theme', t);
   try { var m = localStorage.getItem('pb_motion'); if (m === 'less') document.documentElement.classList.add('calm'); else if (m === 'full') document.documentElement.classList.add('motion-full'); } catch (e) {}
   try { var q = /[?&]density=(compact|comfortable)/.exec(location.search); if (q) localStorage.setItem('pb_density', q[1]); if (localStorage.getItem('pb_density') === 'compact') document.documentElement.classList.add('dense'); } catch (e) {} // Settings > Appearance > Density (?density= is for tests and debugging)
@@ -43,7 +42,14 @@
   // A v11 bookmark works the default out from its window and just keeps it unless we send one. Older bookmarks can't, so for
   // them (and only when nothing is saved) we send a size worked out from the screen: 50% wide, and 72% of the screen's height
   // since the browser's own bars take the rest of it. The bookmark clamps whatever it's sent to the window.
-  var embedded = window.parent !== window, extensionHost = embedded && new URLSearchParams(location.search).get('host') === 'extension', hostV = embedded && !extensionHost ? Number(new URLSearchParams(location.search).get('v')) || 1 : 0;
+  // The browser extension's side panel: asked for in the address, and really framed by pagebot's extension page (no other
+  // extension can frame /widget: its frame-ancestors names this one). Tests stand in for the extension on the extFramed line.
+  var EXT_PARENT = (location.ancestorOrigins && location.ancestorOrigins[0]) || '';
+  var extFramed = EXT_PARENT === 'chrome-extension://inknjdpepdgianddhnnpkdbpkjbbiomg' && location.ancestorOrigins.length === 1;
+  var ext = window.parent !== window && /[?&]host=ext(&|$)/.test(location.search) && extFramed;
+  E.ext = ext; E.extParent = ext ? EXT_PARENT : '';
+  if (ext) document.documentElement.classList.add('nohost'); // nothing shows through from behind, as in /chat
+  var embedded = window.parent !== window && !ext, hostV = embedded ? Number(new URLSearchParams(location.search).get('v')) || 1 : 0;
   E.screenSize = function () {
     var aw = screen.availWidth || 0, ah = screen.availHeight || 0;
     if (!(aw > 0 && ah > 0)) return null;
@@ -859,6 +865,11 @@ body.standalone #pageBtn,body.standalone #pagePill{display:none!important}
 .acard button{color:var(--text);font-size:12px;cursor:pointer}
 .acard button:hover{border-color:var(--focus)}
 .acard .aok{background:var(--accent);border-color:transparent;color:var(--on-accent);font-weight:600}
+.acard .acode{margin:6px 0 0;padding:7px 9px;max-height:12em;overflow:auto;border-radius:8px;background:var(--code);font:12px/1.45 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
+ol.extsteps{margin:10px 2px 0;padding:12px 14px 12px 34px;border-radius:16px;background:var(--tint);font-size:13.5px;line-height:1.5}
+ol.extsteps li+li{margin-top:8px}
+ol.extsteps code{padding:1px 5px;border-radius:6px;background:var(--code);font:12.5px var(--mono)}
+ol.extsteps .ghost{min-height:28px;padding:0 10px;margin-left:2px;font-size:12.5px}
 :root[data-theme=clear] .acard{background:var(--pop);text-shadow:none}
 :root[data-theme=glass] .acard{background:var(--pop)}
 .aopts{display:flex;flex-direction:column;gap:6px}
@@ -1759,7 +1770,6 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
           <section class="sec card row s" id="companionRow"><div class="rt"><b class="rl" id="companionLbl">Your companion</b><span class="rh">Choose who keeps you company between questions. Saved on this browser.</span></div><div class="rc"><div id="companionSeg" role="radiogroup" aria-labelledby="companionLbl"></div></div></section>
           <section class="sec" id="themeGallery" role="radiogroup" aria-label="Theme"><h3>Theme</h3>
             <div class="themes" id="themes"></div>
-            <p class="fine" id="extensionThemeNote" hidden>See-through themes apply to the floating bookmark. This side panel uses a solid background to keep your chat readable.</p>
             <p class="fine" id="glassNote" hidden>To make <span id="glassName">Glass</span> see-through on every site, including dark-mode ones, drag the button from the pagebot homepage to your bookmarks bar again.</p></section>
           <section class="sec"><h3>Motion</h3>
             <div class="card"><div class="row s"><div class="rt"><b class="rl" id="motLbl">Movement</b><span class="rh">Less turns off fades, slides and companion movement to save power. “Match my device” follows your device’s setting.</span></div><div class="rc"><div class="seg" id="motionSeg" role="radiogroup" aria-labelledby="motLbl"></div></div></div></div></section>
@@ -1832,9 +1842,25 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
             <div class="card">
               <div class="row"><div class="rt"><b class="rl">Protected fields</b><span class="rh">pagebot never reads or types into password, payment card or file fields.</span></div></div>
               <div class="row"><div class="rt"><b class="rl">A step limit</b><span class="rh">A question takes at most 40 steps.</span></div></div>
-              <div class="row"><div class="rt"><b class="rl">Leaving the page</b><span class="rh">It asks before a click that leaves the page or opens another site.</span></div></div>
+              <div class="row"><div class="rt"><b class="rl">Leaving the page</b><span class="rh" id="actLeave">It asks before a click that leaves the page or opens another site.</span></div></div>
             </div>
             <p class="fine" id="actHow">Turn it on from the + menu: “Click and type for me”.</p>
+          </section>
+          <section class="sec" id="extSec"><h3>Get the browser extension</h3>
+            <div class="card">
+              <div class="row"><div class="rt"><b class="rl" id="extLead">pagebot in your browser’s side panel</b><span class="rh" id="extHint">Works in Chrome, Edge and Brave on a computer. pagebot stays open as you move between pages and tabs, and it can do what the bookmark can’t: go to other pages, open and switch tabs, type and press keys, click anything it sees in a screenshot, and take screenshots without asking you to share the tab.</span></div>
+                <div class="rc"><a class="ghost pri alink" id="extGet" href="/pagebot-extension.zip" download>Download</a></div></div>
+            </div>
+            <ol class="extsteps" id="extSteps">
+              <li>Unzip <b>pagebot-extension.zip</b>. You get a folder called <b>pagebot-extension</b>.</li>
+              <li>In a new tab, go to <code>chrome://extensions</code> <button class="ghost" type="button" id="extCopy">Copy</button> (in Edge it’s <code>edge://extensions</code>).</li>
+              <li>Turn on <b>Developer mode</b>. It’s a switch at the top right (in Edge, in the left column).</li>
+              <li>Click <b>Load unpacked</b> and choose the <b>pagebot-extension</b> folder.</li>
+              <li>Pin pagebot: click the puzzle piece next to the address bar, then the pin next to pagebot (in Edge, the eye).</li>
+              <li>Click the pagebot button, or press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>, to open it in the side panel.</li>
+              <li>Sign in there if it asks. If you use pagebot’s chat page in this browser, you’re already signed in.</li>
+            </ol>
+            <p class="fine" id="extNote">Keep the folder: your browser loads pagebot from it. The same limits apply in the extension: it never touches password, payment card or file fields, and it always asks before it goes to another site.</p>
           </section>
         </div>
 
@@ -1933,6 +1959,7 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
               <div class="row"><div class="rt"><b class="rl">Version</b><span class="rh" id="verLine"></span></div></div>
               <div class="row" id="aboutUpd" hidden><div class="rt"><b class="rl">✨ A new version is out</b><span class="rh">Drag the button from the homepage to your bookmarks bar again to update.</span></div><div class="rc"><a class="ghost pri alink" href="/?update" target="_blank" rel="noopener">Get it ↗</a></div></div>
               <div class="row"><div class="rt"><b class="rl">Homepage</b><span class="rh">Where to get the bookmark, again, on another browser or computer.</span></div><div class="rc"><a class="ghost alink" href="/" target="_blank" rel="noopener">Open ↗</a></div></div>
+              <div class="row" id="aboutExt"><div class="rt"><b class="rl">Browser extension</b><span class="rh">Get it, and how to set it up.</span></div><div class="rc"><button class="ghost" type="button" data-go="actions">Open</button></div></div>
             </div>
           </section>
           <section class="sec"><h3>Keyboard shortcuts</h3>
@@ -2030,23 +2057,24 @@ kbd{border-radius:8px;border-color:var(--line);background:var(--tint)}
 const $ = s => document.querySelector(s);
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 const qs = new URLSearchParams(location.search);
-const embedded = window.parent !== window;
-const extensionHost = embedded && qs.get('host') === 'extension';
-const popup = !embedded && !!window.opener;
-const target = embedded ? window.parent : (popup ? window.opener : null);
+// ext: the browser extension's side panel (README "Browser extension"), which runs page steps itself and survives page loads
+const ext = !!window.__pbEarly?.ext, extParent = ext ? window.__pbEarly.extParent : '', extV = ext ? Number(qs.get('ext')) || 0 : 0;
+const embedded = window.parent !== window && !ext;
+const popup = !embedded && !ext && !!window.opener;
+const target = embedded || ext ? window.parent : (popup ? window.opener : null);
 const ver = Number(qs.get('v')) || 0;
-const hostV = embedded && !extensionHost ? ver || 1 : 0;
+const hostV = embedded ? ver || 1 : 0;
 const hostV2 = hostV >= 2; // bookmarklet that can move, minimize and go full screen
-const hostV3 = extensionHost || hostV >= 3; // ...and tells us when the panel opens and hides
+const hostV3 = hostV >= 3; // ...and tells us when the panel opens and hides
 const hostV4 = hostV >= 4; // ...and can blur the page behind the panel for the glass theme
 const hostV5 = hostV >= 5; // ...and marks the panel light, so Chrome doesn't put a solid backing behind glass on dark-mode sites
 const hostV6 = hostV >= 6; // ...and can drop the panel's shadow for the clear theme
 const hostV7 = hostV >= 7; // ...and can resize the panel and dock it to the side
 // v7 pages (also behind the pop-up window) send highlights as you make them and can find a quoted passage
-const pageV7 = extensionHost || hostV7 || (popup && ver >= 7);
+const pageV7 = hostV7 || (popup && ver >= 7) || ext;
 const hostV13 = hostV >= 13; // ...and can turn the panel into the panda: a see-through frame (min with pet:true)
-const pageV12 = extensionHost || hostV >= 12 || (popup && ver >= 12); // ...and can run page actions with the browser toolset (bookmarklet v12: the page tree, scrolling, hovering)
-const standalone = !embedded && !popup;
+const pageV12 = hostV >= 12 || (popup && ver >= 12) || ext; // ...and can run page actions with the browser toolset (bookmarklet v12: the page tree, scrolling, hovering)
+const standalone = !embedded && !popup && !ext;
 const sysCalm = matchMedia('(prefers-reduced-motion: reduce)');
 let calm = sysCalm.matches; // Settings > Appearance > Animations can override it (see applyMotion)
 const body = document.body;
@@ -2131,32 +2159,37 @@ function ask(type, extra = {}, ms = 2500) {
   if (!target) return Promise.resolve(null);
   return new Promise(res => {
     const id = ++seq; pending.set(id, res);
-    try { target.postMessage({ ...extra, type, id }, '*'); } catch { pending.delete(id); return res(null); }
+    try { target.postMessage({ ...extra, type, id }, ext ? extParent : '*'); } catch { pending.delete(id); return res(null); }
     setTimeout(() => { if (pending.has(id)) { pending.delete(id); res(null); } }, ms);
   });
 }
-function tell(type, extra = {}) { if (target) try { target.postMessage({ ...extra, type }, '*'); } catch {} }
+function tell(type, extra = {}) { if (target) try { target.postMessage({ ...extra, type }, ext ? extParent : '*'); } catch {} } // (only the extension's own page hears the side panel's messages)
 // The bookmark answers 'ready' with 'open'. That first one is this load's own opening, whose boot is already here or on
 // its way, so it doesn't ask for another (boots are limited to 60 a minute). Any later 'open' is a reopen.
 let opening = hostV3;
+let tabAt = null; // the address the side panel last said its window shows: its highlight is cleared only for another one
 const fromHost = e => {
-  if (!target || e.source !== target) return;
+  if (!target || e.source !== target || ext && e.origin !== extParent) return;
   const d = e.data || {};
   if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); }
   else if (d.type === 'restore') { setMin(false); claim(); }
   else if (d.type === 'open') { petHostVisible(true); claim(); if (opening) opening = false; else refreshOnOpen(); if (histOpen) loadHist(); } // history left open while the panel was hidden gets fresh
   else if (d.type === 'hidden') { opening = false; petHostVisible(false); release(); }
   else if (d.type === 'sel') setSel(String(d.text || ''));
+  else if (d.type === 'tab' && ext) { if (String(d.url || '') !== tabAt) { tabAt = String(d.url || ''); setSel(''); } if (d.url) updateSiteContext({ page: { url: String(d.url), title: String(d.title || '') } }); else { currentSite = ''; renderMemoryControls(); } } // the side panel's window showed another tab
 };
 addEventListener('message', fromHost);
+// the extension says which of the browser toolset's members it can run (the server offers only those)
+let extTools = [];
+if (ext) ask('hello', {}, 4000).then(r => { if (Array.isArray(r?.tools)) extTools = r.tools.filter(n => typeof n === 'string').slice(0, 40); });
 removeEventListener('message', early.hear); // what the head script kept is handled at the very end, once everything it touches exists
 removeEventListener('click', early.close); removeEventListener('keydown', early.close); // closePanel() takes over from here
 // 'ready' (the panel's saved place, size and docking) is worked out, and normally already sent, by the head script
 const screenSize = early.screenSize;
 let docked = early.dock, dockW = early.dockW; // 0: nothing saved
-if (!early.ready) { early.ready = true; tell('ready', early.msg); }
-// the pop-up window only hears about highlights made after it opened, so ask for the current one
-if (popup && pageV7) ask('page', { max: 1 }).then(r => { if (r) setSel(r.selection || ''); });
+if (!early.ready && !ext) { early.ready = true; tell('ready', early.msg); }
+// the pop-up window (and the side panel) only hear about highlights made after they opened, so ask for the current one
+if ((popup || ext) && pageV7) ask('page', { max: 1 }).then(r => { if (r) setSel(r.selection || ''); });
 
 // ---- themes ----
 const THEMES = [
@@ -2176,7 +2209,7 @@ const THEMES = [
   ['clear', 'Clear', 'transparent', '#9cc2ff', 'transparent', '#ffffff'],
 ];
 const light = matchMedia('(prefers-color-scheme: light)');
-const resolveTheme = t => extensionHost && (t === 'glass' || t === 'clear') ? 'ember' : t === 'auto' ? (light.matches ? 'paper' : 'ember') : t;
+const resolveTheme = t => t === 'auto' ? (light.matches ? 'paper' : 'ember') : t;
 // the gallery is a radio group: the chosen swatch is the one tab stop, and arrow keys move between the others
 function syncThemes(t) {
   const selected = [...document.querySelectorAll('.sw')].find(b => b.dataset.t === t);
@@ -2435,7 +2468,7 @@ function markQuotes(out, text, ev) {
 // Optional: why() says why it can't run right now (the list greys it out with that reason), and hide() leaves it out of
 // the list where it can never work. No command ever changes a permission setting. Other features add theirs with one
 // line here, as /history, /pdf and /actions do below; the name must also go in BUILTIN_COMMANDS in server.js.
-const canShoot = extensionHost || !!navigator.mediaDevices?.getDisplayMedia;
+const canShoot = ext || !!navigator.mediaDevices?.getDisplayMedia; // (the extension takes them itself)
 const noShot = () => canShoot ? '' : 'This browser can’t take screenshots for pagebot. You can paste one instead (Ctrl/Cmd+V).';
 const BUILTINS = [
   { name: 'summarize', icon: '📝', hint: standalone ? 'Summarize what you add or paste' : 'Summarize this page', starter: 'Summarize this page', prompt: w => `Summarize ${w}.` },
@@ -2879,9 +2912,11 @@ $('#newBtn').onclick = startNewChat;
 function closePanel() {
   if (actRun) ctrl?.abort(); // an answer acting on the page stops when you close the panel
   if (embedded) { release(); tell('close'); } // the bookmarklet answers with "hidden" once it has faded out
+  else if (ext) tell('close'); // the side panel closes (the browser's own button closes it too)
   else if (popup) window.close();
 }
 $('#closeBtn').onclick = closePanel;
+if (ext) $('#closeBtn').title = 'Close pagebot';
 if (standalone) {
   $('#closeBtn').hidden = true;
   body.classList.add('standalone');
@@ -3152,18 +3187,20 @@ $('#annX').onclick = () => {
 
 // ---- a newer pagebot than the bookmark that opened this panel: point to the homepage to drag the new one ----
 let updLater = false; // "not now" lasts until the panel loads again
-const outdated = () => !standalone && cfg?.version > ver;
+const outdated = () => !standalone && !ext && cfg?.version > ver;
+const extOld = () => ext && cfg?.extVersion > extV; // the server has a newer browser extension than this side panel runs
+if (ext) { // the banner and its link point to Settings, where the steps to update are
+  $('#upd span').textContent = '✨ There’s a newer pagebot extension. Updating takes a minute.';
+  $('#updGo').textContent = 'How ↗'; $('#updGo').removeAttribute('target');
+  $('#updGo').onclick = e => { e.preventDefault(); openSheet(); selectCat('actions', true, true); $('#extSec').scrollIntoView({ block: 'nearest' }); };
+}
 function renderUpd() {
-  $('#upd').hidden = !(view === 'chat' && outdated() && !updLater);
+  $('#upd').hidden = !(view === 'chat' && (outdated() || extOld()) && !updLater);
   const v = $('#verLine'); // the version, in small print at the bottom of the settings
-  v.textContent = cfg?.version ? `pagebot v${cfg.version}` : '';
-  if (extensionHost) {
-    $('#updGo').href = '/extension'; $('#updGo').textContent = 'Get the extension update ↗';
-    $('#upd>span').textContent = 'There’s a newer Pagebot extension package.';
-  }
+  v.textContent = cfg?.version ? `pagebot v${cfg.version}${ext ? ` · extension v${extV}` : ''}` : '';
   if (outdated()) {
-    v.append(` · your ${extensionHost ? 'extension package' : 'bookmark'} is ${ver ? 'v' + ver : 'older'} · `);
-    const a = el('a', '', 'Update ↗'); a.href = extensionHost ? '/extension' : '/?update'; a.target = '_blank'; a.rel = 'noopener'; v.appendChild(a);
+    v.append(` · your bookmark is ${ver ? 'v' + ver : 'older'} · `);
+    const a = el('a', '', 'Update ↗'); a.href = '/?update'; a.target = '_blank'; a.rel = 'noopener'; v.appendChild(a);
   }
 }
 $('#updX').onclick = () => { updLater = true; renderUpd(); $('#q').focus(); };
@@ -3678,8 +3715,7 @@ function renderPrefs() {
   const tokHelp = $('#tokHelp'); // (only the owner's wording talks about tokens)
   tokHelp.textContent = isUser() ? 'How long answers can be. Longer answers use more of today’s limit.' : 'The longest a reply can be, in tokens (a token is about three quarters of a word). Longer answers cost a little more.';
   syncThemes(prefs.theme);
-  $('#extensionThemeNote').hidden = !extensionHost || !['glass', 'clear'].includes(prefs.theme);
-  $('#glassNote').hidden = !(!extensionHost && embedded && (prefs.theme === 'glass' && !hostV5 || prefs.theme === 'clear' && !hostV6));
+  $('#glassNote').hidden = !(embedded && (prefs.theme === 'glass' && !hostV5 || prefs.theme === 'clear' && !hostV6));
   $('#glassName').textContent = prefs.theme === 'clear' ? 'Clear' : 'Glass';
   renderActs();
   renderPdf(); // pdf uploads (it fits the pills too)
@@ -3707,7 +3743,7 @@ $('#webPill').onclick = () => { savePrefs({ web: false }); q.focus(); };
 // payment card and file fields by itself.
 let actRun = null; // the answer that's acting on the page right now
 function actWhy() { // why page actions can't be used here ('' when they can)
-  if (standalone) return 'They need a web page. Open pagebot from your bookmark while you’re on one';
+  if (standalone) return 'They need a web page. Open pagebot from your bookmark or the extension while you’re on one';
   if (isUser() && cfg.user?.allowActions === false) return 'Not on for you. Ask the owner';
   if (!pageV12) return 'Drag the new bookmark from the homepage to use them';
   if (prefs.model === 'openrouter') return 'Choose Claude or an OpenAI model for page actions';
@@ -3722,6 +3758,7 @@ function renderActs() {
   p.hidden = !actsOn(); p.classList.toggle('auto', auto); $('#actTag').hidden = !auto;
   p.title = `Page actions are on: pagebot can click and type on this page${auto ? ' without asking first' : ', asking you first'}. Click to turn them off.`;
   $('#actSec').hidden = isUser() && cfg.user?.allowActions === false;
+  renderExt();
   // Settings: the same reason the + menu gives, and no permission choices to make where they can't apply (an old bookmark, or /chat)
   const gone = standalone || !pageV12, av = $('#actAvail');
   av.hidden = !why; $('#actHow').hidden = !!why;
@@ -3750,7 +3787,8 @@ $('#actNo').onclick = () => { $('#actWarn').hidden = true; $('#actSkip').focus()
 // the toolset's members (and, for older answers' steps, the names before it)
 const ACT_ICON = { screenshot: '📸', zoom: '🔍', read_page: '📄', find: '🔎', get_page_text: '📃', scroll: '↕', scroll_to: '↧', hover: '👆', mouse_move: '➜', wait: '⏳', highlight: '🖍',
   left_click: '🖱', right_click: '🖱', middle_click: '🖱', double_click: '🖱', triple_click: '🖱', left_click_drag: '✋', left_mouse_down: '🖱', left_mouse_up: '🖱',
-  type: '⌨', key: '⌨', hold_key: '⌨', form_input: '☑', find_elements: '🔎', fill: '⌨', select: '☰', check: '☑', click: '🖱' };
+  type: '⌨', key: '⌨', hold_key: '⌨', form_input: '☑', find_elements: '🔎', fill: '⌨', select: '☰', check: '☑', click: '🖱',
+  navigate: '↪', new_tab: '＋', list_tabs: '☰', switch_tab: '⇆', close_tab: '✕', read_console: '⚙', read_network: '⇅', javascript_exec: '{}' };
 // the members that ask first: left_click and form_input on a ref, run by the bookmarklet's click/fill/select/check (its 'act'),
 // which refuses protected fields and holds anything that leaves the page to an approval of where it goes
 const actRef = t => { const m = /^ref_(\d{1,9})$/.exec(t?.ref || ''); return m ? +m[1] : 0; };
@@ -3813,18 +3851,21 @@ function actSet(line, text, how) { line.className = 'astep ' + (how || 'live'); 
 // the approval card stands in for the step line until you choose. It never takes the keyboard (see focus, above).
 function actAsk(run, line, now, info, wait) {
   return new Promise(resolve => {
-    const go = info.nav || info.tab, card = el('div', 'acard' + (go ? ' nav' : '')), q = el('div', 'aq'), ab = el('div', 'ab');
+    // always: no "Allow all" (leaving the page in the bookmark; another site, a tab pagebot didn't open or a script in the extension)
+    const go = info.nav || info.tab, always = info.always ?? !!go, card = el('div', 'acard' + (go || always ? ' nav' : '')), q = el('div', 'aq'), ab = el('div', 'ab');
     q.append(el('span'), el('span')); q.firstChild.textContent = line.firstChild.textContent; q.lastChild.textContent = now;
     card.appendChild(q);
     // what the page itself calls the control, when that differs from the label the model was shown: a label can say "Cancel" on a "Pay now" button
     if (info.text) card.appendChild(el('div', 'ad')).textContent = `The ${ACT_KIND[info.role] || 'element'} itself says “${clip(info.text, 60)}”.`;
-    if (go) {
+    if (info.code) { const pre = card.appendChild(el('pre', 'acode')); pre.textContent = info.code; pre.tabIndex = 0; } // the whole script, as it will run
+    if (info.warn) card.appendChild(el('div', 'aw')).textContent = info.warn;
+    else if (go) {
       let to = ''; try { const u = new URL(go); to = u.hostname.replace(/^www\./, '') + clip(u.pathname.length > 1 ? u.pathname : '', 40); } catch {}
-      card.appendChild(el('div', 'aw')).textContent = info.nav ? (to ? `⚠ This leaves the page (for ${to}). ` : '⚠ This runs a script that may leave the page. ') + (popup ? 'pagebot can’t follow it there.' : 'pagebot closes with it.')
+      card.appendChild(el('div', 'aw')).textContent = info.nav ? (to ? `⚠ This leaves the page (for ${to}). ` : '⚠ This runs a script that may leave the page. ') + (popup ? 'pagebot can’t follow it there.' : ext ? 'pagebot stays open.' : 'pagebot closes with it.')
         : `⚠ This opens ${to || 'another site'} in a new tab.`;
     }
     const done = v => { if (!run.asks.delete(done)) return; clearTimeout(late); card.remove(); line.hidden = false; resolve(v); };
-    for (const [label, cls, v] of [['Allow', 'aok', 'allow'], ['Skip', 'ano', 'skip'], ...(go ? [] : [['Allow all for this answer', 'aall', 'all']])]) {
+    for (const [label, cls, v] of [['Allow', 'aok', 'allow'], ['Skip', 'ano', 'skip'], ...(always ? [] : [['Allow all for this answer', 'aall', 'all']])]) {
       const b = el('button', cls); b.type = 'button'; b.textContent = label; b.onclick = () => done(v); ab.appendChild(b);
     }
     card.appendChild(ab);
@@ -3837,28 +3878,38 @@ function actAsk(run, line, now, info, wait) {
 // The frame is scaled to the viewport's CSS pixels, then down so the long edge fits SHOT_MAX; that scale (run.shot.k) holds for
 // the whole answer, so every screenshot is the same size and the model's points turn back into CSS pixels (toCss).
 // zoom crops a fresh full-resolution frame. Browsers start sharing a tab only from a click, so the first time it's a card.
-async function actShot(run, line, region, wait) {
-  if (!extensionHost && !navigator.mediaDevices?.getDisplayMedia) return { error: 'Screenshots aren’t available in this browser. Use read_page, find or get_page_text instead.' };
+async function actShot(run, line, region, wait, ev) {
+  if (!ext && !navigator.mediaDevices?.getDisplayMedia) return { error: 'Screenshots aren’t available in this browser. Use read_page, find or get_page_text instead.' };
   if (run.noShare) return { error: SHOT_NO };
-  const view = await tool('view', {}, 3000);
+  const view = ext ? await pageAsk(run, line, ev, 'tool', { name: 'view', input: {} }, 6000) : await tool('view', {}, 3000);
   if (run.stale()) return null;
+  if (view?.denied) return view;
+  if (ext && view?.error) return { error: String(view.error) };
   if (!(view?.w > 0 && view?.h > 0)) return { error: 'The page didn’t say how big it is, so a screenshot can’t be lined up with it.' };
   let c = null, e = null;
-  if (stream?.active || extensionHost && run.extensionCapture) { try { c = await grab(); } catch (x) { e = x; } }
+  if (ext) { // the extension takes it itself: no sharing, and the panel doesn't hide
+    const r = await pageAsk(run, line, ev, 'shot', {}, 8000);
+    if (run.stale()) return null;
+    if (r?.denied) return r;
+    if (!r?.image) return { error: String(r?.error || 'The screenshot didn’t come through.') };
+    try { c = await imgCanvas(r.image); } catch (x) { e = x; }
+  } else if (stream?.active) { try { c = await grab(); } catch (x) { e = x; } }
   else {
     const v = await shareCard(run, line, wait);
     if (v === 'stop' || run.stale()) return null;
     if (v === 'no') { run.noShare = true; return { error: SHOT_NO }; }
     if (v === 'late') return { error: 'The user didn’t answer in time, so there’s no screenshot. Use read_page or find instead.' };
     ({ c = null, e = null } = v);
-    if (extensionHost && c) run.extensionCapture = true;
   }
   if (embedded) tell('show');
   if (e?.name === 'NotAllowedError') { run.noShare = true; return { error: 'The tab wasn’t shared (the user or the browser said no), so screenshots aren’t available. Use read_page, find or get_page_text instead.' }; }
   if (e || !c) return { error: `The screenshot didn’t work: ${clip(e?.message || e || 'no frame', 200)}` };
-  if (!run.shot) run.shot = { k: Math.min(1, SHOT_MAX / Math.max(view.w, view.h)) };
-  const k = run.shot.k, fx = c.width / view.w, fy = c.height / view.h; // frame pixels per CSS pixel (the device pixel ratio, near enough)
-  let sx = 0, sy = 0, sw = c.width, sh = c.height, w = Math.max(1, Math.round(view.w * k)), h = Math.max(1, Math.round(view.h * k));
+  // In the extension the scale comes from the width alone, and the height from the image: Chrome's "started debugging" bar
+  // can take some of the tab's height between asking its size and taking the picture, and widths never change.
+  const vh = ext ? c.height / (c.width / view.w) : view.h;
+  if (!run.shot) run.shot = { k: Math.min(1, SHOT_MAX / Math.max(view.w, vh)) };
+  const k = run.shot.k, fx = c.width / view.w, fy = ext ? fx : c.height / view.h; // frame pixels per CSS pixel (the device pixel ratio, near enough)
+  let sx = 0, sy = 0, sw = c.width, sh = c.height, w = Math.max(1, Math.round(view.w * k)), h = Math.max(1, Math.round(vh * k));
   if (region) {
     const [x0, y0, x1, y1] = region;
     sx = x0 / k * fx; sy = y0 / k * fy; sw = (x1 - x0) / k * fx; sh = (y1 - y0) / k * fy;
@@ -3875,11 +3926,11 @@ function shareCard(run, line, wait) {
     const card = el('div', 'acard share'), q = el('div', 'aq'), ab = el('div', 'ab'), yes = el('button', 'aok'), no = el('button', 'ano');
     q.append(el('span'), el('span')); q.firstChild.textContent = '📸'; q.lastChild.textContent = 'pagebot wants to see this page';
     card.appendChild(q);
-    card.appendChild(el('div', 'ad')).textContent = extensionHost ? 'Allow screenshots of this tab for this answer. The browser captures only the page, without the side panel.' : (embedded ? 'Share this tab once and pagebot can take screenshots of it while you chat; the panel hides for each one.'
+    card.appendChild(el('div', 'ad')).textContent = (embedded ? 'Share this tab once and pagebot can take screenshots of it while you chat; the panel hides for each one.'
       : 'Pick the tab you opened pagebot from, and pagebot can take screenshots of it while you chat.') + ' Stop sharing any time from the + menu.';
-    if (!extensionHost && (prefs.actionsAuto || run.all)) card.appendChild(el('div', 'ad')).textContent = '“Don’t ask before clicking” is on, but your browser needs this one click from you before a tab can be shared.';
+    if (prefs.actionsAuto || run.all) card.appendChild(el('div', 'ad')).textContent = '“Don’t ask before clicking” is on, but your browser needs this one click from you before a tab can be shared.';
     const done = v => { if (!run.asks.delete(done)) return; clearTimeout(late); card.remove(); line.hidden = false; resolve(v); };
-    yes.type = no.type = 'button'; yes.textContent = extensionHost ? 'Allow screenshots' : 'Share this tab'; no.textContent = 'Not now';
+    yes.type = no.type = 'button'; yes.textContent = 'Share this tab'; no.textContent = 'Not now';
     // getDisplayMedia straight from the click, while the browser still counts it as one
     yes.onclick = () => { yes.disabled = no.disabled = true; grab().then(c => done({ c }), e => done({ e })); };
     no.onclick = () => done('no');
@@ -3910,18 +3961,23 @@ async function pageAct(run, ev) {
   const name = String(ev.name || ''), input = ev.input && typeof ev.input === 'object' ? ev.input : {};
   const line = actLine(run.bot, name);
   const post = body => api('/api/chat/act', { id: ev.id, ...body }).catch(() => {});
-  const fail = (text, why) => { actSet(line, `${text} — ${why.replace(/\. .*$/s, '').replace(/\.$/, '')}`, 'fail'); return post({ result: { error: why }, note: text }); };
+  const fail = (text, why) => { actSet(line, `${text} — ${toPerson(why).replace(/\. .*$/s, '').replace(/\.$/, '')}`, 'fail'); return post({ result: { error: why }, note: text }); };
+  if (ext && (EXT_ROUTE.has(name) || name === 'left_click' && input.target?.type === 'coordinate')) return extAct(run, ev, name, input, line, post, fail);
   if (ev.ask) return actHand(run, ev, name, input, line, post, fail);
   const words = actRead(name, input);
   if (!words) return fail(clip(name, 40) || 'Page action', 'pagebot doesn’t know this tool.');
   const now = words[0].replace(/…$/, '');
   actSet(line, words[0]);
   let r;
-  if (name === 'screenshot' || name === 'zoom') r = await actShot(run, line, name === 'zoom' ? input.region : null, ev.wait);
+  if (name === 'screenshot' || name === 'zoom') r = await actShot(run, line, name === 'zoom' ? input.region : null, ev.wait, ev);
   else if (name === 'wait') { await actFor(run, Math.min(Number(input.duration) || 0, 30) * 1000); r = {}; }
-  else if (name === 'highlight') r = await ask('act', { name: 'hl', input }, 8000);
-  else r = await tool(name, input.target?.type === 'coordinate' ? { ...input, target: toCss(run, input.target) } : input);
+  else if (name === 'highlight') r = ext ? await pageAsk(run, line, ev, 'act', { name: 'hl', input }, 8000) : await ask('act', { name: 'hl', input }, 8000);
+  else {
+    const x = input.target?.type === 'coordinate' ? { ...input, target: toCss(run, input.target) } : input;
+    r = ext ? await pageAsk(run, line, ev, 'tool', { name, input: x }, 15000) : await tool(name, x);
+  }
   if (run.stale()) return;
+  if (r?.denied) { actSet(line, `${now} — skipped`, 'skip'); return post({ denied: true, note: now }); }
   if (!r) return fail(now, 'The page didn’t answer.');
   if (r.error) return fail(now, String(r.error));
   if (name === 'highlight' && !(r.found || []).some(Boolean)) return fail(now, 'Couldn’t find that on the page.');
@@ -3937,54 +3993,217 @@ async function actHand(run, ev, name, input, line, post, fail) {
   if (!ref || (name !== 'left_click' && name !== 'form_input')) return fail('Page action', 'That isn’t available here. Click or fill an element by its ref from read_page or find.');
   let op = 'click', x = { ref };
   actSet(line, 'Checking the page…');
+  const skipped = what => { actSet(line, `${what} — skipped`, 'skip'); return post({ denied: true, note: what }); };
   if (name === 'form_input') { // what kind of field decides how it's set
-    const peek = await ask('act', { name: 'click', input: x, dry: 1 }, 8000);
+    const peek = ext ? await pageAsk(run, line, ev, 'act', { name: 'click', input: x, dry: 1 }, 8000) : await ask('act', { name: 'click', input: x, dry: 1 }, 8000);
     if (run.stale()) return;
+    if (peek?.denied) return skipped('Set a field');
     if (!peek) return fail('Set a field', 'The page didn’t answer.');
+    if (peek.error) return fail('Set a field', String(peek.error));
     if (peek.no) return fail('Set a field', actNo(peek));
     const v = input.value;
     if (peek.role === 'select') { op = 'select'; x = { ref, option: String(v) }; }
     else if (/^(checkbox|radio|switch)$/.test(peek.role)) { op = 'check'; x = { ref, checked: truthy(v) }; }
     else { op = 'fill'; x = { ref, text: String(v) }; }
   }
-  const page = extra => ask('act', { name: op, input: x, ...extra }, 8000);
+  // (in the extension the side panel runs it, behind its checks, and waits for a page the click opens to load)
+  const page = extra => ext ? pageAsk(run, line, ev, 'act', { name: op, input: x, ...extra }, extra.dry ? 8000 : 16000) : ask('act', { name: op, input: x, ...extra }, 8000);
   const info = await page({ dry: 1 });
   if (run.stale()) return;
+  if (info?.denied) return skipped(op === 'click' ? 'Click' : 'Set a field');
   const what = actWhat({ ref: 'ref_' + ref }, info);
   const [now, done] = op === 'click' ? [`Click ${what}`, `Clicked ${what}`]
     : op === 'fill' ? [`Type “${clip(x.text, 40)}” into ${what}`, `Typed “${clip(x.text, 40)}” into ${what}`]
     : op === 'select' ? [`Pick “${clip(x.option, 40)}” in ${what}`, `Picked “${clip(info?.option || x.option, 40)}” in ${what}`]
     : [`${x.checked ? 'Tick' : 'Untick'} ${what}`, `${x.checked ? 'Ticked' : 'Unticked'} ${what}`];
   if (!info) return fail(now, 'The page didn’t answer.');
+  if (info.error) return fail(now, String(info.error));
   if (info.no) return fail(['password', 'payment', 'file'].includes(info.no) ? 'Tried a protected field' : now, actNo(info)); // (what it tried to type isn't kept)
   const go = info.nav || info.tab; // leaving the page, or another site in a new tab: asks even with permissions skipped
-  if (go || !(prefs.actionsAuto || run.all)) {
-    const v = await actAsk(run, line, now, info, ev.wait);
+  // In the extension the panel stays open when the page changes, so only another site (or a link that runs a script, or a page
+  // change the side panel can't hold to the approved sites because Chrome's debugger was stopped) always asks
+  const always = ext ? !!info.far || !!info.unheld || /^\s*javascript:/i.test(go || '') : !!go;
+  if (always || !(prefs.actionsAuto || run.all)) {
+    const v = await actAsk(run, line, now, ext ? { ...info, always } : info, ev.wait);
     if (v === 'stop' || run.stale()) return actSet(line, `${now} — stopped`, 'skip');
     if (v !== 'allow' && v !== 'all') { actSet(line, `${now} — ${v === 'late' ? 'no answer, so not done' : 'skipped'}`, 'skip'); return post({ denied: true, note: now }); }
     if (v === 'all') run.all = true;
   }
   actSet(line, now + '…');
-  if (info.nav) { // the page (and the panel with it) goes away on this click, so its result goes first
+  if (info.nav && !ext) { // the page (and the panel with it) goes away on this click, so its result goes first
     await post({ result: { role: info.role, label: info.label, ok: 1 }, note: done });
     actSet(line, done, 'done');
     return void page({ sure: info.nav }); // (the address that was approved, so a link that changed since asks again)
   }
   const r = await page(go ? { sure: go } : {});
   if (run.stale()) return;
+  if (r?.denied) return skipped(now);
   if (!r) return fail(now, 'The page didn’t answer.');
+  if (r.error) return fail(now, String(r.error));
   if (r.no) return fail(now, actNo(r));
   actSet(line, done, 'done');
   const { id, ...result } = r;
   return post({ result, note: done });
 }
+// A refusal's first sentence also shows on the person's own step line. Some were written to the model about "the user";
+// on the line they speak to the person instead.
+function toPerson(why) {
+  if (/^The user switched to another tab/.test(why)) return 'You switched tabs, so pagebot stopped working on the page.';
+  return String(why).replace(/^The user /, 'You ').replace(/\bthe user hasn’t\b/g, 'you haven’t').replace(/\bafter the user approved\b/g, 'after you approved')
+    .replace(/\bthe user’s\b/g, 'your');
+}
 // the answer ended (or you stopped it): cards still waiting give up, and steps still running say they stopped
 function actEnd(run) {
   run.over = true;
+  if (ext) tell('run', { run: run.id, on: false }); // the side panel stops the step in flight, lets go of anything held, and refuses the rest
   for (const done of [...run.asks]) done('stop');
   run.bot.querySelectorAll('.astep.live').forEach(l => actSet(l, l.querySelector('.at').textContent.replace(/…$/, '') + ' — stopped', 'skip'));
   if (actRun === run) actRun = null;
 }
+
+// ---- the browser extension's steps (README "Browser extension") ----
+// The side panel runs these itself: navigation and tabs, typing and keys, every kind of click (at a point too), dragging,
+// real hovering, scrolling inside frames, the console and network log, and scripts. Each one is checked first (a dry run:
+// what it would touch, and how to ask), shown on a card when it should ask, and then run with the dry run's token, so what
+// runs is what the person saw. Another site, a tab pagebot didn't open and a script always ask, with no "Allow all".
+const EXT_ROUTE = new Set(['right_click', 'middle_click', 'double_click', 'triple_click', 'left_click_drag', 'left_mouse_down', 'left_mouse_up', 'type', 'key', 'hold_key',
+  'hover', 'mouse_move', 'scroll', 'navigate', 'new_tab', 'list_tabs', 'switch_tab', 'close_tab', 'read_console', 'read_network', 'javascript_exec']);
+const runId = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join('');
+// A request to the side panel for this answer's step. When pagebot is on a site the person hasn't approved in this answer
+// (a link or a redirect took the tab there, or they went there themselves), the side panel says so first; that card always
+// asks, and allowing it lets pagebot work there for the rest of the answer. { denied: true } when they skip it.
+async function pageAsk(run, line, ev, type, extra, ms) {
+  const tab = typeof ev.input?.tab_id === 'string' ? ev.input.tab_id : null;
+  const msg = { ...extra, run: run.id, ...(tab && { tab }) };
+  const r = await ask(type, msg, ms);
+  if (r?.no !== 'site' || run.stale()) return r;
+  const site = clip(r.site, 60) || 'another site';
+  const v = await actAsk(run, line, `Work on ${site}`, { always: true, warn: `⚠ pagebot is on a new site now (${site}). Allowing this lets it work here for the rest of this answer.` }, ev.wait);
+  if (v === 'stop' || run.stale()) return null;
+  if (v !== 'allow') return { denied: true };
+  return ask(type, { ...msg, site: r.sure }, ms);
+}
+const siteOf = u => { try { const x = new URL(u); return x.hostname.replace(/^www\./, '') + clip(x.pathname.length > 1 ? x.pathname : '', 40); } catch { return ''; } };
+const prettyKey = k => k.split('+').map(p => ({ ctrl: 'Ctrl', control: 'Ctrl', cmd: 'Cmd', command: 'Cmd', meta: 'Meta', alt: 'Alt', option: 'Option', shift: 'Shift', super: 'Super', win: 'Win' })[p.toLowerCase()]
+  || (p.length === 1 ? p.toUpperCase() : p.charAt(0).toUpperCase() + p.slice(1))).join('+');
+const keysSaid = t => String(t || '').trim().split(/\s+/).slice(0, 6).map(prettyKey).join(' ') + (String(t || '').trim().split(/\s+/).length > 6 ? ' …' : '');
+// a step in words, from what the side panel found (f: role, label, title, url, dest…): [while it waits or runs, once it's done]
+function extWords(name, input, f) {
+  const p = t => t?.type === 'coordinate' ? `(${Math.round(t.x)}, ${Math.round(t.y)})` : '';
+  const kind = f?.role && ACT_KIND[f.role], what = f?.label ? actWhat({}, f) : kind ? `the ${kind}` : ''; // (no words for it: the point instead)
+  const tabName = f?.title ? `the “${clip(f.title, 40)}” tab` : 'that tab', host = f?.url ? siteOf(f.url) : '';
+  const verb = { left_click: ['Click', 'Clicked'], right_click: ['Right-click', 'Right-clicked'], middle_click: ['Middle-click', 'Middle-clicked'], double_click: ['Double-click', 'Double-clicked'], triple_click: ['Triple-click', 'Triple-clicked'] }[name];
+  if (verb) {
+    const at = p(input.target), on = what || (at ? `at ${at}` : 'on the page');
+    return [`${verb[0]} ${on}${what && at ? ` (at ${at.slice(1, -1)})` : ''}`, `${verb[1]} ${on}`];
+  }
+  switch (name) {
+    case 'left_click_drag': return [`Drag from ${p(input.from)} to ${p(input.target)}`, `Dragged from ${p(input.from)} to ${p(input.target)}`];
+    case 'left_mouse_down': return [`Press the mouse button on ${what || p(input.target)}`, `Pressed the mouse button on ${what || p(input.target)}`];
+    case 'left_mouse_up': return [`Let go of the mouse button on ${what || p(input.target)}`, `Let go of the mouse button on ${what || p(input.target)}`];
+    case 'hover': return ['Pointing', `Pointed at ${what || p(input.target) || 'an element'}`];
+    case 'mouse_move': return ['Moving the mouse', `Moved the mouse over ${what || p(input.target) || 'the page'}`];
+    case 'scroll': return [`Scrolling ${input.scroll_direction}`, f?.moved === false ? `Tried to scroll ${input.scroll_direction}: that’s as far as it goes` : `Scrolled ${input.scroll_direction}`];
+    case 'type': { const t = `“${clip(input.text, 40)}”`; return what ? [`Type ${t} into ${what}`, `Typed ${t} into ${what}`] : [`Type ${t}`, `Typed ${t}`]; }
+    case 'key': { const k = keysSaid(input.text) + (input.repeat > 1 ? ` (×${input.repeat})` : ''); return what ? [`Press ${k} in ${what}`, `Pressed ${k} in ${what}`] : [`Press ${k}`, `Pressed ${k}`]; }
+    case 'hold_key': { const k = prettyKey(String(input.text || '')), d = `${input.duration} second${input.duration === 1 ? '' : 's'}`; return [`Hold ${k} for ${d}`, `Held ${k} for ${d}`]; }
+    case 'navigate': {
+      const to = siteOf(f?.dest || input.url);
+      if (input.url === 'reload') return ['Reload the page', 'Reloaded the page'];
+      if (input.url === 'back') return [`Go back a page${to ? ` (to ${to})` : ''}`, 'Went back a page'];
+      if (input.url === 'forward') return [`Go forward a page${to ? ` (to ${to})` : ''}`, 'Went forward a page'];
+      return [`Go to ${to || 'another page'}`, `Went to ${to || 'another page'}`];
+    }
+    case 'new_tab': return [f?.away ? 'Open a new tab' : 'Opening a new tab', 'Opened a new tab'];
+    case 'list_tabs': return ['Looking at your tabs', 'Looked at the tabs in this window'];
+    case 'switch_tab': return [`Switch to ${tabName}${host ? ` (${host})` : ''}`, `Switched to ${tabName}`];
+    case 'close_tab': return [`Close ${tabName}${host ? ` (${host})` : ''}`, `Closed ${tabName}`];
+    case 'read_console': return ['Reading the console', `Read the console (${plural(f?.n || 0, 'line')})`];
+    case 'read_network': return ['Reading the network log', `Read the network log (${plural(f?.n || 0, 'request')})`];
+    case 'javascript_exec': return ['Run a script on this page', 'Ran a script on this page'];
+  }
+  return [clip(name, 40) || 'Page action', clip(name, 40) || 'Page action'];
+}
+// the warning line on a card that always asks
+function extWarn(name, input, f) {
+  const to = siteOf(f.go || f.dest || '') || 'another site';
+  if (name === 'javascript_exec') return '⚠ A script can do anything the page can, including reading what you’ve typed and sending it elsewhere. Allow it only if you know what it does.';
+  if (name === 'close_tab') return f.mine ? '' : '⚠ Anything not saved in that tab is lost.';
+  if (name === 'switch_tab') return f.mine ? '' : 'pagebot can then read and use that tab.';
+  if (name === 'new_tab') return f.away ? '⚠ You’re on another tab now. This opens a new tab and takes you to it.' : '';
+  if (f.far) return f.tab ? `⚠ This opens ${to} in a new tab.` : `⚠ This takes the tab to another site (${to}). pagebot stays open.`;
+  return '';
+}
+// how long the side panel may take: a page may load (and Chrome's input is slower than a click in the page)
+const msFor = (name, input) => name === 'navigate' ? 25000 : name === 'hold_key' ? (Number(input.duration) || 0) * 1000 + 10000 : name === 'javascript_exec' ? 20000 : 16000;
+async function extAct(run, ev, name, input, line, post, fail) {
+  const x = { ...input }; // the model's points are screenshot pixels; the side panel works in the page's CSS pixels
+  for (const k of ['target', 'from']) if (x[k]?.type === 'coordinate') x[k] = toCss(run, x[k]);
+  const plain = extWords(name, input, null)[0];
+  actSet(line, 'Checking the page…');
+  const info = await pageAsk(run, line, ev, 'ext', { name, input: x, dry: 1 }, name === 'navigate' ? 12000 : 8000);
+  if (run.stale()) return;
+  if (info?.denied) { actSet(line, `${plain} — skipped`, 'skip'); return post({ denied: true, note: plain }); }
+  if (!info) return fail(plain, 'The page didn’t answer.');
+  if (info.error) return fail(['password', 'payment', 'file'].some(w => String(info.error).includes(` ${w}`)) ? 'Tried a protected field' : plain, String(info.error));
+  const [now] = extWords(name, input, info);
+  if (info.ask === 'always' || info.ask === 'setting' && !(prefs.actionsAuto || run.all)) {
+    const v = await actAsk(run, line, now, { always: info.ask === 'always', warn: extWarn(name, input, info), code: name === 'javascript_exec' ? String(input.text || '') : '' }, ev.wait);
+    if (v === 'stop' || run.stale()) return actSet(line, `${now} — stopped`, 'skip');
+    if (v !== 'allow' && v !== 'all') { actSet(line, `${now} — ${v === 'late' ? 'no answer, so not done' : 'skipped'}`, 'skip'); return post({ denied: true, note: now }); }
+    if (v === 'all') run.all = true;
+  }
+  actSet(line, now + '…');
+  const r = await pageAsk(run, line, ev, 'ext', { name, input: x, sure: info.sure }, msFor(name, input));
+  if (run.stale()) return;
+  if (r?.denied) { actSet(line, `${now} — skipped`, 'skip'); return post({ denied: true, note: now }); }
+  if (!r) return fail(now, 'The page didn’t answer.');
+  if (r.no === 'changed') return fail(now, 'It changed after the user approved it, so pagebot didn’t do it. Look at the page again.');
+  if (r.error) return fail(now, String(r.error));
+  const done = extWords(name, input, { ...info, ...r })[1];
+  actSet(line, done, 'done');
+  const { id, ...result } = r;
+  return post({ result, note: done });
+}
+
+// ---- Settings → Clicking for you → Get the browser extension ----
+// The Download link is this server's zip (made for the address this panel was opened from); the steps are the same ones
+// README.txt in the zip has. Inside the extension it says which version runs, and how to update when there's a newer one.
+const EXT_STEPS_UPDATE = ['Download the new zip and unzip it.', 'Put its files in your pagebot-extension folder, in place of the old ones.', 'In chrome://extensions, click ↻ on pagebot (in Edge, Reload), then reopen the side panel.'];
+let extStepsHtml = null;
+function renderExt() {
+  const off = isUser() && cfg.user?.allowActions === false;
+  $('#extSec').hidden = off; $('#aboutExt').hidden = off;
+  if (off) return;
+  if (ext) $('#actLeave').textContent = 'It always asks before it goes to another site, switches to a tab it didn’t open, or runs a script.'; // (the side panel stays open on the same site)
+  const steps = $('#extSteps'); extStepsHtml ??= steps.innerHTML;
+  // Chromium on a computer. The browser says so in navigator.userAgentData, which only exists on https (and localhost):
+  // a bookmark panel on a plain http page, or pagebot itself served over http, reads the user agent string instead.
+  const uad = navigator.userAgentData, ua = navigator.userAgent || '';
+  const chromium = uad ? !!uad.brands?.some(b => /Chromium/.test(b.brand)) && !uad.mobile : /(Chrome|Chromium|Edg)\/\d/.test(ua) && !/Mobile|Android|CriOS|EdgiOS/.test(ua);
+  let lead = 'pagebot in your browser’s side panel', hint = null, list = null;
+  if (ext && extOld()) { lead = `Version ${cfg.extVersion} of the extension is out.`; hint = `You have version ${extV}. Updating takes a minute:`; list = EXT_STEPS_UPDATE; }
+  else if (ext) { lead = `You’re using the extension, version ${extV}.`; hint = 'It’s up to date.'; list = []; }
+  else if (!chromium) hint = 'The extension works in Chrome, Edge and Brave on a computer. Open pagebot there to get it.';
+  $('#extLead').textContent = lead;
+  $('#extHint').textContent = hint ?? $('#extHint').dataset.text;
+  $('#extGet').hidden = !ext && !chromium;
+  if (list) steps.replaceChildren(...list.map(t => { const li = el('li'); li.textContent = t; return li; }));
+  else if (steps.innerHTML !== extStepsHtml) { steps.innerHTML = extStepsHtml; wireExtCopy(); }
+  steps.hidden = !ext && !chromium || !!list && !list.length;
+  $('#extNote').hidden = ext && !extOld() || !ext && !chromium; // (it's about the folder the steps make)
+}
+function wireExtCopy() {
+  const b = $('#extCopy');
+  if (!b) return;
+  b.onclick = async () => { // browsers don't open links to chrome:// pages, so it's copied instead
+    try { await navigator.clipboard.writeText('chrome://extensions'); }
+    catch { const c = b.previousElementSibling, r = document.createRange(); r.selectNodeContents(c); getSelection().removeAllRanges(); getSelection().addRange(r); }
+    b.textContent = 'Copied'; clearTimeout(b.t); b.t = setTimeout(() => { b.textContent = 'Copy'; }, 2000);
+  };
+}
+wireExtCopy();
+$('#extHint').dataset.text = $('#extHint').textContent;
 
 // the + menu and the model picker
 let openMenu = null;
@@ -4036,7 +4255,7 @@ function catSummary(key) { // the grey line under a category's name in the narro
     case 'general': return `${modelWord(m)} · web search ${prefs.web ? 'on' : 'off'}`; // the composer's word for it
     case 'appearance': return THEMES.find(t => t[0] === prefs.theme)?.[1] || 'Cocoa';
     case 'memory': return memoryLoaded ? `${plural(memoryRecords.length, 'website')} · ${plural(commands.length, 'command')}` : 'Notes for websites and / commands';
-    case 'actions': return actWhy() ? 'Not available here' : prefs.actionsAuto ? 'Doesn’t ask first' : 'Asks before each click';
+    case 'actions': return actWhy() ? 'Not available here' : (ext ? 'Extension · ' : '') + (prefs.actionsAuto ? (ext ? 'doesn’t ask first' : 'Doesn’t ask first') : (ext ? 'asks before each click' : 'Asks before each click'));
     case 'files': return 'PDFs and chat history';
     case 'privacy': return 'What pagebot can see';
     case 'account': return isUser() ? `Signed in as ${cfg.user.name}` : 'Owner';
@@ -4251,13 +4470,15 @@ function renderSees() {
       standalone ? ['No page on /chat', ''] : pageOn ? ['On', 'on'] : ['Off', ''], standalone ? '' : '#pageBtn'],
     ['Highlighted text', 'What you’ve selected on the page goes along as a quote, shown in a chip above the box. Click its × to leave it out.',
       standalone ? ['No page on /chat', ''] : !pageV7 ? ['Needs the new bookmark', ''] : hostSel && !selOff ? ['Going along', 'on'] : ['Nothing selected', ''], ''],
-    ['Screenshots', 'Only when you take one from the + menu. Your browser asks first, and once it’s on, every message sends a fresh shot until you turn it off.',
+    ['Screenshots', ext ? 'Only when you take one from the + menu, or when pagebot takes one while clicking for you. The extension takes them itself, so there’s nothing to share.'
+      : 'Only when you take one from the + menu. Your browser asks first, and once it’s on, every message sends a fresh shot until you turn it off.',
       area ? ['On', 'on'] : ['Off', ''], '#shotBtn'],
     ['PDFs', 'Only PDFs you add yourself. They’re stored for 30 days, or until you delete them.',
       !pdfAllowed ? ['Not on for you', ''] : pdfInChat() ? ['In this chat', 'on'] : ['None attached', ''], pdfAllowed ? '#pdfBtn' : ''],
     ['Web search', 'pagebot can search the web for facts, writing the search itself. The page isn’t sent to a search engine.',
       !web ? ['Not on for you', ''] : prefs.web ? ['On', 'on'] : ['Off', ''], web ? '#webBtn' : ''],
-    ['Page actions', 'It can click, type and choose on the page. It asks first unless you’ve told it not to, and never touches password, card or file fields.',
+    ['Page actions', ext ? 'It can click, type, go to other pages and use the tabs in this window. It asks first unless you’ve told it not to, always asks before another site, and never touches password, card or file fields.'
+      : 'It can click, type and choose on the page. It asks first unless you’ve told it not to, and never touches password, card or file fields.',
       acts ? ['Not available', ''] : actsOn() ? ['On', 'on'] : ['Off', ''], standalone ? '' : '#actBtn'],
   ];
   const list = $('#seeList'); list.replaceChildren();
@@ -4782,16 +5003,7 @@ if (!embedded) $('#stopBtn .mt').textContent = 'Stop screen sharing';
 
 // one frame of the shared tab, with the panel hidden while it's taken
 async function grab() {
-  if (extensionHost) {
-    const shot = await ask('extensionCapture', {}, 10000);
-    if (!shot?.dataUrl || !/^data:image\/(?:png|jpeg);base64,/.test(shot.dataUrl))
-      throw new Error(shot?.error || 'The extension could not capture this tab. Click its toolbar button on the page and try again.');
-    const image = new Image(); image.src = shot.dataUrl;
-    await image.decode();
-    const canvas = el('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
-    canvas.getContext('2d').drawImage(image, 0, 0);
-    return canvas;
-  }
+  if (ext) return extGrab();
   if (!navigator.mediaDevices?.getDisplayMedia) throw Object.assign(new Error('unsupported'), { code: 'unsupported' });
   if (!stream || !stream.active) {
     const opts = { video: { displaySurface: 'browser', frameRate: 5 }, audio: false, selfBrowserSurface: 'include', surfaceSwitching: 'exclude' };
@@ -4820,6 +5032,18 @@ async function grab() {
   const c = el('canvas'); c.width = w; c.height = h;
   c.getContext('2d').drawImage(src, 0, 0, w, h);
   src.close?.();
+  return c;
+}
+// In the extension the side panel takes the picture of the tab that's showing (no sharing, and the panel doesn't hide)
+async function extGrab() {
+  const r = await ask('shot', {}, 8000);
+  if (!r?.image) throw new Error(r?.error ? String(r.error).replace(/\.$/, '') : 'the extension didn’t answer');
+  return imgCanvas(r.image);
+}
+async function imgCanvas(src) {
+  const im = new Image(); im.src = src; await im.decode();
+  const c = el('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+  c.getContext('2d').drawImage(im, 0, 0);
   return c;
 }
 // the next frame the shared tab sends (Chrome), or null if none comes within ms
@@ -5684,10 +5908,6 @@ async function send() {
   if (pdfUp && !(await pdfUp.done) || stale()) return cancelPreparing(); // pdf uploads: wait for a PDF still uploading
   const info = await ask('page', { max: withPage ? limits.pageTokens * 4 : 1 });
   if (stale()) return cancelPreparing();
-  if (extensionHost && withPage && (!info?.page || info.error)) {
-    cancelPreparing();
-    return note((info?.error || 'The extension could not read this tab. Click its toolbar button on the page and try again.') + ' Turn off Page to chat without page context.');
-  }
   if (pageRequest === contextRequest) updateSiteContext(info);
   const page = withPage && info?.page ? info.page : null;
   let selection = info?.selection?.trim() || '';
@@ -5728,7 +5948,8 @@ async function send() {
 
   const sent = { text: plan.typed, img, imgKind, pageOn, sel: !!selection, ink }; // unsend puts back what was typed, command and all
   // cite: this page can find quoted passages, so ask for numbered quotes
-  const reqBody = { conversationId: convId, message: text, page, site: normalizeMemorySite(info?.page?.url) || null, selection, image: img, model: prefs.model, web: webNow, cite: pageV7, actions: acting, pdf: sentPdf?.id, annotated: img && inkOn() ? true : undefined };
+  const reqBody = { conversationId: convId, message: text, page, site: normalizeMemorySite(info?.page?.url) || null, selection, image: img, model: prefs.model, web: webNow, cite: pageV7, actions: acting, pdf: sentPdf?.id, annotated: img && inkOn() ? true : undefined,
+    ...(ext && acting && { host: 'ext', ext: extV, tools: extTools }) }; // the extension runs more of the toolset; the server offers only what it lists
   q.value = ''; autosize(); clearImg(); setPage(false);
   if (sentPdf) { setPdf(null); setChatPdf(true); }
   if (selection) selOff = true; // it's in the chat now; a new highlight brings the pill back
@@ -5766,7 +5987,8 @@ async function send() {
   const out = bot.querySelector('.body');
   const mine = ctrl = new AbortController();
   const renderer = answerRenderer(out, () => !stale());
-  const run = acting ? actRun = { bot, stale: () => stale() || run.over, all: false, asks: new Set(), over: false } : null; // page actions
+  const run = acting ? actRun = { id: runId(), bot, stale: () => stale() || run.over, all: false, asks: new Set(), over: false } : null; // page actions
+  if (run && ext) tell('run', { run: run.id, on: true }); // steps from this answer, and only while it lasts
   $('#sendBtn').disabled = false; stopMode(true);
   let acc = '', refused = false, named = false; // named: the server has the question (it sent the chat id)
   try {
@@ -6617,6 +6839,7 @@ if (standalone) {
 setPage(true);
 renderPrefs();
 if (embedded && !hostV3) claim(); // older bookmarks don't say when they open the panel, but it only loads when you click one
+if (ext) claim(); // the side panel loads when you open it
 (async () => {
   const ready = loadBoot().catch(() => {});
   await endSplash(ready, () => { if (token) route(); else showLogin(cfg ? '' : 'Can’t reach pagebot right now. Check your connection, then open it again.'); });

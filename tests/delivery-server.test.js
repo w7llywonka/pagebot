@@ -128,7 +128,7 @@ test('delivery integration', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL
   await t.test('/api/boot before anyone has an account: what a signed-out panel gets, and whether accounts exist', async () => {
     const out = await api('/api/boot', { token: null });
     assert.equal(out.status, 200);
-    same(out.data, { version: 14, theme: 'ember', lock: 'none', passwordSet: false, accounts: { on: true, signup: true }, authed: false }, 'signed out');
+    same(out.data, { version: 14, extVersion: 1, theme: 'ember', lock: 'none', passwordSet: false, accounts: { on: true, signup: true }, authed: false }, 'signed out');
     assert.equal(out.headers['cache-control'], 'no-store');
     assert.equal(out.headers['content-encoding'], undefined);
     same((await api('/api/boot', { token: 'not-a-session' })).data, out.data, 'an unknown token is signed out');
@@ -150,7 +150,7 @@ test('delivery integration', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL
   const COMMAND_LIMITS = { maxCommands: 50, maxPrompt: 2000, maxStarters: 3, reserved: ['summarize', 'keypoints', 'simple', 'new', 'web', 'page', 'screenshot', 'region', 'settings', 'help', 'history', 'pdf', 'actions'] };
   const LIMITS = { maxTokens: 100000, pageTokens: 5000, maxSearches: 3, maxTokensCap: 100000 };
   const PREFS = { theme: 'ember', model: 'haiku', web: false, actions: false, actionsAuto: false };
-  const BASE = { version: 14, theme: 'ember', lock: 'none', passwordSet: false, accounts: { on: true, signup: true } };
+  const BASE = { version: 14, extVersion: 1, theme: 'ember', lock: 'none', passwordSet: false, accounts: { on: true, signup: true } };
   const LOCKS = [0, 1, 5, 15, 30, 60, 240, 1440];
   const person = (name, status, more = {}) => ({ name, status, allowSonnet: true, allowWeb: true, allowPdf: true, allowActions: true, passcode: false, lockMinutes: 15, ...more });
   const command = r => ({ name: r.name, prompt: r.prompt, starter: r.starter, updatedAt: iso(r.updated_at) });
@@ -338,7 +338,7 @@ test('delivery integration', { skip: !database && 'Set PAGEBOT_TEST_DATABASE_URL
     }
     // the panel may be framed anywhere; the workspace and the dashboard nowhere
     const [widget, chat] = [await raw('/widget'), await raw('/chat')];
-    assert.match(widget.headers['content-security-policy'], /frame-ancestors \* chrome-extension:$/);
+    assert.match(widget.headers['content-security-policy'], /frame-ancestors \* chrome-extension:\/\/inknjdpepdgianddhnnpkdbpkjbbiomg$/);
     assert.equal(widget.headers['cross-origin-opener-policy'], undefined);
     assert.match(chat.headers['content-security-policy'], /frame-ancestors 'none'$/);
     assert.equal(chat.headers['cross-origin-opener-policy'], 'same-origin');

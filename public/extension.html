@@ -19,15 +19,15 @@ main{max-width:980px;margin:0 auto;padding:30px 28px 70px}.back{display:inline-b
   <header class="hero">
     <p class="eyebrow">Browser extension</p>
     <h1>Keep pagebot beside your page.</h1>
-    <p class="intro">Download the extension for desktop Chrome or Edge. Your familiar pagebot chat opens in the browser’s side panel, with a few extra ways to work with the page.</p>
-    <a class="download" id="downloadExtension" href="/extension.zip" download="pagebot-extension.zip">Download extension ZIP</a>
+    <p class="intro">Download the extension for desktop Chrome, Edge or Brave. Your familiar pagebot chat opens in the browser’s side panel, stays open as you move between pages and tabs, and can do everything on the page that the bookmark can’t.</p>
+    <a class="download" id="downloadExtension" href="/pagebot-extension.zip" download="pagebot-extension.zip">Download extension ZIP</a>
     <p class="download-note">Extract it, then load it unpacked. This download is already connected to this pagebot site.</p>
   </header>
 
   <section class="features" aria-label="What the extension adds">
-    <div><span class="num" aria-hidden="true">01</span><h2 style="font-size:17px">A panel that stays with you</h2><p>Open from the toolbar, even on pages that block the bookmarklet’s embedded panel.</p></div>
-    <div><span class="num" aria-hidden="true">02</span><h2 style="font-size:17px">Screenshots without the picker</h2><p>Capture the active tab directly, without choosing a screen to share.</p></div>
-    <div><span class="num" aria-hidden="true">03</span><h2 style="font-size:17px">Start from a selection</h2><p>Highlight a passage, right-click, and choose <strong>Ask Pagebot</strong>.</p></div>
+    <div><span class="num" aria-hidden="true">01</span><h2 style="font-size:17px">A panel that stays with you</h2><p>It keeps going when you open another page or switch tabs, even on pages that block the bookmark’s panel.</p></div>
+    <div><span class="num" aria-hidden="true">02</span><h2 style="font-size:17px">Every page action</h2><p>It can go to addresses, open and switch tabs, type, press keys like Enter, right-click, double-click and drag, and take screenshots without the share picker.</p></div>
+    <div><span class="num" aria-hidden="true">03</span><h2 style="font-size:17px">Start from a selection</h2><p>Highlight a passage, right-click, and choose <strong>Ask pagebot</strong>.</p></div>
   </section>
 
   <section class="setup" aria-labelledby="setupTitle">
@@ -37,16 +37,16 @@ main{max-width:980px;margin:0 auto;padding:30px 28px 70px}.back{display:inline-b
       <button type="button" id="edgeChoice" aria-pressed="false">Edge</button>
     </div>
     <ol class="steps">
-      <li><div><h3>Download and extract the ZIP</h3><p>Use the download button above, then extract the ZIP into a folder you’ll keep. Inside is a <code>pagebot-extension</code> folder containing <code>manifest.json</code>.</p></div></li>
+      <li><div><h3>Download and extract the ZIP</h3><p>Use the download button above, then extract the ZIP into a folder you’ll keep. You get a <code>pagebot-extension</code> folder with <code>manifest.json</code> directly inside.</p></div></li>
       <li><div><h3>Open your browser’s extensions page</h3><p>Copy this address into the browser’s address bar and press Enter. Turn on <strong>Developer mode</strong>.</p><div class="address"><code id="extensionsAddress">chrome://extensions</code><button class="copy-address" id="copyAddress" type="button">Copy address</button></div><p id="copyStatus" role="status" aria-live="polite"></p></div></li>
       <li><div><h3>Choose “Load unpacked”</h3><p>Select the extracted <code>pagebot-extension</code> folder—the one with <code>manifest.json</code> directly inside it. Choose the folder, not the ZIP.</p></div></li>
-      <li><div><h3>Pin pagebot and open it on a page</h3><p>Find pagebot in your browser’s extensions menu, pin it, then click its toolbar button on the page you want to use. Sign in with your usual pagebot account. Your account approval, limits and saved chats still apply.</p></div></li>
+      <li><div><h3>Pin pagebot and open it on a page</h3><p>Find pagebot in your browser’s extensions menu, pin it, then click its toolbar button (or press <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd>). Sign in with your usual pagebot account if it asks. Turn on <strong>Click and type for me</strong> in the + menu to let it use the page. Your account approval, limits and saved chats still apply.</p></div></li>
     </ol>
   </section>
 
   <div class="details">
-    <section aria-labelledby="useTitle"><h2 id="useTitle">Using the extension</h2><p>Click the toolbar button or press <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> to open pagebot. A highlighted passage can also be sent through the right-click menu.</p><p>The extension works with the tab you opened it on. After moving to a different site, click the toolbar button again to allow pagebot to read that page.</p><p>Browser settings pages and other restricted pages can’t be read or controlled. The side-panel chat can still open.</p></section>
-    <section aria-labelledby="accessTitle"><h2 id="accessTitle">What you’re allowing</h2><ul class="permissions"><li><b>Active tab and scripting:</b> read or act on the page you choose when you open pagebot.</li><li><b>This pagebot site:</b> load your chat and keep sign-in working.</li><li><b>Side panel:</b> keep the chat in the browser’s own panel.</li><li><b>Context menu:</b> add Ask Pagebot when you select text.</li><li><b>Storage:</b> remember extension settings locally.</li></ul><p style="margin-top:12px">It doesn’t request blanket access to every website or your browsing history. Page actions keep their existing confirmation prompts.</p></section>
+    <section aria-labelledby="useTitle"><h2 id="useTitle">Using the extension</h2><p>Click the toolbar button or press <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> to open pagebot. A highlighted passage can also be sent through the right-click menu.</p><p>pagebot works on the tab that’s showing and follows you from page to page. Clicks, typing and keys ask first unless you choose <strong>Don’t ask before clicking</strong>. Going to another site, using a tab it didn’t open and running a script always ask.</p><p>It never reads or types into password, card or file fields, and it can’t work on the browser’s own pages or extension stores. While it types, presses keys, clicks at a point, hovers, reads the console or runs a script, the browser shows a bar saying pagebot started debugging this browser. That’s expected, and it goes away a few seconds after the step.</p></section>
+    <section aria-labelledby="accessTitle"><h2 id="accessTitle">What you’re allowing</h2><ul class="permissions"><li><b>All websites and scripting:</b> read or act on the page that’s showing, only when you ask pagebot to.</li><li><b>Tabs:</b> go to addresses and open, switch and close tabs for you.</li><li><b>Debugger:</b> real typing, key presses, clicks at a point and hovering, reading the console and running scripts, attached only for one step at a time.</li><li><b>Side panel:</b> keep the chat in the browser’s own panel.</li><li><b>Context menu:</b> add Ask pagebot when you select text.</li><li><b>Storage:</b> remember what a step is holding, so nothing is left behind if the panel closes.</li></ul><p style="margin-top:12px">Everything it runs is in the ZIP, it only talks to this pagebot site, and web pages can’t send it commands. Page actions keep their confirmation prompts.</p></section>
   </div>
   <p class="foot"><strong>Keep the extracted folder.</strong> To update the extension later, download a fresh ZIP from this site, replace the extracted files, and press Reload for pagebot on the browser’s extensions page. The chat itself continues to use this site’s current version.</p>
 </main>
