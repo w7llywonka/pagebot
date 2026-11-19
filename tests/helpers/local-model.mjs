@@ -6,6 +6,9 @@ globalThis.fetch = (input, init) => {
   if (url.href === 'https://openrouter.ai/api/v1/chat/completions') {
     return fetchLocal(`${mockOrigin}/router`, init);
   }
+  if (url.href === 'https://api.openai.com/v1/responses') {
+    return fetchLocal(`${mockOrigin}/openai`, init);
+  }
   if (url.origin !== mockOrigin) throw new Error(`Unexpected outbound test request: ${url.origin}`);
   return fetchLocal(input, init);
 };

@@ -8,6 +8,7 @@ import zlib from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readRouterStream } from './lib/router-stream.js';
+import { createOpenAI } from './lib/openai.js';
 import { createPages, sendEncoded, sendJson, shortHash } from './lib/delivery.js';
 import { EXT_VERSION, EXT_ID, extensionZip } from './lib/extension.js';
 
@@ -19,11 +20,16 @@ const PORT = process.env.PORT || 3000;
 // pagebot's version. It's written into the bookmark people drag from the homepage, so raise it by one to release an
 // update: panels opened from an older bookmark then send people to the homepage to drag the new one.
 const VERSION = 14; // 14: preserve complete page paragraphs within the overall extraction budget; 13: Minimize turns the panel into a little red panda, a see-through 120 px frame (see README, “The panda”); 12: page actions use the browser toolset: screenshots, coordinates, keys, and a page tree that sees into shadow DOM and frames (see README, “Page actions”); 11: the panel opens half-screen sized, worked out from the window (see README, “Size”); 10: the bookmarklet's page-action checks got stricter (see README, “Page actions”)
-// the two models the panel can switch between; web search tool versions differ per model
+// Claude's web search tool versions differ per model.
 const MODELS = {
   haiku: { id: process.env.HAIKU_MODEL || process.env.MODEL || 'claude-haiku-5-5', label: 'Haiku 5.5', search: 'web_search_20250305' },
   sonnet: { id: process.env.SONNET_MODEL || 'claude-sonnet-5-5', label: 'Sonnet 5.5', search: 'web_search_20260209', fallback: process.env.SONNET_FALLBACK !== 'off', updates: process.env.SONNET_UPDATES !== 'off' },
 };
+const OPENAI_KEY = process.env.OPENAI_API_KEY || '';
+if (OPENAI_KEY) {
+  const id = process.env.OPENAI_MODEL || 'gpt-6-luna';
+  MODELS.openai = { id, label: modelLabel(id), openai: true };
+}
 // a third model that runs on your OpenRouter credits instead of Anthropic's; it only shows up once OPENROUTER_API_KEY is set
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY || '';
 if (OPENROUTER_KEY) {
@@ -45,11 +51,12 @@ The user may attach the page they're viewing (as a document), text they highligh
 Lead with the answer. Keep it short unless asked for detail. Use light markdown (bold, lists, code blocks) only when it helps.
 If the attached content doesn't contain what's needed, say so briefly.`;
 
-// USD per million tokens, from the Anthropic pricing page (October 2026). Used for $ limits and estimates.
+// USD per million tokens (November 2026). Used for $ limits and estimates.
 const PRICES = {
   'claude-haiku-5-5': { in: 0.10, write: 0.125, read: 0.01, out: 0.50, long: { over: 100_000, in: 0.50, write: 0.625, read: 0.05, out: 2.50 } },
   'claude-sonnet-5-5': { in: 2, write: 2.50, read: 0.10, out: 10 },
   'claude-sonnet-5': { in: 2, write: 2.50, read: 0.20, out: 10 },
+  'gpt-6-luna': { in: 0.10, write: 0.125, read: 0.01, out: 0.50, long: { over: 272_000, in: 0.20, write: 0.25, read: 0.02, out: 0.75 } },
   // OpenRouter's price (October 2026). OpenRouter reports what each answer actually cost; this is for estimates.
   'meta/muse-spark-1.3-contributor': { in: 0.10, write: 0.10, read: 0.002, out: 0.20 },
 };
@@ -58,7 +65,8 @@ const SEARCH_TOKENS = 3000; // rough prompt tokens one search's results add, for
 
 // prefs are what the panel changes; limits cap each question. Both live in the settings table.
 const THEMES = ['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura', 'terminal', 'pond', 'orbit', 'void', 'arcade', 'glass', 'clear'];
-const DEFAULT_PREFS = { theme: 'ember', model: 'haiku', web: false, actions: false, actionsAuto: false }; // actionsAuto: page actions skip permissions
+const DEFAULT_MODEL = !process.env.ANTHROPIC_API_KEY && OPENAI_KEY ? 'openai' : 'haiku';
+const DEFAULT_PREFS = { theme: 'ember', model: DEFAULT_MODEL, web: false, actions: false, actionsAuto: false }; // actionsAuto: page actions skip permissions
 const LIMIT_RANGES = { maxTokens: [256, 100000], pageTokens: [500, 50000], maxSearches: [1, 10] }; // no answer may exceed 100,000 tokens
 const DEFAULT_LIMITS = { maxTokens: clampInt(process.env.MAX_TOKENS || 100000, ...LIMIT_RANGES.maxTokens), pageTokens: 5000, maxSearches: 3 };
 const LOCK_CHOICES = [0, 1, 5, 15, 30, 60, 240, 1440]; // passcode auto-lock after N idle minutes (0 = never)
@@ -92,7 +100,7 @@ const MAX_BAN_REASON = 120, MAX_BAN_NOTE = 1000, MAX_APPEAL = 1000;
 // different daily limit, then goes back to its own settings by itself.
 
 if (!process.env.DATABASE_URL) { console.error('DATABASE_URL is not set'); process.exit(1); }
-if (!process.env.ANTHROPIC_API_KEY) console.warn('ANTHROPIC_API_KEY is not set — chat will fail.');
+if (!process.env.ANTHROPIC_API_KEY && !OPENAI_KEY && !OPENROUTER_KEY) console.warn('No model API key is set — chat will fail.');
 if (ADMIN_TOKEN.length < 16) console.warn('ADMIN_TOKEN is missing or under 16 chars — /admin stays locked until you set it.');
 if (process.env.PUBLIC_URL) console.warn('PUBLIC_URL is no longer used (the bookmarklet uses the address you open the homepage from). You can delete it.');
 
@@ -128,6 +136,7 @@ async function together(...jobs) {
   return out;
 }
 const anthropic = new Anthropic(); // ANTHROPIC_API_KEY from env
+const openai = createOpenAI({ apiKey: OPENAI_KEY }); // server-side only; never sent to the bookmarklet or panel
 
 // ---------- db ----------
 const SCHEMA = `
@@ -394,7 +403,8 @@ async function listCommands(uid) {
 function cleanPrefs(p = {}) {
   const o = {};
   if (THEMES.includes(p.theme)) o.theme = p.theme;
-  if (typeof p.model === 'string' && Object.hasOwn(MODELS, p.model)) o.model = p.model;
+  if (typeof p.model === 'string' && Object.hasOwn(MODELS, p.model)) o.model =
+    DEFAULT_MODEL === 'openai' && ['haiku', 'sonnet'].includes(p.model) ? DEFAULT_MODEL : p.model;
   if (typeof p.web === 'boolean') o.web = p.web;
   if (typeof p.actions === 'boolean') o.actions = p.actions;
   if (typeof p.actionsAuto === 'boolean') o.actionsAuto = p.actionsAuto;
@@ -453,7 +463,9 @@ async function loadConfig() {
     accountDefaults: { ...DEFAULT_ACCOUNT, ...cleanAccountDefaults(parseJSON(s.account_defaults)) },
   };
 }
-const modelList = () => Object.entries(MODELS).map(([key, m]) => ({ key, label: m.label }));
+const modelList = () => Object.entries(MODELS)
+  .filter(([, m]) => m.openai || m.openrouter || process.env.ANTHROPIC_API_KEY || !OPENAI_KEY)
+  .map(([key, m]) => ({ key, label: m.label }));
 
 // ---------- accounts ----------
 function toUser(r) {
@@ -475,7 +487,7 @@ const userLockMinutes = u => u?.passcode ? u.lockMinutes : 0;
 function prefsFor(cfg, u) {
   if (!u) return cfg.prefs;
   const p = { ...DEFAULT_PREFS, theme: cfg.prefs.theme, ...cleanPrefs(u.prefs) };
-  if (!u.allowSonnet) p.model = 'haiku';
+  if (!u.allowSonnet && p.model === 'sonnet') p.model = DEFAULT_MODEL;
   if (!u.allowWeb) p.web = false;
   if (!u.allowActions) p.actions = false;
   return p;
@@ -788,9 +800,8 @@ function sendPage(req, res, file, frames = "'none'") {
   sendEncoded(req, res, c.page, h.headers, h.tag);
 }
 
-// The homepage is only the button to drag to the bookmarks bar, on purpose. It doesn't say what the bookmark does and it doesn't
-// link to /chat or /admin: people who were invited already know, and whoever else lands here learns nothing from it. What keeps
-// them out is the panel's sign-in (and, for accounts, the owner accepting them in /admin), not this page being quiet.
+// The homepage offers the bookmark and the local extension installer. It keeps /chat and /admin unlinked;
+// sign-in and account approval protect the app, independently of how people install it.
 const HOME_HEADERS = { 'Cache-Control': 'no-store', Vary: 'Host, X-Forwarded-Host, X-Forwarded-Proto', 'X-Robots-Tag': 'noindex, nofollow, noarchive' };
 // The page with the bookmark for one address filled in. The last few addresses' pages are kept, compressed, so the
 // bookmark (55 KB once encoded) isn't built again for every visit; the Host header picks the address, so the list is short.
@@ -809,7 +820,7 @@ app.get(['/', '/install'], (req, res) => {
 // The browser extension, for Load unpacked (README "Browser extension"): a zip made here with the address the page was opened
 // from baked in, checked the same way as the homepage's bookmark, so it always points back at this server. Public like the
 // bookmark, and never stored by caches.
-app.get('/pagebot-extension.zip', limit(30, 'ext-zip'), (req, res) => {
+app.get(['/pagebot-extension.zip', '/extension.zip'], limit(30, 'ext-zip'), (req, res) => {
   let z;
   try { z = extensionZip(publicOrigin(req)); }
   catch (e) { console.error('extension zip:', e.message); return res.status(500).type('text').send('The extension isn’t available right now.'); }
@@ -820,6 +831,8 @@ app.get('/pagebot-extension.zip', limit(30, 'ext-zip'), (req, res) => {
 // side panel: that one extension, by its fixed id (a bare * doesn't match extension pages). Everything else refuses to be framed.
 const WIDGET_FRAMES = `* chrome-extension://${EXT_ID}`;
 app.get('/widget', (req, res) => sendPage(req, res, 'widget.html', WIDGET_FRAMES));
+// the extension's install guide, linked from the homepage (README "Browser extension")
+app.get('/extension', (req, res) => sendPage(req, res, 'extension.html'));
 app.get('/chat', (req, res) => sendPage(req, res, 'widget.html'));
 app.get('/admin', (req, res) => sendPage(req, res, 'admin.html'));
 
@@ -1208,12 +1221,13 @@ You can search the web with the web_search tool. The current date is ${today()}.
 function modelLabel(id) {
   for (const m of Object.values(MODELS)) if (m.id === id) return m.label;
   const s = String(id || '');
+  if (/^gpt-/.test(s)) return s.replace(/^gpt/, 'GPT').replace(/-([a-z])/g, (_, c) => ' ' + c.toUpperCase());
   if (s.includes('/')) return s.split('/').pop().split(/[-_]/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
   const [name, ...v] = s.replace(/^claude-/, '').split('-');
   return name ? name[0].toUpperCase() + name.slice(1) + (v.length ? ' ' + v.join('.') : '') : 'Claude';
 }
 
-const priceFor = id => PRICES[id] || (/haiku/.test(id) ? PRICES['claude-haiku-5-5'] : /sonnet-5$/.test(id) ? PRICES['claude-sonnet-5'] : PRICES['claude-sonnet-5-5']);
+const priceFor = id => PRICES[id] || (/^gpt-6-luna(?:-|$)/.test(id) ? PRICES['gpt-6-luna'] : /haiku/.test(id) ? PRICES['claude-haiku-5-5'] : /sonnet-5$/.test(id) ? PRICES['claude-sonnet-5'] : PRICES['claude-sonnet-5-5']);
 function tokenCost(model, x) {
   let p = priceFor(model);
   const prompt = (x.input_tokens || 0) + (x.cache_read_input_tokens || 0) + (x.cache_creation_input_tokens || 0);
@@ -1238,7 +1252,7 @@ function addUsage(tot, msg, requested) {
 // output and searches are only totaled at the end, so they're estimated from what streamed in: about 3 characters
 // a token, plus the searches that finished, each adding SEARCH_TOKENS of results to the prompt.
 function cutUsage(msg) {
-  if (msg.stop_reason) return msg; // the closing message_delta arrived, so the totals are in
+  if (msg.stop_reason || msg.usageComplete) return msg; // the closing usage arrived, so the totals are in
   let chars = 0, searches = 0;
   for (const b of msg.content) {
     if (b.type === 'text') chars += (b.text || '').length;
@@ -1667,7 +1681,8 @@ function pageActs(out, who, limits, closed, host = { ext: false, tools: new Set(
       if (!max) return limited;
       params.max_tokens = max;
       // append-only: the assistant turn goes back exactly as it came (thinking blocks too), then the results
-      params.messages = [...params.messages, { role: 'assistant', content: final.content }, { role: 'user', content: results }];
+      params.messages = [...params.messages, { role: 'assistant', content: final.content,
+        ...(final.openaiOutput && { openaiOutput: final.openaiOutput }) }, { role: 'user', content: results }];
       if (n >= ACT_MAX) params.tool_choice = { type: 'none' }; // out of steps: the model finishes in words
       // each round's prompt starts with the last one's, so cache it as it grows; the API allows 4 breakpoints in all, and
       // the question's text and each PDF (up to 3) already hold some
@@ -1711,10 +1726,11 @@ async function chat(req, res) {
   const b = req.body || {}, u = req.user, cfg = req.cfg;
   const prefs = prefsFor(cfg, u), limits = limitsFor(cfg, u);
   let modelKey = typeof b.model === 'string' && Object.hasOwn(MODELS, b.model) ? b.model : prefs.model;
-  if (u && modelKey === 'sonnet' && !u.allowSonnet) modelKey = 'haiku';
+  if (u && modelKey === 'sonnet' && !u.allowSonnet) modelKey = DEFAULT_MODEL;
+  if (DEFAULT_MODEL === 'openai' && ['haiku', 'sonnet'].includes(modelKey)) modelKey = DEFAULT_MODEL;
   const m = MODELS[modelKey];
   const web = (typeof b.web === 'boolean' ? b.web : prefs.web) && (!u || u.allowWeb);
-  // page actions: only when the panel asks (bookmarklet v12), on Claude, for accounts allowed them
+  // page actions: only when the panel asks (bookmarklet v12), for accounts allowed them
   const acting = b.actions === true && !m.openrouter && (!u || u.allowActions);
   // the browser extension says so, and lists the members it runs; only those it may run are offered (a bookmark sends nothing)
   const host = acting && b.host === 'ext' && Number.isInteger(b.ext) && b.ext >= 1
@@ -1780,8 +1796,8 @@ async function chat(req, res) {
   const citeDocs = cite || pdf.n > 0; // the API wants citations on all documents or none, and PDFs always have them
   const doc = page?.text.trim() ? page : null;
   const attr = s => s.replace(/"/g, '&quot;');
-  // OpenRouter models take the page as plain text in <page> tags instead (no citations there)
-  const docBlock = d => m.openrouter ? { type: 'text', text: `<page url="${attr(d.url || '')}" title="${attr(d.title || '')}">\n${fence(d.text)}\n</page>` } : {
+  // OpenAI and OpenRouter take page text in <page> tags. Claude also supplies passage citations.
+  const docBlock = d => m.openrouter || m.openai ? { type: 'text', text: `<page url="${attr(d.url || '')}" title="${attr(d.title || '')}">\n${fence(d.text)}\n</page>` } : {
     type: 'document', source: { type: 'text', media_type: 'text/plain', data: d.text },
     title: (d.title || d.url || 'Web page').slice(0, 300), ...(d.url && { context: `URL: ${d.url}` }),
     citations: { enabled: citeDocs },
@@ -1815,7 +1831,7 @@ async function chat(req, res) {
   messages.push({ role: 'user', content: cur });
 
   const memory = await getMemory(uid, site);
-  const system = SYSTEM + (web ? searchNote() : '') + (acting ? actionsNote(host) : '') + (memory
+  const system = SYSTEM + (web ? searchNote() + (m.openai ? '\nCite web sources with Markdown links in your answer.' : '') : '') + (acting ? actionsNote(host) : '') + (memory
     ? `\n\nThe user saved these website instructions in their settings for ${site}. Apply them to this conversation while this website is active:\n${memory.instructions}` : '');
   let maxTokens = limits.maxTokens;
   // the prompt's size, estimated on the high side at 3 characters a token, plus the screenshot
@@ -1855,7 +1871,7 @@ async function chat(req, res) {
   if (updates) params.thinking = { type: 'adaptive', display: 'updates' };
   // Sonnet 5.5 can decline some requests; the API then retries them on the model Anthropic recommends
   const betas = [...(m.fallback ? [FALLBACK_BETA] : []), ...(updates ? [UPDATES_BETA] : [])];
-  const api = betas.length ? anthropic.beta.messages : anthropic.messages;
+  const api = m.openai ? openai : betas.length ? anthropic.beta.messages : anthropic.messages;
   if (betas.length) params.betas = betas;
   if (m.fallback) params.fallbacks = 'default';
 
@@ -1902,7 +1918,7 @@ async function chat(req, res) {
     // a long server-side search loop can pause the turn; resend it as-is to let it continue. With page actions, a
     // round that ends in tool calls runs them in the page and goes round again with their results.
     for (let i = 0, pauses = 0; i < ACT_MAX + 8 && !closed && !m.openrouter; i++) {
-      stream = api.stream(params);
+      stream = m.openai ? api.stream(params, { promptTokens: promptEst }) : api.stream(params);
       stream.on('text', t => {
         if (gap && reply && !/\s$/.test(reply)) { reply += '\n\n'; out({ t: 'd', v: '\n\n' }); }
         gap = false; reply += t; out({ t: 'd', v: t });
@@ -1935,6 +1951,11 @@ async function chat(req, res) {
       });
       final = await stream.finalMessage();
       addUsage(tot, final, m.id);
+      // Responses caps built-in tools per request. Page-action continuations share this question's search allowance.
+      if (m.openai && web && params.tools) {
+        const left = Math.max(0, limits.maxSearches - tot.searches);
+        params.tools = params.tools.flatMap(t => t.name !== 'web_search' ? [t] : left ? [{ ...t, max_uses: left }] : []);
+      }
       for (const blk of final.content) {
         if (blk.type !== 'text') continue;
         for (const c of blk.citations || []) {
@@ -2005,6 +2026,8 @@ async function chat(req, res) {
 
 function friendly(e, model, u) { // u: the account asking (null = the owner, who sees the API's own wording)
   const s = e?.status;
+  if (e?.openai && s === 401) return 'OpenAI API key is invalid (check OPENAI_API_KEY).';
+  if (e?.openai && s === 404) return `Model "${model}" not found on OpenAI (check OPENAI_MODEL and your model access).`;
   if (e?.router && s === 401) return 'OpenRouter API key is invalid (check OPENROUTER_API_KEY).';
   if (e?.router && s === 402) return 'The OpenRouter account pagebot uses is out of credits and needs topping up. Pick another model for now.';
   if (e?.router && s === 404) return `Model "${model}" not found on OpenRouter (check OPENROUTER_MODEL).`;
@@ -2228,6 +2251,7 @@ function pdfPageCount(buf) {
 }
 // The prompt tokens a PDF adds to each question, from the API's own count when it can give one
 async function pdfTokens(buf, pages) {
+  if (!process.env.ANTHROPIC_API_KEY) return (pages || Math.max(1, Math.ceil(buf.length / 100_000))) * PDF_PAGE_TOKENS;
   try {
     const r = await anthropic.messages.countTokens({ model: MODELS.haiku.id, messages: [{ role: 'user', content: [
       { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: buf.toString('base64') } },
@@ -2264,7 +2288,7 @@ async function pdfTurn(pdfId, uid, u, convId, history, m) {
   const live = [...prior.values(), ...(cur ? [cur] : [])].filter(p => p.bytes);
   // PDFs already in the chat go with every follow-up, so turning PDFs off (or a noPdf restriction) has to stop those too
   if (u && !u.allowPdf && live.length) return { error: [400, 'PDFs aren’t turned on for your account, and this chat has a PDF in it. Start a new chat (+ at the top).'] };
-  if (m.openrouter && live.length) return { error: [400, `${m.label} can’t read PDFs. Pick Haiku or Sonnet for a chat with a PDF.`] };
+  if (m.openrouter && live.length) return { error: [400, `${m.label} can’t read PDFs. Pick ${OPENAI_KEY ? 'Claude or an OpenAI model' : 'Haiku or Sonnet'} for a chat with a PDF.`] };
   if (cur && (live.length > MAX_CHAT_PDFS || live.reduce((n, p) => n + p.size, 0) > MAX_CHAT_PDF_BYTES))
     return { error: [400, `A chat can hold ${MAX_CHAT_PDFS} PDFs, ${MB(MAX_CHAT_PDF_BYTES)} in all. Start a new chat (+ at the top) for this one.`] };
   return { cur, prior, n: live.length, tokens: live.reduce((n, p) => n + p.tokens, 0) };
@@ -2429,7 +2453,7 @@ app.get('/api/admin/stats', limit(300, 'admin'), admin, async (req, res) => {
   const n = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Number(v)]));
   res.json({
     ...n(m), sessions: Number(sessions), budget: BUDGET, effort: EFFORT,
-    models: Object.values(MODELS).map(x => ({ label: x.label, id: x.id, openrouter: !!x.openrouter })),
+    models: Object.values(MODELS).map(x => ({ label: x.label, id: x.id, openrouter: !!x.openrouter, openai: !!x.openai })),
     passwordSet: cfg.passwordSet, limits: cfg.limits, limitRanges: LIMIT_RANGES,
     lock: { on: cfg.lock.on, minutes: cfg.lock.minutes, fails: Math.min(cfg.lock.fails, MAX_PASSCODE_FAILS), maxFails: MAX_PASSCODE_FAILS, choices: LOCK_CHOICES },
   });
@@ -2443,7 +2467,7 @@ const RANGE = `WITH b AS (SELECT
   (date_trunc('day', now() AT TIME ZONE $1) - make_interval(days => $2 - 1)) AT TIME ZONE $1 AS s,
   (date_trunc('day', now() AT TIME ZONE $1) - make_interval(days => 2 * $2 - 1)) AT TIME ZONE $1 AS ps)`;
 const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, '') || null; } catch { return null; } };
-const modelFamily = id => !id ? 'other' : id.includes('/') ? 'router' : /haiku/.test(id) ? 'haiku' : /sonnet/.test(id) ? 'sonnet' : 'other';
+const modelFamily = id => !id ? 'other' : id.includes('/') ? 'router' : /^gpt-/.test(id) ? 'openai' : /haiku/.test(id) ? 'haiku' : /sonnet/.test(id) ? 'sonnet' : 'other';
 const userRef = (id, name) => id == null ? null : { id: Number(id), name: name || '(deleted account)' };
 
 // token and dollar usage for the chart: per day, or per hour of today when days=1
@@ -2465,9 +2489,11 @@ app.get('/api/admin/usage', limit(300, 'admin'), admin, async (req, res) => {
       COALESCE(SUM(m.web_searches), 0)::bigint AS searches,
       COALESCE(SUM(m.input_tokens + m.output_tokens) FILTER (WHERE m.model LIKE '%sonnet%' AND m.model NOT LIKE '%/%'), 0)::bigint AS sonnet,
       COALESCE(SUM(m.input_tokens + m.output_tokens) FILTER (WHERE m.model LIKE '%/%'), 0)::bigint AS router,
+      COALESCE(SUM(m.input_tokens + m.output_tokens) FILTER (WHERE m.model LIKE 'gpt-%'), 0)::bigint AS openai,
       COALESCE(SUM(m.usd), 0)::float8 AS usd,
       COALESCE(SUM(m.usd) FILTER (WHERE m.model LIKE '%sonnet%' AND m.model NOT LIKE '%/%'), 0)::float8 AS sonnet_usd,
-      COALESCE(SUM(m.usd) FILTER (WHERE m.model LIKE '%/%'), 0)::float8 AS router_usd
+      COALESCE(SUM(m.usd) FILTER (WHERE m.model LIKE '%/%'), 0)::float8 AS router_usd,
+      COALESCE(SUM(m.usd) FILTER (WHERE m.model LIKE 'gpt-%'), 0)::float8 AS openai_usd
     FROM ${hourly ? `generate_series(0, 23) AS g(k)` : `generate_series((SELECT s AT TIME ZONE $1 FROM b), date_trunc('day', now() AT TIME ZONE $1), interval '1 day') AS g(k)`}
     LEFT JOIN m ON m.k = ${hourly ? 'g.k' : 'g.k::date'}
     GROUP BY g.k ORDER BY g.k`, [TIMEZONE, days, who]);
@@ -2477,7 +2503,7 @@ app.get('/api/admin/usage', limit(300, 'admin'), admin, async (req, res) => {
     days: r.rows.map(x => ({
       ...(hourly ? { day: today, hour: Number(x.k) } : { day: x.k }),
       input: +x.input, output: +x.output, questions: +x.questions, searches: +x.searches,
-      sonnet: +x.sonnet, router: +x.router, usd: +x.usd, sonnetUsd: +x.sonnet_usd, routerUsd: +x.router_usd,
+      sonnet: +x.sonnet, router: +x.router, openai: +x.openai, usd: +x.usd, sonnetUsd: +x.sonnet_usd, routerUsd: +x.router_usd, openaiUsd: +x.openai_usd,
     })),
   });
 });
@@ -2558,7 +2584,7 @@ const FLAGS = ['image', 'web', 'refused', 'stopped', 'fallback', 'page', 'highli
 app.get('/api/admin/activity', limit(300, 'admin'), admin, async (req, res) => {
   const days = clampInt(req.query.days || 30, 1, 3650), who = whoOf(req.query.user), n = clampInt(req.query.limit || 50, 1, 200);
   const before = /^\d{1,18}$/.test(String(req.query.before || '')) ? String(req.query.before) : null;
-  const model = ['haiku', 'sonnet', 'router'].includes(req.query.model) ? req.query.model : '';
+  const model = ['haiku', 'sonnet', 'router', 'openai'].includes(req.query.model) ? req.query.model : '';
   const flag = FLAGS.includes(req.query.flag) ? req.query.flag : '';
   const q = String(req.query.q || '').trim().slice(0, 200);
   const like = q ? '%' + q.replace(/[\\%_]/g, c => '\\' + c) + '%' : '';
@@ -2577,7 +2603,8 @@ app.get('/api/admin/activity', limit(300, 'admin'), admin, async (req, res) => {
       FROM messages x WHERE x.conversation_id = m.conversation_id AND x.id > m.id AND x.role = 'assistant' ORDER BY x.id LIMIT 1) a ON true
     WHERE m.role = 'user' AND m.created_at >= b.s AND ${WHO('m')}
       AND ($5::bigint IS NULL OR m.id < $5::bigint)
-      AND ($6 = '' OR ($6 = 'router' AND a.model LIKE '%/%') OR ($6 <> 'router' AND a.model NOT LIKE '%/%' AND a.model ILIKE '%' || $6 || '%'))
+      AND ($6 = '' OR ($6 = 'router' AND a.model LIKE '%/%') OR ($6 = 'openai' AND a.model LIKE 'gpt-%')
+        OR ($6 NOT IN ('router', 'openai') AND a.model NOT LIKE '%/%' AND a.model ILIKE '%' || $6 || '%'))
       AND ($7 = '' OR ($7 = 'image' AND m.had_image) OR ($7 = 'web' AND a.web_searches > 0) OR ($7 = 'refused' AND a.refused)
         OR ($7 = 'stopped' AND a.incomplete) OR ($7 = 'fallback' AND a.model <> ALL($9)) OR ($7 = 'page' AND (m.page_doc IS NOT NULL OR m.content LIKE '<page %'))
         OR ($7 = 'highlight' AND strpos(m.content, '<highlighted_text>') > 0))

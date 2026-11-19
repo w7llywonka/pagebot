@@ -72,7 +72,7 @@ test('manifest.json: Manifest V3, only the permissions it needs, the fixed id, t
   assert.deepEqual(m, manifest(ORIGIN));
   assert.equal(m.manifest_version, 3);
   assert.equal(m.version, String(EXT_VERSION));
-  assert.deepEqual(m.permissions, ['sidePanel', 'scripting', 'tabs', 'storage', 'debugger']);
+  assert.deepEqual(m.permissions, ['sidePanel', 'scripting', 'tabs', 'storage', 'debugger', 'contextMenus']);
   assert.deepEqual(m.host_permissions, ['<all_urls>']);
   assert.equal(m.key, EXT_KEY);
   assert.equal(idFromKey(m.key), EXT_ID);

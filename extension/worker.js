@@ -1,10 +1,19 @@
-// pagebot extension's service worker. It does two small things: the toolbar button (and Alt+Shift+P) opens pagebot in the
-// side panel, and when a side panel closes in the middle of a step, it lets go of any key that step held and detaches the
+// pagebot extension's service worker. It does two small things: the toolbar button (and Alt+Shift+P, and "Ask pagebot" on
+// selected text) opens pagebot in the side panel, and when a side panel closes in the middle of a step, it lets go of any key that step held and detaches the
 // debugger, so nothing is left attached to a tab. It never listens to web pages or other extensions.
 'use strict';
 chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 // a browser without the side panel: the same page in a small window that works on the window it was opened from
-if (!chrome.sidePanel) chrome.action.onClicked.addListener(tab => { chrome.windows.create({ url: 'sidepanel.html?win=' + tab.windowId, type: 'popup', width: 440, height: 760 }); });
+const openFor = tab => {
+  if (chrome.sidePanel) chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
+  else chrome.windows.create({ url: 'sidepanel.html?win=' + tab.windowId, type: 'popup', width: 440, height: 760 });
+};
+if (!chrome.sidePanel) chrome.action.onClicked.addListener(openFor);
+// "Ask pagebot" on selected text opens the panel; the page keeps the selection, and the panel reads it with the page as usual
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.removeAll(() => chrome.contextMenus.create({ id: 'ask', title: 'Ask pagebot', contexts: ['selection'] }, () => void chrome.runtime.lastError));
+});
+chrome.contextMenus.onClicked.addListener((info, tab) => { if (info.menuItemId === 'ask' && tab) openFor(tab); });
 
 const PANEL = chrome.runtime.getURL('sidepanel.html');
 // what each open panel has attached or held: tab → { keys, mouse, x, y }, also kept in session storage for a worker that restarts
