@@ -23,7 +23,7 @@
 //    opens a pop-up instead), so the loading mark is up while the rest arrives. What the bookmark says back before the
 //    main script is listening is kept in `heard` for it.
 (function () {
-  var E = window.__pbEarly = { token: null, device: null, boot: null, msg: {}, ready: false, heard: [], hear: null, dock: false, dockW: 0, screenSize: null };
+  var E = window.__pbEarly = { token: null, device: null, boot: null, msg: {}, ready: false, look: '', heard: [], hear: null, close: null, dock: false, dockW: 0, screenSize: null };
   var get = function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } };
   var json = function (k) { try { return JSON.parse(get(k)); } catch (e) { return null; } };
   E.token = get('pb_token'); E.device = get('pb_dev');
@@ -59,12 +59,36 @@
   if (!embedded || !window.MutationObserver) return; // the pop-up window and /chat: the main script says 'ready'
   E.hear = function (e) { if (e.source === parent) E.heard.push(e); };
   addEventListener('message', E.hear);
+  // The panel can be on screen long before the main script is: until then the header's close button (all there is to
+  // press once the loading mark's 6 s failsafe has run out) and Esc still put it away, as closePanel() does.
+  E.close = function (e) {
+    if (e.type === 'keydown' ? e.key !== 'Escape' || e.isComposing : !(e.target.closest && e.target.closest('#closeBtn'))) return;
+    if (document.hasFocus()) { if (document.activeElement) document.activeElement.blur(); try { parent.focus(); } catch (x) {} } // the keyboard goes back to the page
+    try { parent.postMessage({ type: 'close' }, '*'); } catch (x) {}
+  };
+  addEventListener('click', E.close); addEventListener('keydown', E.close);
+  // Glass and Clear need the bookmark before the panel is seen as well (it blurs the page behind, or drops the panel's
+  // shadow), so that request goes out right behind 'ready', as when the main script said both in one go. Its answer (is
+  // the page behind light or dark?) goes on <html> here, and the main script carries on from it (E.look, see syncGlass).
+  var th = document.documentElement.getAttribute('data-theme'), look = th === 'glass' && hostV >= 4 ? 'glass' : th === 'clear' && hostV >= 6 ? 'clear' : '';
   var seen = new MutationObserver(function () {
     if (!document.body) return;
     seen.disconnect();
     if (E.ready) return; // (the main script got there first: it is said once)
     E.ready = true;
     try { parent.postMessage(Object.assign({ type: 'ready' }, m), '*'); } catch (e) {}
+    if (!look) return;
+    E.look = look; // until the main script changes the theme, or asks again
+    var got = function (e) {
+      if (e.source !== parent || !e.data || e.data.id !== 'early-look') return;
+      removeEventListener('message', got);
+      if (E.look !== look) return;
+      var root = document.documentElement;
+      if (look === 'glass') root.setAttribute('data-blur', '1');
+      root.setAttribute('data-page', e.data.light ? 'light' : 'dark');
+    };
+    addEventListener('message', got); setTimeout(function () { removeEventListener('message', got); }, 1500); // (as long as the main script waits)
+    try { parent.postMessage({ type: look, on: true, id: 'early-look' }, '*'); } catch (e) {}
   });
   seen.observe(document.documentElement, { childList: true });
 })();
@@ -1809,6 +1833,7 @@ const fromHost = e => {
 };
 addEventListener('message', fromHost);
 removeEventListener('message', early.hear); // what the head script kept is handled at the very end, once everything it touches exists
+removeEventListener('click', early.close); removeEventListener('keydown', early.close); // closePanel() takes over from here
 // 'ready' (the panel's saved place, size and docking) is worked out, and normally already sent, by the head script
 const screenSize = early.screenSize;
 let docked = early.dock, dockW = early.dockW; // 0: nothing saved
@@ -1852,12 +1877,14 @@ function applyTheme(t, fade) {
   loaders.forEach(l => l.retheme()); // the pixel loader follows the theme's colours
 }
 // glass needs the bookmarklet to blur the page behind the panel, and clear needs it to drop the panel's shadow;
-// either way it also says if that page is light or dark
-let glassOn = false, clearOn = false;
+// either way it also says if that page is light or dark. In the bookmark's frame the head script has usually asked
+// already, with its 'ready', for the theme painted on the first frame (early.look); its answer is used until we ask again.
+let glassOn = early.look === 'glass', clearOn = early.look === 'clear';
 function syncGlass(recheck) {
   const root = document.documentElement, t = root.dataset.theme;
   const g = t === 'glass' && hostV4, c = t === 'clear' && hostV6;
   if (g === glassOn && c === clearOn && !recheck) return;
+  early.look = ''; // (an answer to the head script that comes after this is out of date)
   if (glassOn && !g) tell('glass', { on: false });
   if (clearOn && !c) tell('clear', { on: false });
   glassOn = g; clearOn = c;
@@ -1891,7 +1918,7 @@ for (const [key, name, bg, acc, user, text] of THEMES) {
   b.onclick = () => { applyTheme(key, true); savePrefs({ theme: key }); };
   (['auto', 'ember', 'paper', 'midnight', 'forest', 'dusk', 'sakura'].includes(key) ? $('#themes') : moreThemes.querySelector('.themes')).appendChild(b);
 }
-syncGlass(); // the theme painted on the first frame may already be glass or clear
+syncGlass(); // the theme painted on the first frame may already be glass or clear (asked for here unless the head script did)
 
 // ---- rendering ----
 const log = $('#log');

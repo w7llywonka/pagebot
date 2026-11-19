@@ -45,6 +45,13 @@ const until = async (what, check, ms = 5000) => {
 };
 // the page has the whole answer to its early boot (a finished request is in its resource timings)
 const bootBack = frame => until('the boot answer to be in the page', () => frame.evaluate(() => performance.getEntriesByType('resource').some(e => e.name.endsWith('/api/boot'))));
+// an init script for a busy host page: what the panel says reaches the bookmark only when the test calls __letGo(), all of it and in order
+const busyHost = () => {
+  if (location.hostname !== '127.0.0.1') return;
+  const held = [], hold = e => { const f = document.getElementById('__pagebot'); if (f && e.source === f.contentWindow) { e.stopImmediatePropagation(); held.push(e); } };
+  addEventListener('message', hold);
+  window.__letGo = () => { removeEventListener('message', hold); for (const e of held.splice(0)) dispatchEvent(new MessageEvent('message', { data: e.data, origin: e.origin, source: e.source })); };
+};
 const done = { t: 'done', conversationId: 42, model: 'haiku', usage: { in: 50, out: 20 }, stop: 'end_turn' };
 
 // hold: the page stops arriving just before its main script until release() (the head, the styles and the markup are there)
@@ -117,7 +124,9 @@ async function fixture(t, { standalone = false, token = 'test-session', store = 
   const ready = async (box = '#q') => { await frame.locator('#boot').waitFor({ state: 'detached' }); await frame.locator(box).waitFor({ state: 'visible' }); };
   const host = type => page.evaluate(t => window.hostRequests.filter(r => r.type === t), type);
   const shown = () => page.evaluate(() => { const f = document.getElementById('__pagebot'); return !!f && f.style.display !== 'none' && f.style.opacity === '1'; });
-  return { page, state, open, click, ready, host, shown, release: () => gate.resolve(), get frame() { return frame; }, ORIGIN };
+  // shown, and done fading in: until then the frame is still moving and shrunk a little, so a click aimed inside it can land beside it
+  const steady = () => until('the panel to finish fading in', () => page.evaluate(() => { const f = document.getElementById('__pagebot'); return !!f && f.style.display !== 'none' && f.style.opacity === '1' && !f.getAnimations().length; }));
+  return { page, state, open, click, ready, host, shown, steady, release: () => gate.resolve(), get frame() { return frame; }, ORIGIN };
 }
 
 browserTest('the first boot leaves while the page is still arriving, with the session and this browser’s id, and a normal open asks once', async t => {
@@ -224,6 +233,76 @@ browserTest('the bookmark shows the panel while the page is still arriving, and 
   assert.ok(sent.size.w >= 360 && sent.size.h >= 420 && sent.dw >= 420 && sent.dock === false, JSON.stringify(sent));
   old.release(); await old.ready();
   assert.equal((await old.host('ready')).length, 1);
+});
+
+browserTest('a panel shown while the page is still arriving can be closed, even once the loading mark has given up', async t => {
+  const f = await fixture(t, { hold: true });
+  const frame = await f.open();
+  await until('the panel to be shown', f.shown);
+  const hidden = () => until('the panel to be put away', () => f.page.evaluate(() => document.getElementById('__pagebot').style.display === 'none'));
+  // the main script still hasn't come when the loading mark's failsafe runs out (6 s): the header's close button is what's left
+  await frame.locator('#closeBtn').click({ timeout: 9000 });
+  await hidden();
+  assert.equal(await frame.evaluate(() => document.readyState), 'loading', 'the main script has not arrived');
+  assert.equal((await f.host('close')).length, 1);
+  // Esc does the same, and the keyboard goes back to the page
+  await f.click(); await f.steady();
+  await frame.locator('header .title').click();
+  await frame.waitForFunction(() => document.hasFocus()); // (the click's focus reaches the panel's process a moment later)
+  await f.page.keyboard.press('Escape');
+  await hidden();
+  assert.equal((await f.host('close')).length, 2);
+  assert.notEqual(await f.page.evaluate(() => document.activeElement?.id), '__pagebot');
+  // once the main script is here, closing is its job, said once
+  await f.click(); await until('the panel to be shown again', f.shown);
+  f.release(); await f.ready(); await f.steady();
+  await frame.locator('#closeBtn').click();
+  await hidden();
+  assert.equal((await f.host('close')).length, 3);
+  assert.equal(f.state.boots.length, 1);
+});
+
+browserTest('a Glass or Clear panel shown while the page is still arriving already looks like it: the page behind blurred, or no shadow', async t => {
+  // every change the bookmark makes to the frame's look on the host page
+  const init = () => {
+    if (location.hostname !== '127.0.0.1') return;
+    window.__looks = [];
+    new MutationObserver(() => { const f = document.getElementById('__pagebot'); if (f) window.__looks.push([f.style.opacity, f.style.boxShadow, f.style.backdropFilter]); })
+      .observe(document, { subtree: true, attributes: true, attributeFilter: ['style'] });
+  };
+  const root = frame => frame.evaluate(() => [document.documentElement.dataset.blur ?? null, document.documentElement.dataset.page ?? null]);
+  for (const theme of ['glass', 'clear']) {
+    const f = await fixture(t, { hold: true, init, store: { pb_theme: theme }, boot: { ...account, theme, prefs: { ...account.prefs, theme } } });
+    const frame = await f.open();
+    await until('the panel to be shown', f.shown);
+    const seen = (await f.page.evaluate(() => window.__looks)).filter(([opacity]) => opacity !== '0');
+    assert.ok(seen.length, 'shown');
+    for (const [, shadow, blur] of seen) if (theme === 'glass') assert.match(blur, /blur/, 'never shown without the blur'); else assert.equal(shadow, 'none', 'never shown with a shadow');
+    // and inside, the glass knows the page behind is light, as it did when the main script asked
+    await until('the panel to know the page behind', async () => (await root(frame))[1]);
+    assert.equal(await frame.evaluate(() => document.readyState), 'loading', 'the main script has not arrived');
+    assert.deepEqual(await root(frame), [theme === 'glass' ? '1' : null, 'light'], theme);
+    f.release(); await f.ready(); await sleep(300);
+    assert.deepEqual(await root(frame), [theme === 'glass' ? '1' : null, 'light'], 'the main script carries on from that answer');
+    assert.deepEqual((await f.host(theme)).map(r => r.on), [true], 'and does not ask again');
+  }
+  // the account's theme turns out to be another one: the glass the head script asked for is put away again
+  const f = await fixture(t, { hold: true, init, store: { pb_theme: 'glass' } });
+  const frame = await f.open();
+  await until('the panel to know the page behind', async () => (await root(frame))[1]);
+  f.release(); await f.ready();
+  await until('the theme from the server', () => frame.evaluate(() => document.documentElement.dataset.theme === 'ember'));
+  assert.deepEqual(await root(frame), [null, null]);
+  assert.deepEqual((await f.host('glass')).map(r => r.on), [true, false]);
+  assert.doesNotMatch(await f.page.evaluate(() => document.getElementById('__pagebot').style.backdropFilter), /blur/);
+  // and when the bookmark's answer to the head script only comes after that (a busy page), it is not put on the panel
+  const busy = await fixture(t, { init: busyHost, store: { pb_theme: 'glass' } });
+  const late = await busy.open();
+  await until('the theme from the server', () => late.evaluate(() => document.documentElement.dataset.theme === 'ember'));
+  await busy.page.evaluate(() => window.__letGo());
+  await until('the panel to be shown', busy.shown); await busy.ready(); await sleep(300);
+  assert.deepEqual((await busy.host('glass')).map(r => r.on), [true, false]);
+  assert.deepEqual(await root(late), [null, null], 'no glass marks on a Carbon panel');
 });
 
 browserTest('nothing on the way to the first screen loads the locale data or draws the companions, and both are there on first use', async t => {
